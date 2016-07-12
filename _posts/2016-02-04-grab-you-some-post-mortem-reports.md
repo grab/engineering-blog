@@ -1,9 +1,11 @@
 ---
 layout: post
-title:  "Grab You Some Post-Mortem Reports"
-date:   2016-02-04 03:46:00
+id: grab-you-some-post-mortem-reports
+title: Grab You Some Post-Mortem Reports
+date: 2016-02-04 03:46:00
 author: Lian Yuanlin
 author_thumbnail: https://avatars2.githubusercontent.com/u/10098065?v=3&s=400
+comments: true
 ---
 
 Grab adopts a Service-Oriented Architecture (SOA) to rapidly develop and deploy new feature services. One of the drawbacks of such a design is that team members find it hard to help with debugging production issues that inevitably arise in services belonging to other stakeholders.
