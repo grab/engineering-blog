@@ -1,6 +1,6 @@
 ---
 layout: post
-id: ux-ui
+id: programmers-beware-ux-is-not-just-for-designers
 title: Programmers Beware - UX is not just for designers
 date: 2016-07-05 08:23:00
 author: Corey Scott
@@ -9,11 +9,13 @@ comments: true
 excerpt: "Perhaps one of the biggest missed opportunities in Tech in recent history is UX.
 
 Somehow, UX became the domain of Product Designers and User Interface Designers.
+
 While they definitely are the right people to be thinking about web pages, mobile app screens and so on, we've missed a huge part of what we engineers work on everyday: SDKs and APIs."
 ---
 Perhaps one of the biggest missed opportunities in Tech in recent history is UX.
 
 Somehow, UX became the domain of Product Designers and User Interface Designers.
+
 While they definitely are the right people to be thinking about web pages, mobile app screens and so on, we've missed a huge part of what we engineers work on everyday: SDKs and APIs.
 
 We live in a time where "the API economy" exists and has tangible monetary and strategic value and yet these UXs are seldom considered.
@@ -25,7 +27,8 @@ First let me give you my perspective on UX.  UX stands for "User Experience" or 
 
 UX is not black art; you don't even need to study it. I believe it can be uncovered through logic, persistence and experience.
 
-I believe a good UX can be discovered using the following "UX Discovery Survey". 
+I believe a good UX can be discovered using the following "UX Discovery Survey".
+
 Ask yourself (or your team) these quick 5 questions and you will be well on your way to create better UXs.
 
 - **Who/What is the user?** - Yes, users can be other systems and not just people.
