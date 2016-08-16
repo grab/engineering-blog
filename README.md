@@ -24,7 +24,7 @@ Each post should have the following front matter defined:
 |Property|Explanation|Example
 |:---|:---|:---|
 |`layout`|The layout template from the `_layouts` directory. We only have `post` for now.|`post`|
-|`id`|Unique slug of blog entry|`curious-case-of-the-phantom-instance`|
+|`id`|Unique id for each blog entry. This is used by Disqus to uniquely identify posts and should not be modified if a Disqus thread for that post already exists.|`curious-case-of-the-phantom-instance`|
 |`title`|Title of blog entry|`The Curious Case of The Phantom Instance`|
 |`date`|Date of entry in `DDDD-MM-YY HH:MM:SS` format|`2015-12-28 04:39:00`|
 |`author`|Author of blog entry|`Lian Yuanlin`|
@@ -32,9 +32,9 @@ Each post should have the following front matter defined:
 |`comments`|Whether to display Disqus comments box. Why would you set this to `false`?|`true`|
 |`excerpt`|Your catchy excerpt that will be shown on the list of blog entries page. Wrap your excerpt in quotes if it spans across multiple lines.|`"Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics."`|
 
-Proceed to write your blog entry in markdown format. Should you want to add images to your blog entry, the files should be added to the `img/<your post id>` folder.
+Proceed to write your blog entry in [Github-flavoured Markdown](https://help.github.com/articles/basic-writing-and-formatting-syntax/) format. Should you want to add images to your blog entry, the files should be added to the `img/<post-id>` folder.
 
-When you are done with your entry, simply make a pull request and ping us in the `#eng-bloggers` channel to request for a review!
+When you are done with your entry, simply make a pull request and ping us in the `#eng-bloggers` Slack channel to request for a review!
 
 That's it, happy blogging!
 
