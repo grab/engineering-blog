@@ -6,7 +6,6 @@ date: 2016-08-26 13:43:40
 author: Avinash Papatla
 author_thumbnail: /img/users/avinash.jpg
 comments: true
-published: false
 excerpt: "The reasoning behind small sample sizes in qualitative usability research."
 ---
 
