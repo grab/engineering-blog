@@ -19,7 +19,11 @@ The sufficiency and thereby reliability of findings derived from testing a featu
 
 Depending of the problem (stage of the design process), user researchers suggest an appropriate methodology that is best suited to uncover insights. For example, if we want to understand what soap people are using, a **survey** (quantitative) is a recommended approach to reach a large audience in a short span of time. To understand why they use the soap running a survey alone will not be enough. Beyond the common factors of price, branding, flavour of the soap there maybe others that require deeper understanding (For example, the way the soaps are stored in the shelves of the market). In a **contextual inquiry** (qualitative) participants are observed in their natural environment over a large period of time from pre purchase to post purchase journey. As this takes a longer time we would have a smaller sample size. What the exact number is for a sample size depends on a lot of factors, which is beyond the scope of this paper.
 
-![Common Research Methods](/img/why-test-design/common-research-methods.png)
+<div class="post-image-section">
+  <img alt="Common Research Methods" src="/img/why-test-design/common-research-methods.png">
+  <small class="post-image-caption">Some common research methods that come to mind</small>
+</div>
+
 
 ### As with everything else in life — budget, time and resources affect the ability to conduct more research and thereby with more users.
 
@@ -29,7 +33,7 @@ If you work in a setup that is truly agile then all functions need to iterate on
 
 <div class="post-image-section">
   <img alt="Money Time Value Dice" src="/img/why-test-design/dice.png">
-  <small>MVP for research is something researchers think about</small>
+  <small class="post-image-caption">MVP for research is something researchers think about</small>
 </div>
 
 ### The magical (or not) number 5
@@ -38,12 +42,12 @@ In the year 1993, renowned usability expert, Jakob Nielsen, published a scientif
 
 <div class="post-image-section">
   <img alt="Number of Users" src="/img/why-test-design/number-of-users.gif">
-  <small>Nielsen's hypothesis on return value of sample size</small>
+  <small class="post-image-caption">Nielsen's hypothesis on return value of sample size</small>
 </div>
 
 #### When can we test with 5 users?
 
-- The research methodology is usability testing only that is qualitative in nature.
+- The research methodology is usability testing only that is **qualitative** in nature.
 - Testing flows, interactions and visuals of the same set of features. (not 2 different apps)
 
 #### When can we not test with just 5 users?
