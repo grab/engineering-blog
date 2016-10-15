@@ -6,6 +6,7 @@ date: 2016-10-14 18:43:40
 author: Grab Engineering
 author_thumbnail: /img/users/grab-engineering-logo.png
 comments: true
+cover_photo: /img/grab-vietnam-careers-week/son-hai.jpg
 excerpt: "Grab is organising our first ever Grab Vietnam Careers Week in Ho Chi Minh City, Vietnam, from 22 to 26 October 2016. We are eager to have more engineers join our ranks to make a difference to improving transportation and reducing congestion in Southeast Asia. We are now on 23 million mobile devices supported by 460,000 drivers in the region, but we're only started and have much more to achieve! To find out more about Grab, take a look at our corporate profile at the end of this post."
 ---
 
