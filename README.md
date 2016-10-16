@@ -29,6 +29,7 @@ Each post should have the following front matter defined:
 |`date`|Date of entry in `DDDD-MM-YY HH:MM:SS` format|`2015-12-28 04:39:00`|
 |`author`|Author of blog entry|`Lian Yuanlin`|
 |`author_thumbnail`|URL to your thumbnail|`https://avatars2.githubusercontent.com/u/10098065?v=3&s=400`|
+|`cover_photo`|Relative URL to the FB open graph image|`/img/grab-vietnam-careers-week/son-hai.jpg`|
 |`comments`|Whether to display Disqus comments box. Why would you set this to `false`?|`true`|
 |`excerpt`|Your catchy excerpt that will be shown on the list of blog entries page. Wrap your excerpt in quotes if it spans across multiple lines.|`"Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics."`|
 
