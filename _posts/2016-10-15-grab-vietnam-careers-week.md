@@ -10,7 +10,7 @@ cover_photo: /img/grab-vietnam-careers-week/son-hai.jpg
 excerpt: "Grab is organising our first ever Grab Vietnam Careers Week in Ho Chi Minh City, Vietnam, from 22 to 26 October 2016. We are eager to have more engineers join our ranks to make a difference to improving transportation and reducing congestion in Southeast Asia. We are now on 23 million mobile devices supported by 460,000 drivers in the region, but we're only started and have much more to achieve! To find out more about Grab, take a look at our corporate profile at the end of this post."
 ---
 
-Grab is organising our first ever Grab Vietnam Careers Week in Ho Chi Minh City, Vietnam, from 22 to 26 October 2016. We are eager to have more engineers join our ranks to make a difference to improving transportation and reducing congestion in Southeast Asia. We are now on 23 million mobile devices supported by 460,000 drivers in the region, but we're only started and have much more to achieve! To find out more about Grab, take a look at our corporate profile at the end of this post.
+Grab is organising our first ever <a href="https://grb.to/vn-careers">Grab Vietnam Careers Week</a> in Ho Chi Minh City, Vietnam, from 22 to 26 October 2016. We are eager to have more engineers join our ranks to make a difference to improving transportation and reducing congestion in Southeast Asia. We are now on 23 million mobile devices supported by 460,000 drivers in the region, but we're only started and have much more to achieve! To find out more about Grab, take a look at our corporate profile at the end of this post.
 
 We have a lot of Vietnamese talent delivering features that delight our users on our flagship mobile apps. Read the Q&A with iOS engineer Hai Pham and Android engineer Son Nguyen from our Singapore R&D centre with their perspectives on what it's like working at Grab. There are even tips for our future Vietnamese Grabbers!
 
@@ -58,6 +58,12 @@ Singapore is very comfortable and convenient. I do joke when colleagues ask me h
 <strong>Hai:</strong> I crave for HCM street food! Although there are a few good Vietnamese restaurants here, you can't compare with what you get back home. I will recommend <a href="http://www.mrspho.com/">Mrs Pho</a> which I frequent every week.
 
 <strong>Son:</strong> Come join us, I'll tell you lots of amazing things you can explore and try in Singapore to overcome your homesickness! Our Vietnamese friends at Grab are friendly and talented and we often have lunch together. Also, we have colleagues from all over the world to recommend other types of good food to try in Singapore. What's more, HCM is just 2 hours away by plane!
+
+<br>
+
+<em>Find out more about Grab Vietnam Careers Week: <a href="https://grb.to/vn-careers">https://grb.to/vn-careers</a></em>
+
+<br>
 
 <div class="post-image-section">
   <a href="/img/grab-vietnam-careers-week/grab-corporate-profile.jpg">
