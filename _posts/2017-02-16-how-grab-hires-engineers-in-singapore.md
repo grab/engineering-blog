@@ -34,7 +34,7 @@ We, however, are on your side. We want to make the hiring process as transparent
 
 For this reason, we're embarking on a series of articles that will uncover the hiring processes of leading technology companies in Singapore. Let us know how we can improve on this - what other information you'd like to see, which companies you'd like to read about here, and so on.
 
-First up, a ride-hailing company that has <a href="https://www.techinasia.com/companies/grab" rel="noopener noreferrer">raised US$1.4 billion in funding</a> (that we know of) to date - **Grab**.
+First up, a ride-hailing company that has <a href="https://www.techinasia.com/companies/grab" target="_blank" rel="noopener noreferrer">raised US$1.4 billion in funding</a> (that we know of) to date - **Grab**.
 
 ### Interview Process at Grab
 
@@ -115,7 +115,7 @@ According to Rachel, there are many opportunities to relocate and work at Grab's
 
 "I recognize that their entire life can change!" she explains. "For those keen to explore an overseas work opportunity with Grab, do take time to consider and research about living in Singapore. Singapore is a great place for tech talent, as it comes with plenty of opportunities in the tech industry."
 
-Indeed, she's extremely optimistic about the prospects of those keen on moving to Singapore, where Grab chose to <a href="http://www.channelnewsasia.com/news/business/singapore/grabtaxi-opens-s-136m-r-d/1772932.html" rel="noopener noreferrer">open its US$100 million R&D centre</a> - right in the heart of the Central Business District.
+Indeed, she's extremely optimistic about the prospects of those keen on moving to Singapore, where Grab chose to <a href="http://www.channelnewsasia.com/news/business/singapore/grabtaxi-opens-s-136m-r-d/1772932.html" target="_blank" rel="noopener noreferrer">open its US$100 million R&D centre</a> - right in the heart of the Central Business District.
 
 > "The city-state hosts a mature tech ecosystem and the abundance of local, regional and global companies is beneficial to tech professionals. What's more it has been consistently ranked as the top city in the world for technology readiness, transportation, infrastructure, tax and the ease of doing business by PwC's Cities of Opportunity report."
 
@@ -125,4 +125,4 @@ Furthermore, she believes that working at Grab will be the "most challenging yet
 
 Grab is one of several leading technology companies hiring technical talent on 100offer's marketplace. Sign up for 100offer to see what opportunities there are in the market right now.
 
-_This article was first published on the <a href="https://www.100offer.com/blog/posts/grab-hiring-singapore/?utm_source=grab-engineering&utm_medium=essay" rel="noopener noreferrer">100offer blog</a>._
+_This article was first published on the <a href="https://www.100offer.com/blog/posts/grab-hiring-singapore/?utm_source=grab-engineering&utm_medium=essay" target="_blank" rel="noopener noreferrer">100offer blog</a>._
