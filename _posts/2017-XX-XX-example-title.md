@@ -7,6 +7,6 @@ author: Grab Engineering
 author_thumbnail: /img/users/grab-engineering-logo.png
 comments: true
 cover_photo: /img/path/to/img.jpg
-excerpt:
+excerpt: "Some string here that must be in quotes if you want it to span across multiple lines."
 ---
 
