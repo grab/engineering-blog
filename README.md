@@ -27,7 +27,7 @@ If you are a new author, add your bio to `_data/authors.yml`, for example:
 lian-yuanlin: # This is the ID of the author
   name: Lian Yuanlin
   thumbnail: /img/authors/lian-yuanlin.jpg # Use a remote image or add your own image
-  github: alienchow # Github Username
+  github: alienchow # Github Username (optional)
 ```
 
 #### Writing your post
