@@ -3,8 +3,7 @@ layout: post
 id: battling-with-tech-giants-for-the-worlds-best-talent
 title: Battling with Tech Giants for the World's Best Talent
 date: 2017-01-18 18:43:40
-author: Grab Engineering
-author_thumbnail: /img/users/grab-engineering-logo.png
+author: grab-engineering
 comments: true
 cover_photo: /img/battling-with-tech-giants/user-trust-offsite-group-photo.jpg
 excerpt:

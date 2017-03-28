@@ -3,8 +3,7 @@ layout: post
 id: grab-you-some-post-mortem-reports
 title: Grab You Some Post-Mortem Reports
 date: 2016-02-04 03:46:00
-author: Lian Yuanlin
-author_thumbnail: https://avatars2.githubusercontent.com/u/10098065?v=3&s=400
+author: lian-yuanlin
 comments: true
 ---
 
