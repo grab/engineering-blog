@@ -17,7 +17,7 @@ A recent problem we had with our ElastiCache Redis involving our Unicorn API, wa
   <img alt="Unicorn" src="/img/key-expired-in-redis/unicorn.png">
 </div>
 
-Unicorns are in popular demand and change infrequently. Grab Unicorns are cached at almost every service level. Unfortunately, customers typically like having shiny new unicorns as soon as they are spotted, so we had to make sure we bound our Unicorn change propagation time. In this particular case, we found that apart from the usual minuscule DB replication lag, a region-specific change in Unicorns took up to 60 minutes to reach our customers.
+Unicorns are in popular demand and change infrequently, and as a result, Grab Unicorns are cached at almost every service level. Unfortunately, customers typically like having shiny new unicorns as soon as they are spotted, so we had to make sure we bound our Unicorn change propagation time. In this particular case, we found that apart from the usual minuscule DB replication lag, a region-specific change in Unicorns took up to 60 minutes to reach our customers.
 
 <div class="post-image-section">
   <img alt="Cacheception" src="/img/key-expired-in-redis/cacheception.png">
