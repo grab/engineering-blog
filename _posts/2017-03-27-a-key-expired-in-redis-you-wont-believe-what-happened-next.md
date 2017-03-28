@@ -120,7 +120,7 @@ So to have fewer than 1 expired key,
 
 Assuming we started with 25% keys expired, we plug in:
 
- *e<sub>0</sub> = 25 * 5594518, n = 20, s = 5594518*
+ *e<sub>0</sub> = 0.25 * 5594518, n = 20, s = 5594518*
 
 We obtain a value of *k* around 3958395. Since this is repeated 10 times a second, it would take roughly 110 hours to achieve this (as *e<sub>k</sub>* is a decreasing function of *k*).
 
