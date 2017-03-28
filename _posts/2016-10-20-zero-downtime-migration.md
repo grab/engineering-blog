@@ -3,8 +3,7 @@ layout: post
 id: zero-downtime-migration
 title: This Rocket Ain't Stopping - Achieving Zero Downtime for Rails to Golang API Migration
 date: 2016-10-18 18:43:40
-author: Lian Yuanlin
-author_thumbnail: https://avatars2.githubusercontent.com/u/10098065?v=3&s=400
+author: lian-yuanlin
 comments: true
 cover_photo: /img/zero-downtime-migration/data-comparison.png
 excerpt:

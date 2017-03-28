@@ -3,8 +3,7 @@ layout: post
 id: how-grab-hires-engineers-in-singapore
 title: How Grab Hires Engineers In Singapore
 date: 2017-02-16 18:43:40
-author: Daniel Tay
-author_thumbnail: /img/users/daniel-tay.jpg
+author: daniel-tay
 comments: true
 cover_photo: /img/how-grab-hires-engineers-in-singapore/grab-engineers-working.jpg
 excerpt:
