@@ -2,7 +2,7 @@
 layout: post
 id: a-key-expired-in-redis-you-wont-believe-what-happened-next
 title: A Key Expired In Redis, You Won't Believe What Happened Next
-date: 2017-03-26 18:43:40
+date: 2017-03-27 18:43:40
 author: Karan Kamath
 author_thumbnail: /img/users/karan-kamath.jpg
 comments: true
@@ -139,8 +139,8 @@ At our scale, and assuming >25% expired keys at the beginning of time, it would 
 #### Footnotes
 
 [^1]: ElastiCache is hardly elastic, considering your "scale up" is a deliberate process involving backup, replicate, deploy, and switch, during which time your server is serving peak hour teapots (as reads and writes may be disabled). <http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Scaling.html>
-[^2]: This, as it turns out, is a bad idea. In case of failovers, AWS updates the master address to point to the new master, but this is not guaranteed for the slaves. So we could end up with an unused slave and a master with reads + writes in the worst case (unless we add some custom code to manage the failover).  Best practice is to have read load distributed on master as well.
-[^3]: Turns out that streaming solutions are rather good at this, when we applied them to some of our non-Unicorn offerings. (Writes are streamed, and readers listen and invalidate their cache as required.)
+[^2]: Turns out that streaming solutions are rather good at this, when we applied them to some of our non-Unicorn offerings. (Writes are streamed, and readers listen and invalidate their cache as required.)
+[^3]: This, as it turns out, is a bad idea. In case of failovers, AWS updates the master address to point to the new master, but this is not guaranteed for the slaves. So we could end up with an unused slave and a master with reads + writes in the worst case (unless we add some custom code to manage the failover). Best practice is to have read load distributed on master as well.
 [^4]: <https://redis.io/commands/expire#how-expires-are-handled-in-the-replication-link-and-aof-file>
 [^5]: <https://redis.io/commands/expire#how-redis-expires-keys>
 [^6]: <https://github.com/antirez/redis/issues/1768> (TL;DR: Slaves now use local clock to return null to clients when it thinks keys are expired. The trade-off is the possibility of early expires if a slave's clock is faster than the master.)
