@@ -28,25 +28,25 @@ If you can relate to any of the above. This article is for you. We set up and de
 
 Testing and distribution are two aspects that we put a lot of effort in automating. Part I will cover how we do integration tests at Grab.
 
-## Testing - XCode Server
+## Testing - Xcode Server
 
-Besides being a complete Apple fan myself, there are a couple of other reasons why we chose XCode Server over [Travis](https://travis-ci.org/) and [Bitrise](https://www.bitrise.io/) (which our Android team uses) to run our tests.
+Besides being a complete Apple fan myself, there are a couple of other reasons why we chose Xcode Server over [Travis](https://travis-ci.org/) and [Bitrise](https://www.bitrise.io/) (which our Android team uses) to run our tests.
 
 #### Faster integration
 
 Unlike most cloud services where every test is run in a random box from a macOS farm, at Grab, we have complete control of what machine we connect to. Provisioning a server (pretty much downloading Xcode, a macOS server, combined with some extremely simple steps) is a one-time affair and does not have to be repeated during each integration. e.g. Installing correct version of Cocoapod and command line libraries.
 
-Instead of fresh cloning a repository, XCode Server simply checks out the branch and pulls the latest code. That can save time especially when you have a long commit history.
+Instead of fresh cloning a repository, Xcode Server simply checks out the branch and pulls the latest code. That can save time especially when you have a long commit history.
 
 #### Native native native
 
-It is a lot more predictable. It guarantees that it's the same OS, same Xcode version, same Swift version. If the tests passes on your XCode, and on your teammates' XCodes, it will pass on the server's XCode.
+It is a lot more predictable. It guarantees that it's the same OS, same Xcode version, same Swift version. If the tests passes on your Xcode, and on your teammates' Xcodes, it will pass on the server's Xcode.
 
 #### Perfect UI Testing Process Recording
 
-This is the most important reason and is something Travis / Bitrise didn't offer at the time I was doing my research. When a UI test fails, knowing which line number caused it to fail is simply not enough. You would rather know what exactly happened. XCode Server records every single step of your integration just like XCode. You can easily skim through the whole process and view the screenshots at each stage. XCode 8 even allows you to view a live screen on the XCode Server while an integration is running.
+This is the most important reason and is something Travis / Bitrise didn't offer at the time I was doing my research. When a UI test fails, knowing which line number caused it to fail is simply not enough. You would rather know what exactly happened. Xcode Server records every single step of your integration just like Xcode. You can easily skim through the whole process and view the screenshots at each stage. Xcode 8 even allows you to view a live screen on the Xcode Server while an integration is running.
 
-For those of you who are familiar with UI testing on XCode, you can view the results from the server in the exact same format. Clicking on the eye icon allows you to view the screenshots.
+For those of you who are familiar with UI testing on Xcode, you can view the results from the server in the exact same format. Clicking on the eye icon allows you to view the screenshots.
 
 <div class="post-image-section">
   <img alt="Xcode UI Tests" src="/img/ios-automation/xcode-ui-tests.png">
@@ -94,25 +94,25 @@ end
 
 As you can see, `XCODE_SERVER_URL` is configurable. This is how we scale when the team expands.
 
-Now the only thing left is to figure out the body payload. It is simple, all the bots and their configurations can be viewed as JSON via the following API. Simply create a bot via XCode UI and it will reveal all the secrets:
+Now the only thing left is to figure out the body payload. It is simple, all the bots and their configurations can be viewed as JSON via the following API. Simply create a bot via Xcode UI and it will reveal all the secrets:
 
 ~~~sh
 curl -k -u username:password https://your.server.com:20343/api/bots
 ~~~
 
-Apple doesn't have a lot of documentation on this. For a list of XCode Server APIs you can try out [this list](http://docs.xcodeserverapidocs.apiary.io/#reference/bots/bots/create-a-new-bot).
+Apple doesn't have a lot of documentation on this. For a list of Xcode Server APIs you can try out [this list](http://docs.xcodeserverapidocs.apiary.io/#reference/bots/bots/create-a-new-bot).
 
 ## Gotchas
 
 We have been happy with the server most of the time. However, along the way we did discover several downsides:
 
-- The simulator that the XCode Server spins up does not necessarily have customized location enabled. You probably want to mock your locations in code in testing environment.
+- The simulator that the Xcode Server spins up does not necessarily have customized location enabled. You probably want to mock your locations in code in testing environment.
 - Installed builds are being updated during each integration and reused. There might be cache issues from previous integrations. Hence, deleting the app in your pre-integration script can be a good idea:
 
   ~~~sh
   $ xcrun simctl uninstall booted your.bundle.id
   ~~~
-- Right after upgrading XCode, you may face some transient issues. An example from what we've observed so far is that existing bots often can't find the simulators that used to be attached to them. Deleting old simulators and configuring new ones will help. That may also require you to change your bot creation script depending on your configuration. Restarting the server machine sometimes helps too.
+- Right after upgrading Xcode, you may face some transient issues. An example from what we've observed so far is that existing bots often can't find the simulators that used to be attached to them. Deleting old simulators and configuring new ones will help. That may also require you to change your bot creation script depending on your configuration. Restarting the server machine sometimes helps too.
 - If you have one machine like us, there will be downtime during the software update. It either introduces inconvenience to your teammates or worse, someone could break master during the downtime. 🤷🏻‍
 
 Stay tuned for the second part where we will cover on how we manage continuous delivery.
