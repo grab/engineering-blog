@@ -52,11 +52,11 @@ For those of you who are familiar with UI testing on Xcode, you can view the res
   <img alt="Xcode UI Tests" src="/img/ios-automation/xcode-ui-tests.png">
 </div>
 
-Sounds good! Let's get started. On the day we got our "trash can", we found creative ways to use it ♻️
+Sounds good! Let's get started. On the day we got our server, we found creative ways to use it.
 
 <div class="post-image-section">
   <img alt="Mac Pro" src="/img/ios-automation/mac-pro.jpg" width="60%">
-  <small class="post-image-caption">Our beloved server</small>
+  <small class="post-image-caption">Our multi-purpose server ♻️</small>
 </div>
 
 ## Workflow
