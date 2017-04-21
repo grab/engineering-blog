@@ -57,7 +57,7 @@ AWS Support replied with the following response (UTC timestamps):
 >
 > 4) old ELB node terminated
 >
-> So, during the ELB scaling event, your backends could get more health checks from ELB nodes than usual and it is expected. You don’t have to worry for the increased number of health checks but when you get less number of health checks than your ELB configured value, it would be a problem. Hope this helps your concern and please let us know if you need further assistance!
+> So, during the ELB scaling event, your backends could get more health checks from ELB nodes than usual and it is expected. You don’t have to worry for the increased number of health checks but when you get less number of health checks than your ELB configured value, it would be a problem. Hope this helps your concern and please let us know if you need further assistance.
 
 The 2 mentioned scaling event timestamps coincide with the 2 step graphs on both sides, one for a scale up, and one for a scale down. Each step up lasted roughly 90 minutes. It was previously presumed that an increased number of nodes in ELB scaling would explain the increase in health checks. But that would not explain the increase in health checks for a scale down event. This seemed to indicate that the number of health checks would increase regardless of whether ELB scaling up or down.
 
