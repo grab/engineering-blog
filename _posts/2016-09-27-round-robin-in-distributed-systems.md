@@ -3,7 +3,7 @@ layout: post
 id: round-robin-in-distributed-systems
 title: Round-robin in Distributed Systems
 date: 2016-09-27 13:43:40
-author: gao-chao
+authors: [gao-chao]
 comments: true
 excerpt: "While working on Grab's Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kept encountering persistent connection issues with Elastic Load Balance (ELB)."
 ---

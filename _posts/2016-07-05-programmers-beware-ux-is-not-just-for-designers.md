@@ -3,7 +3,7 @@ layout: post
 id: programmers-beware-ux-is-not-just-for-designers
 title: Programmers Beware - UX is not just for designers
 date: 2016-07-05 08:23:00
-author: corey-scott
+authors: [corey-scott]
 comments: true
 excerpt: "Perhaps one of the biggest missed opportunities in Tech in recent history is UX.
 
