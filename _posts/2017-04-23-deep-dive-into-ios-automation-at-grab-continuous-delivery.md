@@ -113,7 +113,7 @@ append :linked_files, "config.json"
 `linked_files` will symlink any file in the `shared/` folder on the server into the current project directory. Here we linked a `config.json` which consists of the path to the iOS passenger app repo on the server and where to put the generated `.xcarchive` and `.ipa` files. So that people can pass in a different value in their local machine when they want to test out their changes.
 
 We are all set. How simple is that! To deploy 🚀, simply execute `cap production deploy`.
-Screwed up? 🤦🏻‍  `cap production deploy:rollback` will rescue.
+Screwed up? 🤦🏻‍ `cap production deploy:rollback` will rescue.
 
 ## Conclusion
 
