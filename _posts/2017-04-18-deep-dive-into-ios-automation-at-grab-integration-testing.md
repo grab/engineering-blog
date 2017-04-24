@@ -1,6 +1,6 @@
 ---
 layout: post
-id: deep-dive-into-ios-automation-at-grab-testing
+id: deep-dive-into-ios-automation-at-grab-integration-testing
 title: Deep Dive Into iOS Automation At Grab - Integration Testing
 date: 2017-04-18 18:43:40
 authors: [sun-xiangxin]
@@ -8,7 +8,7 @@ comments: true
 excerpt: "This is the first part of our series \"Deep Dive Into iOS Automation At Grab\", where we will cover testing automation in the iOS team. Over the past two years at Grab, the iOS passenger app team has grown from 3 engineers in Singapore to 20 globally. Back then, each one of us was busy shipping features and had no time to set up a proper automation process."
 ---
 
-This is the first part of our series "Deep Dive Into iOS Automation At Grab", where we will cover testing automation in the iOS team.
+This is the first part of our series "Deep Dive Into iOS Automation At Grab", where we will cover testing automation in the iOS team. The second article is available [here](/deep-dive-into-ios-automation-at-grab-continuous-delivery).
 
 Over the past two years at Grab, the iOS passenger app team has grown from 3 engineers in Singapore to 20 globally. Back then, each one of us was busy shipping features and had no time to set up a proper automation process. It was common to hear these frustrations from the team:
 
