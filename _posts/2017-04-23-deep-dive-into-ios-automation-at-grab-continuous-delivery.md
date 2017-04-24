@@ -11,21 +11,21 @@ excerpt: "This is the second part of our series \"Deep Dive into iOS Automation 
 
 This is the second part of our series "Deep Dive into iOS Automation at Grab", where we will cover how we manage continuous delivery. The first article is available [here](/deep-dive-into-ios-automation-at-grab-testing).
 
-As a common solution to Apple developer account device whitelist limitation, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target:
+As a common solution to the limitations of an Apple developer account's device whitelist, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target:
 
 **Adhoc QA -** Most frequently distributed builds for mobile devs and QAs whose devices present in the ad hoc provisioning profile.
 
-**Hot Dogfood -** Similar to Adhoc QA (both with debug options to connect to staging environment) but signed under enterprise account. The build is meant for backend devs to test out their APIs on staging.
+**Hot Dogfood -** Similar to Adhoc QA (both have debug options to connect to a staging environment) but signed under an enterprise account. This build is meant for backend devs to test out their APIs on staging.
 
-**Dogfood -** Company wise beta testing that includes both online and offline team. This is often released when new features are ready or accepted by QA. It can also be a release candidate before we submit to App Store.
+**Dogfood -** Company-wide beta testing that includes both the online and offline team. This is often released when new features are ready or accepted by QA. It can also be a release candidate before we submit to the App Store.
 
-**Testflight -** Production regression testing for QA team. The accepted build will be submitted to App Store for release.
+**Testflight -** Production regression testing for QA team. The accepted build will be submitted to the App Store for release.
 
-The first 3 are distributed through Fabric. The last one is, of course, iTunes Connect. Archiving is done simply through bash scripts. Why did we move away from Fastlane? First of all, our primary need is archiving. We don't really need a bunch of other powerful features. The scripts simply perform clean build and archive actions using `xcodebuild`. Each of them is less than 100 lines. Secondly, it's so much easier and flexible for us to customize our own script. E.g. final modifications to the code before archiving. Lastly, we have one less dependency. That means one less step to provision a new server.
+The first 3 are distributed through [Fabric](https://get.fabric.io/). The last one is, of course, distributed through iTunes Connect. Archiving is done simply through bash scripts. Why did we move away from Fastlane? First of all, our primary need is archiving. We don't really need a bunch of other powerful features. The scripts simply perform clean build and archive actions using `xcodebuild`. Each of them is less than 100 lines. Secondly, it's so much easier and flexible for us to customize our own script. E.g. final modifications to the code before archiving. Lastly, we have one less dependency. That means one less step to provision a new server.
 
 ## Server-side Swift
 
-Now whenever we need a new build we simply execute a script. But the question is, who should do it? It's clearly not an option to login to the build machine and do it manually. So again, as whole bunch of in house enthusiasts, we wrote a simple app using server-side Swift. The first version was implemented by our teammate [Paul Meng](https://github.com/mno2). It has gone through a few iterations over time.
+Now whenever we need a new build we simply execute a script. But the question is, who should do it? It's clearly not an option to login to the build machine and do it manually. So again, as a whole bunch of in-house enthusiasts, we wrote a simple app using server-side Swift. The first version was implemented by our teammate [Paul Meng](https://github.com/mno2). It has gone through a few iterations over time.
 
 The app integrates with [SlackKit](https://github.com/pvzig/SlackKit.git) using Swift Package Manager and listens to the command from a Slackbot **@iris**. (In case you were wondering, Iris is not someone on the team. Iris is the reverse of Siri 🙊. We love Iris.)
 
@@ -117,6 +117,6 @@ Screwed up? 🤦🏻‍ `cap production deploy:rollback` will rescue.
 
 ## Conclusion
 
-What Grab has now isn't the most mature setup (there is still a lot to consider. E.g. scaling, authorization, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience as well in the comments below.
+What Grab has now, isn't the most mature setup (there is still a lot to consider. e.g. scaling, authorization, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience in the comments below.
 
 Happy automating!
