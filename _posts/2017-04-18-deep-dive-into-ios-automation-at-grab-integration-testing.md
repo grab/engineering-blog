@@ -113,7 +113,7 @@ We have been happy with the server most of the time. However, along the way we d
   $ xcrun simctl uninstall booted your.bundle.id
   ~~~
 - Right after upgrading Xcode, you may face some transient issues. An example from what we've observed so far is that existing bots often can't find the simulators that used to be attached to them. Deleting old simulators and configuring new ones will help. That may also require you to change your bot creation script depending on your configuration. Restarting the server machine sometimes helps too.
-- If you have one machine like us, there will be downtime during the software update. It either introduces inconvenience to your teammates or worse, someone could break master during the downtime. 🤷🏻‍
+- If you have one machine like us, there will be downtime during the software update. It either introduces inconvenience to your teammates or worse, someone could break master during the downtime.
 
 Stay tuned for the second part where we will cover on how we manage continuous delivery.
 
