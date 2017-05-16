@@ -59,7 +59,7 @@ As a first line of enquiry, we looked at a sample size of 20,000 passengers who 
 Our research showed that 8 out of 10 passengers cancelled less on bookings where GrabChat was used.
 
 <div class="post-image-section">
-  <img alt="GrabChat CR minus Non-GrabChat CR" src="/img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/cancellation-likeihood-prediction.png">
+  <img alt="GrabChat CR minus Non-GrabChat CR" src="/img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/cancellation-likelihood-prediction.png">
 </div>
 
 There were still some remaining issues with this analysis though:
@@ -73,7 +73,7 @@ There were still some remaining issues with this analysis though:
 This is where the cancellation prediction model came in. With the data science team, we've been building a model that predicts how likely an allocated booking will be cancelled. We trained the model on GrabCar data for September in Singapore (before GrabChat was ever used), and then ran the model on October data (after GrabChat was adopted).
 
 <div class="post-image-section">
-  <img alt="Match cancel likelihood predicted by GrabChat-unaware model" src="/img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/cancellation-likeihood-prediction.png">
+  <img alt="Match cancel likelihood predicted by GrabChat-unaware model" src="/img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/grabchat-cancellation-rate-graph.png">
 </div>
 
 We developed a calibration plot (see above), which put actual cancellation proportions against predicted cancellation figures. The plot above suggests the model predicted that many allocated bookings would have been cancelled had GrabChat not been used. In other words, the data implied the use of GrabChat correlated with a decrease in the likelihood of cancellations.
