@@ -4,6 +4,7 @@ id: programmers-beware-ux-is-not-just-for-designers
 title: Programmers Beware - UX is not just for designers
 date: 2016-07-05 08:23:00
 authors: [corey-scott]
+tags: [API, UX]
 comments: true
 excerpt: "Perhaps one of the biggest missed opportunities in Tech in recent history is UX.
 
@@ -22,7 +23,7 @@ Additionally, consider how many functions a programmer interacts with every day 
 
 ### What is UX?
 
-First let me give you my perspective on UX.  UX stands for "User Experience" or to put it another way, "usability".
+First let me give you my perspective on UX. UX stands for "User Experience" or to put it another way, "usability".
 
 UX is not black art; you don't even need to study it. I believe it can be uncovered through logic, persistence and experience.
 

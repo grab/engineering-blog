@@ -4,6 +4,7 @@ id: deep-dive-into-ios-automation-at-grab-continuous-delivery
 title: Deep Dive Into iOS Automation At Grab - Continuous Delivery
 date: 2017-04-23 18:43:40
 authors: [sun-xiangxin, paul-meng]
+tags: [Continuous Delivery, iOS, Mobile, Swift]
 comments: true
 cover_photo: /img/ios-automation/corgi-macbook.jpg
 excerpt: "This is the second part of our series \"Deep Dive into iOS Automation at Grab\", where we will cover how we manage continuous delivery. As a common solution to Apple developer account device whitelist limitation, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target."

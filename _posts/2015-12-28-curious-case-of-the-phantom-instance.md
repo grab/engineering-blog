@@ -4,6 +4,7 @@ id: curious-case-of-the-phantom-instance
 title: The Curious Case of The Phantom Instance
 date: 2015-12-28 04:39:00
 authors: [lian-yuanlin]
+tags: [AWS]
 comments: true
 excerpt: "Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics."
 ---
@@ -101,9 +102,11 @@ In essence, contrary to a typical ASG scaling event where instances are launched
 > Scaling events do not necessarily imply node replacement. At some point the ELB could have more nodes, hence, you will have more health checks performed against your backends.
 
 #### Conclusion
+
 A series of coincidental ELB scaling events strictly involving node replacements had occurred, leading us to believe that a phantom instance had been spun up.
 
 #### What we can learn from this
+
 It might be wise to separate dependency health checks within the instances from the ELB health checks, since it actually doubles the number of requests.
 
 Don't always assume the same, predictable graph changes are always the result of the same causes.

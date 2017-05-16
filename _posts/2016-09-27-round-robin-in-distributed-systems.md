@@ -4,6 +4,7 @@ id: round-robin-in-distributed-systems
 title: Round-robin in Distributed Systems
 date: 2016-09-27 13:43:40
 authors: [gao-chao]
+tags: [Back End, Data, Distributed Systems, ELB, Golang]
 comments: true
 excerpt: "While working on Grab's Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kept encountering persistent connection issues with Elastic Load Balance (ELB)."
 ---
@@ -139,7 +140,7 @@ Based on your requirements, pick the preferred method of implementing a simple l
 
 I would pick the mutex implementation for resource fetching and goroutine implementation for work load balancing. Leave a comment if you wish to discuss. I would love to hear your views!
 
-References:
+**References:**
 
 - <https://talks.golang.org/2010/io/balance.go>
 - <https://github.com/mindreframer/golang-stuff/blob/master/github.com/youtube/vitess/go/pools/roundrobin.go>

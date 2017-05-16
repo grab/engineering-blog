@@ -4,6 +4,7 @@ id: a-key-expired-in-redis-you-wont-believe-what-happened-next
 title: A Key Expired In Redis, You Won't Believe What Happened Next
 date: 2017-03-27 18:43:40
 authors: [karan-kamath]
+tags: [Back End, Redis]
 comments: true
 excerpt: "One of Grab's more popular caching solutions is Redis (often in the flavour of the misleadingly named ElastiCache), and for most cases, it works. Except for that time it didn't. Follow our story as we investigate how Redis deals with consistency on key expiration."
 ---

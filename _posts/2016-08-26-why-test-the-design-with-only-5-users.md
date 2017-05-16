@@ -4,6 +4,7 @@ id: why-test-the-design-with-only-5-users
 title: Why test the design with only 5 users
 date: 2016-08-26 13:43:40
 authors: [avinash-papatla]
+tags: [User Research, UX]
 comments: true
 excerpt: "The reasoning behind small sample sizes in qualitative usability research."
 ---
@@ -50,6 +51,7 @@ In the year 1993, renowned usability expert, Jakob Nielsen, published a scientif
 - Testing flows, interactions and visuals of the same set of features. (not 2 different apps)
 
 #### When can we not test with just 5 users?
+
 - You are trying to understand opinions and attitudes which would be better addressed via a survey, requiring larger sample sizes.
 - You are trying to predict future behaviour via data modelling, A/B testing, which cannot be run with 5 users.
 - You have distinct user segments such as buyers and sellers on an e-commerce app. You will need to consider these two segments as separate.
