@@ -2,7 +2,7 @@
 layout: post
 id: how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps
 title: How to Go from a Quick Idea to an Essential Feature in Four Steps
-date: 2017-05-14 18:43:40
+date: 2017-05-16 00:00:00
 authors: [huang-da, tan-sien-yi]
 comments: true
 excerpt: "How do you work within a startup team and build a quick idea into a key feature for an app that impacts millions of people? It's one of those things that is hard to understand when you just graduate as an engineer."
