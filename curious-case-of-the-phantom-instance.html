@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>The Curious Case of The Phantom Instance</title>
+    <meta name="description" content="Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="http://engineering.grab.com/curious-case-of-the-phantom-instance">
+    <meta property="og:title" content="The Curious Case of The Phantom Instance">
+    <meta property="og:description" content="Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics.">
+    <meta property="og:site_name" content="Grab Engineering">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="http://engineering.grab.com/img/banner.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://engineering.grab.com/curious-case-of-the-phantom-instance">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Engineering Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row">
+        <div class="col-sm-6">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Engineering</span>
+          </div>
+        </div>
+        <div class="col-sm-6 text-right hidden-xs">
+          <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="http://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        
+<div class="post">
+  <header class="post-header">
+    <div class="text-center">
+      
+        
+          
+          
+            <img class="post-author-thumbnail-large img-circle" src="/img/authors/lian-yuanlin.jpg">
+          
+        
+      
+    </div>
+    <br>
+    <h1 class="post-title text-center">The Curious Case of The Phantom Instance</h1>
+    <div class="post-meta">
+      28 Dec 2015
+      
+        
+          
+          
+            &middot;
+            
+              <a href="https://github.com/alienchow" target="_blank" rel="noreferrer noopenner">Lian Yuanlin</a>
+            
+          
+        
+      
+      
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#aws" class="label tags-label">AWS</a>
+  
+</div>
+
+      
+    </div>
+  </header>
+  <article class="post-content">
+    <p><small><em>Note: Timestamps used in this article are in UTC+8 Singapore time, unless stated otherwise.</em></small></p>
+
+<p>Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics.</p>
+
+<p>Take a look at the following Datadog (DD) dashboard we have, which monitors the number of Elastic Load Balancer (ELB) health check requests sent to our <code class="highlighter-rouge">grab_attention</code> cluster:</p>
+
+<p><img src="/img/phantom-instance/ga-health-check.png" alt="Grab Attention Health Check" /></p>
+
+<p><small><em><code class="highlighter-rouge">grab_attention</code> is the tongue in cheek name for the in-app messaging API hostname.</em></small></p>
+
+<p>Upon first look, the usual reflex conclusion for the step waveforms would be an Auto Scaling Group (ASG) scaling up event. After all, a new instance equates to a proportionate increase in health check requests from the ELB.</p>
+
+<p>According to the graph shown, the values have jumped between 48 and 72 counts/min (Above dashboard collates in 10-minute intervals). The grab_attention ASG usually consists of 2 instances. 72 / 48 = 1.5, therefore there should have been an ASG scale up event at roughly 22 Dec 2015, 1610 hours.</p>
+
+<p>Now here’s the weird part. Our ASG activity history, interestingly, did not match up with the observed data:</p>
+
+<p><img src="/img/phantom-instance/ga-asg.png" alt="Grab Attention Auto Scaling Group" /></p>
+
+<p>The only ASG scaling events on 22 Dec were, a scale up at <strong>1805 hours</strong> and a scale down at <strong>2306 hours</strong>, which explains the middle step up/down waveform.</p>
+
+<p>So… where are the increased step ups in health checks on the two sides <strong>(22 Dec 16:10 - 17:45 &amp; 23 Dec 05:15 - 06:50)</strong> coming from?</p>
+
+<p>Further probing around in CloudWatch revealed that the ElastiCache (EC) NewConnections metric for the underlying Redis cluster mirrored the health check data:</p>
+
+<p><img src="/img/phantom-instance/ga-ec.png" alt="Grab Attention ElastiCache" /></p>
+
+<p><small><em>Metrics in UTC</em></small></p>
+
+<p>The number of new connections made to the Redis cluster jumped between 96 and 144 at the identical moments of the ELB health check jumps; this is a similar 1.5 X increase in data. This seemed to clearly indicate a third instance, but no third IP address was found in the server logs.</p>
+
+<p>We have on our hands a phantom instance that has been sending out ELB health check data to our DD, and creating new redis connections that is no where to be found.</p>
+
+<p>Fortunately, the engineering team had included the instance hostnames as one of the DD tags. Applying it gave the following dashboard:</p>
+
+<p><img src="/img/phantom-instance/ga-dd.png" alt="Grab Attention Datadog" /></p>
+
+<p>Surprise! While the middle step form was clearly contributed by the third instance spun up during an ASG scaling event, it would seem that the 2 similar step forms on each side were contributed only by the 2 existing instances. ELB health check ping counts to each of the instances jumped between 24 to 36 counts/min, a 1.5X increase.</p>
+
+<p>AWS Support replied with the following response (UTC timestamps):</p>
+
+<blockquote>
+  <p>I have taken a look at your ELB and found that there was a ELB’s scaling event during the time like below. ELB Scaling up: 2015-12-22T08:07 ELB Scaling down: 2015-12-22T21:15 Basically, ELB nodes can be replaced(scaling up/down/out/in) anytime depends on your traffic, ELB nodes resource utilisation or their health. Also, to offer continuous service without an outage the procedure will be like below.</p>
+
+  <p>1) new ELB nodes are deployed,</p>
+
+  <p>2) put in a service,</p>
+
+  <p>3) old ELB node detached from ELB(once after the new ELB nodes are working fine)</p>
+
+  <p>4) old ELB node terminated</p>
+
+  <p>So, during the ELB scaling event, your backends could get more health checks from ELB nodes than usual and it is expected. You don’t have to worry for the increased number of health checks but when you get less number of health checks than your ELB configured value, it would be a problem. Hope this helps your concern and please let us know if you need further assistance.</p>
+</blockquote>
+
+<p>The 2 mentioned scaling event timestamps coincide with the 2 step graphs on both sides, one for a scale up, and one for a scale down. Each step up lasted roughly 90 minutes. It was previously presumed that an increased number of nodes in ELB scaling would explain the increase in health checks. But that would not explain the increase in health checks for a scale down event. This seemed to indicate that the number of health checks would increase regardless of whether ELB scaling up or down.</p>
+
+<p>Moreover, the health check interval isn’t something set to each node, but to the entire ELB itself. To top it off, why a 1.5X increase? Why not 2X or any other whole number?</p>
+
+<p>A brief check of our configured health check interval revealed it to be 5 seconds. Which should yield:</p>
+
+<p>1 min * 60 sec / 5s interval * 2 instances = <strong>24 counts/min</strong></p>
+
+<p>If there was a 1.5X increase in counts during ELB scaling, it should have increased to a total of 36 counts/min. This did not match up to the DD dashboard metric of 48 counts/min to 72 counts/min.</p>
+
+<p>Another round of scrolling through the list of ELBs gave the answer. 2 ELBs are actually being used for the grab_attention ASG cluster, one for public facing endpoints, and another for internal endpoints.</p>
+
+<p>Embarrassingly, this had been totally forgotten about. The internal ELB was indeed configured to have a 5 second interval health check too.</p>
+
+<p>Therefore, the calculation should be:</p>
+
+<p>1 min * 60 sec / 5s interval * 2 ELBs * 2 instances = <strong>48 counts/min</strong></p>
+
+<p>A scaling event occurring on the public facing ELB had in fact, <strong>doubled</strong> the number of health check counts for periods of ~90 minutes. Due to the internal ELB health check skewing the statistics sent to DD, it seemed like a third instance was spun up.</p>
+
+<p>So… why did a similar graph shape appear in the EC New Connections CloudWatch metrics?</p>
+
+<p>This code snippet was in the health check code:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>if err := gredis.HealthCheck(config.GrabAttention.Redis); err != nil {
+  logging.Error(logTag, "health check Redis error %v", err)
+  return err
+}
+</code></pre>
+</div>
+
+<p>It turned out that, because each health check request opens a new ping pong connection to the redis cluster (which didn’t use the existing redis connection pool), the increase in the ELB health checks also led to a proportionate increase in new redis connections.</p>
+
+<p>A second response from AWS Support verifies the findings:</p>
+
+<blockquote>
+  <p>When the ELB scales up/down, it will replace nodes with bigger/smaller nodes. The older nodes, are not removed immediately. The ELB will remove the old nodes IP addresses from the ELB DNS endpoint, to avoid clients hitting the old nodes, however we still keep the nodes running for a while in case some clients are caching the IP addresses of the old nodes. While these nodes are running they are also performing health checks, that’s why the number of sample count doubles between 21:20 to 22:40. The ELB scaled down at 21:15, adding new smaller nodes. For a period of approximately 90 minutes new and old nodes were coexisting until they were removed.</p>
+</blockquote>
+
+<p>In essence, contrary to a typical ASG scaling event where instances are launched or terminated, an ELB scaling event is possibly a node cluster replacement! Both clusters exist for 90 minutes before the old one gets terminated, or so it seemed. Then AWS Support replied one last time:</p>
+
+<blockquote>
+  <p>Scaling events do not necessarily imply node replacement. At some point the ELB could have more nodes, hence, you will have more health checks performed against your backends.</p>
+</blockquote>
+
+<h4 id="conclusion">Conclusion</h4>
+
+<p>A series of coincidental ELB scaling events strictly involving node replacements had occurred, leading us to believe that a phantom instance had been spun up.</p>
+
+<h4 id="what-we-can-learn-from-this">What we can learn from this</h4>
+
+<p>It might be wise to separate dependency health checks within the instances from the ELB health checks, since it actually doubles the number of requests.</p>
+
+<p>Don’t always assume the same, predictable graph changes are always the result of the same causes.</p>
+
+<p>There is always something new about ELB to be learnt.</p>
+
+  </article>
+  <div>
+    
+      <div class="post-tags">
+  
+  
+    <a href="/tags#aws" class="label tags-label">AWS</a>
+  
+</div>
+
+    
+    <br>
+  </div>
+  <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=The Curious Case of The Phantom Instance&url=http://engineering.grab.com/curious-case-of-the-phantom-instance&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=http://engineering.grab.com/curious-case-of-the-phantom-instance" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=http://engineering.grab.com/curious-case-of-the-phantom-instance&title=The Curious Case of The Phantom Instance
+&summary=Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics.&source=Grab Engineering" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+  <hr class="section-divider">
+  <div class="panel panel-default hiring-panel">
+    <div class="panel-body">
+      <div class="row">
+        <div class="col-sm-6">
+          <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+        </div>
+        <div class="col-sm-6 hiring-btn-container">
+          <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <br/>
+  
+    <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'http://engineering.grab.com/curious-case-of-the-phantom-instance';
+    this.page.identifier = 'curious-case-of-the-phantom-instance';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+  
+</div>
+
+      </div>
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Engineering</h2>
+        <ul class="contact-list">
+          <li>Reach us at <a href="mailto:engineering.blog@grab.com">engineering.blog@grab.com</a></li>
+        </ul>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="http://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+
+  </body>
+</html>

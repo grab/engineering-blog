@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Deep Dive Into iOS Automation At Grab - Continuous Delivery</title>
+    <meta name="description" content="This is the second part of our series "Deep Dive into iOS Automation at Grab", where we will cover how we manage continuous delivery. As a common solution to Apple developer account device whitelist limitation, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery">
+    <meta property="og:title" content="Deep Dive Into iOS Automation At Grab - Continuous Delivery">
+    <meta property="og:description" content="This is the second part of our series "Deep Dive into iOS Automation at Grab", where we will cover how we manage continuous delivery. As a common solution to Apple developer account device whitelist limitation, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target.">
+    <meta property="og:site_name" content="Grab Engineering">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="http://engineering.grab.com/img/ios-automation/corgi-macbook.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Engineering Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row">
+        <div class="col-sm-6">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Engineering</span>
+          </div>
+        </div>
+        <div class="col-sm-6 text-right hidden-xs">
+          <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="http://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        
+<div class="post">
+  <header class="post-header">
+    <div class="text-center">
+      
+        
+          
+          
+            <img class="post-author-thumbnail-large img-circle" src="/img/authors/sun-xiangxin.jpg">
+          
+        
+          
+          
+            <img class="post-author-thumbnail-large img-circle" src="/img/authors/paul-meng.jpg">
+          
+        
+      
+    </div>
+    <br>
+    <h1 class="post-title text-center">Deep Dive Into iOS Automation At Grab - Continuous Delivery</h1>
+    <div class="post-meta">
+      24 Apr 2017
+      
+        
+          
+          
+            &middot;
+            
+              <a href="https://github.com/xiangxin" target="_blank" rel="noreferrer noopenner">Sun Xiangxin</a>
+            
+          
+        
+          
+          
+            &middot;
+            
+              <a href="https://github.com/mno2" target="_blank" rel="noreferrer noopenner">Paul Meng</a>
+            
+          
+        
+      
+      
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#continuous-delivery" class="label tags-label">Continuous Delivery</a>
+  
+    <a href="/tags#ios" class="label tags-label">iOS</a>
+  
+    <a href="/tags#mobile" class="label tags-label">Mobile</a>
+  
+    <a href="/tags#swift" class="label tags-label">Swift</a>
+  
+</div>
+
+      
+    </div>
+  </header>
+  <article class="post-content">
+    <p>This is the second part of our series “Deep Dive into iOS Automation at Grab”, where we will cover how we manage continuous delivery. The first article is available <a href="/deep-dive-into-ios-automation-at-grab-integration-testing">here</a>.</p>
+
+<p>As a common solution to the limitations of an Apple developer account’s device whitelist, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target:</p>
+
+<p><strong>Adhoc QA -</strong> Most frequently distributed builds for mobile devs and QAs whose devices present in the ad hoc provisioning profile.</p>
+
+<p><strong>Hot Dogfood -</strong> Similar to Adhoc QA (both have debug options to connect to a staging environment) but signed under an enterprise account. This build is meant for backend devs to test out their APIs on staging.</p>
+
+<p><strong>Dogfood -</strong> Company-wide beta testing that includes both the online and offline team. This is often released when new features are ready or accepted by QA. It can also be a release candidate before we submit to the App Store.</p>
+
+<p><strong>Testflight -</strong> Production regression testing for QA team. The accepted build will be submitted to the App Store for release.</p>
+
+<p>The first 3 are distributed through <a href="https://get.fabric.io/">Fabric</a>. The last one is, of course, distributed through iTunes Connect. Archiving is done simply through bash scripts. Why did we move away from Fastlane? First of all, our primary need is archiving. We don’t really need a bunch of other powerful features. The scripts simply perform clean build and archive actions using <code class="highlighter-rouge">xcodebuild</code>. Each of them is less than 100 lines. Secondly, it’s so much easier and flexible for us to customize our own script. E.g. final modifications to the code before archiving. Lastly, we have one less dependency. That means one less step to provision a new server.</p>
+
+<h2 id="server-side-swift">Server-side Swift</h2>
+
+<p>Now whenever we need a new build we simply execute a script. But the question is, who should do it? It’s clearly not an option to login to the build machine and do it manually. So again, as a whole bunch of in-house enthusiasts, we wrote a simple app using server-side Swift. The first version was implemented by our teammate <a href="https://github.com/mno2">Paul Meng</a>. It has gone through a few iterations over time.</p>
+
+<p>The app integrates with <a href="https://github.com/pvzig/SlackKit.git">SlackKit</a> using Swift Package Manager and listens to the command from a Slackbot <strong>@iris</strong>. (In case you were wondering, Iris is not someone on the team. Iris is the reverse of Siri 🙊. We love Iris.)</p>
+
+<div class="post-image-section">
+  <img alt="Goddess Iris" src="/img/ios-automation/goddess-iris.png" width="50%" />
+</div>
+
+<div class="post-image-section">
+  <img alt="Iris Slack" src="/img/ios-automation/iris-slack.png" width="50%" />
+</div>
+
+<p><code class="highlighter-rouge">Irisbot</code> is a Swift class that conforms to <code class="highlighter-rouge">messageEventsDelegate</code> protocol offered by SlackKit. When it receives a message, we parse the message and enqueue a job into a customized serialized <code class="highlighter-rouge">DispatchQueue</code>. Here are a few lines of the main logic.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">received</span><span class="p">(</span><span class="n">_</span> <span class="nv">message</span><span class="p">:</span> <span class="kt">Message</span><span class="p">,</span> <span class="nv">client</span><span class="p">:</span> <span class="kt">Client</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Interpret message to get the command and sanitize user inputs...</span>
+
+  <span class="c1">// Schedule a job.</span>
+  <span class="n">archiveQueue</span><span class="o">.</span><span class="k">as</span><span class="n">ync</span> <span class="p">{</span>
+    <span class="c1">// Execute scripts based on command.</span>
+    <span class="nf">shell</span><span class="p">(</span><span class="s">"bash"</span><span class="p">,</span> <span class="s">"Scripts/</span><span class="se">\(</span><span class="n">jobType</span><span class="o">.</span><span class="n">executableFileName</span><span class="se">)</span><span class="s">"</span><span class="p">,</span> <span class="n">branch</span><span class="p">)</span>
+    <span class="c1">// Notify Slack channel when job is done.</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">webAPI</span><span class="o">.</span><span class="nf">sendMessage</span><span class="p">(</span><span class="nv">channel</span><span class="p">:</span> <span class="n">channel</span><span class="p">,</span> <span class="nv">text</span><span class="p">:</span> <span class="s">"job </span><span class="se">\(</span><span class="n">jobID</span><span class="se">)</span><span class="s"> completed"</span><span class="p">,</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Send ACK to the channel.</span>
+  <span class="n">client</span><span class="o">.</span><span class="n">webAPI</span><span class="o">.</span><span class="nf">sendMessage</span><span class="p">(</span><span class="nv">channel</span><span class="p">:</span> <span class="n">channel</span><span class="p">,</span> <span class="nv">text</span><span class="p">:</span> <span class="s">"building... your job ID is </span><span class="se">\(</span><span class="n">jobID</span><span class="se">)</span><span class="s">"</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<p>Now if anyone needs a build they can trigger it themselves. 🎉</p>
+
+<div class="post-image-section">
+  <img alt="Corgi Macbook" src="/img/ios-automation/corgi-macbook-meme.jpg" width="80%" />
+  <small class="post-image-caption">Literally anyone</small>
+</div>
+
+<h2 id="deployments">Deployments</h2>
+
+<p>We sometimes add new features to <strong>@iris</strong> or modify build scripts. How to deploy those changes? We did it with a little help of Capistrano. Here is how:</p>
+
+<p>The plain Iris project looks like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>├── Package.swift
+├── Package.pins
+├── Packages
+├── Sources
+│   └── main.swift
+└── Scripts
+</code></pre>
+</div>
+
+<p>Additional files after Capistrano look like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>├── Gemfile
+├── Gemfile.lock
+├── Capfile
+├── config
+│   ├── deploy
+│   │   └── production.rb
+│   └── deploy.rb
+└── lib
+    └── capistrano
+            └── tasks
+</code></pre>
+</div>
+
+<p>Iris doesn’t have a staging environment. So simply config the server IPs in <code class="highlighter-rouge">production.rb</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="n">server</span> <span class="s1">'x.x.x.x'</span><span class="p">,</span> <span class="ss">user: </span><span class="s1">'XCode Server User Name'</span>
+</code></pre>
+</div>
+
+<p>And then a set of variables in <code class="highlighter-rouge">deploy.rb</code>:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="n">set</span> <span class="ss">:application</span><span class="p">,</span> <span class="s2">"osx-server"</span>
+<span class="n">set</span> <span class="ss">:repo_url</span><span class="p">,</span> <span class="s2">"git@github.com:xxx/xxxxx.git"</span>
+<span class="n">set</span> <span class="ss">:deploy_to</span><span class="p">,</span> <span class="s2">"/path/to/wherever"</span>
+<span class="n">set</span> <span class="ss">:keep_releases</span><span class="p">,</span> <span class="mi">2</span>
+<span class="n">ask</span> <span class="ss">:branch</span><span class="p">,</span> <span class="sb">`git rev-parse --abbrev-ref HEAD`</span><span class="p">.</span><span class="nf">chomp</span>
+<span class="n">append</span> <span class="ss">:linked_files</span><span class="p">,</span> <span class="s2">"config.json"</span>
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">linked_files</code> will symlink any file in the <code class="highlighter-rouge">shared/</code> folder on the server into the current project directory. Here we linked a <code class="highlighter-rouge">config.json</code> which consists of the path to the iOS passenger app repo on the server and where to put the generated <code class="highlighter-rouge">.xcarchive</code> and <code class="highlighter-rouge">.ipa</code> files. So that people can pass in a different value in their local machine when they want to test out their changes.</p>
+
+<p>We are all set. How simple is that! To deploy 🚀, simply execute <code class="highlighter-rouge">cap production deploy</code>.
+Screwed up? <code class="highlighter-rouge">cap production deploy:rollback</code> will rescue.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>What Grab has now, isn’t the most mature setup (there is still a lot to consider. e.g. scaling, authorization, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience in the comments below.</p>
+
+<p>Happy automating!</p>
+
+  </article>
+  <div>
+    
+      <div class="post-tags">
+  
+  
+    <a href="/tags#continuous-delivery" class="label tags-label">Continuous Delivery</a>
+  
+    <a href="/tags#ios" class="label tags-label">iOS</a>
+  
+    <a href="/tags#mobile" class="label tags-label">Mobile</a>
+  
+    <a href="/tags#swift" class="label tags-label">Swift</a>
+  
+</div>
+
+    
+    <br>
+  </div>
+  <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Deep Dive Into iOS Automation At Grab - Continuous Delivery&url=http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery&title=Deep Dive Into iOS Automation At Grab - Continuous Delivery
+&summary=This is the second part of our series "Deep Dive into iOS Automation at Grab", where we will cover how we manage continuous delivery. As a common solution to Apple developer account device whitelist limitation, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target.&source=Grab Engineering" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+  <hr class="section-divider">
+  <div class="panel panel-default hiring-panel">
+    <div class="panel-body">
+      <div class="row">
+        <div class="col-sm-6">
+          <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+        </div>
+        <div class="col-sm-6 hiring-btn-container">
+          <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <br/>
+  
+    <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery';
+    this.page.identifier = 'deep-dive-into-ios-automation-at-grab-continuous-delivery';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+  
+</div>
+
+      </div>
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Engineering</h2>
+        <ul class="contact-list">
+          <li>Reach us at <a href="mailto:engineering.blog@grab.com">engineering.blog@grab.com</a></li>
+        </ul>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="http://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+
+  </body>
+</html>

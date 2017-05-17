@@ -1,0 +1,1478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Grab Engineering</title>
+    <description>Grab&#39;s Engineering team solves critical transportation challenges and makes transport freedom a reality for 620 million people in Southeast Asia.
+</description>
+    <link>http://engineering.grab.com/</link>
+    <atom:link href="http://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
+    <pubDate>Wed, 17 May 2017 18:29:30 +0800</pubDate>
+    <lastBuildDate>Wed, 17 May 2017 18:29:30 +0800</lastBuildDate>
+    <generator>Jekyll v3.0.3</generator>
+    
+      <item>
+        <title>How to Go from a Quick Idea to an Essential Feature in Four Steps</title>
+        <description>&lt;p&gt;How do you work within a startup team and build a quick idea into a key feature for an app that impacts millions of people? It’s one of those things that is hard to understand when you just graduate as an engineer.&lt;/p&gt;
+
+&lt;p&gt;Software engineer Huang Da and data scientist Tan Sien Yi can explain just that. Huang Da and his team first came up with the idea for a chat function in the Grab app in early 2016 and since the official roll out of GrabChat, the first messaging tool in a ride-hailing app, more than 78 million messages have been exchanged across the region. Here’s their story on how this feature evolved from a quick idea to an essential feature.&lt;/p&gt;
+
+&lt;h3 id=&quot;identify-the-problem&quot;&gt;1. Identify the problem&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Huang Da:&lt;/strong&gt; Southeast Asia is a pretty challenging place for an app. We have countries with vastly different internet conditions and infrastructural capabilities. You don’t always have access to Wi-Fi. A lot of people are still using 2G, which has limited bandwidth, slow speeds and the high probability of data packets dropping due to congestion or interference affecting the Wi-Fi signal.&lt;/p&gt;
+
+&lt;p&gt;With that context in mind, in January 2016, we first started thinking of a new, safe and automated way for drivers and passengers to communicate better. Cities in Southeast Asia change so fast, so being able to communicate makes a big difference if you’re trying to find your driver or passenger.&lt;/p&gt;
+
+&lt;p&gt;In discussing the problem with my team, one idea jumped out: why don’t we build an in-app chat solution? It’s the safest and most anonymized way to allow passengers and drivers to communicate. Also, if there’s one thing we know, it’s that people in Southeast Asia love to chat, with applications such as WhatsApp, Facebook Messenger and Line being ubiquitous.&lt;/p&gt;
+
+&lt;h3 id=&quot;build-an-mvp-solution&quot;&gt;2. Build an MVP solution&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Huang Da:&lt;/strong&gt; Once we decided to build GrabChat, we started with a prototype. We could have integrated it with third parties, but building it yourself allows more flexibility and options, as well as the opportunity to scale up down the line.&lt;/p&gt;
+
+&lt;p&gt;We started with a very simple TCP server, without making use of our architecture or entire back end, because we were expecting challenges to arise in any case. While the basic communication protocol is easy, making sure messages get delivered in the real world, is a different ordeal. The messages going through a TCP connection might get lost; we might have to get up with an ad-layer and that’s just two examples.&lt;/p&gt;
+
+&lt;p&gt;As a next step, we built an architecture, which made use of the whole Grab infrastructure, extracting out the TCP layer and making it a stand-alone layer.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;GrabChat System Architecture&quot; src=&quot;/img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/grabchat-system-architecture.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We decided to design GrabChat as a service: it opens interfaces for other services to create and manage the chat room. After a chat room is created, clients in the same chat room could send messages to each other through TCP messages. Services interacts with GrabChat through internal HTTPS requests, and clients interact with GrabChat through Message Exchange service via Gundam and Hermes, our TCP gateway and message dispatcher.&lt;/p&gt;
+
+&lt;p&gt;The core component of a GrabChat conversation is the message exchange service, which oversees the delivery of messages to all the recipients. It implements a protocol that involves sufficient handshake acknowledgement to make sure the message arrives. There are multiple ways to design the protocol, but finally we agreed on implementing around the concept of “server only push once”.&lt;/p&gt;
+
+&lt;p&gt;The difficult part of coming up with the protocol is to decide which part of the system, the client or the server, should handle the message loss. It essentially becomes a push or pull problem: If we handle it on the server, the server needs to keep pushing (spamming) the message until the client acknowledges it; on the other hand, if we handle it on the client’s side, the client needs to poll the server for the latest status and message.&lt;/p&gt;
+
+&lt;p&gt;We chose not to do with the server push method because a message could remain unacknowledged for many reasons, key reason among them being network issues, but if a server pushes regardless, it might drop into a resend loop and never come out, resulting in a severe loss of resources.&lt;/p&gt;
+
+&lt;p&gt;On the other hand, if we do it on the client side, we don’t need to worry too much about the extra resource consumption: we only process the requests that reach the backend. From the perspective of a client, it keeps trying to send a message until it receives a response from the server before it times out, or fails to maintain a keep-alive heartbeat with the server. When that happens, it terminates the connection and reconnects. In other words, clients only send requests when needed, which is more friendly to server.&lt;/p&gt;
+
+&lt;h3 id=&quot;evaluate&quot;&gt;3. Evaluate&lt;/h3&gt;
+
+&lt;p&gt;After building the initial architecture is when the most time-intensive part comes in. There’s a lot of discussions across different teams, including product manager, team leads, front-end and design around the feature’s impact and ways to mature the design.&lt;/p&gt;
+
+&lt;p&gt;Data scientist Sien Yi evaluated the impact of GrabChat to give the engineering team the analysis it needed to further improve the product. One hypothesis was that the use of GrabChat would lower the cancellation rates in the Grab app. Sien Yi tested this thesis.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Sien Yi:&lt;/strong&gt; Measuring the effect of GrabChat isn’t just about comparing the cancellations ratios on the Grab app, before and after implementation of the GrabChat feature. For all we know, those who use GrabChat could be the more engaged customers who are less likely to cancel anyway — even without GrabChat.&lt;/p&gt;
+
+&lt;p&gt;We approached testing the hypothesis from two sides.&lt;/p&gt;
+
+&lt;h4 id=&quot;comparing-non-chat-vs-chat-bookings-of-individual-passengers&quot;&gt;Comparing non-chat vs chat bookings of individual passengers&lt;/h4&gt;
+
+&lt;p&gt;As a first line of enquiry, we looked at a sample size of 20,000 passengers who had done a significant number of bookings before GrabChat and continued making a significant number of bookings after GrabChat was introduced.&lt;/p&gt;
+
+&lt;p&gt;Our research showed that 8 out of 10 passengers cancelled less on bookings where GrabChat was used.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;GrabChat CR minus Non-GrabChat CR&quot; src=&quot;/img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/cancellation-likelihood-prediction.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;There were still some remaining issues with this analysis though:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;One could say that even for the same passenger, they might already be more engaged at a booking level when they use GrabChat.&lt;/li&gt;
+  &lt;li&gt;There might be a selection bias in that we necessarily sample passengers with more experience on the Grab platform in order to measure meaningful differences between their Chat and non-Chat bookings.&lt;/li&gt;
+  &lt;li&gt;We haven’t accounted for driver cancels.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;using-the-cancellation-prediction-model&quot;&gt;Using the cancellation prediction model&lt;/h4&gt;
+
+&lt;p&gt;This is where the cancellation prediction model came in. With the data science team, we’ve been building a model that predicts how likely an allocated booking will be cancelled. We trained the model on GrabCar data for September in Singapore (before GrabChat was ever used), and then ran the model on October data (after GrabChat was adopted).&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Match cancel likelihood predicted by GrabChat-unaware model&quot; src=&quot;/img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/grabchat-cancellation-rate-graph.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We developed a calibration plot (see above), which put actual cancellation proportions against predicted cancellation figures. The plot above suggests the model predicted that many allocated bookings would have been cancelled had GrabChat not been used. In other words, the data implied the use of GrabChat correlated with a decrease in the likelihood of cancellations.&lt;/p&gt;
+
+&lt;p&gt;Sien Yi and the data science team confirmed that the use of GrabChat is correlated with lower cancellation rates, meaning that the experience of passengers and drivers has been improved by the introduction of GrabChat.&lt;/p&gt;
+
+&lt;h3 id=&quot;iterate&quot;&gt;4. Iterate&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Huang Da:&lt;/strong&gt; While the first protocol was built in March 2016, we’ve had many evaluation and iteration sessions before and after GrabChat was made available to all users in September/October. Together with the product manager, we built a roadmap with updates far beyond the first set of protocols.&lt;/p&gt;
+
+&lt;p&gt;For example, one of our insights from the first tests with the communications protocol was that the driver needs to be able to continue driving and not get distracted by the messages. To make it easier for our drivers to deal with the messages, we built template messages such as “I’m here” or “I’ll be there in 2 minutes”, which created a serious uptick in the volume of messages.&lt;/p&gt;
+
+&lt;p&gt;Building a product which is essential to our business is a never-ending project. We’re never “done”. Instead, we continue to look for iterations and solutions which serve our passengers and drivers in the best way possible.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 16 May 2017 08:00:00 +0800</pubDate>
+        <link>http://engineering.grab.com/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps</link>
+        <guid isPermaLink="true">http://engineering.grab.com/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps</guid>
+        
+        <category>Data Science</category>
+        
+        <category>Product Management</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Troubleshooting Unusual AWS ELB 5XX Error</title>
+        <description>&lt;p&gt;&lt;em&gt;This article is part one of a two-part series. In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Triggered: [Gothena] Astrolabe failed (Warning)&lt;/strong&gt;, an alert from Datadog that we have been seeing very often in our &lt;code class=&quot;highlighter-rouge&quot;&gt;#tech-operations&lt;/code&gt; slack channel. This alert basically tells us that Gothena &lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; is receiving ELB &lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; HTTP 5xx &lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; errors when calling Astrolabe &lt;sup id=&quot;fnref:4&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;. Because of how frequently we update our driver location data, losing one or two updates of a single driver has never really been an issue for us at Grab. It was only when this started creating a lot of noise for our on call engineers, we decided that it was time to dig into it and fix it once and for all.&lt;/p&gt;
+
+&lt;p&gt;Here is a high level walkthrough of the systems involved. The Driver app would connect to the Gothena Service ELB. Requests are routed to Gothena service. Gothena sends location update related requests to Astrolabe.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Driver Location Update Flow&quot; src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/driver-location-update-flow.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Hopefully the above gives you a better understanding of the background before we dive into the problem.&lt;/p&gt;
+
+&lt;h3 id=&quot;clues-from-aws&quot;&gt;Clues from AWS&lt;/h3&gt;
+
+&lt;p&gt;If you have ever taken a look at the AWS ELB dashboards, you will know that it shows a number of interesting metrics such as SurgeQueue &lt;sup id=&quot;fnref:5&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;, SpillOver &lt;sup id=&quot;fnref:6&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt;, RequestCount, HealthyInstances, UnhealthyInstances and a bunch of other backend metrics. As you see below, every time we receive one of the Astrolabe failed alerts, the AWS monitors would show that the SurgeQueue is filling up, SpillOver of requests is happening and that the average latency &lt;sup id=&quot;fnref:7&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot;&gt;7&lt;/a&gt;&lt;/sup&gt; of the requests increase. Interestingly, this situation would only persist for 1-2 minutes during our peak hours and only in one of the two AWS Availability Zones (AZ) that our ELBs are located in.&lt;/p&gt;
+
+&lt;h3 id=&quot;cloudwatch-metrics&quot;&gt;Cloudwatch Metrics&lt;/h3&gt;
+
+&lt;div id=&quot;carousel-example-generic&quot; class=&quot;carousel slide&quot; data-ride=&quot;carousel&quot; data-interval=&quot;false&quot;&gt;
+  &lt;div class=&quot;carousel-inner&quot; role=&quot;listbox&quot;&gt;
+    &lt;div class=&quot;item active&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-1.png&quot; alt=&quot;Cloudwatch Latency&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-2.png&quot; alt=&quot;Cloudwatch SurgeQueueLength&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-3.png&quot; alt=&quot;Cloudwatch SpilloverCount&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-4.png&quot; alt=&quot;Cloudwatch HTTPCode_ELB_5XX&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-5.png&quot; alt=&quot;Cloudwatch HTTPCode_Backend_5XX&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-6.png&quot; alt=&quot;Cloudwatch Healthy/Unhealty HostCount&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-7.png&quot; alt=&quot;Cloudwatch HTTPCode_Backend_2XX&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-8.png&quot; alt=&quot;Cloudwatch RequestCount&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-9.png&quot; alt=&quot;Cloudwatch HTTPCode_Backend_4XX&quot; /&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;item&quot;&gt;
+      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-10.png&quot; alt=&quot;Cloudwatch RequestCount&quot; /&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;a class=&quot;left carousel-control&quot; href=&quot;#carousel-example-generic&quot; role=&quot;button&quot; data-slide=&quot;prev&quot;&gt;
+    &lt;span class=&quot;glyphicon glyphicon-chevron-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+    &lt;span class=&quot;sr-only&quot;&gt;Previous&lt;/span&gt;
+  &lt;/a&gt;
+  &lt;a class=&quot;right carousel-control&quot; href=&quot;#carousel-example-generic&quot; role=&quot;button&quot; data-slide=&quot;next&quot;&gt;
+    &lt;span class=&quot;glyphicon glyphicon-chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
+    &lt;span class=&quot;sr-only&quot;&gt;Next&lt;/span&gt;
+  &lt;/a&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;p&gt;Few interesting points worth noting in above metrics:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;There are no errors from backend i.e. no 5XX or 4XX errors.&lt;/li&gt;
+  &lt;li&gt;Healthy and unhealthy instance count do not change i.e. all backend instances are healthy and serving the ELB.&lt;/li&gt;
+  &lt;li&gt;Backend 2XX count drops significantly i.e requests are not reaching backend instances.&lt;/li&gt;
+  &lt;li&gt;RequestCount drops significantly. It adds further proof of the above point that requests are not reaching the backend instances.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;By jumping into the more detailed CloudWatch metrics, we are able to further confirm from our side that there is an uneven distribution of requests across the two different AZs. When we reach out to AWS’ tech support, they confirm that one of the many ELB nodes is somehow preferred and is causing a load imbalance across ELB nodes that in turn causes a single ELB node to occasionally fail and results in the ELB 5xx errors that we are seeing.&lt;/p&gt;
+
+&lt;h3 id=&quot;what-is-happening&quot;&gt;What is happening?&lt;/h3&gt;
+
+&lt;p&gt;Having confirmation of the issue from AWS is a start. Now we can confidently say that our monitoring systems are working correctly – something that is always good to know. After some internal discussions, we then came up with some probable causes:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;ELB is not load balancing correctly (Astrolabe ELB)&lt;/li&gt;
+  &lt;li&gt;ELB is misconfigured (Astrolabe ELB)&lt;/li&gt;
+  &lt;li&gt;DNS/IP caching is happening on the client side (Gothena)&lt;/li&gt;
+  &lt;li&gt;DNS is misconfigured and is not returning IP(s) in a round-robin manner (AWS DNS Server)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We once again reach out to AWS tech support to see if there are any underlying issues with ELB when running at high loads (we are serving upwards for 20k request per second on Astrolabe). In case you’re wondering, AWS ELB is just like any other web service, it can occasionally not work as expected . However, in this instance, they confirm that there are no such issues at this point.&lt;/p&gt;
+
+&lt;p&gt;Moving on to the second item on the list – ELB configurations. When configuring ELBs, there are a couple of things that you would want to look out for: make sure that you are connecting to the right backend ports, your Route 53 &lt;sup id=&quot;fnref:8&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot;&gt;8&lt;/a&gt;&lt;/sup&gt; configuration for the ELB is correct and the same goes for the timeout settings. At one point, we suspected that our Route 53 configuration was not using CNAME records when pointing to the ELB but it turns out that for the case of ELBs, AWS actually provides an Alias Record Set that is essentially the same as a CNAME but with the added advantages of being able to reflect IP changes on the DNS server more quickly and not incurring additional ingress/egress charges for resolving Alias Record Set. Please refer to &lt;a href=&quot;https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-choosing-alias-non-alias.html&quot;&gt;this to learn more about CNAME vs Alias record set&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Having eliminated the possibility of a misconfiguration on the ELB, we move on to see if Gothena itself is doing some sort of IP caching or if there is some sort DNS resolution misconfiguration that is happening on the service itself. While doing this investigation, we notice the same pattern in all other services that are calling Astrolabe (we record all outgoing connections from our services on Datadog). It just so happens that because Gothena is responsible for the bulk of the requests to Astrolabe that the problem is more prominent here than on other services. Knowing this, allows us to narrow the scope down to either a library that is used by all these services or some sort of server configuration that we were applying across the board. This is where things start to get a lot more interesting.&lt;/p&gt;
+
+&lt;h3 id=&quot;a-misconfigured-server-is-it-ubuntu-is-it-go&quot;&gt;A misconfigured server? Is it Ubuntu? Is it Go?&lt;/h3&gt;
+
+&lt;p&gt;Here at Grab, all of our servers are running on AWS with Ubuntu installed on them and almost all our services are written in Go, which means that we have a lot of common setup and code between services.&lt;/p&gt;
+
+&lt;p&gt;The first thing that we check is the number of connections created from one single Gothena instance to each individual ELB node. To do this, we first use the dig command to get the list of IP addresses to look for:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$ &lt;/span&gt;dig +short astrolabe.grab.com
+172.18.2.38
+172.18.2.209
+172.18.1.10
+172.18.1.37
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Then we proceed with running the netstat command to get connection counts from the Gothena instance to each of the ELB IPs retrieved above.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;netstat | grep 172.18.2.38 | wc -l; netstat | grep 172.18.2.209 | wc -l; netstat | grep 172.18.1.10 | wc -l; netstat | grep 172.18.1.37 | wc -l;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And of course, the output of the command above shows that 1 of the 4 ELB nodes is preferred and the numbers are heavily skewed towards that one single node.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.9 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+0
+0
+58
+0
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.34 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+0
+0
+9
+25
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.137 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+0
+100
+0
+0
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.18 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+0
+0
+59
+0
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.96 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+0
+0
+49
+5
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.22 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+100
+0
+0
+0
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.66 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+100
+0
+0
+0
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.50 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
+100
+0
+0
+0
+&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Here is the sum of total connections to each ELB node from all Gothena instances. This also explains an uneven distribution of requests across the two different AZs with 1b serving more requests than 1a.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;172.18.2.38 -&amp;gt; 84
+172.18.2.209 -&amp;gt; 66
+172.18.1.10 -&amp;gt; 138
+172.18.1.37 -&amp;gt; 87
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And just to make sure that we did not just end up with a random outcome, we ran the same &lt;code class=&quot;highlighter-rouge&quot;&gt;netstat&lt;/code&gt; command across a number of different services that are running on different servers and codebases. Surely enough, the same thing is observed on all of them. This narrows down the potential problem to either something in the Go code, in Ubuntu or in the configurations. With this newfound knowledge, the first thing that we look into is whether Ubuntu is somehow caching the DNS results. This quickly turned into a dead end as DNS results are never cached on Linux by default, it would only be cached if we are running a local DNS server like dnsmasq.d or have a modified host file which we do not have.&lt;/p&gt;
+
+&lt;p&gt;The next thing to do now is to dive into the code itself. And to do that, we spin up a new EC2 instance in a &lt;strong&gt;different subnet&lt;/strong&gt; (this is important later on) but with the same configuration as the other servers to run some tests.&lt;/p&gt;
+
+&lt;p&gt;To help narrow down the problem points, we do some tests using cURL and a program in Go, Python and Ruby to try out the different scenarios and check consistency. While running the programs, we also capture the DNS TCP packets (by using the &lt;code class=&quot;highlighter-rouge&quot;&gt;tcpdump&lt;/code&gt; command below) to understand how many DNS queries are being made by each of the program. This helps us to understand if any DNS caching is happening.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$ &lt;/span&gt;tcpdump -l -n port 53
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Curiously, when running the 5 requests to a health check URL from Go, Ruby, and Python, we see that cURL, Ruby and Python make 5 different DNS queries while Go only makes 1 DNS query. It turned out that cURL, Ruby and Python create new connections for each request by default while Go uses the same connection for multiple requests by default. The tests show that the DNS is correctly returning the IP addresses list in a round robin manner as cURL, Ruby, Python and Go programs were all making connections to both the IPs in an even manner. Note: Because we are running the tests on a &lt;strong&gt;different isolated environment&lt;/strong&gt;, there are only 2 Astrolabe ELB nodes instead of the earlier 4.&lt;/p&gt;
+
+&lt;p&gt;For simplicity the &lt;code class=&quot;highlighter-rouge&quot;&gt;curl&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;tcpdump&lt;/code&gt; output is shown here:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;dig +short astrolabe.grab.com
+172.21.2.115
+172.21.1.107
+&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.1.107...
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.1.107&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.grab.com
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;gt;
+&amp;lt; HTTP/1.1 200 OK
+&amp;lt; Access-Control-Allow-Headers: Authorization
+&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
+&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
+&amp;lt; Date: Mon, 09 Jan 2017 11:19:00 GMT
+&amp;lt; Content-Length: 0
+&amp;lt; Connection: keep-alive
+&amp;lt;
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.2.115...
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.2.115&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.grab.com
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;gt;
+&amp;lt; HTTP/1.1 200 OK
+&amp;lt; Access-Control-Allow-Headers: Authorization
+&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
+&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
+&amp;lt; Date: Mon, 09 Jan 2017 11:19:01 GMT
+&amp;lt; Content-Length: 0
+&amp;lt; Connection: keep-alive
+&amp;lt;
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;sudo tcpdump -l -n port 53
+tcpdump: verbose output suppressed, use -v or -vv &lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;full protocol decode
+listening on eth0, link-type EN10MB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;Ethernet&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;, capture size 65535 bytes
+09:29:37.906017 IP 172.21.12.187.37107 &amp;gt; 172.21.0.2.53: 19598+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+09:29:37.906030 IP 172.21.12.187.37107 &amp;gt; 172.21.0.2.53: 41742+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+09:29:37.907518 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.37107: 41742 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+09:29:37.909391 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.37107: 19598 2/0/0 A 172.21.1.107, A 172.21.2.115 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+09:29:43.109745 IP 172.21.12.187.59043 &amp;gt; 172.21.0.2.53: 13434+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+09:29:43.109761 IP 172.21.12.187.59043 &amp;gt; 172.21.0.2.53: 63973+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+09:29:43.110508 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.59043: 13434 2/0/0 A 172.21.2.115, A 172.21.1.107 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+09:29:43.110575 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.59043: 63973 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The above tests make things even more interesting. We carefully kept the testing environment close to production in hopes of reproducing the issue yet everything seems to be working correctly. We run tests from the same OS image, same version of Golang, with the same HTTP client code and the same server configuration, but the issue of preferring a particular IP never happens.&lt;/p&gt;
+
+&lt;p&gt;How about running the tests on one of the staging Gothena instance? For simplicity, we’ll show &lt;code class=&quot;highlighter-rouge&quot;&gt;curl&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;tcpdump&lt;/code&gt; output which is indicative of the issue faced by our Go service.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~$ &lt;/span&gt;dig +short astrolabe.grab.com
+172.21.2.115
+172.21.1.107
+&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.2.115...
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.2.115&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.grab.com
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;gt;
+&amp;lt; HTTP/1.1 200 OK
+&amp;lt; Access-Control-Allow-Headers: Authorization
+&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
+&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
+&amp;lt; Date: Fri, 06 Jan 2017 11:07:16 GMT
+&amp;lt; Content-Length: 0
+&amp;lt; Connection: keep-alive
+&amp;lt;
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.2.115...
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.2.115&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.stg-myteksi.com
+&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;gt;
+&amp;lt; HTTP/1.1 200 OK
+&amp;lt; Access-Control-Allow-Headers: Authorization
+&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
+&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
+&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
+&amp;lt; Date: Fri, 06 Jan 2017 11:07:19 GMT
+&amp;lt; Content-Length: 0
+&amp;lt; Connection: keep-alive
+&amp;lt;
+&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~# &lt;/span&gt;tcpdump -l -n port 53 | grep -A4 -B1 astrolabe
+tcpdump: verbose output suppressed, use -v or -vv &lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;full protocol decode
+listening on eth0, link-type EN10MB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;Ethernet&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;, capture size 65535 bytes
+11:10:00.072042 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.51937: 25522 2/0/0 A 172.21.3.78, A 172.21.0.172 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:01.893912 IP 172.21.2.17.28047 &amp;gt; 172.21.0.2.53: 11695+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:01.893922 IP 172.21.2.17.28047 &amp;gt; 172.21.0.2.53: 13413+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:01.895053 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.28047: 13413 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:02.012936 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.28047: 11695 2/0/0 A 172.21.1.107, A 172.21.2.115 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:04.242975 IP 172.21.2.17.51776 &amp;gt; 172.21.0.2.53: 54031+ A? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:04.242984 IP 172.21.2.17.51776 &amp;gt; 172.21.0.2.53: 49840+ AAAA? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+--
+11:10:07.397387 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.18405: 1772 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;119&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:08.644113 IP 172.21.2.17.12129 &amp;gt; 172.21.0.2.53: 27050+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:08.644124 IP 172.21.2.17.12129 &amp;gt; 172.21.0.2.53: 3418+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:08.644378 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.12129: 3418 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:08.644378 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.12129: 27050 2/0/0 A 172.21.2.115, A 172.21.1.107 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:08.999919 IP 172.21.2.17.12365 &amp;gt; 172.21.0.2.53: 55314+ A? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+11:10:08.999928 IP 172.21.2.17.12365 &amp;gt; 172.21.0.2.53: 14140+ AAAA? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
+^C132 packets captured
+136 packets received by filter
+0 packets dropped by kernel
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;It didn’t work as expected in cURL. There is no IP caching, cURL is making DNS queries. We can see DNS is returning output correctly as per round robin. But somehow it’s still choosing the same one IP to connect to.&lt;/p&gt;
+
+&lt;p&gt;With all that, we have indirectly confirmed that the DNS round robin behaviour is working as expected and thus leaving us with nothing else left on the list. Everybody that participated in the discussion up to this point was equally dumbfounded.&lt;/p&gt;
+
+&lt;p&gt;After that long fruitless investigation, one question comes to mind. Which IP address will get the priority when the DNS results contain more than one IP address? A quick search on Google gives the following StackOverflow &lt;a href=&quot;http://serverfault.com/questions/102879/how-do-dns-clients-choose-an-ip-address-when-they-get-multiple-answers&quot;&gt;result&lt;/a&gt; with the following snippet:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;A DNS server resolving a query, may prioritize the order in which it uses the listed servers based on historical response time data (RFC1035 section 7.2). It may also prioritize by closer sub-net (I have seen this in RFC but don’t recall which). If no history or sub-net priority is available, it may choose by random, or simply pick the first one. I have seen DNS server implementations doing various combinations of above.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Well, that is disappointing, no new insights to preen from that. Having spent the whole day looking at the same issue, we were ready to call it a night while having the gut feeling that something must be misconfigured on the servers.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;If you are interested in finding the answers from the clues above, please hold off reading the next section and see if you can figure it out by yourself.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;breakthrough&quot;&gt;Breakthrough&lt;/h3&gt;
+
+&lt;p&gt;Coming in fresh from having a good night’s sleep, the issue managed to get the attention of even more Grab engineers that happily jumped in to help investigate the issue together. Then the magical clue happened, someone with an eye for networking spotted that the requests were always going to the ELB node that has the same subnet as the client that was initiating the request. Another engineer then quickly found RFC 3484 that talked about sorting of source and destination IP addresses. That was it! The IP addresses were always being sorted and that resulted in one ELB node getting more traffic than the rest.&lt;/p&gt;
+
+&lt;p&gt;Then an article surfaced that suggests disabling IPv6 for C-based applications. We quickly try that with our Go program which does not work. But when we then try running the same code with Cgo &lt;sup id=&quot;fnref:9&quot;&gt;&lt;a href=&quot;#fn:9&quot; class=&quot;footnote&quot;&gt;9&lt;/a&gt;&lt;/sup&gt; enabled as the DNS resolver it leads to success! The request count to the different ELB nodes is now properly balanced. Hooray!&lt;/p&gt;
+
+&lt;p&gt;If you have been following this post, you would have figured that the issue is impacting all of our internal services. But as stated earlier, the load on the other ELBs is not high as Astrolabe. So we do not see any issues with the other services, The traffic to Astrolabe has been steadily increasing over the past few months, which might have hit some ELB limits and causing 5XX errors.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Alternatives Considered&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Move Gothena instances into a different subnet&lt;/li&gt;
+  &lt;li&gt;Move all ELBs into a different subnet&lt;/li&gt;
+  &lt;li&gt;Use service discovery to connect internal services and bypass ELB&lt;/li&gt;
+  &lt;li&gt;Use weighted DNS + bunch of other config to balance the load&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;All the 4 solutions could solve our problem too but seeing how disabling IPv6 and using Cgo for DNS resolution required the least effort, we went with that.&lt;/p&gt;
+
+&lt;p&gt;Stay tuned for part 2 which will go into detail about the RFC, why disabling IPv6 and using Cgo works as well as what our plans are for the future.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Note: All the sensitive information in this article has been modified and does not reflect the true state of our systems.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h4&gt;
+
+&lt;div class=&quot;footnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot;&gt;
+      &lt;p&gt;Gothena – An internal service that is in-charge of all driver communications logic. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://aws.amazon.com/elasticloadbalancing/&quot;&gt;AWS ELB&lt;/a&gt; – AWS Elastic Load Balancer, a load balancing service that is offered by AWS. There can be more than one instance representing an AWS ELB. DNS RoundRobin is used to distribute connections among AWS ELB instances. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/ts-elb-error-message.html#ts-elb-errorcodes-http504&quot;&gt;ELB HTTP 5xx errors&lt;/a&gt; – An HTTP 5xx error that is returned by the ELB instead of the backend service. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot;&gt;
+      &lt;p&gt;Astrolabe – An internal service that is in charge of storing and processing all driver location data. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:5&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-cloudwatch-metrics.html&quot;&gt;ELB SurgeQueue&lt;/a&gt; - The number of requests that are pending routing. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:6&quot;&gt;
+      &lt;p&gt;ELB SpillOver - The total number of requests that were rejected because the surge queue is full. &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:7&quot;&gt;
+      &lt;p&gt;ELB Latency - The time elapsed, in seconds, after the request leaves the load balancer until the headers of the response are received. &lt;a href=&quot;#fnref:7&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:8&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://aws.amazon.com/route53&quot;&gt;AWS Route 53&lt;/a&gt; - A managed cloud DNS solution provided by AWS. &lt;a href=&quot;#fnref:8&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:9&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://golang.org/cmd/cgo/&quot;&gt;Cgo&lt;/a&gt; - Cgo enables the creation of Go packages that call C code. &lt;a href=&quot;#fnref:9&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Thu, 11 May 2017 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/troubleshooting-unusual-aws-elb-5xx-error</link>
+        <guid isPermaLink="true">http://engineering.grab.com/troubleshooting-unusual-aws-elb-5xx-error</guid>
+        
+        <category>AWS</category>
+        
+        <category>Networking</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Scaling Like a Boss with Presto</title>
+        <description>&lt;p&gt;A year ago, the data volumes at Grab were much lower than the volume we currently use for data-driven analytics. We had a simple and robust infrastructure in place to gather, process and store data to be consumed by numerous downstream applications, while supporting the requirements for data science and analytics.&lt;/p&gt;
+
+&lt;p&gt;Our analytics data store, Amazon Redshift, was the primary storage machine for all historical data, and was in a comfortable space to handle the expected growth. Data was collected from disparate sources and processed in a daily batch window; and was available to the users before the start of the day. The data stores were well-designed to benefit from the distributed columnar architecture of Redshift, and could handle strenuous SQL workloads required to arrive at insights to support out business requirements.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Redshift Architecture&quot; src=&quot;/img/scaling-like-a-boss-with-presto/redshift-architecture.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;While we were confident in handling the growth in data, what really got challenging was to cater to the growing number of users, reports, dashboards and applications that accessed the datastore. Over time, the workloads grew in significant numbers, and it was getting harder to keep up with the expectations of returning results within required timelines. The workloads are peaky with Mondays being the most demanding of all. Our Redshift cluster would struggle to handle the workloads, often leading to really long wait times, occasional failures and connection timeouts. The limited workload management capabilities of Redshift also added to the woes.&lt;/p&gt;
+
+&lt;p&gt;In response to these issues, we started conceptualizing an alternate architecture for analytics, which could meet our main requirements:
+- The ability to scale and to meet the demands of our peaky workload patterns
+- Provide capabilities to isolate different types of workloads
+- To support future requirements of increasing data processing velocity and reducing time to insight&lt;/p&gt;
+
+&lt;h3 id=&quot;so-we-built-the-data-lake&quot;&gt;So we built the data lake&lt;/h3&gt;
+
+&lt;p&gt;We began our efforts to overcome the challenges in our analytics infrastructure by building out our Data Lake. It presented an opportunity to decouple our data storage from our computational modules while providing reliability, robustness, scalability and data consistency. To this effect, we started replicating our existing data stores to Amazon’s Simple Storage Service (S3), a platform proven for its high reliability, and widely used by data-driven companies as part of their analytics infrastructure.&lt;/p&gt;
+
+&lt;p&gt;The data lake design was primarily driven by understanding the expected usage patterns, and the considerations around the tools and technologies allowing the users to effectively explore the datasets in the data lake. The design decisions were also based on the data pipelines that would collect the data and the common data transformations to shape and prepare the data for analysis.&lt;/p&gt;
+
+&lt;p&gt;The outcome of all those considerations were:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;All large datasets were sharded/partitioned based on the timestamps, as most of the data analysis involved a specific time range and it gave an almost even distribution of data over a length of time. The granularity was at an hour, since we designed the data pipelines to perform hourly incremental processing. We followed the prescribed technique to build the S3 keys for the partitions, which is using the year, month, day and hour prefixes that are known to work well with big data tools such as Hive and Spark.&lt;/li&gt;
+  &lt;li&gt;Data was stored as AVRO and compressed for storage optimizations. We considered several of the available storage formats - ORC, Parquet, RC File, but AVRO emerged as the elected winner mainly due to its compatibility with Redshift. One of the focus points during the design was to offload some of the heavy workloads run on Redshift to the data lake and have the processed data copied to Redshift.&lt;/li&gt;
+  &lt;li&gt;We relied on Spark to power our data pipelines and handle the important transformations. We implemented a generic framework to handle different data collection methodologies from our primary data sources - MySQL and Amazon Kinesis. The existing workloads in Redshift written in SQL were easy enough to be replicated on Spark SQL with minimal syntax changes. For everything else we relied on the Spark data frame API.&lt;/li&gt;
+  &lt;li&gt;The data pipelines were designed to perform, what we started to term as RDP, Recursive Data Processing. While majority of the data sets handled were immutable such as driver states, availability and location, payment transactions, fare requests and more, we still had to deal with the mutable nature of our most important datasets - bookings and candidates. The life cycle of a passenger booking request goes through several states from the starting point of when the booking request was made, through the assignment of the driver, to the length of the ride until completion. Since we collected data at hourly intervals we had to reprocess the bookings previously collected and update the records in the data lake. We performed this recursively until the final state of the data was captured. Updating data stored as files in the data lake is an expensive affair and our strategy to partition, format and compress the data made it achievable using Spark jobs.&lt;/li&gt;
+  &lt;li&gt;RDP posed another interesting challenge. Most of the data transformation workloads, for example - denormalizing the data from multiple sources, required the availability of the individual hourly datasets before the workloads were executed. Managing the workloads to orchestrate complex dependencies at hourly frequencies required a suitable scheduling tool. We were faced with the classic question - to adapt, or to build our own? We chose to build a scheduler that fit the bill.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Once we had the foundational blocks defined and the core components in place, the actual effort in building the data lake was relatively low and the important datasets were available to the users for exploration and analytics in a matter of few days to weeks. Also, we were able to offload some of the workload from Redshift to the data lake with EMR + Spark as the platform and computational engine respectively. However, retrospectively speaking, what we didn’t take into account was the adaptability of the data lake and the fact that majority of our data consumers had become more comfortable in using a SQL-based data platform such as Redshift for their day-to-day use of the data stores. Working with the data using tools such as Spark and Zeppelin involved a larger learning curve and was limited to the skill sets of the data science teams.&lt;/p&gt;
+
+&lt;p&gt;And more importantly, we were yet to tackle our most burning challenge, which was to handle the high workload volumes and data requests that was one of our primary goals when we started. We aimed to resolve some of those issues by offloading the heavy workloads from Redshift to the data lake, but the impact was minimal and it was time to take the next steps. It was time to presto.&lt;/p&gt;
+
+&lt;h3 id=&quot;gusto-with-presto&quot;&gt;Gusto with Presto&lt;/h3&gt;
+
+&lt;p&gt;SQL on Hadoop has been an evolving domain, and is advancing at a fast pace matching that of other big data frameworks. A lot of commercial distributions of the Hadoop platform have taken keen interest in providing SQL capabilities as part of their ecosystem offerings. Impala, Stinger, Drill appear to be the frontrunners, but being on the AWS EMR stack, we looked at Presto as our SQL engine over the data lake in S3.&lt;/p&gt;
+
+&lt;p&gt;The very first thing we learnt was the lack of support for the AVRO format in Presto. However, that seemed to be the only setback as it was fairly straightforward to adapt Parquet as the data storage format instead of AVRO. Presto had excellent support for Hive metastore, and our data lake design principles were a perfect fit for that. AWS EMR had a fairly recent version of Presto when we started (they have upgraded to more recent versions since). Presto supports ANSI SQL. While the syntax was slightly different to Redshift, we had no problems to adapt and work with that. Most importantly, our performance benchmarks showed results that were much better than anticipated. A lot of online blogs and articles about Presto always tend to benchmark its performance against Hive which frankly doesn’t provide any insights on how well Presto can perform. What we were more interested in was to compare the performance of Presto over Redshift, since we were aiming to offload the Redshift workloads to Presto. Again, this might not be a fair enough comparison since Redshift can be blazingly fast with the right distribution and sort keys in place, and well written SQL queries. But we still aimed to hit at-least 50-60% of the performance numbers with Presto as compared to Redshift, and were able to achieve it in a lot of scenarios. Use cases where the SQL only required a few days of data (which was mostly what the canned reports needed), due to the partitions in the data, Presto performed as well as (if not better than) Redshift. Full table scans involving distribution and sort keys in Redshift were a lot faster than Presto for sure, but that was only needed as part of ad-hoc queries that were relatively rare.&lt;/p&gt;
+
+&lt;p&gt;We compared the query performance for different types of workloads:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A. Aggregation of data on the entire table (2 Billion records)
+    &lt;ul&gt;
+      &lt;li&gt;Sort key column used in Redshift&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;B. Aggregation of data with a specific data range (1 week)
+    &lt;ul&gt;
+      &lt;li&gt;Partitioning fields used in Presto&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;C. Single record fetch&lt;/li&gt;
+  &lt;li&gt;D. Complex SQL query with join between a large table (with date range) and multiple small tables&lt;/li&gt;
+  &lt;li&gt;E. Complex SQL query with join between two large tables (with date range) and multiple small tables&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Presto vs Redshift Performance Comparison&quot; src=&quot;/img/scaling-like-a-boss-with-presto/presto-vs-redshift.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Notes on the performance comparison:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;The Presto and Redshift clusters had similar configurations&lt;/li&gt;
+  &lt;li&gt;No other workloads were being executed when the performance tests were run.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Although Presto could not exceed the query performance of Redshift in all scenarios, we could divide the workloads across different Presto clusters while maintaining a single underlying storage layer. We wanted to move away from a monolithic multi-tenant to a completely different approach of shared-data multi-cluster architecture, with each cluster catering to a specific application or a type of usage or a set of users. Hosting Presto on EMR provided us with the flexibility to spin up new clusters in a matter of minutes, or scale existing clusters during peak loads.&lt;/p&gt;
+
+&lt;p&gt;With the introduction of Presto to our analytics stack, the architecture now stands as depicted:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Redshift Architecture&quot; src=&quot;/img/scaling-like-a-boss-with-presto/presto-architecture.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;From an implementation point of view, each Presto cluster would connect to a common Hive metastore built on RDS. The Hive metastore provided the abstraction over the Parquet datasets stored in the data lake. Parquet is the next best known storage format suited for Presto after ORC, both of which are columnar stores with similar capabilities. A common metastore meant that we only had to create a Hive external table on the datasets in S3 and register the partitions once, and all the individual presto clusters would have the data available for querying. This was both convenient and provided an excellent level of availability and recovery. If any of the cluster went down, we would failover to a standby Presto cluster in a jiffy, and scale it for production use. That way we could ensure business continuity and minimal downtime and impact on the performance of the applications dependant on Presto.&lt;/p&gt;
+
+&lt;p&gt;The migration of workloads and canned SQL queries from Redshift to Presto was time consuming, but all in all, fairly straightforward. We built custom UDFs for Presto to simplify the process of migration, and extended the support on SQL functions available to the users. We learnt extensively about writing optimized queries for Presto along the way. There were a few basic rules of thumb listed below, which helped us achieve the performance targets we were hoping for.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Always rely on the time-based partition columns whenever querying large datasets. Using the partition columns restricts the amount of data being read from S3 by Presto.&lt;/li&gt;
+  &lt;li&gt;When joining multiple tables, ordering the join sequences based on the size of the table (from largest to the smallest) provided significant performance benefits and also helped avoid skewness in the data that usually leads to “exceeds memory limit” exceptions on Presto.&lt;/li&gt;
+  &lt;li&gt;Anything other than equijoin conditions would cause the queries to be extremely slow. We recommend avoiding non equijoin conditions as part of the ON clause, and instead apply them as a filter within the WHERE clause wherever possible.&lt;/li&gt;
+  &lt;li&gt;Sorting of data using &lt;code class=&quot;highlighter-rouge&quot;&gt;ORDER BY&lt;/code&gt; clauses must be avoided, especially when the resulting dataset is large.&lt;/li&gt;
+  &lt;li&gt;If a query is being filtered to retrieve specific partitions, use of SQL functions on the partitioning columns as part of the filtering condition leads to a really long PLANNING phase, during which Presto is trying to figure out the partitions that need to be read from the source tables. The partition column must be used directly to avoid this effect.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;back-on-the-highway&quot;&gt;Back on the Highway&lt;/h3&gt;
+
+&lt;p&gt;It has been a few months since we have adopted Presto as an integral part of our analytics infrastructure, and we have seen excellent results so far. On an average we cater to 1500 - 2000 canned report requests a day at Grab, and support ad-hoc/interactive query requirements which would most likely double those numbers. We have been tracking the performance of our analytics infrastructure since last year (during the early signs of the troubles). We hit the peak just before we deployed Presto into our production systems, and the migration has since helped us achieve a 400% improvement in our 90th percentile numbers. The average execution times of queries have also improved significantly, and we have successfully eliminated the high wait times that were associated with the Redshift workload manager during periods with large numbers of concurrent requests.&lt;/p&gt;
+
+&lt;h3 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h3&gt;
+
+&lt;p&gt;Adding Presto to our stack has give us the boost we needed to scale and meet the growing requirements for analytics. We have future-proofed our infrastructure by building the data lake, and made it easier to evaluate and adapt new technologies in the big data space. We hope this article has given you insights in Grab’s analytics infrastructure. We would love to hear your thoughts or your experience, so please do leave a note in the comments below.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Many thanks to Edwin Law who reviewed drafts and waited patiently for it to be published.&lt;/em&gt;&lt;/p&gt;
+</description>
+        <pubDate>Tue, 02 May 2017 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/scaling-like-a-boss-with-presto</link>
+        <guid isPermaLink="true">http://engineering.grab.com/scaling-like-a-boss-with-presto</guid>
+        
+        <category>Analytics</category>
+        
+        <category>AWS</category>
+        
+        <category>Data</category>
+        
+        <category>Storage</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Deep Dive Into iOS Automation At Grab - Continuous Delivery</title>
+        <description>&lt;p&gt;This is the second part of our series “Deep Dive into iOS Automation at Grab”, where we will cover how we manage continuous delivery. The first article is available &lt;a href=&quot;/deep-dive-into-ios-automation-at-grab-integration-testing&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;As a common solution to the limitations of an Apple developer account’s device whitelist, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Adhoc QA -&lt;/strong&gt; Most frequently distributed builds for mobile devs and QAs whose devices present in the ad hoc provisioning profile.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Hot Dogfood -&lt;/strong&gt; Similar to Adhoc QA (both have debug options to connect to a staging environment) but signed under an enterprise account. This build is meant for backend devs to test out their APIs on staging.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Dogfood -&lt;/strong&gt; Company-wide beta testing that includes both the online and offline team. This is often released when new features are ready or accepted by QA. It can also be a release candidate before we submit to the App Store.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Testflight -&lt;/strong&gt; Production regression testing for QA team. The accepted build will be submitted to the App Store for release.&lt;/p&gt;
+
+&lt;p&gt;The first 3 are distributed through &lt;a href=&quot;https://get.fabric.io/&quot;&gt;Fabric&lt;/a&gt;. The last one is, of course, distributed through iTunes Connect. Archiving is done simply through bash scripts. Why did we move away from Fastlane? First of all, our primary need is archiving. We don’t really need a bunch of other powerful features. The scripts simply perform clean build and archive actions using &lt;code class=&quot;highlighter-rouge&quot;&gt;xcodebuild&lt;/code&gt;. Each of them is less than 100 lines. Secondly, it’s so much easier and flexible for us to customize our own script. E.g. final modifications to the code before archiving. Lastly, we have one less dependency. That means one less step to provision a new server.&lt;/p&gt;
+
+&lt;h2 id=&quot;server-side-swift&quot;&gt;Server-side Swift&lt;/h2&gt;
+
+&lt;p&gt;Now whenever we need a new build we simply execute a script. But the question is, who should do it? It’s clearly not an option to login to the build machine and do it manually. So again, as a whole bunch of in-house enthusiasts, we wrote a simple app using server-side Swift. The first version was implemented by our teammate &lt;a href=&quot;https://github.com/mno2&quot;&gt;Paul Meng&lt;/a&gt;. It has gone through a few iterations over time.&lt;/p&gt;
+
+&lt;p&gt;The app integrates with &lt;a href=&quot;https://github.com/pvzig/SlackKit.git&quot;&gt;SlackKit&lt;/a&gt; using Swift Package Manager and listens to the command from a Slackbot &lt;strong&gt;@iris&lt;/strong&gt;. (In case you were wondering, Iris is not someone on the team. Iris is the reverse of Siri 🙊. We love Iris.)&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Goddess Iris&quot; src=&quot;/img/ios-automation/goddess-iris.png&quot; width=&quot;50%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Iris Slack&quot; src=&quot;/img/ios-automation/iris-slack.png&quot; width=&quot;50%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Irisbot&lt;/code&gt; is a Swift class that conforms to &lt;code class=&quot;highlighter-rouge&quot;&gt;messageEventsDelegate&lt;/code&gt; protocol offered by SlackKit. When it receives a message, we parse the message and enqueue a job into a customized serialized &lt;code class=&quot;highlighter-rouge&quot;&gt;DispatchQueue&lt;/code&gt;. Here are a few lines of the main logic.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;received&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;Message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;Client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Interpret message to get the command and sanitize user inputs...&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// Schedule a job.&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;archiveQueue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;as&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ync&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// Execute scripts based on command.&lt;/span&gt;
+    &lt;span class=&quot;nf&quot;&gt;shell&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;bash&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;Scripts/&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jobType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;executableFileName&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;branch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// Notify Slack channel when job is done.&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;webAPI&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;sendMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;job &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jobID&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s&quot;&gt; completed&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// Send ACK to the channel.&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;webAPI&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;sendMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;building... your job ID is &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jobID&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Now if anyone needs a build they can trigger it themselves. 🎉&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Corgi Macbook&quot; src=&quot;/img/ios-automation/corgi-macbook-meme.jpg&quot; width=&quot;80%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Literally anyone&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;deployments&quot;&gt;Deployments&lt;/h2&gt;
+
+&lt;p&gt;We sometimes add new features to &lt;strong&gt;@iris&lt;/strong&gt; or modify build scripts. How to deploy those changes? We did it with a little help of Capistrano. Here is how:&lt;/p&gt;
+
+&lt;p&gt;The plain Iris project looks like this:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;├── Package.swift
+├── Package.pins
+├── Packages
+├── Sources
+│   └── main.swift
+└── Scripts
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Additional files after Capistrano look like this:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;├── Gemfile
+├── Gemfile.lock
+├── Capfile
+├── config
+│   ├── deploy
+│   │   └── production.rb
+│   └── deploy.rb
+└── lib
+    └── capistrano
+            └── tasks
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Iris doesn’t have a staging environment. So simply config the server IPs in &lt;code class=&quot;highlighter-rouge&quot;&gt;production.rb&lt;/code&gt;:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;server&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#39;x.x.x.x&#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;user: &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&#39;XCode Server User Name&#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And then a set of variables in &lt;code class=&quot;highlighter-rouge&quot;&gt;deploy.rb&lt;/code&gt;:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:application&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;osx-server&quot;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:repo_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;git@github.com:xxx/xxxxx.git&quot;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:deploy_to&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;/path/to/wherever&quot;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:keep_releases&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;ask&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:branch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sb&quot;&gt;`git rev-parse --abbrev-ref HEAD`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;chomp&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:linked_files&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;config.json&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;linked_files&lt;/code&gt; will symlink any file in the &lt;code class=&quot;highlighter-rouge&quot;&gt;shared/&lt;/code&gt; folder on the server into the current project directory. Here we linked a &lt;code class=&quot;highlighter-rouge&quot;&gt;config.json&lt;/code&gt; which consists of the path to the iOS passenger app repo on the server and where to put the generated &lt;code class=&quot;highlighter-rouge&quot;&gt;.xcarchive&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;.ipa&lt;/code&gt; files. So that people can pass in a different value in their local machine when they want to test out their changes.&lt;/p&gt;
+
+&lt;p&gt;We are all set. How simple is that! To deploy 🚀, simply execute &lt;code class=&quot;highlighter-rouge&quot;&gt;cap production deploy&lt;/code&gt;.
+Screwed up? &lt;code class=&quot;highlighter-rouge&quot;&gt;cap production deploy:rollback&lt;/code&gt; will rescue.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;What Grab has now, isn’t the most mature setup (there is still a lot to consider. e.g. scaling, authorization, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience in the comments below.&lt;/p&gt;
+
+&lt;p&gt;Happy automating!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 24 Apr 2017 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery</link>
+        <guid isPermaLink="true">http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery</guid>
+        
+        <category>Continuous Delivery</category>
+        
+        <category>iOS</category>
+        
+        <category>Mobile</category>
+        
+        <category>Swift</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Deep Dive Into iOS Automation At Grab - Integration Testing</title>
+        <description>&lt;p&gt;This is the first part of our series “Deep Dive Into iOS Automation At Grab”, where we will cover testing automation in the iOS team. The second article is available &lt;a href=&quot;/deep-dive-into-ios-automation-at-grab-continuous-delivery&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Over the past two years at Grab, the iOS passenger app team has grown from 3 engineers in Singapore to 20 globally. Back then, each one of us was busy shipping features and had no time to set up a proper automation process. It was common to hear these frustrations from the team:&lt;/p&gt;
+
+&lt;h4 id=&quot;travis-failed-again-but-it-passes-in-my-local&quot;&gt;Travis failed again but it passes in my local&lt;/h4&gt;
+
+&lt;p&gt;There was a time when iOS 9 came out and Travis failed for us for every single integration. We tried emailing their support but the communication took longer than we would have liked, and ultimately we didn’t manage to fix the issue in time.&lt;/p&gt;
+
+&lt;h4 id=&quot;fastlane-chose-the-wrong-provisioning-profile-again&quot;&gt;Fastlane chose the wrong provisioning profile again&lt;/h4&gt;
+
+&lt;p&gt;We relied on &lt;a href=&quot;https://fastlane.tools/&quot;&gt;Fastlane&lt;/a&gt; for quite some time and it is a brilliant tool. There was a time, however, that some of us had issues with provisioning profiles constantly. Why and how we moved away from Fastlane will be explained later.&lt;/p&gt;
+
+&lt;h4 id=&quot;argh-if-more-people-tested-in-production-before-the-release-this-crash-might-have-been-caught&quot;&gt;Argh, if more people tested in production before the release, this crash might have been caught&lt;/h4&gt;
+
+&lt;p&gt;Prior to the app release, we do regression testing in a production environment. In the past, this was done almost entirely by our awesome QA team via Testflight distributions exclusively. That meant it was hard to cover all combinations of OSes, device models, locations and passenger account settings. We had prior incidents that only happened to a particular phone model, operating system, etc. Those gave us motivation to install a company-wide dogfooding program.&lt;/p&gt;
+
+&lt;p&gt;If you can relate to any of the above. This article is for you. We set up and developed most of the stuff below in-house, hence if you don’t have the time or manpower to maintain, it is still better to go with third-party services.&lt;/p&gt;
+
+&lt;p&gt;Testing and distribution are two aspects that we put a lot of effort in automating. Part I will cover how we do integration tests at Grab.&lt;/p&gt;
+
+&lt;h2 id=&quot;testing---xcode-server&quot;&gt;Testing - Xcode Server&lt;/h2&gt;
+
+&lt;p&gt;Besides being a complete Apple fan myself, there are a couple of other reasons why we chose Xcode Server over &lt;a href=&quot;https://travis-ci.org/&quot;&gt;Travis&lt;/a&gt; and &lt;a href=&quot;https://www.bitrise.io/&quot;&gt;Bitrise&lt;/a&gt; (which our Android team uses) to run our tests.&lt;/p&gt;
+
+&lt;h4 id=&quot;faster-integration&quot;&gt;Faster integration&lt;/h4&gt;
+
+&lt;p&gt;Unlike most cloud services where every test is run in a random box from a macOS farm, at Grab, we have complete control of what machine we connect to. Provisioning a server (pretty much downloading Xcode, a macOS server, combined with some extremely simple steps) is a one-time affair and does not have to be repeated during each integration. e.g. Installing correct version of Cocoapod and command line libraries.&lt;/p&gt;
+
+&lt;p&gt;Instead of fresh cloning a repository, Xcode Server simply checks out the branch and pulls the latest code. That can save time especially when you have a long commit history.&lt;/p&gt;
+
+&lt;h4 id=&quot;native-native-native&quot;&gt;Native native native&lt;/h4&gt;
+
+&lt;p&gt;It is a lot more predictable. It guarantees that it’s the same OS, same Xcode version, same Swift version. If the tests passes on your Xcode, and on your teammates’ Xcodes, it will pass on the server’s Xcode.&lt;/p&gt;
+
+&lt;h4 id=&quot;perfect-ui-testing-process-recording&quot;&gt;Perfect UI Testing Process Recording&lt;/h4&gt;
+
+&lt;p&gt;This is the most important reason and is something Travis / Bitrise didn’t offer at the time I was doing my research. When a UI test fails, knowing which line number caused it to fail is simply not enough. You would rather know what exactly happened. Xcode Server records every single step of your integration just like Xcode. You can easily skim through the whole process and view the screenshots at each stage. Xcode 8 even allows you to view a live screen on the Xcode Server while an integration is running.&lt;/p&gt;
+
+&lt;p&gt;For those of you who are familiar with UI testing on Xcode, you can view the results from the server in the exact same format. Clicking on the eye icon allows you to view the screenshots.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Xcode UI Tests&quot; src=&quot;/img/ios-automation/xcode-ui-tests.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Sounds good! Let’s get started. On the day we got our server, we found creative ways to use it.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Mac Pro&quot; src=&quot;/img/ios-automation/mac-pro.jpg&quot; width=&quot;60%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Our multi-purpose server ♻️&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;workflow&quot;&gt;Workflow&lt;/h2&gt;
+
+&lt;p&gt;The basic idea is to create a bot when a feature branch is pushed, trigger the bot on each commit and delete the bot after the feature is merged / branch is deleted. Grab uses &lt;a href=&quot;https://www.phacility.com/phabricator/&quot;&gt;Phabricator&lt;/a&gt; as the main code review tool. We wrote scripts to create and delete the bots as &lt;a href=&quot;https://secure.phabricator.com/book/phabricator/article/arcanist/&quot;&gt;Arcanist&lt;/a&gt; post diff (branch is created/updated) and land (branch is merged) hooks.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Surprised Koala&quot; src=&quot;/img/ios-automation/surprised-koala.jpg&quot; width=&quot;60%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Some PHP is still required. This is all of it 😹:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$botCommand = &quot;ruby bot.rb trigger $remoteBranchName&quot;;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Creating a bot manually is simply a &lt;code class=&quot;highlighter-rouge&quot;&gt;POST&lt;/code&gt; request to your server with the bot specifications in body and authentication in headers. You can totally use &lt;code class=&quot;highlighter-rouge&quot;&gt;cURL&lt;/code&gt;. We wrote it in Ruby:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;response&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;RestClient&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Request&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;execute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;ss&quot;&gt;url: &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;XCODE_SERVER_URL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;ss&quot;&gt;method: &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&#39;post&#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;ss&quot;&gt;verify_ssl: &lt;/span&gt;&lt;span class=&quot;kp&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;ss&quot;&gt;headers: &lt;/span&gt;&lt;span class=&quot;vi&quot;&gt;@headers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;ss&quot;&gt;payload: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;body&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;code&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;201&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Successfully created bot &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;, uuid &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;uuid&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;JSON&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;parse&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;response&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;body&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&#39;_id&#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Failed to create bot &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;As you can see, &lt;code class=&quot;highlighter-rouge&quot;&gt;XCODE_SERVER_URL&lt;/code&gt; is configurable. This is how we scale when the team expands.&lt;/p&gt;
+
+&lt;p&gt;Now the only thing left is to figure out the body payload. It is simple, all the bots and their configurations can be viewed as JSON via the following API. Simply create a bot via Xcode UI and it will reveal all the secrets:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl -k -u username:password https://your.server.com:20343/api/bots
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Apple doesn’t have a lot of documentation on this. For a list of Xcode Server APIs you can try out &lt;a href=&quot;http://docs.xcodeserverapidocs.apiary.io/#reference/bots/bots/create-a-new-bot&quot;&gt;this list&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;gotchas&quot;&gt;Gotchas&lt;/h2&gt;
+
+&lt;p&gt;We have been happy with the server most of the time. However, along the way we did discover several downsides:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The simulator that the Xcode Server spins up does not necessarily have customized location enabled. You probably want to mock your locations in code in testing environment.&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Installed builds are being updated during each integration and reused. There might be cache issues from previous integrations. Hence, deleting the app in your pre-integration script can be a good idea:&lt;/p&gt;
+
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$ &lt;/span&gt;xcrun simctl uninstall booted your.bundle.id
+&lt;/code&gt;&lt;/pre&gt;
+    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Right after upgrading Xcode, you may face some transient issues. An example from what we’ve observed so far is that existing bots often can’t find the simulators that used to be attached to them. Deleting old simulators and configuring new ones will help. That may also require you to change your bot creation script depending on your configuration. Restarting the server machine sometimes helps too.&lt;/li&gt;
+  &lt;li&gt;If you have one machine like us, there will be downtime during the software update. It either introduces inconvenience to your teammates or worse, someone could break master during the downtime.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Stay tuned for the second part where we will cover on how we manage continuous delivery.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Many thanks to Dillion Tan and Tay Yang Shun who reviewed drafts and waited patiently for it to be published.&lt;/em&gt;&lt;/p&gt;
+</description>
+        <pubDate>Wed, 19 Apr 2017 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-integration-testing</link>
+        <guid isPermaLink="true">http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-integration-testing</guid>
+        
+        <category>Continuous Integration</category>
+        
+        <category>iOS</category>
+        
+        <category>Mobile</category>
+        
+        <category>Testing</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>A Key Expired In Redis, You Won&#39;t Believe What Happened Next</title>
+        <description>&lt;p&gt;One of Grab’s more popular caching solutions is &lt;a href=&quot;https://redis.io/&quot;&gt;Redis&lt;/a&gt; (often in the flavour of the misleadingly named ElastiCache &lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;), and for most cases, it works. Except for that time it didn’t. Follow our story as we investigate how Redis deals with consistency on key expiration.&lt;/p&gt;
+
+&lt;p&gt;A recent problem we had with our ElastiCache Redis involving our Unicorn API, was that we were serving unusually outdated Unicorns to our clients.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Unicorn&quot; src=&quot;/img/key-expired-in-redis/unicorn.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Unicorns are in popular demand and change infrequently, and as a result, Grab Unicorns are cached at almost every service level. Unfortunately, customers typically like having shiny new unicorns as soon as they are spotted, so we had to make sure we bound our Unicorn change propagation time. In this particular case, we found that apart from the usual minuscule DB replication lag, a region-specific change in Unicorns took up to 60 minutes to reach our customers.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Cacheception&quot; src=&quot;/img/key-expired-in-redis/cacheception.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Considering that our Common Data Service (CDS) server cache (5 minutes), CDS client cache (1 minute), Grab API cache (5 minutes), and mobile cache (varies, but insignificant) together accounted for at most ~11 minutes of Unicorn change propagation time, this was a rather perplexing find. (Also, we should really consider an inter-service cache invalidation strategy for this &lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;.)&lt;/p&gt;
+
+&lt;h3 id=&quot;how-we-cache-unicorns-at-the-api-level&quot;&gt;How We Cache Unicorns At The API Level&lt;/h3&gt;
+
+&lt;p&gt;Subsequently, we investigated why the Unicorns returned from the API were up to 45 minutes stale, as tested on production. Before we share our findings, let’s go through a quick overview of what the Unicorn API’s ElastiCache Redis looks like.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Block Diagram&quot; src=&quot;/img/key-expired-in-redis/block-diagram.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We have a master node used exclusively for writes, and 2 read-only slaves &lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;. This is also a good time to mention that we use Redis 2.x as ElastiCache support for 3.x was only added in October 2016.&lt;/p&gt;
+
+&lt;p&gt;As Unicorns are region-specific, we were caching Unicorns based on locations, and consequently, have a rather large number of keys in this Redis (~5594518 at the time). This is also why we encountered cases where different parts of the same city inexplicably had different Unicorns.&lt;/p&gt;
+
+&lt;h3 id=&quot;so-what-gives&quot;&gt;So What Gives?&lt;/h3&gt;
+
+&lt;p&gt;As part of our investigation, we tried monitoring the TTLs (Time To Live) on some keys in the Redis.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Steps (on the master node):&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Run TTL for a key, and monitor the countdown to expiry
+    &lt;ul&gt;
+      &lt;li&gt;Starting from 300 (seconds), it counted down to 0&lt;/li&gt;
+      &lt;li&gt;After expiry, it returned -2 (expected behaviour)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Running GET on an expired key returned nothing&lt;/li&gt;
+  &lt;li&gt;Running a GET on the expired key in a slave returned nothing&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Interestingly, running the same experiment on the slave yielded different behaviour.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Steps (on a slave node):&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Run TTL for a key, and monitor the countdown to expiry
+    &lt;ul&gt;
+      &lt;li&gt;Starting from 300 (seconds), it counted down to 0&lt;/li&gt;
+      &lt;li&gt;After expiry, it returned -2 (expected behaviour)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Running GET on an expired key returned data!&lt;/li&gt;
+  &lt;li&gt;Running GET for the key on master returned nothing&lt;/li&gt;
+  &lt;li&gt;Subsequent GETs on the slave returned nothing&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This finding, together with the fact that we don’t read from the master branch, explained how we ended up with Unicorn ghosts, but not why.&lt;/p&gt;
+
+&lt;p&gt;To understand this better, we needed to &lt;a href=&quot;https://en.wikipedia.org/wiki/RTFM&quot;&gt;RTFM&lt;/a&gt;. More precisely, we need two key pieces of information.&lt;/p&gt;
+
+&lt;h4 id=&quot;how-expires-are-managed-between-master-and-slave-nodes-on-redis-2x&quot;&gt;How EXPIREs Are Managed Between Master And Slave Nodes On Redis 2.x&lt;/h4&gt;
+
+&lt;p&gt;To “maintain consistency”, slaves aren’t allowed to expire keys unless they receive a DEL from the master branch, even if they know the key is expired. The only exception is when a slave becomes master &lt;sup id=&quot;fnref:4&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;. So basically, if the master doesn’t send a DEL to the slave, the key (which might have been set with a TTL using the Redis API contract), is not guaranteed to respect the TTL it was set with. This is when you scale to have read slaves, which, apparently, is a shocking requirement in production systems.&lt;/p&gt;
+
+&lt;h4 id=&quot;how-expires-are-managed-for-keys-that-arent-gotten-from-master&quot;&gt;How EXPIREs Are Managed For Keys That Aren’t “gotten from master”&lt;/h4&gt;
+
+&lt;p&gt;Since every key needs to be deleted on master first, and some of our keys were expired correctly, there had to be a “passive” manner in which Redis was deleting expired keys that didn’t involve an explicit GET command from the client. The manual &lt;sup id=&quot;fnref:5&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Redis keys are expired in two ways: a passive way, and an active way.&lt;/p&gt;
+
+  &lt;p&gt;A key is passively expired simply when some client tries to access it, and the key is found to be timed out.&lt;/p&gt;
+
+  &lt;p&gt;Of course this is not enough as there are expired keys that will never be accessed again. These keys should be expired anyway, so periodically Redis tests a few keys at random among keys with an expire set. All the keys that are already expired are deleted from the keyspace.&lt;/p&gt;
+
+  &lt;p&gt;Specifically this is what Redis does 10 times per second:&lt;/p&gt;
+
+  &lt;ol&gt;
+    &lt;li&gt;Test 20 random keys from the set of keys with an associated expire.&lt;/li&gt;
+    &lt;li&gt;Delete all the keys found expired.&lt;/li&gt;
+    &lt;li&gt;If more than 25% of keys were expired, start again from step 1.&lt;/li&gt;
+  &lt;/ol&gt;
+
+  &lt;p&gt;This is a trivial probabilistic algorithm, basically the assumption is that our sample is representative of the whole key space, and we continue to expire until the percentage of keys that are likely to be expired is under 25%.&lt;/p&gt;
+
+  &lt;p&gt;This means that at any given moment the maximum amount of keys already expired that are using memory is at max equal to max amount of write operations per second divided by 4.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;So that’s 200 keys tested for expiry each second on the master branch, and about 25% of your keys on the slaves guaranteed to be serving dead Unicorns, because they didn’t get the memo.&lt;/p&gt;
+
+&lt;p&gt;While 200 keys/s might be enough to make it through a hackathon project blazingly fast, it certainly isn’t fast enough at our scale, to expire 25% of our 5594518 keys in time for Unicorn updates.&lt;/p&gt;
+
+&lt;h4 id=&quot;doing-the-math&quot;&gt;Doing The Math&lt;/h4&gt;
+
+&lt;p&gt;Number of expired keys (at iteration 0) = &lt;em&gt;e&lt;sub&gt;0&lt;/sub&gt;&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Total number of keys = &lt;em&gt;s&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Probability of choosing an expired key (&lt;em&gt;p&lt;/em&gt;) = &lt;em&gt;e&lt;sub&gt;0&lt;/sub&gt; / s&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Assuming Binomial trials, the expected number of expired keys chosen in n trials:&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;E&lt;/em&gt; = &lt;em&gt;n * p&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Number of expired keys for next iteration =&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;e&lt;sub&gt;0&lt;/sub&gt; - E = e&lt;sub&gt;0&lt;/sub&gt; - n * (e&lt;sub&gt;0&lt;/sub&gt; / s) = e&lt;sub&gt;0&lt;/sub&gt; * (1 - n / s)&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Number of expired keys at the end of iteration &lt;em&gt;k&lt;/em&gt;:&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;e&lt;sub&gt;k&lt;/sub&gt;&lt;/em&gt; = &lt;em&gt;e&lt;sub&gt;0&lt;/sub&gt; * (1 - n / s)&lt;sup&gt;k&lt;/sup&gt;&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;So to have fewer than 1 expired key,&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;e&lt;sub&gt;0&lt;/sub&gt; * (1 - n / s)&lt;sup&gt;k&lt;/sup&gt; &amp;lt; 1&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;=&amp;gt; k &amp;lt; ln(1 / e&lt;sub&gt;0&lt;/sub&gt;) / ln(1 - n / s)&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Assuming we started with 25% keys expired, we plug in:&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;e&lt;sub&gt;0&lt;/sub&gt; = 0.25 * 5594518, n = 20, s = 5594518&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;We obtain a value of &lt;em&gt;k&lt;/em&gt; around 3958395. Since this is repeated 10 times a second, it would take roughly 110 hours to achieve this (as &lt;em&gt;e&lt;sub&gt;k&lt;/sub&gt;&lt;/em&gt; is a decreasing function of &lt;em&gt;k&lt;/em&gt;).&lt;/p&gt;
+
+&lt;h3 id=&quot;the-bottom-line&quot;&gt;The Bottom Line&lt;/h3&gt;
+
+&lt;p&gt;At our scale, and assuming &amp;gt;25% expired keys at the beginning of time, it would take at least 110 hours to guarantee no expired keys in our cache.&lt;/p&gt;
+
+&lt;h3 id=&quot;what-we-learnt&quot;&gt;What We Learnt&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The Redis author pointed out and fixed this issue in a later version of Redis &lt;sup id=&quot;fnref:6&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt;&lt;/li&gt;
+  &lt;li&gt;Upgrade our Redis more often&lt;/li&gt;
+  &lt;li&gt;Pay more attention to cache invalidation expectations and strategy during software design&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;em&gt;Many thanks to Althaf Hameez, Ryan Law, Nguyen Qui Hieu, Yu Zezhou and Ivan Poon who reviewed drafts and waited patiently for it to be published.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h4&gt;
+
+&lt;div class=&quot;footnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot;&gt;
+      &lt;p&gt;ElastiCache is hardly elastic, considering your “scale up” is a deliberate process involving backup, replicate, deploy, and switch, during which time your server is serving peak hour teapots (as reads and writes may be disabled). &lt;a href=&quot;http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Scaling.html&quot;&gt;http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Scaling.html&lt;/a&gt; &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot;&gt;
+      &lt;p&gt;Turns out that streaming solutions are rather good at this, when we applied them to some of our non-Unicorn offerings. (Writes are streamed, and readers listen and invalidate their cache as required.) &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot;&gt;
+      &lt;p&gt;This, as it turns out, is a bad idea. In case of failovers, AWS updates the master address to point to the new master, but this is not guaranteed for the slaves. So we could end up with an unused slave and a master with reads + writes in the worst case (unless we add some custom code to manage the failover). Best practice is to have read load distributed on master as well. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://redis.io/commands/expire#how-expires-are-handled-in-the-replication-link-and-aof-file&quot;&gt;https://redis.io/commands/expire#how-expires-are-handled-in-the-replication-link-and-aof-file&lt;/a&gt; &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:5&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://redis.io/commands/expire#how-redis-expires-keys&quot;&gt;https://redis.io/commands/expire#how-redis-expires-keys&lt;/a&gt; &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:6&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://github.com/antirez/redis/issues/1768&quot;&gt;https://github.com/antirez/redis/issues/1768&lt;/a&gt; (TL;DR: Slaves now use local clock to return null to clients when it thinks keys are expired. The trade-off is the possibility of early expires if a slave’s clock is faster than the master.) &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Tue, 28 Mar 2017 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next</link>
+        <guid isPermaLink="true">http://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next</guid>
+        
+        <category>Back End</category>
+        
+        <category>Redis</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>How Grab Hires Engineers In Singapore</title>
+        <description>&lt;p&gt;&lt;em&gt;Working at Grab will be the “most challenging yet rewarding opportunity” any employee will ever encounter.&lt;/em&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Grab App Make Booking&quot; src=&quot;/img/how-grab-hires-engineers-in-singapore/grab-app-make-booking.jpg&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;When was the last time you met someone who was happy with his or her job?&lt;/p&gt;
+
+&lt;p&gt;Yeah, me too. Complaining about work is probably one of the greatest Singaporean pastimes yet.&lt;/p&gt;
+
+&lt;p&gt;A recent study conducted by &lt;a href=&quot;http://www.jobstreet.com.sg/career-resources/singapores-workforce-ranks-unhappiest-amongst-asian-counterparts-2/#.WKFd8xJ97sk&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;JobStreet&lt;/a&gt; found that Singaporean workers were the most dissatisfied in the region. Out of the 7 Asian countries surveyed, Singaporean workers had the lowest average job satisfaction rating at 5.09 out of 10.&lt;/p&gt;
+
+&lt;p&gt;That’s close to failing, something we don’t take kindly to. Here’s how we measure up:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;JobStreet Regional Job Happiness Index&quot; src=&quot;/img/how-grab-hires-engineers-in-singapore/regional-job-happiness-index.jpg&quot; width=&quot;75%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Simply put, it’s not easy to find a job that you’ll be happy in. Each stage of the hiring process - from attending interviews to negotiating job offers - reveals a bit more information about your future position, but much of it is cloaked in hearsay and secrecy.&lt;/p&gt;
+
+&lt;p&gt;We, however, are on your side. We want to make the hiring process as transparent as possible so that you, dear reader, will be able to make a more informed choice. After all, this is the job that you’ll spend a good bulk of your time at.&lt;/p&gt;
+
+&lt;p&gt;For this reason, we’re embarking on a series of articles that will uncover the hiring processes of leading technology companies in Singapore. Let us know how we can improve on this - what other information you’d like to see, which companies you’d like to read about here, and so on.&lt;/p&gt;
+
+&lt;p&gt;First up, a ride-hailing company that has &lt;a href=&quot;https://www.techinasia.com/companies/grab&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;raised US$1.4 billion in funding&lt;/a&gt; (that we know of) to date - &lt;strong&gt;Grab&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;interview-process-at-grab&quot;&gt;Interview Process at Grab&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Rachel Lee Cherry Blossoms&quot; src=&quot;/img/how-grab-hires-engineers-in-singapore/rachel-lee-cherry-blossoms.jpg&quot; width=&quot;75%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Rachel Lee, Grab’s Talent Acquisition Business Partner, Regional Tech&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;p&gt;Not surprisingly, they experience a high volume of inbound candidates for some of their more popular roles, but few make it to the final stage. “On average, it could be as low as 3 to 5 per cent of candidates who start the interview process to reach to offer stage, as our bar for engineering talent is set really high – for good reason!” Rachel explains.&lt;/p&gt;
+
+&lt;p&gt;From start to end, the number of interview rounds highly depends on the role in question, and how senior the position is. A 100offer user who recently joined Grab tells us that his journey took between three to four weeks , during which he went through the following interview rounds: one phone screen interview with a Human Resources representative, one online coding round, and two rounds of technical tests.&lt;/p&gt;
+
+&lt;p&gt;The final technical round was conducted with three Grab software engineers in quick succession.&lt;/p&gt;
+
+&lt;p&gt;In the first cut, Rachel takes a look at a variety of factors to assess if an engineering candidate is suitable or not.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;“[First], we take a look at their demonstrated ability in previous projects as listed on GitHub. The complexity of the projects is of interest to us,” she says. “I will seek out their blogs, slideshow presentations, as well as review peer recommendations to ensure I am able to create a more holistic profile of the individual.”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;On the subject of qualifications, she deems them to be secondary, as “many qualified and suitable candidates for us would not have passed a typical CV screen otherwise.”&lt;/p&gt;
+
+&lt;h3 id=&quot;technical-vs-cultural-fit&quot;&gt;Technical vs. Cultural Fit&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Happy Grab Employees&quot; src=&quot;/img/how-grab-hires-engineers-in-singapore/happy-grab-employees.jpg&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Beyond technical proficiency and competency, however, they also take special care to evaluate if candidates fit Grab’s culture and values:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;“To succeed and thrive in a growing company, we want adaptable people, equally balanced with soft and hard skills, who are driven and eager to make a difference to solving and improving transportation in Southeast Asia.”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Sounds like a tall order? Bear in mind that only 3 to 5% of candidates actually get an offer.&lt;/p&gt;
+
+&lt;p&gt;To be part of this select group, Rachel explains that there are some hard and soft skills that she tends to look out for:&lt;/p&gt;
+
+&lt;h4 id=&quot;hard-skills&quot;&gt;Hard Skills&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Experience developing software that is highly scalable, distributed service geared for low latency read requests&lt;/li&gt;
+  &lt;li&gt;Experience building complex distributed systems - helping our systems to be faster, more scalable, more reliable, better!&lt;/li&gt;
+  &lt;li&gt;Mobile experience - Different than other engineering roles but share a lot of the same attributes, show some interest and knowledge in these areas: applications, data, and mobile UI/UX&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;soft-skills&quot;&gt;Soft Skills&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Willingness to collaborate&lt;/li&gt;
+  &lt;li&gt;Thoughtful communication style with clearly thought through, logical solutions&lt;/li&gt;
+  &lt;li&gt;Entrepreneurial spirit and a track record of doing whatever it takes to succeed&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Between cultural and technical fit, which weighs more heavily in Grab’s hiring process? To Rachel, both are equally important, though cultural fit is critical in sealing the deal.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;“No matter how technically capable a candidate is, we will not proceed with a job offer if the team will not enjoy working with the person,” she says. “We are really focused on creating and maintaining a great working culture at Grab!”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Rachel uses the example of one of Grab’s principles, “Your problem is my problem.”&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;“We want people who will take the initiative to offer help to their fellow colleagues.”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h4 id=&quot;grabs-interview-questions&quot;&gt;Grab’s Interview Questions&lt;/h4&gt;
+
+&lt;p&gt;For Rachel, she’s “laser focused on strategic recruitment for mid- to senior- level hires in engineering, and she “expects all our future Grabbers to come with a high level of technical ability.” The questions she asks candidates in the technical rounds follow accordingly:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;“For senior leaders, we ask them about the last, or the best technical decisions they have made recently, that had impact on scalability and high availability performant systems; as well as their thought processes around design for solutions for backend microservices, if not, in areas of their pursuant domain.”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;In addition, our 100offer user recalls that he was fielded more algorithm questions than other interviews that he attended previously.&lt;/p&gt;
+
+&lt;p&gt;Beyond that, Rachel and her colleagues tend to quiz candidates on their career ambitions, as well as find out whether they have “a good aptitude for learning and collaboration with colleagues from all around the world.” This is necessary as Grab currently has more than 30 nationalities in their ranks.&lt;/p&gt;
+
+&lt;p&gt;For senior candidates, Rachel will “often ask them their views on their hiring philosophy - how they would hire a good engineer, as well as how they would build a strong, cohesive and high-performing team.”&lt;/p&gt;
+
+&lt;p&gt;“It is critical that we understand a senior candidate’s management style,” she emphasizes.&lt;/p&gt;
+
+&lt;p&gt;For junior candidates, she would ask questions that help give a sense of their sense of responsibility and interest in being a team owner and manager, as well as their commitment to building a long and successful career with Grab.&lt;/p&gt;
+
+&lt;p&gt;“Questions we ask are focused on assessing future aptitude for leadership roles, and their analytical skills and thought processes when it comes to solving problems.”&lt;/p&gt;
+
+&lt;h4 id=&quot;insider-tips&quot;&gt;Insider Tips&lt;/h4&gt;
+
+&lt;p&gt;According to Rachel, there are many opportunities to relocate and work at Grab’s Research &amp;amp; Development Centres in Beijing, Seattle, and Singapore. When relocating candidates, though, she is careful to assess their ability to adapt to a new environment.&lt;/p&gt;
+
+&lt;p&gt;“I recognize that their entire life can change!” she explains. “For those keen to explore an overseas work opportunity with Grab, do take time to consider and research about living in Singapore. Singapore is a great place for tech talent, as it comes with plenty of opportunities in the tech industry.”&lt;/p&gt;
+
+&lt;p&gt;Indeed, she’s extremely optimistic about the prospects of those keen on moving to Singapore, where Grab chose to &lt;a href=&quot;http://www.channelnewsasia.com/news/business/singapore/grabtaxi-opens-s-136m-r-d/1772932.html&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;open its US$100 million R&amp;amp;D centre&lt;/a&gt; - right in the heart of the Central Business District.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;“The city-state hosts a mature tech ecosystem and the abundance of local, regional and global companies is beneficial to tech professionals. What’s more it has been consistently ranked as the top city in the world for technology readiness, transportation, infrastructure, tax and the ease of doing business by PwC’s Cities of Opportunity report.”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Furthermore, she believes that working at Grab will be the “most challenging yet rewarding opportunity” any employee will ever encounter. This is due to the scale and speed at which they operate.&lt;/p&gt;
+
+&lt;p&gt;“I personally wouldn’t trade this experience for anything else right now, and it makes it all the most critical to to have teammates who believe in the same - that we are all fighting a battle to bring lasting benefits and improvements to millions in Southeast Asia!”&lt;/p&gt;
+
+&lt;p&gt;Grab is one of several leading technology companies hiring technical talent on 100offer’s marketplace. Sign up for 100offer to see what opportunities there are in the market right now.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;This article was first published on the &lt;a href=&quot;https://www.100offer.com/blog/posts/grab-hiring-singapore/?utm_source=grab-engineering&amp;amp;utm_medium=essay&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;100offer blog&lt;/a&gt;.&lt;/em&gt;&lt;/p&gt;
+</description>
+        <pubDate>Fri, 17 Feb 2017 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/how-grab-hires-engineers-in-singapore</link>
+        <guid isPermaLink="true">http://engineering.grab.com/how-grab-hires-engineers-in-singapore</guid>
+        
+        <category>Hiring</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Battling with Tech Giants for the World&#39;s Best Talent</title>
+        <description>&lt;p&gt;Grab steadily attracts a diverse set of engineers from around the world in its three R&amp;amp;D centres in Singapore, Seattle, and Beijing. Right now, half of Grab’s top leadership team is made up of women and we have attracted people from five continents to work together on solving the biggest challenges for Southeast Asia.&lt;/p&gt;
+
+&lt;p&gt;30-year-old Grab engineer Brandon Gao was recently approached by a Seattle-based tech giant. Instead of jumping at the chance to relocate and work for this blue chip company, he turned them down immediately. Having worked in Grab for about two years, he understands what makes this company special and recognises the huge impact he could still make within this unicorn start-up.&lt;/p&gt;
+
+&lt;p&gt;And a huge impact he has made – Brandon was our first engineer in the User Trust team, and his vision and efforts contributed to developing Grab’s risk and fraud detection system. This detection system has since gone on to win awards. It leverages big data and machine learning to now enable the largest mobile transaction volume on any Southeast Asian consumer platform.&lt;/p&gt;
+
+&lt;p&gt;We spoke to Brandon about his decision to stay at Grab and the reasons behind it.&lt;/p&gt;
+
+&lt;h3 id=&quot;grab-how-long-have-you-worked-here-and-why-did-you-join&quot;&gt;Grab: How long have you worked here and why did you join?&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Brandon:&lt;/strong&gt; I joined Grab because the problems we are solving are real world problems that I identify with. I was attracted to the sheer opportunity to learn and grow.&lt;/p&gt;
+
+&lt;p&gt;I joined in May 2015 and it was a very interesting time to join because we [Grab] had just started the journey of migrating backend services from Node.js and Ruby to Golang. I contributed to some of these core libraries and I converted a few services from Node.js to Golang.
+One of my most memorable projects was for our data service that allows direct connections with all our drivers out in the field. It all started on a weekend – a brainwave where I was contemplating if I could just rewrite our code in Golang. I managed to build the prototype that very weekend and presented it to my team the following Monday. They absolutely loved it, helped complete the code and we launched it together as one team!&lt;/p&gt;
+
+&lt;p&gt;This started as a small and simple weekend project, but it is now pivotal to helping us connect our servers directly with all 580,000 drivers across the region (as of January 2017).&lt;/p&gt;
+
+&lt;h3 id=&quot;grab-you-were-recently-approached-by-a-tech-giant-to-join-their-team-in-the-us--why-did-you-choose-to-stay-with-grab&quot;&gt;Grab: You were recently approached by a tech giant to join their team in the US.  Why did you choose to stay with Grab?&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Brandon:&lt;/strong&gt; I know that the impact I have at Grab is much bigger than what I can do in the bigger global tech companies. We are still in our early rapid growth stage and there are so many opportunities to grow. Every week is an exciting time at Grab.&lt;/p&gt;
+
+&lt;p&gt;More importantly, I really enjoy working with my team members!&lt;/p&gt;
+
+&lt;h3 id=&quot;grab-what-are-the-three-things-that-you-love-most-about-your-role-at-grab&quot;&gt;Grab: What are the three things that you love most about your role at Grab?&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Brandon:&lt;/strong&gt; Grab has a unique position in Southeast Asia. As the region’s leading ride-hailing company, we have the opportunity to make life-changing positive experiences in how people commute, live, and pay. To me, this is really exciting and worth all our hard work.
+Secondly, the amazing talent I get to work with every day! Grab is willing to help our engineers grow and provides us with the resources that we need. Enough said!&lt;/p&gt;
+
+&lt;p&gt;Ultimately, I really enjoy my role at Grab because I am constantly exposed to new challenges where I actively contribute to its solutions – I imagine this opportunity will be hard to come by at a large, structured and process-heavy company. I take joy in building programs and writing code from scratch. This keeps me motivated and I look forward to continue making a difference.&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Grab User Trust Team&quot; src=&quot;/img/battling-with-tech-giants/user-trust-offsite-group-photo.jpg&quot; width=&quot;75%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Brandon Gao (back row, third from left) with the Grab User Trust Team&lt;/small&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Thu, 19 Jan 2017 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/battling-with-tech-giants-for-the-worlds-best-talent</link>
+        <guid isPermaLink="true">http://engineering.grab.com/battling-with-tech-giants-for-the-worlds-best-talent</guid>
+        
+        <category>Hiring</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>This Rocket Ain&#39;t Stopping - Achieving Zero Downtime for Rails to Golang API Migration</title>
+        <description>&lt;p&gt;Grab has been transitioning from a Rails + NodeJS stack to a full Golang Service Oriented Architecture. To contribute to a single common code base, we wanted to transfer engineers working on the Rails server powering our passenger app APIs to other Go teams.&lt;/p&gt;
+
+&lt;p&gt;To do this, a newly formed API team was given the responsibility of carefully migrating the public passenger app APIs from the existing Rails app to a new Go server. Our goal was to have the public API hostname DNS point to the new Go server cluster.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;DNS switch&quot; src=&quot;/img/zero-downtime-migration/dns-switch.png&quot; width=&quot;50%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Since the API endpoints are live and accepting requests, we developed some rules to maintain optimum stability for the service:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Endpoints have to pass a few tests before being deployed:&lt;/p&gt;
+
+    &lt;p&gt;a. Rigorous unit tests&lt;/p&gt;
+
+    &lt;p&gt;b. Load tests using predicted traffic based on data from production environment&lt;/p&gt;
+
+    &lt;p&gt;c. Staging environment QA testing&lt;/p&gt;
+
+    &lt;p&gt;d. Production environment shadow testing&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Deploying migrated endpoints has to be done one by one&lt;/li&gt;
+  &lt;li&gt;Deploying of each endpoint needs to be progressive&lt;/li&gt;
+  &lt;li&gt;In the event of unforeseen bugs, all deployments must be instantly rolled back&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;We divided the migration work for each endpoint into the following phases:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Logic migration&lt;/li&gt;
+  &lt;li&gt;Load testing&lt;/li&gt;
+  &lt;li&gt;Shadow testing&lt;/li&gt;
+  &lt;li&gt;Roll out&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;logic-migration&quot;&gt;Logic Migration&lt;/h3&gt;
+
+&lt;p&gt;Our initial plan was to enforce a rapid takeover of the Rails server DNS, before porting the logic. To do that, we would clone the existing Rails repository and have the new Go server provide a thin layer proxy, which resembles this in practice:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;clone&quot; src=&quot;/img/zero-downtime-migration/clone.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;problems-with-clone-proxy&quot;&gt;Problems with Clone Proxy&lt;/h4&gt;
+
+&lt;p&gt;A key concern for us was the tripling of the HTTP request redirects for each endpoint. Entry into the Go server had to remain HTTP, as it needed to takeover the DNS. However, we recognise it was wasteful to have another HTTP entry at the Rails clone.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://www.grpc.io/&quot;&gt;gRPC&lt;/a&gt; was implemented between the Go server and Rails clone to optimise latency. As gRPC runs on HTTP/2 which our Elastic Load Balancer (ELB) did not support, we had to configure the ELB to carry out TCP balancing instead. TCP connections, being persistent, caused a load imbalance amongst our Rails clone instances whenever there was an Auto Scaling Group (ASG) scale event.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;ASG&quot; src=&quot;/img/zero-downtime-migration/asg.jpg&quot; width=&quot;75%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We identified 2 ways to solve this.&lt;/p&gt;
+
+&lt;p&gt;The first was to implement service discovery into our gRPC setup, either by Zookeeper or etcd for client side load balancing. The second, which we adopted and deem the easier way albeit more hackish, was to have a script slowly restart all the Go instances every time there was an ASG scaling event on the Rails Clone cluster to force a redistribution of connections. It may seem unwieldy, but it got the job done without distracting our team further.&lt;/p&gt;
+
+&lt;p&gt;Grab API team then discovered that the gRPC RubyGem we were using in our Rails clone server had a memory leak issue. It required us to create a rake task to periodically restart the instances when memory usage reached a certain threshold. Our engineers went through the RubyGem’s C++ code and submitted a pull request to get it fixed.&lt;/p&gt;
+
+&lt;p&gt;The memory leak problem was then followed by yet another. We noticed mysterious latency mismatches between the Rails clone processes, and the ones measured on the Go server.&lt;/p&gt;
+
+&lt;p&gt;At this point, we realised no matter how focused and determined we were at identifying and solving all issues, it was a better use of engineering resources to start work on implementing the logic migration. We threw the month-long gRPC work out the window and started with porting over the Rails server logic.&lt;/p&gt;
+
+&lt;p&gt;Interestingly, converting Ruby code to Go did not pose many issues, although we did have to implement several RubyGems in Go. We also took the opportunity to extract modules from the Rails server into separate services, which allowed for maintenance distribution for the various business logic components to separate engineering teams.&lt;/p&gt;
+
+&lt;h3 id=&quot;load-testing&quot;&gt;Load Testing&lt;/h3&gt;
+
+&lt;p&gt;Before receiving actual, real world traffic, our team performed load testing by dumping all the day logs with the highest traffic in the past month. We proceeded to create a script that would parse the logs and send actual HTTP requests to our endpoint hosted on our staging servers. This ensured that our configurations were adequate for every anticipated traffic, and to verify that our new endpoints were maintaining the Service Level Agreement (SLA).&lt;/p&gt;
+
+&lt;h3 id=&quot;shadow-testing&quot;&gt;Shadow Testing&lt;/h3&gt;
+
+&lt;p&gt;Shadowing involves accepting real-time requests to our endpoints for actual load and logic testing. The Go server is as good as live, but does not return any response to the passenger app. The Rails server processes the requests and responses as usual, but it also sends a copy of the request and response to the Go server. The Go server then process the request and compare the resulting responses. This test was carried out on both staging and production environments.&lt;/p&gt;
+
+&lt;p&gt;One of our engineers wrote a JSON tokenizer to carry out response comparison, which we used to track any mismatches. All mismatched data was sent to both our statsd server and Slack to alert us of potential migration logic issues.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Statsd API error rate&quot; src=&quot;/img/zero-downtime-migration/statsd-error-rate.png&quot; width=&quot;75%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Statsd error rate tracking on DataDog&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Slack Pikabot Mismatch notification&quot; src=&quot;/img/zero-downtime-migration/pikabot-mismatch-notification.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Slack pikabot mismatch notification&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;idempotency-during-shadow&quot;&gt;Idempotency During Shadow&lt;/h4&gt;
+
+&lt;p&gt;It was easy to shadow GET requests due to its idempotent nature in our system. However, we could not simply carry out the same process when we were shadowing PUT/POST/DELETE requests, as it would result in double data writes.&lt;/p&gt;
+
+&lt;p&gt;We overcame this by wrapping our data access objects with a layer of mock code. Instead of writing to database, it generates the expected outcome of the database row before comparing with the actual row in the database.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Data comparison&quot; src=&quot;/img/zero-downtime-migration/data-comparison.png&quot; width=&quot;75%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;As the shadowing process occurs only after the Rails server has processed the request, we knew database changes existed. Clearly, the booking states may have changed between the Rails processing time and the Go shadow juncture, resulting in a mismatch. For such situations, the occurrence rate was low enough that we could manually debug and verify.&lt;/p&gt;
+
+&lt;h4 id=&quot;progressive-shadowing&quot;&gt;Progressive Shadowing&lt;/h4&gt;
+
+&lt;p&gt;The shadowing process affects the number of outgoing connections the Rails server can make. We therefore had to ensure that we could control the gradual increase in shadow traffic. Code was implemented in the Rails server to check our configuration Redis for how much we would like to shadow, and then throttle the redirection accordingly. Percentage increments seemed intuitive to us at first, but we learnt our mistake the hard way when one of our ELBs started terminating requests due to spillovers.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;RPS vs Endpoints&quot; src=&quot;/img/zero-downtime-migration/rps-vs-endpoints.png&quot; width=&quot;75%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;As exemplified by the illustration above, one of our endpoints had such a huge number of requests that a mere single percent of its requests dwarfed the full load of 5 others combined. Percentages meant nothing without load context. We mitigated the issue when we switched to increments by requests per second (RPS).&lt;/p&gt;
+
+&lt;h4 id=&quot;prewarming-elb&quot;&gt;Prewarming ELB&lt;/h4&gt;
+
+&lt;p&gt;In addition to switching to RPS increments, we notified AWS Support in advance to prewarm our ELBs. Although the operations of the ELB are within a black box, we can assume that it is built using proprietary scaling groups of Elastic Cloud Compute (EC2) instances. These instances are most likely configured with the following parameters:&lt;/p&gt;
+
+&lt;p&gt;a. Connection count (network interface)&lt;/p&gt;
+
+&lt;p&gt;b. Network throughput (memory and CPU)&lt;/p&gt;
+
+&lt;p&gt;c. Scaling speed (more instances vs. larger instance hardware)&lt;/p&gt;
+
+&lt;p&gt;This will provide more leeway in increasing RPS during shadow or roll out.&lt;/p&gt;
+
+&lt;h3 id=&quot;roll-out&quot;&gt;Roll Out&lt;/h3&gt;
+
+&lt;p&gt;Similar to shadowing of endpoints, it was necessary to roll out discrete endpoints with traffic control. Simply changing DNS for roll out would require the migrated Go API server to be coded, tested and configured with perfect foresight to instantly take over 100% traffic of all passenger app requests across all 30 over endpoints. By adopting the same method used in shadowing, we could turn on a single endpoint at the RPS we want. The Go server will then be able to gradually take over the traffic before the final DNS switch.&lt;/p&gt;
+
+&lt;h3 id=&quot;final-word&quot;&gt;Final Word&lt;/h3&gt;
+
+&lt;p&gt;We hope this post will be useful for those planning to undertake migrations with similar scale and reliability requirements. If this type of challenges interest you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our engineering team&lt;/a&gt;!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 19 Oct 2016 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/zero-downtime-migration</link>
+        <guid isPermaLink="true">http://engineering.grab.com/zero-downtime-migration</guid>
+        
+        <category>AWS</category>
+        
+        <category>Golang</category>
+        
+        <category>Ruby</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Grab Vietnam Careers Week</title>
+        <description>&lt;p&gt;Grab is organising our first ever &lt;a href=&quot;https://grb.to/vn-careers&quot;&gt;Grab Vietnam Careers Week&lt;/a&gt; in Ho Chi Minh City, Vietnam, from 22 to 26 October 2016. We are eager to have more engineers join our ranks to make a difference to improving transportation and reducing congestion in Southeast Asia. We are now on 23 million mobile devices supported by 460,000 drivers in the region, but we’re only started and have much more to achieve! To find out more about Grab, take a look at our corporate profile at the end of this post.&lt;/p&gt;
+
+&lt;p&gt;We have a lot of Vietnamese talent delivering features that delight our users on our flagship mobile apps. Read the Q&amp;amp;A with iOS engineer Hai Pham and Android engineer Son Nguyen from our Singapore R&amp;amp;D centre with their perspectives on what it’s like working at Grab. There are even tips for our future Vietnamese Grabbers!&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Grab Friends Forever&quot; src=&quot;/img/grab-vietnam-careers-week/son-hai.jpg&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Grab Friends Forever -- our Vietnamese mobile engineers Son Nguyen and Hai Pham (L-R)&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h3&gt;Tell us what you do at Grab.&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Hai Pham:&lt;/strong&gt; I am an iOS engineer with the passenger app team and I’ve been a Grabber for 1.5 years.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Son Nguyen:&lt;/strong&gt; I have more than 4 years experience in Android mobile development and it has been 1.5 years with Grab for me too.&lt;/p&gt;
+
+&lt;h3&gt;Why did you join Grab and what&#39;s your most meaningful Grab experience?&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Hai:&lt;/strong&gt; I never thought of working for a large, social enterprise such as Grab, but my time here has been purposeful. It feels great knowing that we’re the ride-hailing leader in Southeast Asia with the ability to improve livelihoods and make a positive difference to millions.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Son:&lt;/strong&gt; I like having the opportunity to work with awesome people from all over the world. From Mexico to Malaysia, India to Indonesia, Brazil to Belgium, you name it! We are a close-knit bunch and we have fun together. At Grab, you can be sure your ideas are always appreciated. We even have regular company hackathons which we call “Grabathons” where everyone comes together to improve our app and services! What’s more… we love having lunches with the boss and our happy hours every week! Free food and lots of drinks!&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Hai:&lt;/strong&gt; For me, it is wonderful to be out in public and seeing people whip out their phones and launching the Grab app to book a ride. That pride I feel is indescribable and I find myself saying: “Yes, we made that.” All the hard work from the teams has led us to develop the best ride-hailing app in the world – it makes me happy and proud that we are doing great things here and helping millions of people in their daily lives.&lt;/p&gt;
+
+&lt;h3&gt;Both of you will be in Ho Chi Minh City conducting interviews for Grab Vietnam Careers Week from 22-26 October. Any tips for those looking to work with us -- what are we looking for?&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Hai:&lt;/strong&gt; If you know how to build and maintain an app, care about quality, understand the importance of testing – we want you! Apart from that, your work attitude is important. We want those with determination, willing to help one another, open-minded with a learning mindset, and have an interest in our profession to keep up-to-date on the latest mobile developments.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Son:&lt;/strong&gt; Let’s not forget we want the best so we want to see your best. You have to pass the codility test first, and for mobile engineers, we want good experience developing for iOS or Android. We’re looking for people who are good with developing clean mobile architecture, testing and maintaining performance.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Hai:&lt;/strong&gt; Curiosity is important, programming is a lifelong learning process. Maintaining standard working hours hardly makes you great.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Son:&lt;/strong&gt; Just be yourself!&lt;/p&gt;
+
+&lt;h3&gt;What advice do you have for engineers looking to move to Singapore and starting a career with Grab?&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Son:&lt;/strong&gt; If you get our offer, I suggest you start looking for an apartment. A good place to start is the &lt;a href=&quot;http://forum.vncnus.net/viewforum.php?f=163&quot;&gt;VNCNUS&lt;/a&gt; Forum or Facebook groups.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Hai:&lt;/strong&gt; Fortunately, the Vietnamese community is supportive, and there’s no need to spend any money with a property agent. If you need help, I am sure Son and I can give you more advice.&lt;/p&gt;
+
+&lt;p&gt;Singapore is very comfortable and convenient. I do joke when colleagues ask me how Singapore living is like: quiet, no surprises, and I was confused when the car stopped for me when I tried to cross the street on my first day.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Son:&lt;/strong&gt; Come to Singapore and you will have a great chance to improve yourself: your salary, your technical skills, your English skills and make friends from all over the world while spending time in a global city.&lt;/p&gt;
+
+&lt;h3&gt;What do you miss most about Vietnam? Any places or things you do in Singapore to provide that quick local fix?&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Hai:&lt;/strong&gt; I crave for HCM street food! Although there are a few good Vietnamese restaurants here, you can’t compare with what you get back home. I will recommend &lt;a href=&quot;http://www.mrspho.com/&quot;&gt;Mrs Pho&lt;/a&gt; which I frequent every week.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Son:&lt;/strong&gt; Come join us, I’ll tell you lots of amazing things you can explore and try in Singapore to overcome your homesickness! Our Vietnamese friends at Grab are friendly and talented and we often have lunch together. Also, we have colleagues from all over the world to recommend other types of good food to try in Singapore. What’s more, HCM is just 2 hours away by plane!&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Find out more about Grab Vietnam Careers Week: &lt;a href=&quot;https://grb.to/vn-careers&quot;&gt;https://grb.to/vn-careers&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;a href=&quot;/img/grab-vietnam-careers-week/grab-corporate-profile.jpg&quot;&gt;
+    &lt;img alt=&quot;Grab Corporate Profile&quot; src=&quot;/img/grab-vietnam-careers-week/grab-corporate-profile-mini.jpg&quot; /&gt;
+  &lt;/a&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Grab Corporate Profile (Click for full image)&lt;/small&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Sat, 15 Oct 2016 02:43:40 +0800</pubDate>
+        <link>http://engineering.grab.com/grab-vietnam-careers-week</link>
+        <guid isPermaLink="true">http://engineering.grab.com/grab-vietnam-careers-week</guid>
+        
+        <category>Hiring</category>
+        
+        
+      </item>
+    
+  </channel>
+</rss>

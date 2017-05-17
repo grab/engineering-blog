@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Round-robin in Distributed Systems</title>
+    <meta name="description" content="While working on Grab's Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kept encountering persistent connection issues with Elastic Load Balance (ELB).">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="http://engineering.grab.com/round-robin-in-distributed-systems">
+    <meta property="og:title" content="Round-robin in Distributed Systems">
+    <meta property="og:description" content="While working on Grab's Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kept encountering persistent connection issues with Elastic Load Balance (ELB).">
+    <meta property="og:site_name" content="Grab Engineering">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="http://engineering.grab.com/img/banner.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://engineering.grab.com/round-robin-in-distributed-systems">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Engineering Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row">
+        <div class="col-sm-6">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Engineering</span>
+          </div>
+        </div>
+        <div class="col-sm-6 text-right hidden-xs">
+          <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="http://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        
+<div class="post">
+  <header class="post-header">
+    <div class="text-center">
+      
+        
+          
+          
+            <img class="post-author-thumbnail-large img-circle" src="/img/authors/gao-chao.jpg">
+          
+        
+      
+    </div>
+    <br>
+    <h1 class="post-title text-center">Round-robin in Distributed Systems</h1>
+    <div class="post-meta">
+      27 Sep 2016
+      
+        
+          
+          
+            &middot;
+            
+              <a href="https://github.com/reterVision" target="_blank" rel="noreferrer noopenner">Gao Chao</a>
+            
+          
+        
+      
+      
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#back-end" class="label tags-label">Back End</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#distributed-systems" class="label tags-label">Distributed Systems</a>
+  
+    <a href="/tags#elb" class="label tags-label">ELB</a>
+  
+    <a href="/tags#golang" class="label tags-label">Golang</a>
+  
+</div>
+
+      
+    </div>
+  </header>
+  <article class="post-content">
+    <p>While working on Grab’s Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kept encountering persistent connection issues with AWS Elastic Load Balancers (ELB). Hence I decided to focus my attention on using DNS discovery, as ELB’s performance is not optimal and the unpredictable scaling events could further affect the stability of our systems. At the same time, I didn’t want to have to manage the details of DNS TTL, different protocols, etc. Thus, the search for a reliable DNS library began.</p>
+
+<p>Eventually, I found this package after some research: <a href="https://github.com/benschw/srv-lb">https://github.com/benschw/srv-lb</a>. It looked pretty neat and provides round-robin routing for IP addresses behind a DNS domain which is exactly what I wanted.</p>
+
+<p>During my tests of the round-robin function, it turned out the round-robin didn’t work… We have 7 servers behind our <a href="https://github.com/coreos/etcd">etcd</a> domain but when I tried with the package it gave me the following sequence of IP addresses:</p>
+
+<blockquote>
+  <p>1 -&gt; 2 -&gt; 3 -&gt; 4 -&gt; 5 -&gt; 6 -&gt; 7 -&gt; 1 -&gt; 1…</p>
+</blockquote>
+
+<p>It turns out that there was a bug in that library, which I’ve fixed by submitting a <a href="https://github.com/benschw/srv-lb/pull/3">pull request</a>.</p>
+
+<p>We do implement some round-robin logic in our code too, which can be tricky to get right at times. Read on for a summary of our learnings from the different ways of doing round-robin.</p>
+
+<h3 id="round-robin-with-mutex">Round-robin with mutex</h3>
+
+<p>This is the simplest approach that you can use to implement round-robin logic.</p>
+
+<p>Basically, all you need is an array and a counter in your program and the use of a lock to protect usage. Here’s some example code in Golang to illustrate the idea:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">package</span><span class="x"> </span><span class="n">main</span><span class="x">
+
+</span><span class="k">import</span><span class="x"> </span><span class="s">"sync"</span><span class="x">
+
+</span><span class="c">// RoundRobin ...</span><span class="x">
+</span><span class="k">type</span><span class="x"> </span><span class="n">RoundRobin</span><span class="x"> </span><span class="k">struct</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="n">sync</span><span class="o">.</span><span class="n">Mutex</span><span class="x">
+
+    </span><span class="n">current</span><span class="x"> </span><span class="kt">int</span><span class="x">
+    </span><span class="n">pool</span><span class="x">    </span><span class="p">[]</span><span class="kt">int</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// NewRoundRobin ...</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="n">NewRoundRobin</span><span class="p">()</span><span class="x"> </span><span class="o">*</span><span class="n">RoundRobin</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="k">return</span><span class="x"> </span><span class="o">&amp;</span><span class="n">RoundRobin</span><span class="p">{</span><span class="x">
+        </span><span class="n">current</span><span class="o">:</span><span class="x"> </span><span class="m">0</span><span class="p">,</span><span class="x">
+        </span><span class="n">pool</span><span class="o">:</span><span class="x">    </span><span class="p">[]</span><span class="kt">int</span><span class="p">{</span><span class="m">1</span><span class="p">,</span><span class="x"> </span><span class="m">2</span><span class="p">,</span><span class="x"> </span><span class="m">3</span><span class="p">,</span><span class="x"> </span><span class="m">4</span><span class="p">,</span><span class="x"> </span><span class="m">5</span><span class="p">},</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// Get ...</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="p">(</span><span class="n">r</span><span class="x"> </span><span class="o">*</span><span class="n">RoundRobin</span><span class="p">)</span><span class="x"> </span><span class="n">Get</span><span class="p">()</span><span class="x"> </span><span class="kt">int</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="n">r</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span><span class="x">
+    </span><span class="k">defer</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">Unlock</span><span class="p">()</span><span class="x">
+
+    </span><span class="k">if</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="x"> </span><span class="o">&gt;=</span><span class="x"> </span><span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">pool</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="x"> </span><span class="o">%</span><span class="x"> </span><span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">pool</span><span class="p">)</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+
+    </span><span class="n">result</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">pool</span><span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="p">]</span><span class="x">
+    </span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="o">++</span><span class="x">
+    </span><span class="k">return</span><span class="x"> </span><span class="n">result</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<p>Looks pretty simple? That’s because only one action was defined for this <code class="highlighter-rouge">struct</code> – there is nothing complicated to worry about. However, if you want to add <code class="highlighter-rouge">Set</code> / <code class="highlighter-rouge">Update</code> methods to this <code class="highlighter-rouge">struct</code>, be sure to pay more attention to the usage of locks.</p>
+
+<h3 id="round-robin-with-your-favourite-channel">Round-robin with your favourite channel</h3>
+
+<p>Another approach of implementing a round-robin pool is to use goroutines and channels. The program is a little bit more complex:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">package</span><span class="x"> </span><span class="n">main</span><span class="x">
+
+</span><span class="k">import</span><span class="x"> </span><span class="s">"time"</span><span class="x">
+
+</span><span class="k">const</span><span class="x"> </span><span class="n">timeout</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="m">100</span><span class="x"> </span><span class="o">*</span><span class="x"> </span><span class="n">time</span><span class="o">.</span><span class="n">Millisecond</span><span class="x">
+
+</span><span class="c">// RoundRobin ...</span><span class="x">
+</span><span class="k">type</span><span class="x"> </span><span class="n">RoundRobin</span><span class="x"> </span><span class="k">struct</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="n">current</span><span class="x"> </span><span class="kt">int</span><span class="x">
+    </span><span class="n">pool</span><span class="x">    </span><span class="p">[]</span><span class="kt">int</span><span class="x">
+
+    </span><span class="n">requestQ</span><span class="x"> </span><span class="k">chan</span><span class="x"> </span><span class="k">chan</span><span class="x"> </span><span class="kt">int</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// NewRoundRobin ...</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="n">NewRoundRobin</span><span class="p">()</span><span class="x"> </span><span class="o">*</span><span class="n">RoundRobin</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="n">r</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="o">&amp;</span><span class="n">RoundRobin</span><span class="p">{</span><span class="x">
+        </span><span class="n">current</span><span class="o">:</span><span class="x">  </span><span class="m">0</span><span class="p">,</span><span class="x">
+        </span><span class="n">pool</span><span class="o">:</span><span class="x">     </span><span class="p">[]</span><span class="kt">int</span><span class="p">{</span><span class="m">1</span><span class="p">,</span><span class="x"> </span><span class="m">2</span><span class="p">,</span><span class="x"> </span><span class="m">3</span><span class="p">,</span><span class="x"> </span><span class="m">4</span><span class="p">,</span><span class="x"> </span><span class="m">5</span><span class="p">},</span><span class="x">
+        </span><span class="n">requestQ</span><span class="o">:</span><span class="x"> </span><span class="nb">make</span><span class="p">(</span><span class="k">chan</span><span class="x"> </span><span class="k">chan</span><span class="x"> </span><span class="kt">int</span><span class="p">),</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+    </span><span class="k">go</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">balancer</span><span class="p">()</span><span class="x">
+    </span><span class="k">return</span><span class="x"> </span><span class="n">r</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// Get ...</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="p">(</span><span class="n">r</span><span class="x"> </span><span class="o">*</span><span class="n">RoundRobin</span><span class="p">)</span><span class="x"> </span><span class="n">Get</span><span class="p">()</span><span class="x"> </span><span class="kt">int</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="n">output</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="nb">make</span><span class="p">(</span><span class="k">chan</span><span class="x"> </span><span class="kt">int</span><span class="p">,</span><span class="x"> </span><span class="m">1</span><span class="p">)</span><span class="x">
+    </span><span class="k">select</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="k">case</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">requestQ</span><span class="x"> </span><span class="o">&lt;-</span><span class="x"> </span><span class="n">output</span><span class="o">:</span><span class="x">
+        </span><span class="k">return</span><span class="x"> </span><span class="o">&lt;-</span><span class="n">output</span><span class="x">
+    </span><span class="k">case</span><span class="x"> </span><span class="o">&lt;-</span><span class="n">time</span><span class="o">.</span><span class="n">After</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span><span class="o">:</span><span class="x">
+        </span><span class="c">// Timeout</span><span class="x">
+        </span><span class="k">return</span><span class="x"> </span><span class="o">-</span><span class="m">1</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// balancer ...</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="p">(</span><span class="n">r</span><span class="x"> </span><span class="o">*</span><span class="n">RoundRobin</span><span class="p">)</span><span class="x"> </span><span class="n">balancer</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="k">for</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">select</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">case</span><span class="x"> </span><span class="n">output</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="o">&lt;-</span><span class="n">r</span><span class="o">.</span><span class="n">requestQ</span><span class="o">:</span><span class="x">
+            </span><span class="k">if</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="x"> </span><span class="o">&gt;=</span><span class="x"> </span><span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">pool</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+                </span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="m">0</span><span class="x">
+            </span><span class="p">}</span><span class="x">
+            </span><span class="n">output</span><span class="x"> </span><span class="o">&lt;-</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">pool</span><span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="p">]</span><span class="x">
+            </span><span class="n">r</span><span class="o">.</span><span class="n">current</span><span class="o">++</span><span class="x">
+        </span><span class="c">// other cases can be added here</span><span class="x">
+        </span><span class="c">// e.g. case change := &lt;-r.watch:</span><span class="x">
+        </span><span class="p">}</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<p>The benefits of this approach:</p>
+
+<ul>
+  <li>More granular control over operation timeouts. In the mutex approach, there isn’t a way for you to cancel an operation if it takes too long to complete.</li>
+  <li><code class="highlighter-rouge">balancer</code> is the one centralised place that controls all your actions. If you add more operations to this struct, just add more cases there and you do not need to worry about the granularity of your locks.</li>
+</ul>
+
+<p>The drawbacks of this approach:</p>
+
+<ul>
+  <li>Code is more complicated.</li>
+  <li>Each op takes more time to complete, in the order of nanoseconds, because there are channel creations with each time.</li>
+</ul>
+
+<h3 id="summary">Summary</h3>
+
+<p>Based on your requirements, pick the preferred method of implementing a simple logic like round-robin.</p>
+
+<p>I would pick the mutex implementation for resource fetching and goroutine implementation for work load balancing. Leave a comment if you wish to discuss. I would love to hear your views!</p>
+
+<p><strong>References:</strong></p>
+
+<ul>
+  <li><a href="https://talks.golang.org/2010/io/balance.go">https://talks.golang.org/2010/io/balance.go</a></li>
+  <li><a href="https://github.com/mindreframer/golang-stuff/blob/master/github.com/youtube/vitess/go/pools/roundrobin.go">https://github.com/mindreframer/golang-stuff/blob/master/github.com/youtube/vitess/go/pools/roundrobin.go</a></li>
+</ul>
+
+  </article>
+  <div>
+    
+      <div class="post-tags">
+  
+  
+    <a href="/tags#back-end" class="label tags-label">Back End</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#distributed-systems" class="label tags-label">Distributed Systems</a>
+  
+    <a href="/tags#elb" class="label tags-label">ELB</a>
+  
+    <a href="/tags#golang" class="label tags-label">Golang</a>
+  
+</div>
+
+    
+    <br>
+  </div>
+  <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Round-robin in Distributed Systems&url=http://engineering.grab.com/round-robin-in-distributed-systems&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=http://engineering.grab.com/round-robin-in-distributed-systems" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=http://engineering.grab.com/round-robin-in-distributed-systems&title=Round-robin in Distributed Systems
+&summary=While working on Grab's Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kept encountering persistent connection issues with Elastic Load Balance (ELB).&source=Grab Engineering" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+  <hr class="section-divider">
+  <div class="panel panel-default hiring-panel">
+    <div class="panel-body">
+      <div class="row">
+        <div class="col-sm-6">
+          <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+        </div>
+        <div class="col-sm-6 hiring-btn-container">
+          <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <br/>
+  
+    <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'http://engineering.grab.com/round-robin-in-distributed-systems';
+    this.page.identifier = 'round-robin-in-distributed-systems';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+  
+</div>
+
+      </div>
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Engineering</h2>
+        <ul class="contact-list">
+          <li>Reach us at <a href="mailto:engineering.blog@grab.com">engineering.blog@grab.com</a></li>
+        </ul>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="http://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+
+  </body>
+</html>
