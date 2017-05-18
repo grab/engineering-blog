@@ -52,6 +52,14 @@ When you are done with your entry, simply make a pull request and ping us in the
 
 That's it, happy blogging!
 
+### Deployment
+
+Since we are using custom plugins (such as for authors), Github will not build and deploy the generated site for us. We use a custom gem `jgd` meant for deploying Jekyll pages manually. Simply run this command to build the site and pushes it to the `gh-pages` branch.
+
+```
+$ jgd
+```
+
 ### License
 
 MIT License
