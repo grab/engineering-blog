@@ -7,14 +7,14 @@ authors: [arul-kumaravel]
 tags: [AWS]
 comments: true
 cover_photo: /img/driving-southeast-asia-forward-with-aws/cover.png
-excerpt: "My name is Arul Kumaravel, VP of Engineering at Grab. Grab's mission is to drive Southeast Asia (SEA) forwards. Today I would like to share with you how AWS is helping us with this mission. Grab is started in 2012 by our founders Anthony Tan and Tan Hooi Ling when they were in Harvard Business School. Both are from Malaysia. They started Grab, known as MyTeksi then, with a simple idea: to make Grab simple and easy to use for the people. We've come a long way since our humble beginnings."
+excerpt: "My name is Arul Kumaravel, VP of Engineering at Grab. Grab's mission is to drive Southeast Asia (SEA) forwards. Today I would like to share with you how AWS is helping us with this mission."
 ---
 
 <iframe width="100%" height="380" src="https://www.youtube.com/embed/qMOpFrzalJE" frameborder="0" allowfullscreen></iframe>
 
 <br>
 
-My name is Arul Kumaravel, VP of Engineering at Grab. Grab's mission is to drive Southeast Asia (SEA) forwards. Today I would like to share with you how Amazon Web Services (AWS) is helping us with this mission. Grab is started in 2012 by our founders Anthony Tan and Tan Hooi Ling when they were in Harvard Business School. Both are from Malaysia. They started Grab, known as MyTeksi then, with a simple idea: to make Grab simple and easy to use for the people. We've come a long way since our humble beginnings.
+My name is Arul Kumaravel, VP of Engineering at Grab. Grab's mission is to drive Southeast Asia (SEA) forwards. Today I would like to share with you how Amazon Web Services (AWS) is helping us with this mission. Grab was started in 2012 by our founders Anthony Tan and Tan Hooi Ling when they were in Harvard Business School. Both are from Malaysia. They started Grab, known as MyTeksi then, with a simple idea: to make Grab simple and easy to use for the people. We've come a long way since our humble beginnings.
 
 Today, we offer the most comprehensive suite of transport services in SEA, including taxis, cars and bikes. We have services that cater to every transport need, preferences and price points of our customers. The numbers tell a story. We're currently in 40 cities in 7 countries, the largest land fleet of 780,000 drivers in the region. Our app is installed in 38 million devices. We're no longer just a taxi app, we're much more than that. We've built a market-leading transportation platform. So whether you need a car, limo or a bike, whether you want to pay with cash, with credit, you just have to go to one place.
 
