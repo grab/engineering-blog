@@ -6,9 +6,271 @@
 </description>
     <link>http://engineering.grab.com/</link>
     <atom:link href="http://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 22 May 2017 10:49:31 +0000</pubDate>
-    <lastBuildDate>Mon, 22 May 2017 10:49:31 +0000</lastBuildDate>
+    <pubDate>Thu, 25 May 2017 03:32:03 +0000</pubDate>
+    <lastBuildDate>Thu, 25 May 2017 03:32:03 +0000</lastBuildDate>
     <generator>Jekyll v3.0.3</generator>
+    
+      <item>
+        <title>DNS Resolution in Go and Cgo</title>
+        <description>&lt;p&gt;&lt;em&gt;This article is part two of a two-part series (&lt;a href=&quot;/troubleshooting-unusual-aws-elb-5xx-error&quot;&gt;part one&lt;/a&gt;). In this article, we will talk about RFC 6724 (3484), how DNS resolution works in Go and Cgo, and finally explaining why disabling IPv6 also disables the sorting of IP Addresses.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;As a quick recap of our journey so far, we walked you through our investigative process of a load balancing issue on our AWS Elastic Load Balancer (ELB) nodes and how we temporarily fixed it by using Cgo and disabling IPv6. In this part of the series, we will be diving deeper into RFC 6724 (3484), exploring DNS Resolution in Go and Cgo, explaining why disabling IPv6 “fixes” the IP addresses sorting and how the permanent fix requires modifying the go source code. If you already understand RFC 6274 (3484), please feel free to jump to the section titled “Further Investigation” and if you are short on time, the “Summary” is also provided at the end of the article.&lt;/p&gt;
+
+&lt;h3 id=&quot;background&quot;&gt;Background&lt;/h3&gt;
+
+&lt;h4 id=&quot;rfc-6724-3484&quot;&gt;RFC 6724 (3484)&lt;/h4&gt;
+
+&lt;p&gt;RFC 6724 and its earlier revision – RFC 3484, defines how connections between two systems over the internet should be established when there is more than one possible IP address on the source and destination systems. And because of the way the internet works, if you connect to a website by entering a domain name instead of a IP address, it is almost guaranteed that you will execute an implementation of the RFC. When you enter a domain name in your browser, behind the scenes, your browser will send a DNS A (for IPv4) or AAAA (for IPv6) query to a DNS server to get a list of IP addresses that it should connect to. Because nowadays, almost all websites have two or more servers behind them, it’s very likely for you to get at least two IP addresses back from the DNS. The question is then, what happens when you get two IP addresses? Which one should you choose? This is exactly the question that the RFC is attempting to address. (For more detailed information, please refer to the &lt;a href=&quot;https://www.ietf.org/rfc/rfc6724.txt&quot;&gt;RFC&lt;/a&gt; itself. The sorting rules for the source and destination address are located on page 9 and 13 respectively)&lt;/p&gt;
+
+&lt;h4 id=&quot;go-and-cgo&quot;&gt;Go and Cgo&lt;/h4&gt;
+
+&lt;p&gt;During the early days of Go, Cgo was introduced as a way for Go programs to embed C code inside of Go. Cgo allows Go to tap into the vast amount of C libraries, an ability that is especially useful in situations where you want to execute some low level operation that you know works really well in C and is non-trivial to rewrite in Go. However, with Go maturing, the Go maintainers have decided to move away from C implementations to native Go implementations. When Go executes C code, it will actually run the C code on an OS thread instead of goroutines that are orders of magnitude cheaper.&lt;/p&gt;
+
+&lt;h3 id=&quot;further-investigation&quot;&gt;Further Investigation&lt;/h3&gt;
+
+&lt;p&gt;Now that we have fixed the problem on our production systems by forcing the use of the Cgo DNS resolver and disabling IPv6, we are able to comfortably explore the problem and figure out why the unintuitive solution of using Cgo and disabling IPv6 works. Seeing how the Go source code in general has decent documentation, we decide to investigate first. From the section titled “Name Resolution” of the &lt;a href=&quot;https://golang.org/pkg/net/&quot;&gt;documentation of the net package&lt;/a&gt;, we can see that by default, Go uses the Go DNS Resolver. In cases where it is not supported, it falls back to Cgo or some other implementation that is the default on the OS. In our case, our production servers run on Ubuntu so the default DNS resolver is the native Go DNS Resolver and if we were to enable Cgo, we will be either using the &lt;code class=&quot;highlighter-rouge&quot;&gt;getaddrinfo&lt;/code&gt; or &lt;code class=&quot;highlighter-rouge&quot;&gt;getnameinfo&lt;/code&gt; functions in glibc.
+Being armed with that knowledge, we write up a small Go program that calls the “net.LookupHost” function and a simple C program that calls &lt;code class=&quot;highlighter-rouge&quot;&gt;getaddrinfo&lt;/code&gt; to make sure that our understanding is accurate and to test out the behaviour of both these programs in different situations.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;package&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;import&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;log&quot;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;net&quot;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;net/http&quot;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;astrolabe&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;astrolabe.ap-southeast-1.elb.amazonaws.com&quot;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lookup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Println&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;net&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LookupHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;astrolabe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;# Modified from http://www.binarytides.com/hostname-to-ip-address-c-sockets-linux/
+&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#include&amp;lt;stdio.h&amp;gt; //printf
+#include&amp;lt;string.h&amp;gt; //memset
+#include&amp;lt;stdlib.h&amp;gt; //for exit(0);
+#include&amp;lt;sys/socket.h&amp;gt;
+#include&amp;lt;errno.h&amp;gt; //For errno - the error number
+#include&amp;lt;netdb.h&amp;gt; //hostent
+#include&amp;lt;arpa/inet.h&amp;gt;
+&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hostname_to_ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;  &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[])&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hostname&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;astrolabe.ap-southeast-1.elb.amazonaws.com&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;hostname_to_ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hostname&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;astrolabe elb resolved to %s&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/*
+    Get ip from domain name
+*/&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;hostname_to_ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hostname&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sockfd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addrinfo&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hints&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;servinfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sockaddr_in&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;memset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hints&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hints&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;hints&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ai_family&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AF_UNSPEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// use AF_INET6 to force IPv6
+&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;hints&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ai_socktype&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SOCK_STREAM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;getaddrinfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hostname&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;http&quot;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hints&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;servinfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;fprintf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stderr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;getaddrinfo: %s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gai_strerror&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;c1&quot;&gt;// loop through all the results and connect to the first we can
+&lt;/span&gt;    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;servinfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ai_next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;h&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sockaddr_in&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ai_addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+        &lt;span class=&quot;n&quot;&gt;strcat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;strcat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ip&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inet_ntoa&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;h&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sin_addr&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;strcat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;freeaddrinfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;servinfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// all done with this structure
+&lt;/span&gt;    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;First of all, to see the default state of the source system, we run the &lt;code class=&quot;highlighter-rouge&quot;&gt;ip address show&lt;/code&gt; command to show the list of network interfaces available on the source system.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;ip address show
+1: lo: &amp;lt;LOOPBACK,UP,LOWER_UP&amp;gt; mtu 65536 qdisc noqueue state UNKNOWN group default
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eth0: &amp;lt;BROADCAST,MULTICAST,UP,LOWER_UP&amp;gt; mtu 9001 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:b4:d4:24:bb:ad brd ff:ff:ff:ff:ff:ff
+    inet 172.21.2.90/24 brd 172.21.2.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::b4:d4ff:fe24:bbad/64 scope link
+       valid_lft forever preferred_lft forever
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And because we are only interested in the outgoing network interface, we will be using the command &lt;code class=&quot;highlighter-rouge&quot;&gt;ip address show dev eth0&lt;/code&gt; from this point onwards.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;ip address show dev eth0
+2: eth0: &amp;lt;BROADCAST,MULTICAST,UP,LOWER_UP&amp;gt; mtu 9001 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:b4:d4:24:bb:ad brd ff:ff:ff:ff:ff:ff
+    inet 172.21.2.90/24 brd 172.21.2.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::b4:d4ff:fe24:bbad/64 scope link
+       valid_lft forever preferred_lft forever
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Now to run the Go, Cgo and C DNS resolvers.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;go run gocode/dnslookup.go
+2017/01/18 02:07:31 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;172.21.2.108 172.21.2.144 172.21.1.152 172.21.1.97] &amp;lt;nil&amp;gt;
+
+
+&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;GODEBUG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;netdns&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;Cgo+2 go run gocode/dnslookup.go
+go package net: using Cgo DNS resolver
+go package net: hostLookupOrder&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;astrolabe.ap-southeast-1.elb.amazonaws.com&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; Cgo
+2017/01/18 02:08:08 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;172.21.2.108 172.21.2.144 172.21.1.97 172.21.1.152] &amp;lt;nil&amp;gt;
+
+&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;./ccode/dnslookup.out
+astrolabe elb resolved to 172.21.2.108  172.21.2.144  172.21.1.97  172.21.1.152
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;As you can see, they all have the exact same sorting order with 172.21.2.108 being the first and 172.21.1.152 being the last, which is exactly as defined in Rule 9 of the RFC’s destination address sorting algorithm – addresses are sorted based on the longest matching prefix first.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Source
+172.21.2.90:  10101100.00010101.00000010.01011010
+
+
+Destination
+172.21.2.108: 10101100.00010101.00000010.01101100
+172.21.2.144: 10101100.00010101.00000010.10010000
+172.21.1.97:  10101100.00010101.00000001.01100001
+172.21.1.152: 10101100.00010101.00000001.10011000
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;To make it clearer, we have converted the IP addresses to their binary form for easier comparison. We can see that 172.21.2.108 has the longest matching prefix with our source interface of 172.21.2.90 and because the IP addresses in the 172.21.1.* subnet has the same matching prefix length, they can actually show up in a different order in which either 172.21.1.97 or 172.21.1.152 comes first.
+Now let’s see what happens when we disable IPv6. This can be done with the following commands:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# We can either disable IPv6 completely&lt;/span&gt;
+sh -c &lt;span class=&quot;s1&quot;&gt;&#39;echo 1 &amp;gt; /proc/sys/net/ipv6/conf/eth0/disable_ipv6&#39;&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# or we can just remove IPv6 from the outgoing interfaces&lt;/span&gt;
+ip -6 addr del fe80::b4:d4ff:fe24:bbad/64 dev eth0
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;After disabling IPv6, we run the &lt;code class=&quot;highlighter-rouge&quot;&gt;ip address show dev eth0&lt;/code&gt; command again to verify that the IPv6 address is no longer attached to the outgoing source interface.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;ip address show dev eth0
+2: eth0: &amp;lt;BROADCAST,MULTICAST,UP,LOWER_UP&amp;gt; mtu 9001 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 02:b4:d4:24:bb:ad brd ff:ff:ff:ff:ff:ff
+    inet 172.21.2.90/24 brd 172.21.2.255 scope global eth0
+       valid_lft forever preferred_lft forever
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Now we run the programs again to see what has changed. For the sake of clarity, we are showing 2 runs of each of the programs.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;go run gocode/dnslookup.go
+2017/01/18 02:14:39 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;172.21.2.108 172.21.2.144 172.21.1.97 172.21.1.152] &amp;lt;nil&amp;gt;
+&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;go run gocode/dnslookup.go
+2017/01/18 02:14:40 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;172.21.2.108 172.21.2.144 172.21.1.97 172.21.1.152] &amp;lt;nil&amp;gt;
+
+
+&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;GODEBUG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;netdns&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;Cgo+2 go run gocode/dnslookup.go
+go package net: using Cgo DNS resolver
+go package net: hostLookupOrder&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;astrolabe.ap-southeast-1.elb.amazonaws.com&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; Cgo
+2017/01/18 02:15:41 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;172.21.1.97 172.21.1.152 172.21.2.108 172.21.2.144] &amp;lt;nil&amp;gt;
+&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;GODEBUG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;netdns&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;Cgo+2 go run gocode/dnslookup.go
+go package net: using Cgo DNS resolver
+go package net: hostLookupOrder&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;astrolabe.elb.amazonaws.com&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; Cgo
+2017/01/18 02:15:43 &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;172.21.2.144 172.21.1.97 172.21.1.152 172.21.2.108] &amp;lt;nil&amp;gt;
+
+&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;./ccode/dnslookup.out
+astrolabe elb resolved to 172.21.1.152  172.21.2.108  172.21.2.144  172.21.1.97
+&lt;span class=&quot;gp&quot;&gt;root@ip-172-21-2-90:~# &lt;/span&gt;./ccode/dnslookup.out
+astrolabe elb resolved to 172.21.1.97  172.21.1.152  172.21.2.108  172.21.2.144
+&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And from the results, you can see that it has no impact on the native Go DNS resolver but both the Cgo and C DNS resolvers are starting to return the IP addresses in a random order, as expected from our learnings in &lt;a href=&quot;/troubleshooting-unusual-aws-elb-5xx-error&quot;&gt;part one&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h4 id=&quot;ok-disabling-ipv6-and-using-cgoc-works-now-what&quot;&gt;Ok, disabling IPv6 and using Cgo/C works, now what?&lt;/h4&gt;
+
+&lt;p&gt;Now that we have established that disabling IPv6 does indeed solve the problem for us in Cgo and C (both use the same underlying &lt;code class=&quot;highlighter-rouge&quot;&gt;getaddrinfo&lt;/code&gt; function in glibc), it is time for us to explore the Go source code to see if there is anything that stands out in its implementation of a DNS resolver.&lt;/p&gt;
+
+&lt;p&gt;Being Go programmers, we can quickly navigate around the Go source code to reach the native Go DNS resolver (&lt;a href=&quot;https://github.com/golang/go/blob/db07c9ecb617117a86364e9e03acd6f7937e1732/src/net/addrselect.go&quot;&gt;net/addrselect.go&lt;/a&gt;) and from the source code, we can see that it only implements part of the rules in the RFC. It does not provide a way to override the rules and, most importantly, it does not do any form of source address selection but instead relies on processing the Rule 9 sorting based on a couple of selected reserved CIDR blocks (&lt;a href=&quot;https://github.com/golang/go/blob/db07c9ecb617117a86364e9e03acd6f7937e1732/src/net/addrselect.go#L411&quot;&gt;Reserved CIDR Blocks&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;Knowing what we have done so far, we had strong reasons to believe that it is the lack of source address selection that is causing the Go DNS resolver to behave differently from the DNS resolver in glibc.&lt;/p&gt;
+
+&lt;h3 id=&quot;source-address-selection&quot;&gt;Source Address Selection&lt;/h3&gt;
+
+&lt;p&gt;Referring back to the RFC, the part on source address selection states that the source address selection should be configurable by the system administrators. A quick google search shows us that for Ubuntu systems, the file is &lt;code class=&quot;highlighter-rouge&quot;&gt;/etc/gai.conf&lt;/code&gt;. To isolate the changes that we are making, we re-enable IPV6 before proceeding further. First, we try to move IPv4 addresses to the top of the list. We suspect that for some weird reason, the IPv6 source address is somehow being used to make the outgoing connection, otherwise why would disabling IPv6 do anything at all? Surprisingly, all of our different attempts at modifying &lt;code class=&quot;highlighter-rouge&quot;&gt;/etc/gai.conf&lt;/code&gt; do not do anything (Well, one of the attempts does, by adding a &lt;code class=&quot;highlighter-rouge&quot;&gt;172.21.2.90/26&lt;/code&gt; prefix. It works because the common prefix for the addresses in the 172.21.2.* subnet would now be the same). Welp, we are now back at square one.&lt;/p&gt;
+
+&lt;p&gt;After hours and hours of research by talking to people with networking experience and going through pages and pages of Google search results that touch on this topic (Microsoft’s blog posts on Vista, Debian mailing list, etc.), we finally come across a series of article on Linux Hacks (&lt;a href=&quot;http://linux-hacks.blogspot.com/2008/04/default-address-selection-part-1.html&quot;&gt;Part 1&lt;/a&gt;, &lt;a href=&quot;http://linux-hacks.blogspot.com/2008/07/default-address-selection-part-2.html&quot;&gt;Part 2&lt;/a&gt;). Guess what? The article actually tells us that source address selection is not configured through &lt;code class=&quot;highlighter-rouge&quot;&gt;/etc/gai.conf&lt;/code&gt; but is done through the kernel instead! &lt;strong&gt;Aha!&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Off we go, once again making a bunch of different configuration changes to the network interface that bring us nowhere. Also, because the Go DNS resolver does not actually do any sort of source address selection, spending more time on this avenue does not really help us in finding the problem.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-source-code-we-go&quot;&gt;The Source Code We Go&lt;/h3&gt;
+
+&lt;p&gt;If you have ever gotten stuck on trying to figure out how something works and all the googling is not giving you the right answers, you know that going through the source code is the next thing to try. It is almost never the first thing that any programmer wants to do though. Navigating someone else’s code is hard and it’s even harder when it’s not a language you’re very familiar with. Ultimately, we decide to bite the bullet and dive deep into the code in glibc to see how source address selection is done specifically and get an understanding of how it affects the sorting of the IP addresses.&lt;/p&gt;
+
+&lt;p&gt;Funnily enough, even finding the source code of glibc is not as straightforward as we expect. Nowadays, when you want to find a piece of code, you will probably just google it and find it on github. This isn’t the case for glibc as the main source code is hosted at &lt;a href=&quot;https://sourceware.org/git/?p=glibc.git&quot;&gt;sourceware&lt;/a&gt; and is unfortunately not easy to navigate. Luckily, we find a mirror on &lt;a href=&quot;https://github.molgen.mpg.de/git-mirror/glibc/blob/glibc-2.19/sysdeps/posix/getaddrinfo.c#L2310&quot;&gt;Github&lt;/a&gt; that provided us with a familiar interface. Again, finding the source code for &lt;code class=&quot;highlighter-rouge&quot;&gt;getaddrinfo&lt;/code&gt; itself also isn’t easy. At first, we end up in the &lt;a href=&quot;https://github.molgen.mpg.de/git-mirror/glibc/tree/master/inet&quot;&gt;inet directory&lt;/a&gt; and we get completely confused as all the files only have macro definitions and no code at all. Only after some googling and stumbling around, we find that the source code for &lt;code class=&quot;highlighter-rouge&quot;&gt;getaddrinfo&lt;/code&gt; is at &lt;a href=&quot;https://github.molgen.mpg.de/git-mirror/glibc/blob/glibc-2.19/sysdeps/posix/getaddrinfo.c#L2310&quot;&gt;sysdeps/posix&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Being mostly Go or Ruby programmers, it takes a little bit of time to understand how the C-based code works. After getting a basic understanding, we decide to whip out good old gdb to start debugging the code step by step. Eventually, we find the issue. The way the prefix attributes of the source addresses are set disables the sorting of the IP addresses, since they are the only values that are different when we enable/disable IPv6. With some more research, we identify a file named &lt;code class=&quot;highlighter-rouge&quot;&gt;check_pf.c&lt;/code&gt; where the source address selection is actually being done. In the end, we narrow it down to a block of code in &lt;a href=&quot;https://github.molgen.mpg.de/git-mirror/glibc/blob/master/sysdeps/unix/sysv/linux/check_pf.c#L266&quot;&gt;check_pf.c&lt;/a&gt; that is the root cause of this whole thing. The block of code basically states that if there are no IPv6 source addresses on the outgoing interface, it will just return that there are no possible source addresses at all that in turn causes Rule 9 sorting of the RFC to be completely bypassed and give us back the default DNS ordering (round robin in most scenarios).&lt;/p&gt;
+
+&lt;p&gt;Finally understanding how it works in glibc, we modify the Go source code and to add in the same behaviour. With the same weird logic in &lt;code class=&quot;highlighter-rouge&quot;&gt;check_pf.c&lt;/code&gt;, the Go DNS resolver now works the same as the glibc DNS resolver. However, we’re not interested in maintaining a separate fork of Go and instead opened a ticket with the Go maintainers. Within a very short timeframe, the Go maintainers decided to skip RFC 6274 completely for IPv4 addresses and merge this patch into the current upstream with release in Go 1.9. Eventually, the fix is also backported to Go 1.8.1 a release on April 7, 2017. The image below shows the effects of this change on one of our systems running on Go 1.8.1&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;ELB Requests per AZ&quot; src=&quot;/img/dns-resolution-in-go-and-cgo/elb-requests-per-az.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;/h3&gt;
+
+&lt;p&gt;To summarize, in the first part of the series, we walked through our process investigating why we were receiving ELB HTTP 5xx alerts on Astrolabe (our driver location processing service) and how we fixed it by forcing Go to use the Cgo DNS resolver while IPv6 was disabled. In the second part of the series, we dived deeper into the problem to figure out why our solution in part 1 worked. In the end, it turns out that it was because of some undocumented behaviour in glibc that allowed the internet to continue working as it did.&lt;/p&gt;
+
+&lt;p&gt;A couple of takeaways that we had from this investigation:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;It is never easy to reimplement something that is already working, as in the case of Go’s reimplementation of Glibc’s &lt;code class=&quot;highlighter-rouge&quot;&gt;getaddrinfo&lt;/code&gt;. Because of a couple of lines of undocumented code in glibc, the Go maintainers did not manage to replicate glibc exactly and that caused strange and hard to understand problems.&lt;/li&gt;
+  &lt;li&gt;Software is something that we can always reason with. With enough time, you will almost always be able to find the root cause and fix it.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;That’s it, we hope that you enjoyed reading our journey as much as we enjoyed going through it!&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Note: All the sensitive information in this article has been modified and does not reflect the true state of our systems.&lt;/em&gt;&lt;/p&gt;
+</description>
+        <pubDate>Wed, 24 May 2017 18:43:40 +0000</pubDate>
+        <link>http://engineering.grab.com/dns-resolution-in-go-and-cgo</link>
+        <guid isPermaLink="true">http://engineering.grab.com/dns-resolution-in-go-and-cgo</guid>
+        
+        <category>golang</category>
+        
+        <category>networking</category>
+        
+        
+      </item>
     
       <item>
         <title>Driving Southeast Asia Forward with AWS</title>
@@ -142,7 +404,7 @@
     
       <item>
         <title>Troubleshooting Unusual AWS ELB 5XX Error</title>
-        <description>&lt;p&gt;&lt;em&gt;This article is part one of a two-part series. In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution.&lt;/em&gt;&lt;/p&gt;
+        <description>&lt;p&gt;&lt;em&gt;This article is part one of a two-part series (&lt;a href=&quot;/dns-resolution-in-go-and-cgo&quot;&gt;part two&lt;/a&gt;). In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution.&lt;/em&gt;&lt;/p&gt;
 
 &lt;p&gt;&lt;strong&gt;Triggered: [Gothena] Astrolabe failed (Warning)&lt;/strong&gt;, an alert from Datadog that we have been seeing very often in our &lt;code class=&quot;highlighter-rouge&quot;&gt;#tech-operations&lt;/code&gt; slack channel. This alert basically tells us that Gothena &lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; is receiving ELB &lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; HTTP 5xx &lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; errors when calling Astrolabe &lt;sup id=&quot;fnref:4&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;. Because of how frequently we update our driver location data, losing one or two updates of a single driver has never really been an issue for us at Grab. It was only when this started creating a lot of noise for our on call engineers, we decided that it was time to dig into it and fix it once and for all.&lt;/p&gt;
 
@@ -1289,149 +1551,6 @@ Secondly, the amazing talent I get to work with every day! Grab is willing to he
         <guid isPermaLink="true">http://engineering.grab.com/battling-with-tech-giants-for-the-worlds-best-talent</guid>
         
         <category>Hiring</category>
-        
-        
-      </item>
-    
-      <item>
-        <title>This Rocket Ain&#39;t Stopping - Achieving Zero Downtime for Rails to Golang API Migration</title>
-        <description>&lt;p&gt;Grab has been transitioning from a Rails + NodeJS stack to a full Golang Service Oriented Architecture. To contribute to a single common code base, we wanted to transfer engineers working on the Rails server powering our passenger app APIs to other Go teams.&lt;/p&gt;
-
-&lt;p&gt;To do this, a newly formed API team was given the responsibility of carefully migrating the public passenger app APIs from the existing Rails app to a new Go server. Our goal was to have the public API hostname DNS point to the new Go server cluster.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;DNS switch&quot; src=&quot;/img/zero-downtime-migration/dns-switch.png&quot; width=&quot;50%&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Since the API endpoints are live and accepting requests, we developed some rules to maintain optimum stability for the service:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Endpoints have to pass a few tests before being deployed:&lt;/p&gt;
-
-    &lt;p&gt;a. Rigorous unit tests&lt;/p&gt;
-
-    &lt;p&gt;b. Load tests using predicted traffic based on data from production environment&lt;/p&gt;
-
-    &lt;p&gt;c. Staging environment QA testing&lt;/p&gt;
-
-    &lt;p&gt;d. Production environment shadow testing&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Deploying migrated endpoints has to be done one by one&lt;/li&gt;
-  &lt;li&gt;Deploying of each endpoint needs to be progressive&lt;/li&gt;
-  &lt;li&gt;In the event of unforeseen bugs, all deployments must be instantly rolled back&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;We divided the migration work for each endpoint into the following phases:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Logic migration&lt;/li&gt;
-  &lt;li&gt;Load testing&lt;/li&gt;
-  &lt;li&gt;Shadow testing&lt;/li&gt;
-  &lt;li&gt;Roll out&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;logic-migration&quot;&gt;Logic Migration&lt;/h3&gt;
-
-&lt;p&gt;Our initial plan was to enforce a rapid takeover of the Rails server DNS, before porting the logic. To do that, we would clone the existing Rails repository and have the new Go server provide a thin layer proxy, which resembles this in practice:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;clone&quot; src=&quot;/img/zero-downtime-migration/clone.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;problems-with-clone-proxy&quot;&gt;Problems with Clone Proxy&lt;/h4&gt;
-
-&lt;p&gt;A key concern for us was the tripling of the HTTP request redirects for each endpoint. Entry into the Go server had to remain HTTP, as it needed to takeover the DNS. However, we recognise it was wasteful to have another HTTP entry at the Rails clone.&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;http://www.grpc.io/&quot;&gt;gRPC&lt;/a&gt; was implemented between the Go server and Rails clone to optimise latency. As gRPC runs on HTTP/2 which our Elastic Load Balancer (ELB) did not support, we had to configure the ELB to carry out TCP balancing instead. TCP connections, being persistent, caused a load imbalance amongst our Rails clone instances whenever there was an Auto Scaling Group (ASG) scale event.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;ASG&quot; src=&quot;/img/zero-downtime-migration/asg.jpg&quot; width=&quot;75%&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We identified 2 ways to solve this.&lt;/p&gt;
-
-&lt;p&gt;The first was to implement service discovery into our gRPC setup, either by Zookeeper or etcd for client side load balancing. The second, which we adopted and deem the easier way albeit more hackish, was to have a script slowly restart all the Go instances every time there was an ASG scaling event on the Rails Clone cluster to force a redistribution of connections. It may seem unwieldy, but it got the job done without distracting our team further.&lt;/p&gt;
-
-&lt;p&gt;Grab API team then discovered that the gRPC RubyGem we were using in our Rails clone server had a memory leak issue. It required us to create a rake task to periodically restart the instances when memory usage reached a certain threshold. Our engineers went through the RubyGem’s C++ code and submitted a pull request to get it fixed.&lt;/p&gt;
-
-&lt;p&gt;The memory leak problem was then followed by yet another. We noticed mysterious latency mismatches between the Rails clone processes, and the ones measured on the Go server.&lt;/p&gt;
-
-&lt;p&gt;At this point, we realised no matter how focused and determined we were at identifying and solving all issues, it was a better use of engineering resources to start work on implementing the logic migration. We threw the month-long gRPC work out the window and started with porting over the Rails server logic.&lt;/p&gt;
-
-&lt;p&gt;Interestingly, converting Ruby code to Go did not pose many issues, although we did have to implement several RubyGems in Go. We also took the opportunity to extract modules from the Rails server into separate services, which allowed for maintenance distribution for the various business logic components to separate engineering teams.&lt;/p&gt;
-
-&lt;h3 id=&quot;load-testing&quot;&gt;Load Testing&lt;/h3&gt;
-
-&lt;p&gt;Before receiving actual, real world traffic, our team performed load testing by dumping all the day logs with the highest traffic in the past month. We proceeded to create a script that would parse the logs and send actual HTTP requests to our endpoint hosted on our staging servers. This ensured that our configurations were adequate for every anticipated traffic, and to verify that our new endpoints were maintaining the Service Level Agreement (SLA).&lt;/p&gt;
-
-&lt;h3 id=&quot;shadow-testing&quot;&gt;Shadow Testing&lt;/h3&gt;
-
-&lt;p&gt;Shadowing involves accepting real-time requests to our endpoints for actual load and logic testing. The Go server is as good as live, but does not return any response to the passenger app. The Rails server processes the requests and responses as usual, but it also sends a copy of the request and response to the Go server. The Go server then process the request and compare the resulting responses. This test was carried out on both staging and production environments.&lt;/p&gt;
-
-&lt;p&gt;One of our engineers wrote a JSON tokenizer to carry out response comparison, which we used to track any mismatches. All mismatched data was sent to both our statsd server and Slack to alert us of potential migration logic issues.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Statsd API error rate&quot; src=&quot;/img/zero-downtime-migration/statsd-error-rate.png&quot; width=&quot;75%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Statsd error rate tracking on DataDog&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Slack Pikabot Mismatch notification&quot; src=&quot;/img/zero-downtime-migration/pikabot-mismatch-notification.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Slack pikabot mismatch notification&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;idempotency-during-shadow&quot;&gt;Idempotency During Shadow&lt;/h4&gt;
-
-&lt;p&gt;It was easy to shadow GET requests due to its idempotent nature in our system. However, we could not simply carry out the same process when we were shadowing PUT/POST/DELETE requests, as it would result in double data writes.&lt;/p&gt;
-
-&lt;p&gt;We overcame this by wrapping our data access objects with a layer of mock code. Instead of writing to database, it generates the expected outcome of the database row before comparing with the actual row in the database.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Data comparison&quot; src=&quot;/img/zero-downtime-migration/data-comparison.png&quot; width=&quot;75%&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;As the shadowing process occurs only after the Rails server has processed the request, we knew database changes existed. Clearly, the booking states may have changed between the Rails processing time and the Go shadow juncture, resulting in a mismatch. For such situations, the occurrence rate was low enough that we could manually debug and verify.&lt;/p&gt;
-
-&lt;h4 id=&quot;progressive-shadowing&quot;&gt;Progressive Shadowing&lt;/h4&gt;
-
-&lt;p&gt;The shadowing process affects the number of outgoing connections the Rails server can make. We therefore had to ensure that we could control the gradual increase in shadow traffic. Code was implemented in the Rails server to check our configuration Redis for how much we would like to shadow, and then throttle the redirection accordingly. Percentage increments seemed intuitive to us at first, but we learnt our mistake the hard way when one of our ELBs started terminating requests due to spillovers.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;RPS vs Endpoints&quot; src=&quot;/img/zero-downtime-migration/rps-vs-endpoints.png&quot; width=&quot;75%&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;As exemplified by the illustration above, one of our endpoints had such a huge number of requests that a mere single percent of its requests dwarfed the full load of 5 others combined. Percentages meant nothing without load context. We mitigated the issue when we switched to increments by requests per second (RPS).&lt;/p&gt;
-
-&lt;h4 id=&quot;prewarming-elb&quot;&gt;Prewarming ELB&lt;/h4&gt;
-
-&lt;p&gt;In addition to switching to RPS increments, we notified AWS Support in advance to prewarm our ELBs. Although the operations of the ELB are within a black box, we can assume that it is built using proprietary scaling groups of Elastic Cloud Compute (EC2) instances. These instances are most likely configured with the following parameters:&lt;/p&gt;
-
-&lt;p&gt;a. Connection count (network interface)&lt;/p&gt;
-
-&lt;p&gt;b. Network throughput (memory and CPU)&lt;/p&gt;
-
-&lt;p&gt;c. Scaling speed (more instances vs. larger instance hardware)&lt;/p&gt;
-
-&lt;p&gt;This will provide more leeway in increasing RPS during shadow or roll out.&lt;/p&gt;
-
-&lt;h3 id=&quot;roll-out&quot;&gt;Roll Out&lt;/h3&gt;
-
-&lt;p&gt;Similar to shadowing of endpoints, it was necessary to roll out discrete endpoints with traffic control. Simply changing DNS for roll out would require the migrated Go API server to be coded, tested and configured with perfect foresight to instantly take over 100% traffic of all passenger app requests across all 30 over endpoints. By adopting the same method used in shadowing, we could turn on a single endpoint at the RPS we want. The Go server will then be able to gradually take over the traffic before the final DNS switch.&lt;/p&gt;
-
-&lt;h3 id=&quot;final-word&quot;&gt;Final Word&lt;/h3&gt;
-
-&lt;p&gt;We hope this post will be useful for those planning to undertake migrations with similar scale and reliability requirements. If this type of challenges interest you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our engineering team&lt;/a&gt;!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 18 Oct 2016 18:43:40 +0000</pubDate>
-        <link>http://engineering.grab.com/zero-downtime-migration</link>
-        <guid isPermaLink="true">http://engineering.grab.com/zero-downtime-migration</guid>
-        
-        <category>AWS</category>
-        
-        <category>Golang</category>
-        
-        <category>Ruby</category>
         
         
       </item>
