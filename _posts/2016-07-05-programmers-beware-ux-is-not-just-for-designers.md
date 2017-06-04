@@ -191,6 +191,7 @@ These are great examples of **"What can I do to make their life easier?"**.
 A good UX would consider all reasonable ways a user might use or misuse the interface and in many cases support them instead of forcing the user to learn and then remember the exact format required.
 
 ### TL;DR
+
 - UX is not just about Visual User Interfaces.
 - APIs and SDKs are also user interfaces.
 - Programmers are also users.

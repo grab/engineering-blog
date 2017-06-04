@@ -24,7 +24,7 @@ As a common solution to the limitations of an Apple developer account's device w
 
 The first 3 are distributed through [Fabric](https://get.fabric.io/). The last one is, of course, distributed through iTunes Connect. Archiving is done simply through bash scripts. Why did we move away from Fastlane? First of all, our primary need is archiving. We don't really need a bunch of other powerful features. The scripts simply perform clean build and archive actions using `xcodebuild`. Each of them is less than 100 lines. Secondly, it's so much easier and flexible for us to customize our own script. E.g. final modifications to the code before archiving. Lastly, we have one less dependency. That means one less step to provision a new server.
 
-## Server-side Swift
+### Server-side Swift
 
 Now whenever we need a new build we simply execute a script. But the question is, who should do it? It's clearly not an option to login to the build machine and do it manually. So again, as a whole bunch of in-house enthusiasts, we wrote a simple app using server-side Swift. The first version was implemented by our teammate [Paul Meng](https://github.com/mno2). It has gone through a few iterations over time.
 
@@ -64,7 +64,7 @@ Now if anyone needs a build they can trigger it themselves. 🎉
   <small class="post-image-caption">Literally anyone</small>
 </div>
 
-## Deployments
+### Deployments
 
 We sometimes add new features to **@iris** or modify build scripts. How to deploy those changes? We did it with a little help of Capistrano. Here is how:
 
@@ -116,7 +116,7 @@ append :linked_files, "config.json"
 We are all set. How simple is that! To deploy 🚀, simply execute `cap production deploy`.
 Screwed up? `cap production deploy:rollback` will rescue.
 
-## Conclusion
+### Conclusion
 
 What Grab has now, isn't the most mature setup (there is still a lot to consider. e.g. scaling, authorization, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience in the comments below.
 

@@ -130,4 +130,4 @@ Similar to shadowing of endpoints, it was necessary to roll out discrete endpoin
 
 ### Final Word
 
-We hope this post will be useful for those planning to undertake migrations with similar scale and reliability requirements. If this type of challenges interest you, [join our engineering team](https://grab.careers/)!
+We hope this post will be useful for those planning to undertake migrations with similar scale and reliability requirements. If this type of challenges interest you, [join our Engineering team](https://grab.careers/)!

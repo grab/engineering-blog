@@ -12,7 +12,7 @@ excerpt: "I am honoured to receive the Best Fraud Prevention Innovation (Communi
 I am honoured to receive the Best Fraud Prevention Innovation (Community Votes) Award at the 2016 [Florin Awards](https://globalpaymentsummit.com/florin-awards/) on behalf of Grab. For those of you who voted for Grab, we thank you for your support that made this award possible.
 
 <div class="post-image-section">
-    <img alt="Grab receives Florin Award" src="/img/florin-awards/florin-awards.jpg">
+  <img alt="Grab receives Florin Award" src="/img/florin-awards/florin-awards.jpg">
 </div>
 
 User Trust and Safety is paramount to Grab -- we uphold the industry's highest security standards for all cashless transactions that occur on our GrabPay platform. A large part of what underlies this protection is the risk and fraud detection system that we put in place at the launch of GrabPay early this year. It continues to evolve further today, using sophisticated machine learning algorithms that progressively builds on the knowledge we have of our drivers, passengers and their travel patterns to enable the largest mobile transaction volume on any Southeast Asian consumer platform in history.

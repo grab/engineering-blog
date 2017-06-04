@@ -29,7 +29,7 @@ If you can relate to any of the above. This article is for you. We set up and de
 
 Testing and distribution are two aspects that we put a lot of effort in automating. Part I will cover how we do integration tests at Grab.
 
-## Testing - Xcode Server
+### Testing - Xcode Server
 
 Besides being a complete Apple fan myself, there are a couple of other reasons why we chose Xcode Server over [Travis](https://travis-ci.org/) and [Bitrise](https://www.bitrise.io/) (which our Android team uses) to run our tests.
 
@@ -60,7 +60,7 @@ Sounds good! Let's get started. On the day we got our server, we found creative 
   <small class="post-image-caption">Our multi-purpose server ♻️</small>
 </div>
 
-## Workflow
+### Workflow
 
 The basic idea is to create a bot when a feature branch is pushed, trigger the bot on each commit and delete the bot after the feature is merged / branch is deleted. Grab uses [Phabricator](https://www.phacility.com/phabricator/) as the main code review tool. We wrote scripts to create and delete the bots as [Arcanist](https://secure.phabricator.com/book/phabricator/article/arcanist/) post diff (branch is created/updated) and land (branch is merged) hooks.
 
@@ -103,7 +103,7 @@ curl -k -u username:password https://your.server.com:20343/api/bots
 
 Apple doesn't have a lot of documentation on this. For a list of Xcode Server APIs you can try out [this list](http://docs.xcodeserverapidocs.apiary.io/#reference/bots/bots/create-a-new-bot).
 
-## Gotchas
+### Gotchas
 
 We have been happy with the server most of the time. However, along the way we did discover several downsides:
 
