@@ -31,7 +31,7 @@ The result of this is that our new hires or back end engineers, who are not nece
 
 This study guide is inspired by ["A Study Plan to Cure JavaScript Fatigue"](https://medium.freecodecamp.com/a-study-plan-to-cure-javascript-fatigue-8ad3a54f2eb1#.g9egaapps) and is mildly opinionated in the sense that we recommend certain libraries/frameworks to learn for each aspect of front end development, based on what is currently deemed most suitable at Grab. We explain why a certain library/framework/tool is chosen and provide links to learning resources to enable the reader to pick it up on their own. Alternative choices that may be better for other use cases are provided as well for reference and further self-exploration.
 
-If your company is exploring a modern JavaScript stack as well, you may find this study plan useful to your company too! Feel free to adapt it to your needs. We will update this study plan periodically, according to our latest work and choices.
+If your company is exploring a modern JavaScript stack as well, you may find this study guide useful to your company too! Feel free to adapt it to your needs. We will update this study guide periodically, according to our latest work and choices.
 
 *- Grab Web Team*
 
@@ -104,6 +104,7 @@ Spend a day or two revising ES5 and exploring ES2015. The more heavily used feat
 
 - [Learn ES5 on Codecademy](https://www.codecademy.com/learn/learn-javascript)
 - [Learn ES2015 on Babel](https://babeljs.io/learn-es2015/)
+- [Free Code Camp](https://www.freecodecamp.com/)
 - [ES6 Katas](http://es6katas.org/)
 - [You Don't Know JS](https://github.com/getify/You-Dont-Know-JS) (Advanced content, optional for beginners)
 
@@ -417,7 +418,7 @@ As the front end ecosystem grows, we are actively exploring, experimenting and e
 - [Roadmap to becoming a web developer in 2017](https://github.com/kamranahmedse/developer-roadmap#-frontend-roadmap)
 - [Modern JavaScript for Ancient Web Developers](https://trackchanges.postlight.com/modern-javascript-for-ancient-web-developers-58e7cae050f9)
 
-**Other Study Plans**
+**Other Study Guides**
 
 - [A Study Plan To Cure JavaScript Fatigue](https://medium.freecodecamp.com/a-study-plan-to-cure-javascript-fatigue-8ad3a54f2eb1#.c0wnrrcwd)
 - [JS Stack from Scratch](https://github.com/verekia/js-stack-from-scratch)
