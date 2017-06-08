@@ -41,6 +41,7 @@ Each post should have the following front matter defined:
 |`title`|Title of blog entry|`The Curious Case of The Phantom Instance`|
 |`date`|Date of entry in `DDDD-MM-YY HH:MM:SS` format|`2015-12-28 04:39:00`|
 |`authors`|YAML list of author IDs. The author bio will be retrieved from `_data/authors.yml` and displayed within the post.|`[lian-yuanlin, ...]`|
+|`categories`|YAML list of categories, sorted alphabetically. Only use existing categories in `_data/categories.yml`.|`[Engineering]`|
 |`tags`|YAML list of tags, sorted alphabetically. Please check existing tags on `/tags` and reuse where possible.|`[AWS, Golang]`|
 |`cover_photo`|Relative URL to the FB open graph image|`/img/grab-vietnam-careers-week/son-hai.jpg`|
 |`comments`|Whether to display Disqus comments box. Why would you set this to `false`?|`true`|

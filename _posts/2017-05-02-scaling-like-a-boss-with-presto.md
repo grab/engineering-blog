@@ -4,6 +4,7 @@ id: scaling-like-a-boss-with-presto
 title: Scaling Like a Boss with Presto
 date: 2017-05-01 18:43:40
 authors: [aneesh-chandra]
+categories: [Engineering]
 tags: [Analytics, AWS, Data, Storage]
 comments: true
 cover_photo: /img/scaling-like-a-boss-with-presto/presto-architecture.png

@@ -4,6 +4,7 @@ id: why-test-the-design-with-only-5-users
 title: Why test the design with only 5 users
 date: 2016-08-26 13:43:40
 authors: [avinash-papatla]
+categories: [Design]
 tags: [User Research, UX]
 comments: true
 excerpt: "The reasoning behind small sample sizes in qualitative usability research."

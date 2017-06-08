@@ -4,6 +4,7 @@ id: deep-dive-into-ios-automation-at-grab-continuous-delivery
 title: Deep Dive Into iOS Automation At Grab - Continuous Delivery
 date: 2017-04-23 18:43:40
 authors: [sun-xiangxin, paul-meng]
+categories: [Engineering]
 tags: [Continuous Delivery, iOS, Mobile, Swift]
 comments: true
 cover_photo: /img/ios-automation/corgi-macbook.jpg

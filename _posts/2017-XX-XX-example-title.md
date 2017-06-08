@@ -4,6 +4,7 @@ id: some-slug-title
 title: Some Title
 date: 2027-10-20 18:43:40
 authors: [grab-engineering]
+categories: [Category 1]
 tags: [Tag 1, Tag 2]
 comments: true
 cover_photo: /img/path/to/img.jpg
