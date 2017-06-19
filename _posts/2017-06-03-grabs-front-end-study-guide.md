@@ -405,7 +405,7 @@ As the front end ecosystem grows, we are actively exploring, experimenting and e
 *The original post can be found on [Github](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟*
 
 <div class="text-center">
-  <iframe src="https://ghbtns.com/github-btn.html?user=grab&repo=front-end-guide&type=star&count=true&size=large" frameborder="0" scrolling="0" width="130px" height="30px"></iframe>
+  <iframe src="https://ghbtns.com/github-btn.html?user=grab&repo=front-end-guide&type=star&count=true&size=large" frameborder="0" scrolling="0" width="142px" height="30px"></iframe>
 </div>
 
 ### More Reading
