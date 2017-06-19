@@ -65,11 +65,11 @@ Shipping a new software to production always comes with risk. Especially with su
 
 When switching to a new cache mechanism, some cache misses are inevitable, so we chose to deploy during the relatively peaceful hours at night, so that we can have some cache warm up time before the morning peak.
 
-Also, we have a CRON job to populate caches for some heavy requests every 12 hours, so we need to make the CRON job double write cache to the new systems beforehand in order to prevent high volume DB reads and possible data inconsistencies.
+Also, we have a cron job to populate caches for some heavy requests every 12 hours, so we need to make the cron job double write cache to the new systems beforehand in order to prevent high volume DB reads and possible data inconsistencies.
 
 Therefore, the steps are:
 
-1. Configure CRON job double writing to the new cache system – Need to deploy CDS because CRON job is running within CDS.
+1. Configure cron job double writing to the new cache system – Need to deploy CDS because cron job is running within CDS.
 1. Verify the populated caches in new system and configure CDS to read from there – Need to deploy CDS again for the configuration changes.
 
 This process took 2 days to finish, a little tedious but worth doing for a max degree of reliability.
