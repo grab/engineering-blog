@@ -39,7 +39,7 @@ Each post should have the following front matter defined:
 |`layout`|The layout template from the `_layouts` directory. We only have `post` for now.|`post`|
 |`id`|Unique id for each blog entry. This is used by Disqus to uniquely identify posts and should not be modified if a Disqus thread for that post already exists.|`curious-case-of-the-phantom-instance`|
 |`title`|Title of blog entry|`The Curious Case of The Phantom Instance`|
-|`date`|Date of entry in `DDDD-MM-YY HH:MM:SS` format|`2015-12-28 04:39:00`|
+|`date`|Date of entry in `DDDD-MM-YY HH:MM:SS` format|`2015-12-28 04:39:00`. Note that this is in UTC and posts in the future will not be displayed. To such posts during development, use `bundle exec jekyll serve --future` |
 |`authors`|YAML list of author IDs. The author bio will be retrieved from `_data/authors.yml` and displayed within the post.|`[lian-yuanlin, ...]`|
 |`categories`|YAML list of categories, sorted alphabetically. Only use existing categories in `_data/categories.yml`.|`[Engineering]`|
 |`tags`|YAML list of tags, sorted alphabetically. Please check existing tags on `/tags` and reuse where possible.|`[AWS, Golang]`|
