@@ -2,7 +2,7 @@
 layout: post
 id: migrating-existing-datastores
 title: "Migrating Existing Datastores"
-date: 2017-08-08 10:46:00
+date: 2017-08-08 07:30:00
 authors: [nishant-gupta]
 categories: [Engineering]
 tags: [Back End, Redis]
@@ -14,7 +14,7 @@ At Grab we take pride in creating solutions that impact millions of people in So
 
 It all started when in early 2017, Grab Identity team realised that given the rate at which our user base was growing, we wouldn't be able to sustain the load with our existing single Redis node architecture. We used Redis as a cache to store authentication tokens required for secure mobile client to server communication. These tokens are permanently backed up in an underlying MySQL store. The existing Redis instance was filling at crazy speeds and we were growing at a rate at which we had a maximum of 2 months to react before we would start to ‘choke’ i.e. running out of memory to store more data or run operations on the above mentioned Redis node.
 
-![image1](/img/migrating-existing-datastores/image1.png)
+![projected-redis-load](/img/migrating-existing-datastores/projected-redis-load.png)
 
 It was the moment of truth for us, and forced us to re-evaluate the design and revisit architectural decisions. We had to move away from our existing Redis node and do it fast. We had several options:
 
@@ -35,13 +35,13 @@ And we had the answer to this. In a typical authentication system, the scale of 
 
 Write load
 
-![image2](/img/migrating-existing-datastores/image2.png)
+![write-load](/img/migrating-existing-datastores/write-load.png)
 
 VS
 
 Read load
 
-![image3](/img/migrating-existing-datastores/image3.png)
+![read-load](/img/migrating-existing-datastores/read-load.png)
 
 It was a clear difference of ~200 times in peak load. So, what if we can achieve horizontal scalability in read cases, and be a bit futuristic in provisioning shards to cover write load?
 
@@ -70,10 +70,10 @@ This was relatively simple, since the new cluster was not handling live traffic.
 
 **Step 6:** Stop writing to the old Redis Node. This was just a cleanup step, to remove any interactions with the old source.
 
-![image4](/img/migrating-existing-datastores/image4.png)
+![procedure](/img/migrating-existing-datastores/procedure.png)
 
 Each step was controlled by configuration flags. In case of unforeseen events or drastic situation, we had levers to move the system back to its original state. Additionally, at each step we added extensive metrics to make sure that we had solid data-points backing our move to confidently move to the next step. We moved smoothly from one step to another and there came a time when we moved to Step 6 and there, we had defused the bomb, timely.
 
-![image5](/img/migrating-existing-datastores/image5.png)
+![after-migration](/img/migrating-existing-datastores/after-migration.png)
 
 What did we learn from this — in the software world, things are not always tough, problems may not require rocket-science tech all the time. Sometimes, it’s more about well thought-through planning, meticulous execution, coordinated steps, measured and data driven decision making, that’s all you need to have a winning strategy.
