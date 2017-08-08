@@ -6,9 +6,102 @@
 </description>
     <link>http://engineering.grab.com/</link>
     <atom:link href="http://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 08 Aug 2017 07:36:29 +0000</pubDate>
-    <lastBuildDate>Tue, 08 Aug 2017 07:36:29 +0000</lastBuildDate>
+    <pubDate>Tue, 08 Aug 2017 07:40:30 +0000</pubDate>
+    <lastBuildDate>Tue, 08 Aug 2017 07:40:30 +0000</lastBuildDate>
     <generator>Jekyll v3.0.3</generator>
+    
+      <item>
+        <title>Migrating Existing Datastores</title>
+        <description>&lt;p&gt;At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 45 million downloads and 1.1 million drivers, it’s our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments.&lt;/p&gt;
+
+&lt;p&gt;It all started when in early 2017, Grab Identity team realised that given the rate at which our user base was growing, we wouldn’t be able to sustain the load with our existing single Redis node architecture. We used Redis as a cache to store authentication tokens required for secure mobile client to server communication. These tokens are permanently backed up in an underlying MySQL store. The existing Redis instance was filling at crazy speeds and we were growing at a rate at which we had a maximum of 2 months to react before we would start to ‘choke’ i.e. running out of memory to store more data or run operations on the above mentioned Redis node.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/migrating-existing-datastores/projected-redis-load.png&quot; alt=&quot;projected-redis-load&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It was the moment of truth for us, and forced us to re-evaluate the design and revisit architectural decisions. We had to move away from our existing Redis node and do it fast. We had several options:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Move to a larger Redis instance:&lt;/strong&gt; While definitely an option, we now had the opportunity to solve for the existing flaw of a single point of failure in our design. In spite of having replication groups set up, in cases of failure it can take a few minutes before a slave gets promoted as master and until that happens, service write operations would remain impacted. Our priority was moving in the direction of higher availability.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Move away from Redis:&lt;/strong&gt; Well, that was one of the options, but it was not the time to re-evaluate other caching solutions from scratch.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Setup a custom Redis cluster&lt;/strong&gt;, backed by Redis Replication Groups: This option did address availability concerns, but raised additional concerns:
+    &lt;ul&gt;
+      &lt;li&gt;We had to rely on client-side sharding, so clients would be slightly more complex.&lt;/li&gt;
+      &lt;li&gt;In case of having to add a new shard, the migration was going to be very tricky. Remember, it was a custom cluster so there would be no self-balancing offered. We might end up moving selected user information from existing nodes to new nodes, pretty much cherry picking via some custom logic for this one time migration.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Use AWS ElastiCache cluster:&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Server-side data sharding was available, meaning AWS would take care of the sharding strategy for us.&lt;/li&gt;
+      &lt;li&gt;Adding a new shard was not possible, oops!… BUT, anyhow a fresh setup might turn out to be more clean and deterministic than running custom rebalancing implementation as in the above option.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;From all the mentioned options, it was clear to us that achieving a completely horizontally scalable model where data-sources could be increased on demand with ease, was not possible with the Redis-AWS combination (unless we ended up with a &lt;a href=&quot;https://redis.io/topics/cluster-spec&quot;&gt;self-hosted Redis&lt;/a&gt; on EC2). This is when we started questioning some assumptions:&lt;/p&gt;
+
+&lt;p&gt;Did we need horizontal scalability for all the operations?&lt;/p&gt;
+
+&lt;p&gt;And we had the answer to this. In a typical authentication system, the scale of writes is significantly lower compared to that of reads. A token that was provisioned in 1 request, would end up being used to authenticate another N requests and our graphs validated this:&lt;/p&gt;
+
+&lt;p&gt;Write load&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/migrating-existing-datastores/write-load.png&quot; alt=&quot;write-load&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;VS&lt;/p&gt;
+
+&lt;p&gt;Read load&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/migrating-existing-datastores/read-load.png&quot; alt=&quot;read-load&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It was a clear difference of ~200 times in peak load. So, what if we can achieve horizontal scalability in read cases, and be a bit futuristic in provisioning shards to cover write load?&lt;/p&gt;
+
+&lt;p&gt;We had our answer and our winner in the process. AWS ElastiCache did offer support for adding new nodes on demand. These new nodes would act as the read-replica of the master node in the same shard, meaning we can potentially provide horizontal scalability for read operations. To decide on the number of shards, we projected our rate of growth based on what we saw in the previous 6 months, factored in future plans with some additional buffer and decided to go with 3 shards, with 2 replicas for each master; 9 nodes in total.&lt;/p&gt;
+
+&lt;p&gt;Now that we had finalized the direction, we had to move and define milestones for ourselves. We decided a few targets for this move:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;No downtime:&lt;/strong&gt; This was one of the audacious targets that we set for ourselves. We wanted to avoid even a single second of downtime of our systems and that was no easy thing. Why so? For some perspective: this service was handling a peak load of 20k per sec, which meant a 10 second downtime would impact ~200k requests, roughly translating to 50k users. Importantly, unlike other businesses, it was not an option to carry out maintenance tasks such as these at low load times. This policy stems from the belief that at odd hours our availability becomes even more critical for the customers. They are more dependent on our services and rely on us to help them provide safe transport, when other means are probably not available. Imagine someone counting on us for his/her 4:00AM flight.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Zero collateral damage&lt;/strong&gt; during this move, meaning that no existing tokens should be invalidated or missed in the new source. This implied that during the move, data in the new datasource had to be in perfect sync with the old datasource.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;No security loopholes&lt;/strong&gt;, we wanted to ensure that all the invalidated tokens remain invalid and not leave even a tiny window to reuse those.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In a nutshell, we planned to switch the datasource for the 20k QPS system, without any user experience impact, while in a live running mode.&lt;/p&gt;
+
+&lt;p&gt;We made our combat plan as comprehensive as possible; outlining each step with maximum precision and caution. Our migration plan comprised of the following six steps.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 1:&lt;/strong&gt; One time data migration from old Redis Node to Redis Cluster
+This was relatively simple, since the new cluster was not handling live traffic. We just had to make sure that we did not end up impacting performance of the existing node during the migration. &lt;code class=&quot;highlighter-rouge&quot;&gt;SCAN&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;DUMP&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;RESTORE&lt;/code&gt; did the trick for us, without any clear impact on performance.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 2:&lt;/strong&gt; Application changes to write to new Redis Cluster in asynchronous mode in request path (alongside the old datastore). Shadow writing to the new cluster did not add latency to existing requests and allowed us to validate that all the service to cluster interactions were working as expected. Even in case of failure, the requests will not be impacted.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 3:&lt;/strong&gt; Application to start writing to new Redis Cluster in synchronous mode in request path. Once step 2 was validated, it was time to make the next move. Any failure in cluster calls, would result in the failure of the API call in this step.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 4:&lt;/strong&gt; Application to start reading from Redis Cluster in asynchronous mode and validate values against old Redis Node. This was a validation step to ensure the data being written in the new data source was in sync with the old source. Respective validation results were being tracked as metrics. This validation was being carried out as part of existing read APIs.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 5:&lt;/strong&gt; Move all the Application reads from old Redis Node to new Redis Cluster. This was THE move, where we stopped reading from old data-source. By this point all the APIs were already backed by the redis-cluster.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 6:&lt;/strong&gt; Stop writing to the old Redis Node. This was just a cleanup step, to remove any interactions with the old source.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/migrating-existing-datastores/procedure.png&quot; alt=&quot;procedure&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Each step was controlled by configuration flags. In case of unforeseen events or drastic situation, we had levers to move the system back to its original state. Additionally, at each step we added extensive metrics to make sure that we had solid data-points backing our move to confidently move to the next step. We moved smoothly from one step to another and there came a time when we moved to Step 6 and there, we had defused the bomb, timely.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/migrating-existing-datastores/after-migration.png&quot; alt=&quot;after-migration&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;What did we learn from this — in the software world, things are not always tough, problems may not require rocket-science tech all the time. Sometimes, it’s more about well thought-through planning, meticulous execution, coordinated steps, measured and data driven decision making, that’s all you need to have a winning strategy.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 08 Aug 2017 07:30:00 +0000</pubDate>
+        <link>http://engineering.grab.com/migrating-existing-datastores</link>
+        <guid isPermaLink="true">http://engineering.grab.com/migrating-existing-datastores</guid>
+        
+        <category>Back End</category>
+        
+        <category>Redis</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>So You Need To Hire Good Engineers</title>
@@ -1719,137 +1812,6 @@ listening on eth0, link-type EN10MB &lt;span class=&quot;o&quot;&gt;(&lt;/span&g
         <category>Data</category>
         
         <category>Storage</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Deep Dive Into iOS Automation At Grab - Continuous Delivery</title>
-        <description>&lt;p&gt;This is the second part of our series “Deep Dive into iOS Automation at Grab”, where we will cover how we manage continuous delivery. The first article is available &lt;a href=&quot;/deep-dive-into-ios-automation-at-grab-integration-testing&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;As a common solution to the limitations of an Apple developer account’s device whitelist, we use an enterprise account to distribute beta apps internally. There are 4 build configurations per target:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Adhoc QA -&lt;/strong&gt; Most frequently distributed builds for mobile devs and QAs whose devices present in the ad hoc provisioning profile.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Hot Dogfood -&lt;/strong&gt; Similar to Adhoc QA (both have debug options to connect to a staging environment) but signed under an enterprise account. This build is meant for backend devs to test out their APIs on staging.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Dogfood -&lt;/strong&gt; Company-wide beta testing that includes both the online and offline team. This is often released when new features are ready or accepted by QA. It can also be a release candidate before we submit to the App Store.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Testflight -&lt;/strong&gt; Production regression testing for QA team. The accepted build will be submitted to the App Store for release.&lt;/p&gt;
-
-&lt;p&gt;The first 3 are distributed through &lt;a href=&quot;https://get.fabric.io/&quot;&gt;Fabric&lt;/a&gt;. The last one is, of course, distributed through iTunes Connect. Archiving is done simply through bash scripts. Why did we move away from Fastlane? First of all, our primary need is archiving. We don’t really need a bunch of other powerful features. The scripts simply perform clean build and archive actions using &lt;code class=&quot;highlighter-rouge&quot;&gt;xcodebuild&lt;/code&gt;. Each of them is less than 100 lines. Secondly, it’s so much easier and flexible for us to customize our own script. E.g. final modifications to the code before archiving. Lastly, we have one less dependency. That means one less step to provision a new server.&lt;/p&gt;
-
-&lt;h3 id=&quot;server-side-swift&quot;&gt;Server-side Swift&lt;/h3&gt;
-
-&lt;p&gt;Now whenever we need a new build we simply execute a script. But the question is, who should do it? It’s clearly not an option to login to the build machine and do it manually. So again, as a whole bunch of in-house enthusiasts, we wrote a simple app using server-side Swift. The first version was implemented by our teammate &lt;a href=&quot;https://github.com/mno2&quot;&gt;Paul Meng&lt;/a&gt;. It has gone through a few iterations over time.&lt;/p&gt;
-
-&lt;p&gt;The app integrates with &lt;a href=&quot;https://github.com/pvzig/SlackKit.git&quot;&gt;SlackKit&lt;/a&gt; using Swift Package Manager and listens to the command from a Slackbot &lt;strong&gt;@iris&lt;/strong&gt;. (In case you were wondering, Iris is not someone on the team. Iris is the reverse of Siri 🙊. We love Iris.)&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Goddess Iris&quot; src=&quot;/img/ios-automation/goddess-iris.png&quot; width=&quot;50%&quot; /&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Iris Slack&quot; src=&quot;/img/ios-automation/iris-slack.png&quot; width=&quot;50%&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Irisbot&lt;/code&gt; is a Swift class that conforms to &lt;code class=&quot;highlighter-rouge&quot;&gt;messageEventsDelegate&lt;/code&gt; protocol offered by SlackKit. When it receives a message, we parse the message and enqueue a job into a customized serialized &lt;code class=&quot;highlighter-rouge&quot;&gt;DispatchQueue&lt;/code&gt;. Here are a few lines of the main logic.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;received&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;Message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;Client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;c1&quot;&gt;// Interpret message to get the command and sanitize user inputs...&lt;/span&gt;
-
-  &lt;span class=&quot;c1&quot;&gt;// Schedule a job.&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;archiveQueue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;as&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ync&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// Execute scripts based on command.&lt;/span&gt;
-    &lt;span class=&quot;nf&quot;&gt;shell&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;bash&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;Scripts/&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jobType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;executableFileName&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;branch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// Notify Slack channel when job is done.&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;webAPI&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;sendMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;job &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jobID&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s&quot;&gt; completed&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;c1&quot;&gt;// Send ACK to the channel.&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;webAPI&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;sendMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;building... your job ID is &lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jobID&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Now if anyone needs a build they can trigger it themselves. 🎉&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Corgi Macbook&quot; src=&quot;/img/ios-automation/corgi-macbook-meme.jpg&quot; width=&quot;80%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Literally anyone&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;deployments&quot;&gt;Deployments&lt;/h3&gt;
-
-&lt;p&gt;We sometimes add new features to &lt;strong&gt;@iris&lt;/strong&gt; or modify build scripts. How to deploy those changes? We did it with a little help of Capistrano. Here is how:&lt;/p&gt;
-
-&lt;p&gt;The plain Iris project looks like this:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;├── Package.swift
-├── Package.pins
-├── Packages
-├── Sources
-│   └── main.swift
-└── Scripts
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Additional files after Capistrano look like this:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;├── Gemfile
-├── Gemfile.lock
-├── Capfile
-├── config
-│   ├── deploy
-│   │   └── production.rb
-│   └── deploy.rb
-└── lib
-    └── capistrano
-            └── tasks
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Iris doesn’t have a staging environment. So simply config the server IPs in &lt;code class=&quot;highlighter-rouge&quot;&gt;production.rb&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;server&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#39;x.x.x.x&#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;user: &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&#39;XCode Server User Name&#39;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;And then a set of variables in &lt;code class=&quot;highlighter-rouge&quot;&gt;deploy.rb&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:application&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;osx-server&quot;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:repo_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;git@github.com:xxx/xxxxx.git&quot;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:deploy_to&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;/path/to/wherever&quot;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:keep_releases&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;ask&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:branch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sb&quot;&gt;`git rev-parse --abbrev-ref HEAD`&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;chomp&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:linked_files&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;config.json&quot;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;linked_files&lt;/code&gt; will symlink any file in the &lt;code class=&quot;highlighter-rouge&quot;&gt;shared/&lt;/code&gt; folder on the server into the current project directory. Here we linked a &lt;code class=&quot;highlighter-rouge&quot;&gt;config.json&lt;/code&gt; which consists of the path to the iOS passenger app repo on the server and where to put the generated &lt;code class=&quot;highlighter-rouge&quot;&gt;.xcarchive&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;.ipa&lt;/code&gt; files. So that people can pass in a different value in their local machine when they want to test out their changes.&lt;/p&gt;
-
-&lt;p&gt;We are all set. How simple is that! To deploy 🚀, simply execute &lt;code class=&quot;highlighter-rouge&quot;&gt;cap production deploy&lt;/code&gt;.
-Screwed up? &lt;code class=&quot;highlighter-rouge&quot;&gt;cap production deploy:rollback&lt;/code&gt; will rescue.&lt;/p&gt;
-
-&lt;h3 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h3&gt;
-
-&lt;p&gt;What Grab has now, isn’t the most mature setup (there is still a lot to consider. e.g. scaling, authorization, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience in the comments below.&lt;/p&gt;
-
-&lt;p&gt;Happy automating!&lt;/p&gt;
-</description>
-        <pubDate>Sun, 23 Apr 2017 18:43:40 +0000</pubDate>
-        <link>http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery</link>
-        <guid isPermaLink="true">http://engineering.grab.com/deep-dive-into-ios-automation-at-grab-continuous-delivery</guid>
-        
-        <category>Continuous Delivery</category>
-        
-        <category>iOS</category>
-        
-        <category>Mobile</category>
-        
-        <category>Swift</category>
         
         
         <category>Engineering</category>

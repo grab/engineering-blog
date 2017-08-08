@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Migrating Existing Datastores</title>
+    <meta name="description" content="At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 45 million downloads and 1.1 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="http://engineering.grab.com/migrating-existing-datastores">
+    <meta property="og:title" content="Migrating Existing Datastores">
+    <meta property="og:description" content="At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 45 million downloads and 1.1 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="http://engineering.grab.com/img/banner.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://engineering.grab.com/migrating-existing-datastores">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/nishant-gupta.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Migrating Existing Datastores</h1>
+      <div class="post-meta">
+        8 Aug 2017
+        
+          
+            
+            
+              &middot;
+              
+                Nishant Gupta
+              
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#back-end" class="label tags-label">Back End</a>
+  
+    <a href="/tags#redis" class="label tags-label">Redis</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p>At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 45 million downloads and 1.1 million drivers, it’s our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments.</p>
+
+<p>It all started when in early 2017, Grab Identity team realised that given the rate at which our user base was growing, we wouldn’t be able to sustain the load with our existing single Redis node architecture. We used Redis as a cache to store authentication tokens required for secure mobile client to server communication. These tokens are permanently backed up in an underlying MySQL store. The existing Redis instance was filling at crazy speeds and we were growing at a rate at which we had a maximum of 2 months to react before we would start to ‘choke’ i.e. running out of memory to store more data or run operations on the above mentioned Redis node.</p>
+
+<p><img src="/img/migrating-existing-datastores/projected-redis-load.png" alt="projected-redis-load" /></p>
+
+<p>It was the moment of truth for us, and forced us to re-evaluate the design and revisit architectural decisions. We had to move away from our existing Redis node and do it fast. We had several options:</p>
+
+<ul>
+  <li><strong>Move to a larger Redis instance:</strong> While definitely an option, we now had the opportunity to solve for the existing flaw of a single point of failure in our design. In spite of having replication groups set up, in cases of failure it can take a few minutes before a slave gets promoted as master and until that happens, service write operations would remain impacted. Our priority was moving in the direction of higher availability.</li>
+  <li><strong>Move away from Redis:</strong> Well, that was one of the options, but it was not the time to re-evaluate other caching solutions from scratch.</li>
+  <li><strong>Setup a custom Redis cluster</strong>, backed by Redis Replication Groups: This option did address availability concerns, but raised additional concerns:
+    <ul>
+      <li>We had to rely on client-side sharding, so clients would be slightly more complex.</li>
+      <li>In case of having to add a new shard, the migration was going to be very tricky. Remember, it was a custom cluster so there would be no self-balancing offered. We might end up moving selected user information from existing nodes to new nodes, pretty much cherry picking via some custom logic for this one time migration.</li>
+    </ul>
+  </li>
+  <li><strong>Use AWS ElastiCache cluster:</strong>
+    <ul>
+      <li>Server-side data sharding was available, meaning AWS would take care of the sharding strategy for us.</li>
+      <li>Adding a new shard was not possible, oops!… BUT, anyhow a fresh setup might turn out to be more clean and deterministic than running custom rebalancing implementation as in the above option.</li>
+    </ul>
+  </li>
+</ul>
+
+<p>From all the mentioned options, it was clear to us that achieving a completely horizontally scalable model where data-sources could be increased on demand with ease, was not possible with the Redis-AWS combination (unless we ended up with a <a href="https://redis.io/topics/cluster-spec">self-hosted Redis</a> on EC2). This is when we started questioning some assumptions:</p>
+
+<p>Did we need horizontal scalability for all the operations?</p>
+
+<p>And we had the answer to this. In a typical authentication system, the scale of writes is significantly lower compared to that of reads. A token that was provisioned in 1 request, would end up being used to authenticate another N requests and our graphs validated this:</p>
+
+<p>Write load</p>
+
+<p><img src="/img/migrating-existing-datastores/write-load.png" alt="write-load" /></p>
+
+<p>VS</p>
+
+<p>Read load</p>
+
+<p><img src="/img/migrating-existing-datastores/read-load.png" alt="read-load" /></p>
+
+<p>It was a clear difference of ~200 times in peak load. So, what if we can achieve horizontal scalability in read cases, and be a bit futuristic in provisioning shards to cover write load?</p>
+
+<p>We had our answer and our winner in the process. AWS ElastiCache did offer support for adding new nodes on demand. These new nodes would act as the read-replica of the master node in the same shard, meaning we can potentially provide horizontal scalability for read operations. To decide on the number of shards, we projected our rate of growth based on what we saw in the previous 6 months, factored in future plans with some additional buffer and decided to go with 3 shards, with 2 replicas for each master; 9 nodes in total.</p>
+
+<p>Now that we had finalized the direction, we had to move and define milestones for ourselves. We decided a few targets for this move:</p>
+
+<ul>
+  <li><strong>No downtime:</strong> This was one of the audacious targets that we set for ourselves. We wanted to avoid even a single second of downtime of our systems and that was no easy thing. Why so? For some perspective: this service was handling a peak load of 20k per sec, which meant a 10 second downtime would impact ~200k requests, roughly translating to 50k users. Importantly, unlike other businesses, it was not an option to carry out maintenance tasks such as these at low load times. This policy stems from the belief that at odd hours our availability becomes even more critical for the customers. They are more dependent on our services and rely on us to help them provide safe transport, when other means are probably not available. Imagine someone counting on us for his/her 4:00AM flight.</li>
+  <li><strong>Zero collateral damage</strong> during this move, meaning that no existing tokens should be invalidated or missed in the new source. This implied that during the move, data in the new datasource had to be in perfect sync with the old datasource.</li>
+  <li><strong>No security loopholes</strong>, we wanted to ensure that all the invalidated tokens remain invalid and not leave even a tiny window to reuse those.</li>
+</ul>
+
+<p>In a nutshell, we planned to switch the datasource for the 20k QPS system, without any user experience impact, while in a live running mode.</p>
+
+<p>We made our combat plan as comprehensive as possible; outlining each step with maximum precision and caution. Our migration plan comprised of the following six steps.</p>
+
+<p><strong>Step 1:</strong> One time data migration from old Redis Node to Redis Cluster
+This was relatively simple, since the new cluster was not handling live traffic. We just had to make sure that we did not end up impacting performance of the existing node during the migration. <code class="highlighter-rouge">SCAN</code>, <code class="highlighter-rouge">DUMP</code> and <code class="highlighter-rouge">RESTORE</code> did the trick for us, without any clear impact on performance.</p>
+
+<p><strong>Step 2:</strong> Application changes to write to new Redis Cluster in asynchronous mode in request path (alongside the old datastore). Shadow writing to the new cluster did not add latency to existing requests and allowed us to validate that all the service to cluster interactions were working as expected. Even in case of failure, the requests will not be impacted.</p>
+
+<p><strong>Step 3:</strong> Application to start writing to new Redis Cluster in synchronous mode in request path. Once step 2 was validated, it was time to make the next move. Any failure in cluster calls, would result in the failure of the API call in this step.</p>
+
+<p><strong>Step 4:</strong> Application to start reading from Redis Cluster in asynchronous mode and validate values against old Redis Node. This was a validation step to ensure the data being written in the new data source was in sync with the old source. Respective validation results were being tracked as metrics. This validation was being carried out as part of existing read APIs.</p>
+
+<p><strong>Step 5:</strong> Move all the Application reads from old Redis Node to new Redis Cluster. This was THE move, where we stopped reading from old data-source. By this point all the APIs were already backed by the redis-cluster.</p>
+
+<p><strong>Step 6:</strong> Stop writing to the old Redis Node. This was just a cleanup step, to remove any interactions with the old source.</p>
+
+<p><img src="/img/migrating-existing-datastores/procedure.png" alt="procedure" /></p>
+
+<p>Each step was controlled by configuration flags. In case of unforeseen events or drastic situation, we had levers to move the system back to its original state. Additionally, at each step we added extensive metrics to make sure that we had solid data-points backing our move to confidently move to the next step. We moved smoothly from one step to another and there came a time when we moved to Step 6 and there, we had defused the bomb, timely.</p>
+
+<p><img src="/img/migrating-existing-datastores/after-migration.png" alt="after-migration" /></p>
+
+<p>What did we learn from this — in the software world, things are not always tough, problems may not require rocket-science tech all the time. Sometimes, it’s more about well thought-through planning, meticulous execution, coordinated steps, measured and data driven decision making, that’s all you need to have a winning strategy.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#back-end" class="label tags-label">Back End</a>
+  
+    <a href="/tags#redis" class="label tags-label">Redis</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Migrating Existing Datastores&url=http://engineering.grab.com/migrating-existing-datastores&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=http://engineering.grab.com/migrating-existing-datastores" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=http://engineering.grab.com/migrating-existing-datastores&title=Migrating Existing Datastores
+&summary=At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 45 million downloads and 1.1 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'http://engineering.grab.com/migrating-existing-datastores';
+    this.page.identifier = 'migrating-existing-datastores';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="http://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
