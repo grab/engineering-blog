@@ -7,10 +7,10 @@ authors: [nishant-gupta]
 categories: [Engineering]
 tags: [Back End, Redis]
 comments: true
-excerpt: "At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 45 million downloads and 1.1 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments."
+excerpt: "At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 55 million downloads and 1.2 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments."
 ---
 
-At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 45 million downloads and 1.1 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments.
+At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 55 million downloads and 1.2 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments.
 
 It all started when in early 2017, Grab Identity team realised that given the rate at which our user base was growing, we wouldn't be able to sustain the load with our existing single Redis node architecture. We used Redis as a cache to store authentication tokens required for secure mobile client to server communication. These tokens are permanently backed up in an underlying MySQL store. The existing Redis instance was filling at crazy speeds and we were growing at a rate at which we had a maximum of 2 months to react before we would start to ‘choke’ i.e. running out of memory to store more data or run operations on the above mentioned Redis node.
 
