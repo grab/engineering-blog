@@ -7,6 +7,7 @@ authors: [nishant-gupta]
 categories: [Engineering]
 tags: [Back End, Redis]
 comments: true
+cover_photo: /img/banner.png
 excerpt: "At Grab we take pride in creating solutions that impact millions of people in Southeast Asia and as they say, with great power comes great responsibility. As an app with 55 million downloads and 1.2 million drivers, it's our responsibility to keep our systems up-and-running. Any downtime causes drivers to miss earning and passengers to miss their appointments."
 ---
 
