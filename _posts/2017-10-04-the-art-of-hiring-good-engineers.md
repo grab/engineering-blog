@@ -125,7 +125,4 @@ Always be closing but don't forget to have fun: Your current challenge will alwa
 
 [So you need to hire a Good Engineer](/so-you-need-to-hire-good-engineers)
 
-Thank you for reading and please share some ideas for future inspiration, I love challenges !
-
-
-
+Thank you for reading and please share some ideas for future inspiration, I love challenges!
