@@ -302,7 +302,7 @@ As mentioned earlier, good CSS is notoriously hard to write. Usage of static ana
   <img alt="stylelint Demo" src="/img/grabs-front-end-study-guide/stylelint-demo.png" />
 </div>
 
-Once you have learnt ESLint, learning stylelint would be effortless considering their similarities. stylelint is currently being used by big companies like [Facebook](https://code.facebook.com/posts/879890885467584/improving-css-quality-at-facebook-and-beyond/), [Github](https://github.com/primer/stylelint-config-primer) and [Wordpress](https://github.com/WordPress-Coding-Standards/stylelint-config-wordpress).
+Once you have learnt ESLint, learning stylelint would be effortless considering their similarities. stylelint is currently being used by big companies like [Facebook](https://code.facebook.com/posts/879890885467584/improving-css-quality-at-facebook-and-beyond/), [GitHub](https://github.com/primer/stylelint-config-primer) and [Wordpress](https://github.com/WordPress-Coding-Standards/stylelint-config-wordpress).
 
 One downside of stylelint is that the autofix feature is not fully mature yet, and is only able to fix for a limited number of rules. However, this issue should improve with time.
 
@@ -402,7 +402,7 @@ As the front end ecosystem grows, we are actively exploring, experimenting and e
 
 *Many thanks to [Joel Low](https://github.com/lowjoel), [Li Kai](https://github.com/li-kai) and [Tan Wei Seng](https://github.com/xming13) who reviewed drafts of this article.*
 
-*The original post can be found on [Github](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟*
+*The original post can be found on [GitHub](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟*
 
 <div class="text-center">
   <iframe src="https://ghbtns.com/github-btn.html?user=grab&repo=front-end-guide&type=star&count=true&size=large" frameborder="0" scrolling="0" width="142px" height="30px"></iframe>
