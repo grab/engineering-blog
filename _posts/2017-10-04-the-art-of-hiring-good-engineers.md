@@ -81,7 +81,7 @@ If you do decide to only hire the top 2 - 5% Good Engineers with a relevant tech
 
 Add to your list those Good Engineers who are open-source committers, top Engineers from the leading technology companies who are in your location. Even if they do not join your team now, they will be able to recommend others - Good Engineers attract Good Engineers and these activities of yours will be discussed in engineering communities.
 
-Once you have already recognised all profiles from LinkedIn, Github is the next battleground to look up.
+Once you have already recognised all profiles from LinkedIn, GitHub is the next battleground to look up.
 
 #### Step 2: Determine technical fit
 
