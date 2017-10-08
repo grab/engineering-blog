@@ -55,11 +55,13 @@ That's it, happy blogging!
 
 ### Deployment
 
-Since we are using custom plugins (such as for authors), GitHub will not build and deploy the generated site for us. We use a custom gem `jgd` meant for deploying Jekyll pages manually. Simply run this command to build the site and pushes it to the `gh-pages` branch.
+Since we are using custom plugins (such as for authors), GitHub will not build and deploy the generated site for us. We use a custom gem `jgd` meant for deploying Jekyll pages manually.
 
 ```
 $ jgd
 ```
+
+This step is automatically carried out on Travis CI, you just need to commit on master to trigger the script. For more details, see the script in `.travis.yml`.
 
 ### License
 
