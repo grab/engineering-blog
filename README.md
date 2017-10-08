@@ -7,7 +7,7 @@ Welcome to Grab's official engineering blog where we share the good engineering 
 
 The blog runs on [Jekyll](https://jekyllrb.com), an awesome static site builder that is written in Ruby. To get started, clone the repository and run the following steps:
 
-```
+```sh
 $ gem install bundler
 $ bundle install
 $ bundle exec jekyll serve
@@ -23,7 +23,7 @@ Interested in writing a blog entry to the blog? Simply fork the repository and m
 
 If you are a new author, add your bio to `_data/authors.yml`, for example:
 
-```
+```yml
 lian-yuanlin: # This is the ID of the author
   name: Lian Yuanlin
   thumbnail: /img/authors/lian-yuanlin.jpg # Use a remote image or add your own image
@@ -57,7 +57,7 @@ That's it, happy blogging!
 
 Since we are using custom plugins (such as for authors), GitHub will not build and deploy the generated site for us. We use a custom gem `jgd` meant for deploying Jekyll pages manually.
 
-```
+```sh
 $ jgd
 ```
 
