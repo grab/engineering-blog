@@ -2,7 +2,7 @@
 layout: post
 id: the-data-and-science-behind-grabshare-part-i
 title: "The Data and Science Behind GrabShare Part I: Verifying potential and developing the algorithm"
-date: 2017-10-20 07:30:40
+date: 2017-10-20 02:30:40
 authors: [tang-muchen]
 categories: [Data Science]
 tags: [Data Science, GrabShare]
