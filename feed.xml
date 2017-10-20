@@ -6,9 +6,147 @@
 </description>
     <link>http://engineering.grab.com/</link>
     <atom:link href="http://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 20 Oct 2017 04:10:01 +0000</pubDate>
-    <lastBuildDate>Fri, 20 Oct 2017 04:10:01 +0000</lastBuildDate>
+    <pubDate>Fri, 20 Oct 2017 04:12:36 +0000</pubDate>
+    <lastBuildDate>Fri, 20 Oct 2017 04:12:36 +0000</lastBuildDate>
     <generator>Jekyll v3.0.3</generator>
+    
+      <item>
+        <title>The Data and Science Behind GrabShare Part I: Verifying potential and developing the algorithm</title>
+        <description>&lt;p&gt;Launching GrabShare was no easy feat. After reviewing the academic literature, we decided to take a different approach and build a new matching algorithm from the ground up. Not only did this really test our knowledge of fundamental data science principles, but it challenged our team to work together to develop something we had never seen before!&lt;/p&gt;
+
+&lt;p&gt;Because we had so much fun learning and developing GrabShare, we wanted to write a two part blog post to share with you what we did and how we did it. After reading this, we hope that you might be more prepared to build your very own optimized [practical, effective and efficient] matching algorithm.&lt;/p&gt;
+
+&lt;p&gt;We hope you enjoy the ride!&lt;/p&gt;
+
+&lt;h3 id=&quot;i-a-little-history&quot;&gt;I. A Little History&lt;/h3&gt;
+
+&lt;p&gt;By matching different travellers with similar itineraries in both time and their geographic locations, ride-sharing can improve driver utilization and reduce traffic congestion. This concept of pooling (or called ride-sharing), has been a popular concept for decades due to its significant societal and environmental benefits. Tremendous interest in the real-time or dynamic pooling system has grown in recent years, either from a pooling matching algorithm (e.g., &lt;a href=&quot;#2&quot;&gt;[2]&lt;/a&gt;, &lt;a href=&quot;#3&quot;&gt;[3]&lt;/a&gt;) or a system efficiency perspective &lt;a href=&quot;#4&quot;&gt;[4]&lt;/a&gt;. We refer interested readers to &lt;a href=&quot;#5&quot;&gt;[5]&lt;/a&gt;–&lt;a href=&quot;#8&quot;&gt;[8]&lt;/a&gt; as a comprehensive overview on how optimization and operations research models in academic literature can support the development of real-time pooling systems and innovative thinking on possible future ride-sharing modes.&lt;/p&gt;
+
+&lt;p&gt;Leveraging on an internet-based platform that integrates passengers’ smart-phone data in real-time, we are able to provide a ride-sharing service that allows passengers to spend less while enabling drivers to earn more. Companies such as Didi, Grab, Lyft and Uber have managed to transform the concept of a real-time pooling service from imagination into reality. Even though the problem of how to match drivers and riders in real-time has been extensively studied by various optimization technologies in literature (e.g., Avego’s ride-sharing system &lt;a href=&quot;#5&quot;&gt;[5]&lt;/a&gt; and Lyft match making &lt;a href=&quot;#9&quot;&gt;[9]&lt;/a&gt;), there has been a renewed interest in the problem and how we can solve it in practice.&lt;/p&gt;
+
+&lt;p&gt;Let us turn the clock back to late 2015. This was when Grab’s Data Science (Optimization) team was born. The team decided to eschew the literature and current state of the art, and challenged ourselves to design the GrabShare matching algorithm from the ground up, from basic principles. Indeed, its main task was to make ride matching decisions (which is combinatorial) in order to maximize the overall system efficiency, while satisfying specific constraints to guarantee good user experience (such as detour, overlap, trip angle, and efficiency). A general optimization problem comprises of three main parts: 1. Objective function, 2. Constraints, and 3. Decision Space. The constrained optimization problem takes the usual form:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/the-data-and-science-behind-grabshare-part-i/optimization-problem.png&quot; alt=&quot;optimization problem&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Here X denotes a set of decision variables that correspond to real-world decisions we can adjust or control. The objective function f(X) is either a cost function that we want to minimize, or a value function that we want to maximize. The constraints are mathematical expressions of physical restrictions to decision variables on the possible solutions, which could have either inequality form: g(X) or equality form: h(X) or both.&lt;/p&gt;
+
+&lt;p&gt;In this article, we discuss how the GrabShare matching algorithm is tackled as an optimization problem and how its various formulations can have a different impact to Grab, passengers, and drivers. Differing from previous studies in literature, which mainly focus on improving overall system efficiency using conventional operations research methods, we approached the problem from a more data-driven perspective. Our key focus was on extracting critical insights from data to improve the GrabShare user experience, from the point of design and development of the matching algorithm and throughout subsequent continual efforts of product improvement.&lt;/p&gt;
+
+&lt;h3 id=&quot;ii-from-grabcar-to-grabshare&quot;&gt;II. From GrabCar to GrabShare&lt;/h3&gt;
+
+&lt;p&gt;From 2012 onwards, Grab has had a mature product named “GrabCar” that serves millions of individual traveling requests by an integrated dispatching system. The drivers’ locations and other states are maintained in the system such that we can simultaneously find drivers and make assignments for thousands of traveling requests. With a GPS-enabled mobile device, the users (known as passengers) can use Grab’s passenger app to place transportation requests from specified origin to destination. In this article we use the term “booking” to denote a confirmed transportation request placed by a passenger, which contains explicit pickup and drop-off information. At the same time, drivers who have registered with their own or rented vehicles can login to Grab’s system through a driver app to indicate their readiness to take nearby passengers. The GrabCar service is similar to a traditional taxi service in that a completed GrabCar ride consists of three steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;A passenger makes a booking;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;A GrabCar driver is assigned to the booking;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The assigned driver picks up the passenger and ferries him/her to the destination and the ride is completed.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;It is common for people to arrange for manual ride-sharing with our friends traveling in the same direction to save on travel cost as well as to socialize and connect during the trip. By making use of real-time integrated ride information in the Grab system, we aimed to automatically match strangers traveling in similar directions and assign the same vehicle to both their journeys, allowing them to effectively car-pool. Before promoting the concept of GrabShare however, we had to verify its potential from the existing GrabCar bookings. For example, during morning peak hours we mappped every single booking into a four-dimensional vector with the latitudes and longitudes of pickup and drop-off locations. In addition, the latitudes and longitudes were transformed into a Universal Transverse Mercator (UTM) format to map the earth’s surface to an 2-dimensional Cartesian Coordinate System for distance calculation. After applying a DBSCAN cluster method &lt;a href=&quot;#10&quot;&gt;[10]&lt;/a&gt; with parameter “eps=300”, which means that only bookings with distance of less than 300 meters can be considered as neighbourhoods, we observed eight clear clusters of booking with close pickup and drop-off locations in Figure 1.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 1. Morning Booking clusters with similar itineraries&quot; src=&quot;/img/the-data-and-science-behind-grabshare-part-i/booking-clustering.png&quot; width=&quot;80%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1. Morning booking clusters with similar itineraries&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The booking requests within each cluster can be allocated and fulfilled with less vehicles, through pooling. Even though not all of them may be willing to share vehicles with others, at least those with unallocated bookings (around 8%) may benefit. After repeating this analysis for different time periods, we observed that a certain percentage of the bookings could be covered with good performing clusters as seen in Table I. We observed that the coverage rate for different time periods fluctuates from 35% to 45% for most part of the day (coverage during mid-night and early morning hours is much smaller as the amount of bookings is much smaller). Because bookings in the same cluster are “near perfect matches” with very close pickup and drop-off location, the potential for GrabShare was found to be quite promising because we could expect even more opportunities for matching in the middle of a trip.&lt;/p&gt;
+
+&lt;table class=&quot;table table-bordered&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;Hours&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;8-10&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;10-13&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;14-16&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;16-18&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;18-22&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;Others&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;Coverage&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;46%&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;39%&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;35%&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;38%&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;43%&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;22%&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Table 1. Cluster coverage of different time periods&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The assignment flow of typical GC bookings is stated in Algorithm I. For every newly arrived booking, we search for nearby drivers and check for their availability condition. If no driver is available, we recycle it to the next round of assignment. Otherwise we select the most suitable driver for them. Leveraging the current system structure, we planned to extend the GrabCar service to GrabShare by maintaining more detailed bookings and driver state information along with an additional check on seat reservation.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Algorithm I. GrabCar booking assignment flow&quot; src=&quot;/img/the-data-and-science-behind-grabshare-part-i/grabcar-booking-assignment-flow.png&quot; width=&quot;80%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Algorithm I. GrabCar booking assignment flow&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Specifically, Algorithm II gives the assignment flow of Grab- Share bookings. We can see that its overall structure is the same with GrabCar except for two differences. Firstly, the candidate driver set is different. For every new GrabShare booking, we search for in-transit GrabShare drivers who are currently serving at least one GrabShare booking. Therefore, we need to check seat availability condition to ensure that the vehicle has enough remaining seats to serve the new GrabShare booking. Mathematically, the following seat reservation constraint needs to be satisfied for a successful assignment between booking bki and driver drj: &lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/the-data-and-science-behind-grabshare-part-i/constraint.png&quot; alt=&quot;constraint&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;where s(drj) denotes the total capacity of the vehicle drj, op(drj) is one of the maintained variable that denotes the current occupied capacity of the vehicle drj and rp (bki) is the required capacity for booking bki. To make it consistent, we also need to update the vehicle occupied capacity variable op (drj) by adding the booking required capacity rp (bki) after every successful assignment or removing it if cancellation occurs.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Algorithm II. GrabShare booking assignment flow&quot; src=&quot;/img/the-data-and-science-behind-grabshare-part-i/grabshare-booking-assignment-flow.png&quot; width=&quot;80%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Algorithm II. GrabShare booking assignment flow&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 2. GrabShare match case in Singapore&quot; src=&quot;/img/the-data-and-science-behind-grabshare-part-i/grabshare-match-case-singapore.png&quot; width=&quot;80%&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 2. GrabShare match case in Singapore&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Secondly, GrabShare’s user experience is different from GrabCar due to the sharing concept. Here we defined some measures to evaluate the GrabShare matching, taking into consideration the trip angle, eta (short for Expected Time of Arrival), detour and efficiency. These measures are used to exclude unacceptable matches and to quantify how good the match is. For example, given a matching route scenario of two bookings (n = 1) as shown in Figure 2. At the first step the driver receives the first GrabShare booking from point A to D (25 minutes direct trip time). After the driver picks up the first passenger and reaches location B on his way to D, he/she is assigned to pickup the second booking from C to E (21 minutes direct trip time). A GrabShare match happens and the final route sequence is generated as A→B→C→D→E. With pooling, it takes 29.5 minutes for the first passenger and 27 minutes for the second passenger to reach their destinations, respectively. Overall it is a good match as the passengers are only delayed a little bit by pooling with a promising driver utilization rate. In this case the driver only needs to drive 23.72km in total to serve two bookings, instead of a total of 39.13km if they were served separately. Not only does this allow passengers to be allocated rides, but drivers save considerable time and money through this efficiency, while increasing their earning power simultaneously.&lt;/p&gt;
+
+&lt;p&gt;This is ultimately deemed a good match, but the details on how we quantify this and its corresponding optimisation model are explained in &lt;strong&gt;Part II&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;references&quot;&gt;References &lt;/h3&gt;
+
+&lt;p&gt;&lt;a name=&quot;1&quot; href=&quot;#1&quot;&gt;[1]&lt;/a&gt;  Grab, “Grab extends grabshare regionally with malaysias first on-demand carpooling service,” 2017. [Online]. Available: &lt;a href=&quot;https://www.grab.com/my/press/business/grabsharemalaysia/&quot;&gt;https://www.grab.com/my/press/business/grabsharemalaysia/&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;2&quot; href=&quot;#2&quot;&gt;[2]&lt;/a&gt;  J. Alonso-Mora, S. Samaranayake, A. Wallar, E. Frazzoli, and D. Rus, “On-demand high-capacity ride-sharing via dynamic trip-vehicle assignment,” &lt;em&gt;Proceedings of the National Academy of Sciences&lt;/em&gt;, vol. 114, no. 3, pp. 462–467, Mar 2017.  &lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;3&quot; href=&quot;#3&quot;&gt;[3]&lt;/a&gt;  A. Conner-Simons, “Study: carpooling apps could reduce taxi traffic 75 percent,” 2016. [Online]. Available: &lt;a href=&quot;http://www.csail.mit.edu/ridesharing_reduces_traffic_300_percent&quot;&gt;http://www.csail.mit.edu/ridesharing_reduces_traffic_300_percent&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;4&quot; href=&quot;#4&quot;&gt;[4]&lt;/a&gt;  D. Dimitrijevic, N. Nedic, and V. Dimitrieski, “Real-time carpooling and ride-sharing: Position paper on design concepts, distribution and cloud computing strategies,” in &lt;em&gt;Computer Science and Information Systems (FedCSIS), 2013 Federated Conference on&lt;/em&gt;. IEEE, 2013, pp. 781–786.  &lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;5&quot; href=&quot;#5&quot;&gt;[5]&lt;/a&gt;  N. Agatz, A. Erera, M. Savelsbergh, and X. Wang, “Optimization for dynamic ride-sharing: A review,” &lt;em&gt;European Journal of Operational Research&lt;/em&gt;, vol. 223, no. 2, pp. 295–303, 2012.  &lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;6&quot; href=&quot;#6&quot;&gt;[6]&lt;/a&gt;  A. Amey, J. Attanucci, and R. Mishalani, “Real-time ridesharing: opportunities and challenges in using mobile phone technology to improve rideshare services,” &lt;em&gt;Transportation Research Record: Journal of the Transportation Research Board&lt;/em&gt;, no. 2217, pp. 103–110, 2011.  &lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;7&quot; href=&quot;#7&quot;&gt;[7]&lt;/a&gt;  N. D. Chan and S. A. Shaheen, “Ridesharing in north america: Past, present, and future,” &lt;em&gt;Transport Reviews&lt;/em&gt;, vol. 32, no. 1, pp. 93–112, 2012.  &lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;8&quot; href=&quot;#8&quot;&gt;[8]&lt;/a&gt;  M. Furuhata, M. Dessouky, F. Ordonez, M.-E. Brunet, X. Wang, and S. Koenig, “Ridesharing: The state-of-the-art and future directions,” &lt;em&gt;Transportation Research Part B: Methodological&lt;/em&gt;, vol. 57, pp. 28–46, 2013.  &lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;9&quot; href=&quot;#9&quot;&gt;[9]&lt;/a&gt;  Lyft, “Matchmaking in lyft line—part 1,” 2016. [Online]. Available: &lt;a href=&quot;https://eng.lyft.com/matchmaking-in-lyft-line-9c2635fe62c4&quot;&gt;https://eng.lyft.com/matchmaking-in-lyft-line-9c2635fe62c4&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;10&quot; href=&quot;#10&quot;&gt;[10]&lt;/a&gt;  M. Ester, H.-P. Kriegel, J. Sander, X. Xu &lt;em&gt;et al.&lt;/em&gt;, “A density-based algorithm for discovering clusters in large spatial databases with noise.” in &lt;em&gt;Kdd&lt;/em&gt;, vol. 96, no. 34, 1996, pp. 226–231.  &lt;/p&gt;
+</description>
+        <pubDate>Fri, 20 Oct 2017 02:30:40 +0000</pubDate>
+        <link>http://engineering.grab.com/the-data-and-science-behind-grabshare-part-i</link>
+        <guid isPermaLink="true">http://engineering.grab.com/the-data-and-science-behind-grabshare-part-i</guid>
+        
+        <category>Data Science</category>
+        
+        <category>GrabShare</category>
+        
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>The Art of Hiring Good Engineers</title>
@@ -1436,410 +1574,6 @@ astrolabe elb resolved to 172.21.1.97  172.21.1.152  172.21.2.108  172.21.2.144
         <category>Data Science</category>
         
         <category>Product</category>
-        
-      </item>
-    
-      <item>
-        <title>Troubleshooting Unusual AWS ELB 5XX Error</title>
-        <description>&lt;p&gt;&lt;em&gt;This article is part one of a two-part series (&lt;a href=&quot;/dns-resolution-in-go-and-cgo&quot;&gt;part two&lt;/a&gt;). In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Triggered: [Gothena] Astrolabe failed (Warning)&lt;/strong&gt;, an alert from Datadog that we have been seeing very often in our &lt;code class=&quot;highlighter-rouge&quot;&gt;#tech-operations&lt;/code&gt; slack channel. This alert basically tells us that Gothena &lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; is receiving ELB &lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; HTTP 5xx &lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; errors when calling Astrolabe &lt;sup id=&quot;fnref:4&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;. Because of how frequently we update our driver location data, losing one or two updates of a single driver has never really been an issue for us at Grab. It was only when this started creating a lot of noise for our on call engineers, we decided that it was time to dig into it and fix it once and for all.&lt;/p&gt;
-
-&lt;p&gt;Here is a high level walkthrough of the systems involved. The Driver app would connect to the Gothena Service ELB. Requests are routed to Gothena service. Gothena sends location update related requests to Astrolabe.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Driver Location Update Flow&quot; src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/driver-location-update-flow.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Hopefully the above gives you a better understanding of the background before we dive into the problem.&lt;/p&gt;
-
-&lt;h3 id=&quot;clues-from-aws&quot;&gt;Clues from AWS&lt;/h3&gt;
-
-&lt;p&gt;If you have ever taken a look at the AWS ELB dashboards, you will know that it shows a number of interesting metrics such as SurgeQueue &lt;sup id=&quot;fnref:5&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;, SpillOver &lt;sup id=&quot;fnref:6&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt;, RequestCount, HealthyInstances, UnhealthyInstances and a bunch of other backend metrics. As you see below, every time we receive one of the Astrolabe failed alerts, the AWS monitors would show that the SurgeQueue is filling up, SpillOver of requests is happening and that the average latency &lt;sup id=&quot;fnref:7&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot;&gt;7&lt;/a&gt;&lt;/sup&gt; of the requests increase. Interestingly, this situation would only persist for 1-2 minutes during our peak hours and only in one of the two AWS Availability Zones (AZ) that our ELBs are located in.&lt;/p&gt;
-
-&lt;h3 id=&quot;cloudwatch-metrics&quot;&gt;Cloudwatch Metrics&lt;/h3&gt;
-
-&lt;div id=&quot;carousel-example-generic&quot; class=&quot;carousel slide&quot; data-ride=&quot;carousel&quot; data-interval=&quot;false&quot;&gt;
-  &lt;div class=&quot;carousel-inner&quot; role=&quot;listbox&quot;&gt;
-    &lt;div class=&quot;item active&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-1.png&quot; alt=&quot;Cloudwatch Latency&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-2.png&quot; alt=&quot;Cloudwatch SurgeQueueLength&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-3.png&quot; alt=&quot;Cloudwatch SpilloverCount&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-4.png&quot; alt=&quot;Cloudwatch HTTPCode_ELB_5XX&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-5.png&quot; alt=&quot;Cloudwatch HTTPCode_Backend_5XX&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-6.png&quot; alt=&quot;Cloudwatch Healthy/Unhealty HostCount&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-7.png&quot; alt=&quot;Cloudwatch HTTPCode_Backend_2XX&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-8.png&quot; alt=&quot;Cloudwatch RequestCount&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-9.png&quot; alt=&quot;Cloudwatch HTTPCode_Backend_4XX&quot; /&gt;
-    &lt;/div&gt;
-    &lt;div class=&quot;item&quot;&gt;
-      &lt;img src=&quot;/img/troubleshooting-unusual-aws-elb-5xx-errors/cloudwatch-10.png&quot; alt=&quot;Cloudwatch RequestCount&quot; /&gt;
-    &lt;/div&gt;
-  &lt;/div&gt;
-
-  &lt;a class=&quot;left carousel-control&quot; href=&quot;#carousel-example-generic&quot; role=&quot;button&quot; data-slide=&quot;prev&quot;&gt;
-    &lt;span class=&quot;glyphicon glyphicon-chevron-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
-    &lt;span class=&quot;sr-only&quot;&gt;Previous&lt;/span&gt;
-  &lt;/a&gt;
-  &lt;a class=&quot;right carousel-control&quot; href=&quot;#carousel-example-generic&quot; role=&quot;button&quot; data-slide=&quot;next&quot;&gt;
-    &lt;span class=&quot;glyphicon glyphicon-chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/span&gt;
-    &lt;span class=&quot;sr-only&quot;&gt;Next&lt;/span&gt;
-  &lt;/a&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
-
-&lt;p&gt;Few interesting points worth noting in above metrics:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;There are no errors from backend i.e. no 5XX or 4XX errors.&lt;/li&gt;
-  &lt;li&gt;Healthy and unhealthy instance count do not change i.e. all backend instances are healthy and serving the ELB.&lt;/li&gt;
-  &lt;li&gt;Backend 2XX count drops significantly i.e requests are not reaching backend instances.&lt;/li&gt;
-  &lt;li&gt;RequestCount drops significantly. It adds further proof of the above point that requests are not reaching the backend instances.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;By jumping into the more detailed CloudWatch metrics, we are able to further confirm from our side that there is an uneven distribution of requests across the two different AZs. When we reach out to AWS’ tech support, they confirm that one of the many ELB nodes is somehow preferred and is causing a load imbalance across ELB nodes that in turn causes a single ELB node to occasionally fail and results in the ELB 5xx errors that we are seeing.&lt;/p&gt;
-
-&lt;h3 id=&quot;what-is-happening&quot;&gt;What is happening?&lt;/h3&gt;
-
-&lt;p&gt;Having confirmation of the issue from AWS is a start. Now we can confidently say that our monitoring systems are working correctly – something that is always good to know. After some internal discussions, we then came up with some probable causes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;ELB is not load balancing correctly (Astrolabe ELB)&lt;/li&gt;
-  &lt;li&gt;ELB is misconfigured (Astrolabe ELB)&lt;/li&gt;
-  &lt;li&gt;DNS/IP caching is happening on the client side (Gothena)&lt;/li&gt;
-  &lt;li&gt;DNS is misconfigured and is not returning IP(s) in a round-robin manner (AWS DNS Server)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We once again reach out to AWS tech support to see if there are any underlying issues with ELB when running at high loads (we are serving upwards for 20k request per second on Astrolabe). In case you’re wondering, AWS ELB is just like any other web service, it can occasionally not work as expected . However, in this instance, they confirm that there are no such issues at this point.&lt;/p&gt;
-
-&lt;p&gt;Moving on to the second item on the list – ELB configurations. When configuring ELBs, there are a couple of things that you would want to look out for: make sure that you are connecting to the right backend ports, your Route 53 &lt;sup id=&quot;fnref:8&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot;&gt;8&lt;/a&gt;&lt;/sup&gt; configuration for the ELB is correct and the same goes for the timeout settings. At one point, we suspected that our Route 53 configuration was not using CNAME records when pointing to the ELB but it turns out that for the case of ELBs, AWS actually provides an Alias Record Set that is essentially the same as a CNAME but with the added advantages of being able to reflect IP changes on the DNS server more quickly and not incurring additional ingress/egress charges for resolving Alias Record Set. Please refer to &lt;a href=&quot;https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-choosing-alias-non-alias.html&quot;&gt;this to learn more about CNAME vs Alias record set&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Having eliminated the possibility of a misconfiguration on the ELB, we move on to see if Gothena itself is doing some sort of IP caching or if there is some sort DNS resolution misconfiguration that is happening on the service itself. While doing this investigation, we notice the same pattern in all other services that are calling Astrolabe (we record all outgoing connections from our services on Datadog). It just so happens that because Gothena is responsible for the bulk of the requests to Astrolabe that the problem is more prominent here than on other services. Knowing this, allows us to narrow the scope down to either a library that is used by all these services or some sort of server configuration that we were applying across the board. This is where things start to get a lot more interesting.&lt;/p&gt;
-
-&lt;h3 id=&quot;a-misconfigured-server-is-it-ubuntu-is-it-go&quot;&gt;A misconfigured server? Is it Ubuntu? Is it Go?&lt;/h3&gt;
-
-&lt;p&gt;Here at Grab, all of our servers are running on AWS with Ubuntu installed on them and almost all our services are written in Go, which means that we have a lot of common setup and code between services.&lt;/p&gt;
-
-&lt;p&gt;The first thing that we check is the number of connections created from one single Gothena instance to each individual ELB node. To do this, we first use the dig command to get the list of IP addresses to look for:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$ &lt;/span&gt;dig +short astrolabe.grab.com
-172.18.2.38
-172.18.2.209
-172.18.1.10
-172.18.1.37
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Then we proceed with running the netstat command to get connection counts from the Gothena instance to each of the ELB IPs retrieved above.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;netstat | grep 172.18.2.38 | wc -l; netstat | grep 172.18.2.209 | wc -l; netstat | grep 172.18.1.10 | wc -l; netstat | grep 172.18.1.37 | wc -l;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;And of course, the output of the command above shows that 1 of the 4 ELB nodes is preferred and the numbers are heavily skewed towards that one single node.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.9 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-0
-0
-58
-0
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.34 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-0
-0
-9
-25
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.137 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-0
-100
-0
-0
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.18 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-0
-0
-59
-0
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.1.96 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-0
-0
-49
-5
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.22 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-100
-0
-0
-0
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.66 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-100
-0
-0
-0
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0;32m172.18.2.50 | SUCCESS | &lt;span class=&quot;nv&quot;&gt;rc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0 &amp;gt;&amp;gt;
-100
-0
-0
-0
-&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;0m
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Here is the sum of total connections to each ELB node from all Gothena instances. This also explains an uneven distribution of requests across the two different AZs with 1b serving more requests than 1a.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;172.18.2.38 -&amp;gt; 84
-172.18.2.209 -&amp;gt; 66
-172.18.1.10 -&amp;gt; 138
-172.18.1.37 -&amp;gt; 87
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;And just to make sure that we did not just end up with a random outcome, we ran the same &lt;code class=&quot;highlighter-rouge&quot;&gt;netstat&lt;/code&gt; command across a number of different services that are running on different servers and codebases. Surely enough, the same thing is observed on all of them. This narrows down the potential problem to either something in the Go code, in Ubuntu or in the configurations. With this newfound knowledge, the first thing that we look into is whether Ubuntu is somehow caching the DNS results. This quickly turned into a dead end as DNS results are never cached on Linux by default, it would only be cached if we are running a local DNS server like dnsmasq.d or have a modified host file which we do not have.&lt;/p&gt;
-
-&lt;p&gt;The next thing to do now is to dive into the code itself. And to do that, we spin up a new EC2 instance in a &lt;strong&gt;different subnet&lt;/strong&gt; (this is important later on) but with the same configuration as the other servers to run some tests.&lt;/p&gt;
-
-&lt;p&gt;To help narrow down the problem points, we do some tests using cURL and a program in Go, Python and Ruby to try out the different scenarios and check consistency. While running the programs, we also capture the DNS TCP packets (by using the &lt;code class=&quot;highlighter-rouge&quot;&gt;tcpdump&lt;/code&gt; command below) to understand how many DNS queries are being made by each of the program. This helps us to understand if any DNS caching is happening.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$ &lt;/span&gt;tcpdump -l -n port 53
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Curiously, when running the 5 requests to a health check URL from Go, Ruby, and Python, we see that cURL, Ruby and Python make 5 different DNS queries while Go only makes 1 DNS query. It turned out that cURL, Ruby and Python create new connections for each request by default while Go uses the same connection for multiple requests by default. The tests show that the DNS is correctly returning the IP addresses list in a round robin manner as cURL, Ruby, Python and Go programs were all making connections to both the IPs in an even manner. Note: Because we are running the tests on a &lt;strong&gt;different isolated environment&lt;/strong&gt;, there are only 2 Astrolabe ELB nodes instead of the earlier 4.&lt;/p&gt;
-
-&lt;p&gt;For simplicity the &lt;code class=&quot;highlighter-rouge&quot;&gt;curl&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;tcpdump&lt;/code&gt; output is shown here:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;dig +short astrolabe.grab.com
-172.21.2.115
-172.21.1.107
-&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.1.107...
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.1.107&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.grab.com
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;gt;
-&amp;lt; HTTP/1.1 200 OK
-&amp;lt; Access-Control-Allow-Headers: Authorization
-&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
-&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
-&amp;lt; Date: Mon, 09 Jan 2017 11:19:00 GMT
-&amp;lt; Content-Length: 0
-&amp;lt; Connection: keep-alive
-&amp;lt;
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
-&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.2.115...
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.2.115&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.grab.com
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;gt;
-&amp;lt; HTTP/1.1 200 OK
-&amp;lt; Access-Control-Allow-Headers: Authorization
-&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
-&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
-&amp;lt; Date: Mon, 09 Jan 2017 11:19:01 GMT
-&amp;lt; Content-Length: 0
-&amp;lt; Connection: keep-alive
-&amp;lt;
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-12-187:~$ &lt;/span&gt;sudo tcpdump -l -n port 53
-tcpdump: verbose output suppressed, use -v or -vv &lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;full protocol decode
-listening on eth0, link-type EN10MB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;Ethernet&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;, capture size 65535 bytes
-09:29:37.906017 IP 172.21.12.187.37107 &amp;gt; 172.21.0.2.53: 19598+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-09:29:37.906030 IP 172.21.12.187.37107 &amp;gt; 172.21.0.2.53: 41742+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-09:29:37.907518 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.37107: 41742 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-09:29:37.909391 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.37107: 19598 2/0/0 A 172.21.1.107, A 172.21.2.115 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-09:29:43.109745 IP 172.21.12.187.59043 &amp;gt; 172.21.0.2.53: 13434+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-09:29:43.109761 IP 172.21.12.187.59043 &amp;gt; 172.21.0.2.53: 63973+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-09:29:43.110508 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.59043: 13434 2/0/0 A 172.21.2.115, A 172.21.1.107 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-09:29:43.110575 IP 172.21.0.2.53 &amp;gt; 172.21.12.187.59043: 63973 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The above tests make things even more interesting. We carefully kept the testing environment close to production in hopes of reproducing the issue yet everything seems to be working correctly. We run tests from the same OS image, same version of Golang, with the same HTTP client code and the same server configuration, but the issue of preferring a particular IP never happens.&lt;/p&gt;
-
-&lt;p&gt;How about running the tests on one of the staging Gothena instance? For simplicity, we’ll show &lt;code class=&quot;highlighter-rouge&quot;&gt;curl&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;tcpdump&lt;/code&gt; output which is indicative of the issue faced by our Go service.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~$ &lt;/span&gt;dig +short astrolabe.grab.com
-172.21.2.115
-172.21.1.107
-&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.2.115...
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.2.115&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.grab.com
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;gt;
-&amp;lt; HTTP/1.1 200 OK
-&amp;lt; Access-Control-Allow-Headers: Authorization
-&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
-&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
-&amp;lt; Date: Fri, 06 Jan 2017 11:07:16 GMT
-&amp;lt; Content-Length: 0
-&amp;lt; Connection: keep-alive
-&amp;lt;
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
-&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~$ &lt;/span&gt;curl -v http://astrolabe.grab.com/health_check
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Hostname was NOT found &lt;span class=&quot;k&quot;&gt;in &lt;/span&gt;DNS cache
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;   Trying 172.21.2.115...
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connected to astrolabe.grab.com &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;172.21.2.115&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; port 80 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;#0)&lt;/span&gt;
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;GET /health_check HTTP/1.1
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;User-Agent: curl/7.35.0
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Host: astrolabe.stg-myteksi.com
-&lt;span class=&quot;gp&quot;&gt;&amp;gt; &lt;/span&gt;Accept: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;gt;
-&amp;lt; HTTP/1.1 200 OK
-&amp;lt; Access-Control-Allow-Headers: Authorization
-&amp;lt; Access-Control-Allow-Methods: GET,POST,OPTIONS
-&amp;lt; Access-Control-Allow-Origin: &lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-&amp;lt; Content-Type: application/json; &lt;span class=&quot;nv&quot;&gt;charset&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;utf-8
-&amp;lt; Date: Fri, 06 Jan 2017 11:07:19 GMT
-&amp;lt; Content-Length: 0
-&amp;lt; Connection: keep-alive
-&amp;lt;
-&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt; Connection &lt;span class=&quot;c&quot;&gt;#0 to host astrolabe.grab.com left intact&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;dharmarth@ip-172-21-2-17:~# &lt;/span&gt;tcpdump -l -n port 53 | grep -A4 -B1 astrolabe
-tcpdump: verbose output suppressed, use -v or -vv &lt;span class=&quot;k&quot;&gt;for &lt;/span&gt;full protocol decode
-listening on eth0, link-type EN10MB &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;Ethernet&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;, capture size 65535 bytes
-11:10:00.072042 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.51937: 25522 2/0/0 A 172.21.3.78, A 172.21.0.172 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:01.893912 IP 172.21.2.17.28047 &amp;gt; 172.21.0.2.53: 11695+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:01.893922 IP 172.21.2.17.28047 &amp;gt; 172.21.0.2.53: 13413+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:01.895053 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.28047: 13413 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:02.012936 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.28047: 11695 2/0/0 A 172.21.1.107, A 172.21.2.115 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:04.242975 IP 172.21.2.17.51776 &amp;gt; 172.21.0.2.53: 54031+ A? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:04.242984 IP 172.21.2.17.51776 &amp;gt; 172.21.0.2.53: 49840+ AAAA? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
---
-11:10:07.397387 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.18405: 1772 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;119&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:08.644113 IP 172.21.2.17.12129 &amp;gt; 172.21.0.2.53: 27050+ A? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:08.644124 IP 172.21.2.17.12129 &amp;gt; 172.21.0.2.53: 3418+ AAAA? astrolabe.grab.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;43&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:08.644378 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.12129: 3418 0/1/0 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;121&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:08.644378 IP 172.21.0.2.53 &amp;gt; 172.21.2.17.12129: 27050 2/0/0 A 172.21.2.115, A 172.21.1.107 &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;75&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:08.999919 IP 172.21.2.17.12365 &amp;gt; 172.21.0.2.53: 55314+ A? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-11:10:08.999928 IP 172.21.2.17.12365 &amp;gt; 172.21.0.2.53: 14140+ AAAA? kinesis.ap-southeast-1.amazonaws.com. &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;54&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-^C132 packets captured
-136 packets received by filter
-0 packets dropped by kernel
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/div&gt;
-
-&lt;p&gt;It didn’t work as expected in cURL. There is no IP caching, cURL is making DNS queries. We can see DNS is returning output correctly as per round robin. But somehow it’s still choosing the same one IP to connect to.&lt;/p&gt;
-
-&lt;p&gt;With all that, we have indirectly confirmed that the DNS round robin behaviour is working as expected and thus leaving us with nothing else left on the list. Everybody that participated in the discussion up to this point was equally dumbfounded.&lt;/p&gt;
-
-&lt;p&gt;After that long fruitless investigation, one question comes to mind. Which IP address will get the priority when the DNS results contain more than one IP address? A quick search on Google gives the following StackOverflow &lt;a href=&quot;http://serverfault.com/questions/102879/how-do-dns-clients-choose-an-ip-address-when-they-get-multiple-answers&quot;&gt;result&lt;/a&gt; with the following snippet:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;A DNS server resolving a query, may prioritize the order in which it uses the listed servers based on historical response time data (RFC1035 section 7.2). It may also prioritize by closer sub-net (I have seen this in RFC but don’t recall which). If no history or sub-net priority is available, it may choose by random, or simply pick the first one. I have seen DNS server implementations doing various combinations of above.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Well, that is disappointing, no new insights to preen from that. Having spent the whole day looking at the same issue, we were ready to call it a night while having the gut feeling that something must be misconfigured on the servers.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;If you are interested in finding the answers from the clues above, please hold off reading the next section and see if you can figure it out by yourself.&lt;/strong&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;breakthrough&quot;&gt;Breakthrough&lt;/h3&gt;
-
-&lt;p&gt;Coming in fresh from having a good night’s sleep, the issue managed to get the attention of even more Grab engineers that happily jumped in to help investigate the issue together. Then the magical clue happened, someone with an eye for networking spotted that the requests were always going to the ELB node that has the same subnet as the client that was initiating the request. Another engineer then quickly found RFC 3484 that talked about sorting of source and destination IP addresses. That was it! The IP addresses were always being sorted and that resulted in one ELB node getting more traffic than the rest.&lt;/p&gt;
-
-&lt;p&gt;Then an article surfaced that suggests disabling IPv6 for C-based applications. We quickly try that with our Go program which does not work. But when we then try running the same code with Cgo &lt;sup id=&quot;fnref:9&quot;&gt;&lt;a href=&quot;#fn:9&quot; class=&quot;footnote&quot;&gt;9&lt;/a&gt;&lt;/sup&gt; enabled as the DNS resolver it leads to success! The request count to the different ELB nodes is now properly balanced. Hooray!&lt;/p&gt;
-
-&lt;p&gt;If you have been following this post, you would have figured that the issue is impacting all of our internal services. But as stated earlier, the load on the other ELBs is not high as Astrolabe. So we do not see any issues with the other services, The traffic to Astrolabe has been steadily increasing over the past few months, which might have hit some ELB limits and causing 5XX errors.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Alternatives Considered&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Move Gothena instances into a different subnet&lt;/li&gt;
-  &lt;li&gt;Move all ELBs into a different subnet&lt;/li&gt;
-  &lt;li&gt;Use service discovery to connect internal services and bypass ELB&lt;/li&gt;
-  &lt;li&gt;Use weighted DNS + bunch of other config to balance the load&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;All the 4 solutions could solve our problem too but seeing how disabling IPv6 and using Cgo for DNS resolution required the least effort, we went with that.&lt;/p&gt;
-
-&lt;p&gt;Stay tuned for part 2 which will go into detail about the RFC, why disabling IPv6 and using Cgo works as well as what our plans are for the future.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Note: All the sensitive information in this article has been modified and does not reflect the true state of our systems.&lt;/em&gt;&lt;/p&gt;
-
-&lt;h4 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h4&gt;
-
-&lt;div class=&quot;footnotes&quot;&gt;
-  &lt;ol&gt;
-    &lt;li id=&quot;fn:1&quot;&gt;
-      &lt;p&gt;Gothena – An internal service that is in-charge of all driver communications logic. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:2&quot;&gt;
-      &lt;p&gt;&lt;a href=&quot;https://aws.amazon.com/elasticloadbalancing/&quot;&gt;AWS ELB&lt;/a&gt; – AWS Elastic Load Balancer, a load balancing service that is offered by AWS. There can be more than one instance representing an AWS ELB. DNS RoundRobin is used to distribute connections among AWS ELB instances. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:3&quot;&gt;
-      &lt;p&gt;&lt;a href=&quot;http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/ts-elb-error-message.html#ts-elb-errorcodes-http504&quot;&gt;ELB HTTP 5xx errors&lt;/a&gt; – An HTTP 5xx error that is returned by the ELB instead of the backend service. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:4&quot;&gt;
-      &lt;p&gt;Astrolabe – An internal service that is in charge of storing and processing all driver location data. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:5&quot;&gt;
-      &lt;p&gt;&lt;a href=&quot;http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-cloudwatch-metrics.html&quot;&gt;ELB SurgeQueue&lt;/a&gt; - The number of requests that are pending routing. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:6&quot;&gt;
-      &lt;p&gt;ELB SpillOver - The total number of requests that were rejected because the surge queue is full. &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:7&quot;&gt;
-      &lt;p&gt;ELB Latency - The time elapsed, in seconds, after the request leaves the load balancer until the headers of the response are received. &lt;a href=&quot;#fnref:7&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:8&quot;&gt;
-      &lt;p&gt;&lt;a href=&quot;https://aws.amazon.com/route53&quot;&gt;AWS Route 53&lt;/a&gt; - A managed cloud DNS solution provided by AWS. &lt;a href=&quot;#fnref:8&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:9&quot;&gt;
-      &lt;p&gt;&lt;a href=&quot;https://golang.org/cmd/cgo/&quot;&gt;Cgo&lt;/a&gt; - Cgo enables the creation of Go packages that call C code. &lt;a href=&quot;#fnref:9&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;/ol&gt;
-&lt;/div&gt;
-</description>
-        <pubDate>Wed, 10 May 2017 18:43:40 +0000</pubDate>
-        <link>http://engineering.grab.com/troubleshooting-unusual-aws-elb-5xx-error</link>
-        <guid isPermaLink="true">http://engineering.grab.com/troubleshooting-unusual-aws-elb-5xx-error</guid>
-        
-        <category>AWS</category>
-        
-        <category>Networking</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
