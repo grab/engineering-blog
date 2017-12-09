@@ -63,13 +63,13 @@ We developed an A/B test within three weeks and offered both monetary and mercha
   <tr>
     <td width="50%">
       <div class="post-image-section">
-        <img alt="Spin-to-Win with Merchandise rewards" src="/img/grabbing-growth-a-growth-hacking-story/spin-to-win-1.png" height="500px">
+        <img alt="Spin-to-Win with Merchandise rewards" src="/img/grabbing-growth-a-growth-hacking-story/spin-to-win-1.png" width="85%">
         <small class="post-image-caption">Spin-to-Win with Merchandise rewards</small>
       </div>
     </td>
     <td width="50%">
         <div class="post-image-section">
-          <img alt="Spin-to-Win with Monetary rewards" src="/img/grabbing-growth-a-growth-hacking-story/spin-to-win-2.png" height="500px">
+          <img alt="Spin-to-Win with Monetary rewards" src="/img/grabbing-growth-a-growth-hacking-story/spin-to-win-2.png" width="85%">
           <small class="post-image-caption">Spin-to-Win with Monetary rewards</small>
         </div>
     </td>
@@ -80,7 +80,7 @@ We developed an A/B test within three weeks and offered both monetary and mercha
   <tr>
     <td width="50%">
       <div class="post-image-section">
-        <img alt="Design Variations on Monetary version" src="/img/grabbing-growth-a-growth-hacking-story/design-variation-1.png" height="500px"
+        <img alt="Design Variations on Monetary version" src="/img/grabbing-growth-a-growth-hacking-story/design-variation-1.png" width="85%"
           style="border: 1px solid black"
         >
         <small class="post-image-caption">Design Variations on Monetary version</small>
@@ -88,7 +88,7 @@ We developed an A/B test within three weeks and offered both monetary and mercha
     </td>
     <td width="50%">
         <div class="post-image-section">
-          <img alt="Design Variations - Hyperlocal for Jakarta" src="/img/grabbing-growth-a-growth-hacking-story/design-variation-2.gif" height="500px"
+          <img alt="Design Variations - Hyperlocal for Jakarta" src="/img/grabbing-growth-a-growth-hacking-story/design-variation-2.gif" width="85%"
             style="border: 1px solid black"
           >
           <small class="post-image-caption">Design Variations - Hyperlocal for Jakarta</small>
@@ -101,7 +101,7 @@ We developed an A/B test within three weeks and offered both monetary and mercha
   <tr>
     <td width="50%">
       <div class="post-image-section">
-        <img alt="Jackpot Prize Design 1" src="/img/grabbing-growth-a-growth-hacking-story/jackpot-1.png" height="500px"
+        <img alt="Jackpot Prize Design 1" src="/img/grabbing-growth-a-growth-hacking-story/jackpot-1.png" width="85%"
           style="border: 1px solid black"
         >
         <small class="post-image-caption">Jackpot Prize Design 1</small>
@@ -109,7 +109,7 @@ We developed an A/B test within three weeks and offered both monetary and mercha
     </td>
     <td width="50%">
         <div class="post-image-section">
-          <img alt="Jackpot Prize Design 2" src="/img/grabbing-growth-a-growth-hacking-story/jackpot-2.png" height="500px"
+          <img alt="Jackpot Prize Design 2" src="/img/grabbing-growth-a-growth-hacking-story/jackpot-2.png" width="85%"
             style="border: 1px solid black"
           >
           <small class="post-image-caption">Jackpot Prize Design 2</small>
