@@ -11,7 +11,7 @@ cover_photo: /img/banner.png
 excerpt: "The meltdown attack reported recently had far reaching implications in terms of security as well as performance. This post is a quick rundown of what performance impacts we noted as well as how we went on to mitigate them."
 ---
 
-Grab is Southeast Asia's leading ride-hailing platform. We solve critical transportation challenges and make transport freedom a reality for 620 million people in Southeast Asia.
+Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments across a region of more than 620 million people.
 
 The [meltdown attack](http://meltdownattack.com/) reported recently had far reaching implications in terms of security as well as performance. This post is a quick rundown of what performance impacts we noted as well as how we went on to mitigate them.
 
