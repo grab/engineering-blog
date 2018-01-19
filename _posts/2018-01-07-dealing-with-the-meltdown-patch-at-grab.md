@@ -7,7 +7,7 @@ authors: [althaf-hameez]
 categories: [Engineering]
 tags: [AWS, Meltdown]
 comments: true
-cover_photo: /img/banner.png
+cover_photo: /img/dealing-with-the-meltdown-patch-at-grab/cover.jpg
 excerpt: "The meltdown attack reported recently had far reaching implications in terms of security as well as performance. This post is a quick rundown of what performance impacts we noted as well as how we went on to mitigate them."
 ---
 
