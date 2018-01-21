@@ -11,8 +11,6 @@ cover_photo: /img/banner.png
 excerpt: "Disaster strikes when you do not configure timeout values properly. In this post, we dive into the details of how timeouts work with Ruby on Rails and Databases."
 ---
 
-# Deep Dive into Handling Database Timeouts in Rails
-
 A couple of weeks ago, we had a production outage for one of our internal Ruby on Rails application servers. One of the databases that the application connects to had a failover event. It was expected that the server should continue functioning for endpoints which do not depend on this database, but it was observed that our server slowed down to a crawl, and was unable to function properly even after the failover completed, until we manually restarted the servers.
 
 ## Background
