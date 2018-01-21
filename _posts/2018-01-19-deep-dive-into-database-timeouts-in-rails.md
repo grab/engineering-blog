@@ -7,7 +7,6 @@ authors: [jia-hao-goh]
 categories: [Engineering]
 tags: [Back End, Database, Distributed Systems, Ruby, Ruby on Rails]
 comments: true
-cover_photo: /img/banner.png
 excerpt: "Disaster strikes when you do not configure timeout values properly. In this post, we dive into the details of how timeouts work with Ruby on Rails and Databases."
 ---
 
@@ -40,7 +39,7 @@ ActiveRecord uses connection adapters to make database calls. For MySQL, it uses
 
 The following pseudocode is the algorithm for how ActiveRecord retrieves connections from the pool to perform database queries.
 
-```python
+~~~ python
 if there are existing connections to the database available:
 	return one of the existing connections
 
@@ -53,7 +52,7 @@ try to create a new connection, raise exception if `connect_timeout` has elapsed
 
 # connection to database established
 return new connection
-```
+~~~
 
 This is loosely translated from the [source code](https://github.com/rails/rails/blob/5.1.3/activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb#L725-L749).
 
@@ -65,48 +64,48 @@ Let’s try to replicate the problem in a small Rails application. We will creat
 
 First, we will scaffold a fresh Rails application and connect it to two databases that we will call as `db_main` and `db_other`:
 
-```bash
+~~~ bash
 # the flags removes unwanted boilerplate code
 rails new rails-mysql-timeouts --database=mysql --api -M -C -S -J -T
-```
+~~~
 
 For simplicity, we will set the `thread_count` of our Puma server to `2`, in `config/puma.rb`.
 
-```ruby
+~~~ ruby
 threads_count = 2
-```
+~~~
 
 Using `rails generate scaffold`, we set up a `Driver` model to talk to our main database, and a `Passenger` model to talk to another database we want to test the failure on. This can be done by adding the following line to our `Passengers` model.
 
-```ruby
+~~~ ruby
 class Passenger < ApplicationRecord
   # connect to #{Rails.env}_other database specified in the database.yml
   establish_connection "#{Rails.env}_other".to_sym
 end
-```
+~~~
 
 We now have the following HTTP routes:
 
-```
+~~~
 # connects to db_main
 GET /drivers/1
 
 # connects to db_other
 GET /passengers/1
-```
+~~~
 
 Now we will run our Rails server with the following environment variables
 
-```bash
+~~~ bash
 export RAILS_ENV=production
 export RAILS_LOG_TO_STDOUT=1
 
 rails server
-```
+~~~
 
 By using a docker container to run the Rails application, we can isolate the process namespace and focus directly on our application. We run `ps` and observe the two threads we have configured puma — `puma 001` and `puma 002`.
 
-```bash
+~~~ bash
 $ ps -T -e
   PID  SPID TTY          TIME CMD
     1     1 ?        00:00:00 sleep
@@ -122,7 +121,7 @@ $ ps -T -e
    97   110 pts/1    00:00:00 thread_pool.rb*
    97   111 pts/1    00:00:00 server.rb:327
   112   112 pts/0    00:00:00 ps
-```
+~~~
 
 Note that PID 1 is `sleep` because in [`docker-compose.yml`](https://github.com/jiahaog/rails-mysql-timeouts/blob/master/docker-compose.yml), we specified that the container should start with `cmd: sleep infinity` so that we can attach to the running container at any time, not unlike a `ssh` to a machine.
 
@@ -130,13 +129,13 @@ Note that PID 1 is `sleep` because in [`docker-compose.yml`](https://github.com/
 
 We make the following requests to ensure that our server is working correctly:
 
-```bash
+~~~ bash
 $ curl localhost:3000/drivers
 [{"id":1,"name":"test driver","created_at":"2017-11-05T11:59:15.000Z","updated_at":"2017-11-05T11:59:15.000Z"}]
 
 $ curl localhost:3000/passengers
 [{"id":1,"name":"test","created_at":"2017-01-01T00:00:00.000Z","updated_at":"2017-01-07T00:00:00.000Z"}]
-```
+~~~
 
 Great! We are now able to see the records generated in the database by the above curl requests.
 
@@ -148,43 +147,43 @@ We will now try to simulate the production issue by using a proxy to monitor all
 
 First, we use [Toxiproxy](https://github.com/Shopify/toxiproxy) as a transport layer proxy to `db_other` which allows us to manipulate the pipe between the client and the upstream database. The following command stops all data from getting the proxy, and closes the connection after timeout.
 
-```bash
+~~~ bash
 toxiproxy-cli toxic add db_other_proxy --toxicName timeout --type timeout --attribute=timeout=100000
-```
+~~~
 
 Now we test if things are still working for endpoints that access the unaffected database.
 
-```bash
+~~~ bash
 $ curl localhost:3000/drivers
 [{"id":1,"name":"test driver","created_at":"2017-11-05T11:59:15.000Z","updated_at":"2017-11-05T11:59:15.000Z"}]
-```
+~~~
 
 This is expected, as the `db_main` is still running. Let’s trigger a request to `db_other`.
 
-```bash
+~~~ bash
 $ curl localhost:3000/passengers
-```
+~~~
 
 We notice that the command does not exit and our terminal blocks while waiting for the command to terminate.
 
 Let’s trigger another call to `db_main`.
 
-```bash
+~~~ bash
 $ curl localhost:3000/drivers
 [{"id":1,"name":"test driver","created_at":"2017-11-05T11:59:15.000Z","updated_at":"2017-11-05T11:59:15.000Z"}]
-```
+~~~
 
 Seems like it still works! Now let’s make another request to the `db_other` to lock up the two threads our server is configured to use.
 
-```bash
+~~~ bash
 $ curl localhost:3000/passengers
-```
+~~~
 
 And make another request to `db_main`.
 
-```bash
+~~~ bash
 $ curl localhost:3000/drivers
-```
+~~~
 
 Notice that the call to `/drivers` is stuck and does not complete now. Because we have set the thread count to `2`, and have two `/passengers` request in flight, both threads are stuck waiting for the database and we do not have any more threads available to handle the new request, and hence the stalled `/drivers` request.
 
@@ -194,10 +193,10 @@ This is exactly what happened during our production outage, except on a much lar
 
 Let’s perform some experiments to better understand how `connect_timeout` and `read_timeout` work. We will set the timeouts to the following:
 
-```yaml
+~~~ yaml
 + connect_timeout: 10
 + read_timeout: 5
-```
+~~~
 
 In the following section we will perform two experiments.
 
@@ -222,46 +221,46 @@ Now, when the proxy stops sending data to `db_other`, ActiveRecord does not know
 
 We can use the [`ss`](http://man7.org/linux/man-pages/man8/ss.8.html) command to observe the TCP connections. When Rails has just been started, there are no existing TCP connections .
 
-```bash
+~~~ bash
 # shows TCP connections with the PID
 $ ss -tnp
-```
+~~~
 
 After a `GET /passengers` completes, a TCP connection can be seen in the `ESTAB` state.
 
-```bash
+~~~ bash
 $ ss -tnp
 State      Recv-Q Send-Q       Local Address:Port         Peer Address:Port
 ESTAB      0      0               172.18.0.4:54304          172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
-```
+~~~
 
 Now we stop the database, and make another call to `GET /passengers`. We run `ss` when the request is in flight, and observe another TCP connection for the request to the port Rails listens on, port `3000`.
 
-```bash
+~~~ bash
 $ ss -tnp
 State      Recv-Q Send-Q       Local Address:Port         Peer Address:Port
 ESTAB      0      0               172.18.0.4:54304          172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
 ESTAB      0      0               172.18.0.4:3000           172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
-```
+~~~
 
 After `read_timeout` has elapsed, we see that a new connection is established to the database, and the first one has transitioned to a `FIN-WAIT` state. This new TCP connection is in the `ESTAB` state (line 3), because we have only stopped the database on the application layer, but the sockets to the container still accept the TCP handshake on the transport layer.
 
-```bash
+~~~ bash
 $ ss -tnp
 FIN-WAIT-2 0      0               172.18.0.4:54304          172.18.0.3:3306
 ESTAB      0      0               172.18.0.4:54308          172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
 ESTAB      0      0               172.18.0.4:3000           172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
-```
+~~~
 
 After `connect_timeout` has elapsed, the request terminates with a 500 error, and we observe that all the connections are in the `FIN-WAIT` state.
 
-```bash
+~~~ bash
 $ ss -tnp
 State      Recv-Q Send-Q       Local Address:Port         Peer Address:Port
 FIN-WAIT-2 0      0               172.18.0.4:54310          172.18.0.3:3306
 FIN-WAIT-2 0      0               172.18.0.4:54304          172.18.0.3:3306
 FIN-WAIT-2 0      0               172.18.0.4:54308          172.18.0.3:3306
-```
+~~~
 
 The experimental data can be found [below](#experimental-data).
 
@@ -314,7 +313,7 @@ We set the following values in our staging environment and manually triggered a 
 
 The following is a snippet for our current `database.yml` configuration before the outage, and the changes to resolve the problem.
 
-```yaml
+~~~ yaml
 # Config for the non-primary `db_other` database
 production_other:
   adapter: mysql2
@@ -326,13 +325,13 @@ production_other:
   username: …
   password: …
   host: …
-```
+~~~
 
-```yaml
+~~~ yaml
 # New changes
 + connect_timeout: 5
 + read_timeout: 5
-```
+~~~
 
 ## Conclusion
 
