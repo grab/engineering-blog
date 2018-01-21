@@ -5,7 +5,7 @@ title: Deep Dive into Database Timeouts in Rails
 date: 2018-01-18 16:48:40
 authors: [jia-hao-goh]
 categories: [Engineering]
-tags: [Back End, Distributed Systems, Ruby]
+tags: [Back End, Database, Distributed Systems, Ruby, Ruby on Rails]
 comments: true
 cover_photo: /img/banner.png
 excerpt: "Disaster strikes when you do not configure timeout values properly. In this post, we dive into the details of how timeouts work with Ruby on Rails and Databases."
