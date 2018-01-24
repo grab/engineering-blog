@@ -186,7 +186,7 @@ And make another request to `db_main`.
 $ curl localhost:3000/drivers
 ~~~
 
-Notice that the call to `/drivers` is stuck and does not complete now. Because we have set the thread count to `2`, and have two `/passengers` request in flight, both threads are stuck waiting for the database and we do not have any more threads available to handle the new request, and hence the stalled `/drivers` request.
+Notice that the call to `/drivers` is stuck and does not complete now. Because we have set the thread count to `2`, and have two `/passengers` requests in flight, both threads are stuck waiting for the database and we do not have any more threads available to handle the new request, hence the stalled `/drivers` request.
 
 This is exactly what happened during our production outage, except on a much larger scale.
 
@@ -211,12 +211,12 @@ We first block data to `db_other` , so that on the first ActiveRecord call to re
 
 #### Experiment 2: Application has Existing Connections before Database Failure
 
-2. Start Rails
-3. `GET /passengers`
-4. Stop data transmission to `db_other`
-5. `GET /passengers`
+1. Start Rails
+2. `GET /passengers`
+3. Stop data transmission to `db_other`
+4. `GET /passengers`
 
-Rails is started and we make a call to `GET /passengers`. A connection to the database is established to retrieve the data, and checked back into the pool as an available connection after the request.
+We've started Rails and make a call to `GET /passengers`. A connection to the database is established to retrieve the data, and checked back into the pool as an available connection after the request.
 
 Now, when the proxy stops sending data to `db_other`, ActiveRecord does not know that the database is unavailable and believes that the previously checked in connection is available for use with the second `GET /passengers`.
 
@@ -285,18 +285,18 @@ With these findings, we can try to understand how the lack of these timeouts aff
 
 ### Establishing Terms
 
-Our application server constantly receives requests, out of which a certain percentage of requests will trigger the code to connect to the affected database, we call it _x_-type requests. For the other requests that do not trigger a database connection, we call it the _x’_-type requests.
+Our application server constantly receives requests, out of which a certain percentage of requests will trigger the code to connect to the affected database, which we'll call _x_-type requests. The other requests, that do not trigger a database connection, we'll call _x’_-type requests.
 
 ### Analysis
 
 With the background knowledge gathered in our experiments, let’s try to analyse all the steps that happened during our production outage.
 
-1. Rails is started from a clean state, with no connections setup to the database initially
+1. Rails started from a clean state, with no connections set up to the database initially
 2. Rails handles the first few _x_ request types, opens a connection to the database
 3. Subsequent requests of _x_ type can reuse the same connections from the connection pool
-4. At a certain time, due to a fault with AWS, a failover of the database is triggered
+4. At a certain time, due to a hardware fault out of our control, a failover of the database is triggered
 5. At the same time requests of _x_ type comes in — and ActiveRecord reuses the same database connection from the pool, but there is no response. It then waits for `read_timeout`, causing the thread to be stuck waiting for the default timeout
-6. Even though Rails can process requests of _x’_ type normally, more and more requests of _x_ type come in and causes more and more threads to be stuck waiting
+6. Even though Rails can process requests of the _x’_ type normally, more and more requests of _x_ type come in and cause more and more threads to be stuck waiting
 7. Eventually, all the available threads to handle requests are stuck waiting on the TCP connection to the failed database, and Rails can no longer respond to new requests
 8. After the default `read_timeout` has elapsed (3 × 10 minutes), some threads will be released to handle new requests
 9. Subsequent requests of _x_ type will cause a new connection to be opened to the database
@@ -308,9 +308,9 @@ With the background knowledge gathered in our experiments, let’s try to analys
 
 To fix the problem, we have to prevent our database connections from being stuck in trying to read from a unresponsive socket, and trying to connect to a closed socket.
 
-This can be done by simply setting the `read_timeout` so that when the database fails, existing connections hence threads will be released. The `connect_timeout` also has to be set so that when the existing connections are released, new connections and threads handling the requests will not be stuck trying to connect to the same unavailable database.
+This can be done by simply setting the `read_timeout` so that when the database fails, existing connections and threads will be released. The `connect_timeout` also has to be set so that when the existing connections are released, new connections and threads handling the requests will not be stuck trying to connect to the same unavailable database.
 
-We set the following values in our staging environment and manually triggered a database failover via the AWS console, and observed that requests of _x’_ type are no longer stalled during the failover.
+We set the following values in our staging environment and manually triggered a database failover via the AWS console, and observed that requests of the _x’_ type are no longer stalled during the failover.
 
 The following is a snippet for our current `database.yml` configuration before the outage, and the changes to resolve the problem.
 
