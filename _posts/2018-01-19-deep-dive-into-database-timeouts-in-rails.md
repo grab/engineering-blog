@@ -204,17 +204,17 @@ In the following section we will perform two experiments.
 #### Experiment 1: Application has no Existing Connections before Database Failure
 
 1. Stop data transmission to `db_other`
-2. Start Rails
-3. `GET /passengers`
+1. Start Rails
+1. `GET /passengers`
 
 We first block data to `db_other` , so that on the first ActiveRecord call to retrieve some data from the database, there are no available connections in the connection pool and it needs to establish a fresh connection to the database when it receives the first `GET /passengers` request.
 
 #### Experiment 2: Application has Existing Connections before Database Failure
 
 1. Start Rails
-2. `GET /passengers`
-3. Stop data transmission to `db_other`
-4. `GET /passengers`
+1. `GET /passengers`
+1. Stop data transmission to `db_other`
+1. `GET /passengers`
 
 We've started Rails and make a call to `GET /passengers`. A connection to the database is established to retrieve the data, and checked back into the pool as an available connection after the request.
 
@@ -292,17 +292,17 @@ Our application server constantly receives requests, out of which a certain perc
 With the background knowledge gathered in our experiments, let’s try to analyse all the steps that happened during our production outage.
 
 1. Rails started from a clean state, with no connections set up to the database initially
-2. Rails handles the first few _x_ request types, opens a connection to the database
-3. Subsequent requests of _x_ type can reuse the same connections from the connection pool
-4. At a certain time, due to a hardware fault out of our control, a failover of the database is triggered
-5. At the same time requests of _x_ type comes in — and ActiveRecord reuses the same database connection from the pool, but there is no response. It then waits for `read_timeout`, causing the thread to be stuck waiting for the default timeout
-6. Even though Rails can process requests of the _x’_ type normally, more and more requests of _x_ type come in and cause more and more threads to be stuck waiting
-7. Eventually, all the available threads to handle requests are stuck waiting on the TCP connection to the failed database, and Rails can no longer respond to new requests
-8. After the default `read_timeout` has elapsed (3 × 10 minutes), some threads will be released to handle new requests
-9. Subsequent requests of _x_ type will cause a new connection to be opened to the database
+1. Rails handles the first few _x_ request types, opens a connection to the database
+1. Subsequent requests of _x_ type can reuse the same connections from the connection pool
+1. At a certain time, due to a hardware fault out of our control, a failover of the database is triggered
+1. At the same time requests of _x_ type comes in — and ActiveRecord reuses the same database connection from the pool, but there is no response. It then waits for `read_timeout`, causing the thread to be stuck waiting for the default timeout
+1. Even though Rails can process requests of the _x’_ type normally, more and more requests of _x_ type come in and cause more and more threads to be stuck waiting
+1. Eventually, all the available threads to handle requests are stuck waiting on the TCP connection to the failed database, and Rails can no longer respond to new requests
+1. After the default `read_timeout` has elapsed (3 × 10 minutes), some threads will be released to handle new requests
+1. Subsequent requests of _x_ type will cause a new connection to be opened to the database
    * If the failover is complete and the DNS records for the new instance has been updated, the new connections will be established
    * If the failover is not complete or the DNS records were not updated, the TCP connections will still try to connect to the old IP address with the failed database instance. The connections will wait for the `connect_timeout` (default 120 seconds) to elapse before failing
-10. Finally, once all the threads are stuck, our Rails application stops responding to all requests until it was restarted manually
+1. Finally, once all the threads are stuck, our Rails application stops responding to all requests until it was restarted manually
 
 #### Solution
 
