@@ -124,7 +124,7 @@ $ ps -T -e
   112   112 pts/0    00:00:00 ps
 ~~~
 
-Note that PID 1 is `sleep` because in [`docker-compose.yml`](https://github.com/jiahaog/rails-mysql-timeouts/blob/master/docker-compose.yml), we specified that the container should start with `cmd: sleep infinity` so that we can attach to the running container at any time, not unlike a `ssh` to a machine.
+Note that PID 1 is `sleep` because in [`docker-compose.yml`](https://github.com/grab/blogs/tree/master/2017-01-29-deep-dive-into-database-timeouts-in-rails/docker-compose.yml), we specified that the container should start with `cmd: sleep infinity` so that we can attach to the running container at any time, not unlike a `ssh` to a machine.
 
 ### Step 2: Verify Our Application
 
@@ -140,7 +140,7 @@ $ curl localhost:3000/passengers
 
 Great! We are now able to see the records generated in the database by the above curl requests.
 
-The entire source code for this application can be found [here](https://github.com/jiahaog/rails-mysql-timeouts).
+The entire source code for this application can be found [here](https://github.com/grab/blogs/tree/master/2017-01-29-deep-dive-into-database-timeouts-in-rails).
 
 ### Step 3: Simulating the Production Issue
 
@@ -352,4 +352,4 @@ These principles are not just limited to Rails or MySQL, and the experiments and
 
 Big thanks to [Joel Low](https://github.com/lowjoel) for helping out with this investigation and clarifying ambiguities in Rails and MySQL, and my manager Amit Saini for his helpful review of this post!
 
-Source code for the test rails application can be found [here](https://github.com/jiahaog/rails-mysql-timeouts).
+Source code for the test rails application can be found [here](https://github.com/grab/blogs/tree/master/2017-01-29-deep-dive-into-database-timeouts-in-rails).
