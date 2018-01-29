@@ -306,7 +306,7 @@ With the background knowledge gathered in our experiments, let’s try to analys
 
 #### Solution
 
-To fix the problem, we have to prevent our database connections from being stuck in trying to read from a unresponsive socket, and trying to connect to a closed socket.
+To fix the problem, we have to prevent our database connections from being stuck in trying to read from an unresponsive socket, and trying to connect to a closed socket.
 
 This can be done by simply setting the `read_timeout` so that when the database fails, existing connections and threads will be released. The `connect_timeout` also has to be set so that when the existing connections are released, new connections and threads handling the requests will not be stuck trying to connect to the same unavailable database.
 
