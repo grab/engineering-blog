@@ -42,11 +42,11 @@ The following pseudocode is the algorithm for how ActiveRecord retrieves connect
 
 ~~~ python
 if there are existing connections to the database available:
-	return one of the existing connections
+    return one of the existing connections
 
 if the pool is at capacity:
-	wait on the queue, raise exception if `checkout_timeout` has elapsed
-  return one of the now available connections
+    wait on the queue, raise exception if `checkout_timeout` has elapsed
+    return one of the now available connections
 
 # pool is not at capacity
 try to create a new connection, raise exception if `connect_timeout` has elapsed
