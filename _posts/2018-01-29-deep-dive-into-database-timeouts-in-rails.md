@@ -232,36 +232,37 @@ After a `GET /passengers` completes, a TCP connection can be seen in the `ESTAB`
 
 ~~~ bash
 $ ss -tnp
-State      Recv-Q Send-Q       Local Address:Port         Peer Address:Port
-ESTAB      0      0               172.18.0.4:54304          172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
+State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
+ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
 ~~~
 
 Now we stop the database, and make another call to `GET /passengers`. We run `ss` when the request is in flight, and observe another TCP connection for the request to the port Rails listens on, port `3000`.
 
 ~~~ bash
 $ ss -tnp
-State      Recv-Q Send-Q       Local Address:Port         Peer Address:Port
-ESTAB      0      0               172.18.0.4:54304          172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
-ESTAB      0      0               172.18.0.4:3000           172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
+State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
+ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
+ESTAB  0       0       172.18.0.4:3000     172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
 ~~~
 
 After `read_timeout` has elapsed, we see that a new connection is established to the database, and the first one has transitioned to a `FIN-WAIT` state. This new TCP connection is in the `ESTAB` state (line 3), because we have only stopped the database on the application layer, but the sockets to the container still accept the TCP handshake on the transport layer.
 
 ~~~ bash
 $ ss -tnp
-FIN-WAIT-2 0      0               172.18.0.4:54304          172.18.0.3:3306
-ESTAB      0      0               172.18.0.4:54308          172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
-ESTAB      0      0               172.18.0.4:3000           172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
+State      Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
+FIN-WAIT-2 0       0       172.18.0.4:54304    172.18.0.3:3306
+ESTAB      0       0       172.18.0.4:54308    172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
+ESTAB      0       0       172.18.0.4:3000     172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
 ~~~
 
 After `connect_timeout` has elapsed, the request terminates with a 500 error, and we observe that all the connections are in the `FIN-WAIT` state.
 
 ~~~ bash
 $ ss -tnp
-State      Recv-Q Send-Q       Local Address:Port         Peer Address:Port
-FIN-WAIT-2 0      0               172.18.0.4:54310          172.18.0.3:3306
-FIN-WAIT-2 0      0               172.18.0.4:54304          172.18.0.3:3306
-FIN-WAIT-2 0      0               172.18.0.4:54308          172.18.0.3:3306
+State       Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
+FIN-WAIT-2  0       0       172.18.0.4:54310    172.18.0.3:3306
+FIN-WAIT-2  0       0       172.18.0.4:54304    172.18.0.3:3306
+FIN-WAIT-2  0       0       172.18.0.4:54308    172.18.0.3:3306
 ~~~
 
 The experimental data can be found [below](#experimental-data).
