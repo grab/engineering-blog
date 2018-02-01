@@ -249,10 +249,10 @@ After `read_timeout` has elapsed, we see that a new connection is established to
 
 ~~~ bash
 $ ss -tnp
-State      Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
-FIN-WAIT-2 0       0       172.18.0.4:54304    172.18.0.3:3306
-ESTAB      0       0       172.18.0.4:54308    172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
-ESTAB      0       0       172.18.0.4:3000     172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
+State       Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
+FIN-WAIT-2  0       0       172.18.0.4:54304    172.18.0.3:3306
+ESTAB       0       0       172.18.0.4:54308    172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
+ESTAB       0       0       172.18.0.4:3000     172.18.0.1:60878  users:(("ruby",pid=11683,fd=12))
 ~~~
 
 After `connect_timeout` has elapsed, the request terminates with a 500 error, and we observe that all the connections are in the `FIN-WAIT` state.
