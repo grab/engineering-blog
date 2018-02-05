@@ -56,7 +56,7 @@ try to create a new connection, raise exception if `connect_timeout` has elapsed
 return new connection
 ~~~
 
-This is loosely translated from the [source code](https://github.com/rails/rails/blob/5.1.3/activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb#L725-L749).
+This is loosely translated from the [source code](https://github.com/rails/rails/blob/f8c00c130016b248d1d409f131356632dcc418c6/activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb#L725-L749).
 
 ## Replicating and Debugging
 
