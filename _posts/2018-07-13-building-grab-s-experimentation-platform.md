@@ -11,7 +11,7 @@ cover_photo: /img/building-grab-s-experimentation-platform/cover.png
 excerpt: "At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver partners. To do that, we’re constantly experimenting, and in fact, many of the improvements we roll out  to the Grab app are a direct result of successful experiments."
 ---
 
-# 1. ExP Overview
+# ExP Overview
 
 At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver partners. 
 
@@ -26,7 +26,7 @@ Experimentation helps development teams determine if they’re building the righ
   <small class="post-image-caption">Figure: Experimentation Platform Portal</small>
 </div>
 
-# 2. Why We Built ExP
+# Why We Built ExP
 
 In the early days experiments were performed on a small scale that allowed users to define metrics, and then compute and surface those metrics for a small set of experiments. The process around experimentation was rather painful. When product managers wanted to run an experiment, they set up a meeting with product analysts, data scientists, and engineers. Experiments were designed, custom logging pipelines were built and services were modified to support each new experiment. It was an expensive and time-consuming process.
 
@@ -62,7 +62,7 @@ With this scale comes some issues we needed to address. Here is the architectura
 
 ![Prevention of experiment interference](/img/building-grab-s-experimentation-platform/image_2.png)
 
-# 3. Components of ExP
+# Components of ExP
 
 Grab’s ExP allows internal users (engineers, product managers, analysts, and others) to toggle various features on or off, adjust thresholds, change configurations dynamically without restarting anything. To achieve this, we’ve introduced a couple of cornerstone concepts in our UI and SDKs.
 
@@ -94,7 +94,7 @@ It is important to highlight that having a formal experiment definition actually
 
 2. Communication between teams (engineering, product and data science) is simplified as formal documents to ensure everyone is on the same page.
 
-# 5. Structured Experimental Design 
+# Structured Experimental Design
 
 With a formalised experiment definition, we then provide Android, iOS and Golang SDKs which consume experiment definitions and apply experiments.
 
@@ -110,7 +110,7 @@ Overall, we support two major and frequently used strategies:
 
 * Time-sliced experiments where control and treatment(s) are split by time (for example, 10 minutes control, then 10 minutes for treatment).
 
-# 6. Example Experiment
+# Example Experiment
 
 Since its rollout, the ExP and its staged rollout framework has proven indispensable to many feature deployments at Grab. 
 
@@ -122,7 +122,7 @@ When we deployed this new feature for app users in a specific geographic area, w
 
 Lastly, we used the platform to perform a staged rollout of this functionality to different users in different countries across South East Asia.
 
-## Conclusion
+# Conclusion
 
 Building our own experimentation platform hasn’t been an easy process, but it  has helped  promote a culture of experimentation within the organisation. It has allowed data scientists and product teams to analyse the quality of new features and perform iterations more frequently, with our team working closely with them to support various assignment strategies and hypothesis.
 
