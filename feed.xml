@@ -6,9 +6,212 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 10 Aug 2018 09:58:36 +0000</pubDate>
-    <lastBuildDate>Fri, 10 Aug 2018 09:58:36 +0000</lastBuildDate>
+    <pubDate>Fri, 10 Aug 2018 10:06:38 +0000</pubDate>
+    <lastBuildDate>Fri, 10 Aug 2018 10:06:38 +0000</lastBuildDate>
     <generator>Jekyll v3.0.3</generator>
+    
+      <item>
+        <title>How we designed the Quotas microservice to prevent resource abuse</title>
+        <description>&lt;h1 id=&quot;how-we-designed-the-quotas-microservice-to-prevent-resource-abuse&quot;&gt;How we designed the Quotas microservice to prevent resource abuse&lt;/h1&gt;
+
+&lt;p&gt;As the business has grown, Grab’s infrastructure has changed from a monolithic service to dozens of microservices. And that number will soon be expressed in hundreds. As our engineering team grows in parallel, having a microservice framework provides benefits such as higher flexibility, productivity, security, and system reliability. Teams define Service Level Agreements (SLA) with their clients, meaning specification of their service’s API interface and its related performance metrics. As long as the SLAs are maintained, individual teams can focus on their services without worrying about breaking other services.&lt;/p&gt;
+
+&lt;p&gt;However, migrating to a microservice framework can be tricky - due to the the large number of services and having to communicate between them. Problems that are simple to solve or don’t exist for a monolithic service such as service discovery, security, load balancing, monitoring, and rate limiting are challenging for a microservice based framework. Reliable, scalable, and high performing solutions for common system level issues are essential for microservice success, and there is a Grab-wide initiative to provide those common solutions.&lt;/p&gt;
+
+&lt;p&gt;As an important component of the initiative, we wrote a microservice called Quotas, a highly scalable API request rate limiting solution to mitigate the problems of service abuse and cascading service failures. In this article, we discuss the challenges Quotas addresses, how we designed it, and the end results. &lt;/p&gt;
+
+&lt;h2 id=&quot;what-quotas-tries-to-address&quot;&gt;What Quotas tries to address&lt;/h2&gt;
+
+&lt;p&gt;Rate-limiting is an well-known concept, used by many companies for years. For example, telecommunication companies and content providers frequently throttle requests from abusive users by using popular rate-limiting algorithms such as leaky bucket, fixed window, sliding log, sliding window, etc. All of these avoid resource abuse and protect important resources. Companies have also developed rate limiting solutions for inter-service communications, such as Doorman (&lt;a href=&quot;https://github.com/youtube/doorman/blob/master/doc/design.md&quot;&gt;https://github.com/youtube/doorman/blob/master/doc/design.md&lt;/a&gt;), Ambassador (&lt;a href=&quot;https://www.getambassador.io/reference/services/rate-limit-service&quot;&gt;https://www.getambassador.io/reference/services/rate-limit-service&lt;/a&gt;), etc, just to name a few.&lt;/p&gt;
+
+&lt;p&gt;Rate limiting can be enforced locally or globally. Local rate limiting means an instance accumulates API request information and makes decisions locally, with no coordination required. For example, a local rate limiting strategy can specify that each service instance can serve up to 1000 requests per second for an API, and the service instance will keep a local time-aware request counter. Once the number of received requests exceeds the threshold, it will reject new requests immediately until the next time bucket with available quota. Global rate limiting means multiple instances share the same enforcement policy. With global rate limiting, regardless of the service instance a client calls, it will be subjected to the same global API quota. Global rate limiting ensures there is a global view and it is preferred in many scenarios. In a cloud context, with auto scaling policy setup, the number of instances for a service can increase significantly during peak traffic hours. If only local rate limiting is enforced, the accumulative effect can still put great pressure on critical resources such as databases, network, or downstream services and the cumulative effects can cause service failures.&lt;/p&gt;
+
+&lt;p&gt;However, to support global rate limiting in a distributed environment is not easy, and it becomes even more challenging when the number of services and instances increases. To support a global view, Quotas needs to know how many requests a client service A (i.e., service A is a client of Quotas) is getting now on an endpoint comparing to the defined thresholds. If the number of requests is already over the thresholds, Quotas service should help to block a new request before service A executes its main logic. By doing that, Quotas service helps service A protect resources such as CPU, memory, database, network, and its downstream services, etc. To track the global request counts on service endpoints, a centralized data store such as Redis or Dynamo is generally used for the aggregation and decision making. In addition, decision latency and scalability become major concerns if each request needs to make a call to the rate limiting service (i.e., Quotas) to decide if the request should be throttled. And if that is the case, the rate limiting service will be on the critical path of every request and it will be a major concern for services. That is the scenario we absolutely wanted to avoid when designing Quotas service.&lt;/p&gt;
+
+&lt;h2 id=&quot;designing-quotas&quot;&gt;Designing Quotas&lt;/h2&gt;
+
+&lt;p&gt;Quotas ensures Grab internal services can guarantee their service level agreement (SLA) by throttling “excessive” API requests made to them, thereby avoiding cascading failures . By rejecting these calls early through throttling, services can be protected from depleting critical resources such as databases, computation resources, etc.&lt;/p&gt;
+
+&lt;p&gt;The two main goals for Quotas are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Help client services throttle excessive API requests in a timely fashion.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Minimize latency impacts on client services, i.e., client services should only see negligible latency increase on API response time.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We followed these design guidelines:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Providing a thin client implementation. Quotas service should keep most of the processing logic at the service side. Once we release a client SDK, it’s very hard to track who’s using what version and to update every client service with a new client SDK version. Also, more complex client side logic increases the chances of introducing bugs.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;To allow scaling of Quotas service, we use an asynchronous processing pipeline instead of a synchronous one (i.e., client service makes calls Quotas for every API request). By asynchronously processing events, a client service can immediately decide whether to throttle an API request when it comes in, without delaying the response too much.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Allowing for horizontal scaling through config changes. This is very important since the goal is to onboard all Grab internal services.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Figure 1 is a high-level system diagram for Quotas’ client and server side interactions. Kafka sits at the core of the system design. Kafka is an open-source distributed streaming platform under the Apache license and it’s widely adopted by the industry (&lt;a href=&quot;https://kafka.apache.org/intro&quot;&gt;https://kafka.apache.org/intro&lt;/a&gt;). Kafka is used in Quotas system design for the following purposes:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Quotas client services (i.e., services B and C in Figure 1) send API usage information through a dedicated Kafka topic and Quotas service consumes the events and performs its business logic.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Quotas service sends rate-limiting decisions through application-specific Kafka topics and the Quotas client SDKs running on the client service instances consume the rate-limiting events and update the local in-memory cache for rate-limiting decisions. For example, Quotas service uses topic names such as “rate-limiting-service-b” for rate-limiting decisions with service B and “rate-limiting-service-c” for service C.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;An archiver is running with Kafka to archive the events to AWS S3 buckets for additional analysis.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 1: Quotas High-level System Design&quot; src=&quot;/img/quotas-service/image_0.jpg&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1: Quotas High-level System Design&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The details of Quotas client side logic is shown in Figure 2 using service B as an example. As it shows, when a request comes in (e.g., from service A), service B will perform the following logic:&lt;/p&gt;
+
+&lt;ol&gt;
+	&lt;li&gt;Quotas middleware running with service B
+		&lt;ol type=&quot;a&quot;&gt;
+		  &lt;li&gt;intercepts the request and calls Quotas client SDK for the rate limiting decision based on API and client information.
+		  	&lt;ol type=&quot;i&quot;&gt;
+		  		&lt;li&gt;If it throttles the request, service B returns a response code indicating the request is throttled.&lt;/li&gt;
+		  		&lt;li&gt;If it doesn&#39;t throttle the request, service B handles it with its normal business logic.&lt;/li&gt;
+		  	&lt;/ol&gt;
+		  &lt;/li&gt;
+		  &lt;li&gt;asynchronously sends the API request information to a Kafka topic for processing.&lt;/li&gt;
+		&lt;/ol&gt;
+	&lt;/li&gt;
+	&lt;li&gt;Quotas client SDK running with service B
+		&lt;ol&gt;
+			&lt;li&gt;consumes the application-specific rate-limiting Kafka stream and updates its local in-memory cache for new rate-limiting decisions. For example, if the previous decision is true (i.e., enforcing rate limiting), and the new decision from the Kafka stream is false, the local in-memory cache will be updated to reflect the change. After that, if a new request comes in from service A, it will be allowed to go through and served by service B.&lt;/li&gt;
+			&lt;li&gt;provides a single public API to read the rate limiting decision based on API and client information. This public API reads the decisions from its local in-memory cache.&lt;/li&gt;
+		&lt;/ol&gt;
+	&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 2: Quotas Client Side Logic&quot; src=&quot;/img/quotas-service/image_1.jpg&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 2: Quotas Client Side Logic&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Figure 3 shows the details of Quotas server side logic. It performs the following business logic:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Consumes the Kafka stream topic for API request information&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Performs aggregations on the API usages&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Stores the stats in a Redis cluster periodically&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Makes a rate-limiting decision periodically&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Sends the rate-limiting decisions to an application-specific Kafka stream&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Sends the stats to DataDog for monitoring and alerting periodically&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In addition, an admin UI is available for service owners to update thresholds and the changes are picked up immediately for the upcoming rate-limiting decisions.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 3: Quotas Server Side Logic&quot; src=&quot;/img/quotas-service/image_2.jpg&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 3: Quotas Server Side Logic&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;implementation-decisions-and-optimizations&quot;&gt;Implementation decisions and optimizations&lt;/h2&gt;
+
+&lt;p&gt;On the client service side (service B in the above diagrams), the Quotas client SDK is initialized when service B instance is initialized. The Quotas client SDK is a wrapper that consumes Kafka rate-limiting events and writes/reads the in-memory cache. It exposes a single API to check the rate-limiting decisions on a client with a given API method. Also, service B is hooked up with Quotas middleware to intercept API requests. Internally, it calls the Quotas client SDK API to determine if it should allow/reject the requests before the actual business logic. Currently, Quotas middleware supports both &lt;a href=&quot;https://grpc.io/&quot;&gt;gRPC&lt;/a&gt; and REST protocols.&lt;/p&gt;
+
+&lt;p&gt;Quotas utilizes a company-wide streaming solution called Sprinkler for the Kafka stream Producer and Consumer implementations. It provides streaming SDKs built on top of &lt;a href=&quot;https://github.com/Shopify/sarama&quot;&gt;sarama&lt;/a&gt; (an MIT-license Go library for Apache Kafka), providing asynchronous event sending/consuming, retry, and circuit breaking capabilities.&lt;/p&gt;
+
+&lt;p&gt;Quotas provides throttling capabilities based on the sliding window algorithm on the 1-second and 5-second levels. To support extremely high TPS demands, most of Quotas intermediate operations are designed to be done asynchronously. Internal benchmarks show the delay for enforcing a rate-limiting decision is up to 200 milliseconds. By combining 1-second and 5-second level settings, client services can more effectively throttle requests.&lt;/p&gt;
+
+&lt;p&gt;During system implementation, we find that if Quotas instances make a call to the Redis cluster every time it receives an event from the Kafka API usage stream, the Redis cluster will quickly become a bottleneck due to the amount of calculations. By aggregating API usage stats locally in-memory and calling Redis instances periodically (i.e., every 50 ms), we can significantly reduce Redis usage and still keep the overall decision latency at a relatively low level. In addition, we designed the hash keys in a way to make sure requests are evenly distributed across Redis instances.&lt;/p&gt;
+
+&lt;h2 id=&quot;evaluation-and-benchmarks&quot;&gt;Evaluation and benchmarks&lt;/h2&gt;
+
+&lt;p&gt;We did multiple rounds of load tests, both before and after launching Quotas, to evaluate its performance and find potential scaling bottlenecks. After the optimization efforts, Quotas now gracefully handles 200k peak production TPS. More importantly, critical system resource usage for Quotas’ application server, Redis and Kafka are still at a relatively low level, suggesting that Quotas can support much higher TPS before the need to scale up.&lt;/p&gt;
+
+&lt;p&gt;Quotas current production settings are:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;12 c5.2xlarge (8 vCPU, 16GB) AWS EC2 instances&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;6 cache.m4.large (2 vCPU, 6.42GB, master-slave) AWS ElasticCaches&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Shared Kafka cluster with other application topics&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Figures 4 &amp;amp; 5 show a typical day’s CPU usage for the Quotas application server and Redis Cache respectively. With 200k peak TPS, Quotas handles the load with peak application server CPU usage at about 20% and Redis CPU usage of 15%. Due to the nature of Quotas data usage, most of the data stored in Redis cache is time sensitive and stored with time-to-live (TTL) values.&lt;/p&gt;
+
+&lt;p&gt;However, because of how Redis expires keys (&lt;a href=&quot;https://redis.io/commands/expire&quot;&gt;https://redis.io/commands/expire&lt;/a&gt;) and the amount of time-sensitive data Quotas stores in Redis, we have implemented a proprietary cron job to actively garbage collect expired Redis keys. By running the cron job every 15 minutes, Quotas keeps the Redis memory usage at a low level.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 4: Quotas CPU Usage&quot; src=&quot;/img/quotas-service/image_3.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 4: Quotas CPU Usage&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 5: Quotas Redis CPU Usage&quot; src=&quot;/img/quotas-service/image_4.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 5: Quotas Redis CPU Usage&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We have conducted load tests to identify the potential issues for scaling Quotas. The tests have shown that we can horizontally scale Quotas to support extremely high TPS using only configuration changes:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Kafka is well known for its high throughput, low-latency, high scalability characteristics. By either increasing the number of partitions on Quotas API usage topic or adding more Kafka nodes, the system can evenly distribute and handle additional load.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;All Quotas application servers form a consumer group (CG) to consume the Kafka API usage topic (partitioned based on the number of instance expectations). Whenever an instance starts or goes offline, the topic partitions are re-distributed among the application servers. This allows balanced topic partition consumptions and thus somewhat evenly distributed application server CPU and memory usages. &lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;We have also implemented a consistent hashing based algorithm to support multiple Redis instances. It supports easy Redis instances addition or removal by configuration changes. With well chosen hash keys, load can be evenly distributed to the Redis instances.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;With the above design and implementations, all the critical Quotas components can be easily scaled and extended when a bottleneck occurs either at Kafka, application server, or Redis levels.&lt;/p&gt;
+
+&lt;h2 id=&quot;roadmap-for-quotas&quot;&gt;Roadmap for Quotas&lt;/h2&gt;
+
+&lt;p&gt;Quotas is currently used by more than a dozen internal Grab services, and soon all Grab internal services will use it.&lt;/p&gt;
+
+&lt;p&gt;Quotas is part of the company-wide ServiceMesh effort to handle service discovery, load balancing, circuit breaker, retry, health monitoring, rate-limiting, security, etc. consistently across all Grab services.&lt;/p&gt;
+
+</description>
+        <pubDate>Fri, 10 Aug 2018 02:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/quotas-service</link>
+        <guid isPermaLink="true">https://engineering.grab.com/quotas-service</guid>
+        
+        <category>Quota</category>
+        
+        <category>Back End</category>
+        
+        <category>Service</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Grab Senior Data Scientist Liuqin Yang Wins Beale-Orchard-Hays Prize</title>
@@ -1267,150 +1470,6 @@ FIN-WAIT-2  0       0       172.18.0.4:54308    172.18.0.3:3306
         
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>The Art of Hiring Good Engineers</title>
-        <description>&lt;p&gt;&lt;img src=&quot;/img/the-art-of-hiring-good-engineers/cover.jpg&quot; alt=&quot;cover&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Hiring the first five Good Engineers in your team requires a different approach to hiring the first twenty Good Engineers. The approach to designing this process will be even more different, when you want to hire to scale up to a 100 Engineers… or even to 300.&lt;/p&gt;
-
-&lt;p&gt;Should you start from the top hires?&lt;/p&gt;
-
-&lt;p&gt;Or should you start from hiring a few really Good Engineers and then help them to scale?&lt;/p&gt;
-
-&lt;p&gt;This post covers some concepts on designing efficient, useful processes to help Tech Leads who are actively involved in building fast-growing Engineering teams from scratch. This post may also be useful for people working in super niche fields who want to build and scale Engineering teams for continued growth.&lt;/p&gt;
-
-&lt;h3 id=&quot;start-small&quot;&gt;Start Small&lt;/h3&gt;
-
-&lt;p&gt;There is never only one way to start building a team of Good Engineers. Many of the mobile apps we use daily today, are known for having small teams of Good Engineers who built great products:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;WhatsApp finished building their initial product with 32 Engineers&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Skype’s product was built by 5 Engineers&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Instagram’s first team only had 13 employees in total&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Your small team of Good Engineers should be ready to fight everyday for the right to be a player in the market where you are.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;They will need to be more eager, more hungry, and more customer minded than others. They will need to always fight for the right to be a player in that market. To fight off the big guys, sometimes the Good Engineer needs to be battle-worn, battle-tried.&lt;/p&gt;
-
-&lt;p&gt;The battle-tried Good Engineer has faced many of the situations you too will face:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;How do you handle outages that cause the entire product to be down?&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;How do you release a lot of features simultaneously without disrupting users?&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/the-art-of-hiring-good-engineers/quote.jpg&quot; alt=&quot;quote&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;follow-existing-wisdom&quot;&gt;Follow Existing Wisdom&lt;/h3&gt;
-
-&lt;p&gt;Many of the top technology companies today have had great success in hiring Good Engineers. They do put in plenty of effort and research to design processes that work for bringing in hundreds of Good Engineers each year.&lt;/p&gt;
-
-&lt;p&gt;My recommendation to you would be to follow the wisdom of these best practices that have been adopted by the top companies.  Many of these processes are well documented and shared about on sites like Quora and Glassdoor. However, be mindful that there are weak points in these processes due to how top companies deal with volume.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;(Too many interviews + tests and coding assignment rounds) * too little human touch = bad design for hiring a team of Good Engineers&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h3 id=&quot;shatter-illusions&quot;&gt;Shatter Illusions&lt;/h3&gt;
-
-&lt;p&gt;The illusion that there is always more Good Engineers out there&lt;/p&gt;
-
-&lt;p&gt;When you have found a truly Good Engineer, he/she is simply irreplaceable. I believe this Good Engineer can help drive successful processes to help you hire 100 Good Engineers as I’ve personally witnessed this effort happen - and as they also carry great value in product knowledge, systems design, and design thinking, they will be able to exert an influence over their colleagues which, when lost, has an immeasurable impact on the internal culture.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/the-art-of-hiring-good-engineers/quote_2.jpg&quot; alt=&quot;quote 2&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The illusion that small teams can afford to not think about diversity.&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Don’t forget about diversity, equality and inclusion. Even in small teams, diversity - this means hiring a Good Engineer coming from a completely different background from you and the other members - bring distinct advantages.&lt;/p&gt;
-
-&lt;p&gt;Remember to give everyone an equal chance to join your team by eliminating as many obvious biases as possible - and to understand inclusion, simply: when you invite someone ‘different’ to the party, make them feel like they are not only invited, but make them feel like they are really one of you! There’s something to be said for teams that champion all three.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Do a fast game, but not too fast though!&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;If you bring in Good Engineers too fast and furious without a proper approach, some parts of the moving equation will prove to be detrimental to their success - if you are not setting them up for success, the Good Engineer will find it hard to match the fit prerogatives, and fail, fast. Being fast at hiring Good Engineers should not be the only success metric you hold yourself to.&lt;/p&gt;
-
-&lt;h3 id=&quot;the-recipe-so-far&quot;&gt;The Recipe so far&lt;/h3&gt;
-
-&lt;p&gt;Start Small + Follow Existing Wisdom + Shatter Illusions + … how about designing a process that works ?&lt;/p&gt;
-
-&lt;p&gt;Now, if you are ready to design your process, consider these 4 steps for designing a robust process.&lt;/p&gt;
-
-&lt;h4 id=&quot;step-1-make-a-really-good-list&quot;&gt;Step 1: Make a REALLY Good List&lt;/h4&gt;
-
-&lt;p&gt;If you do decide to only hire the top 2 - 5% Good Engineers with a relevant tech stack / industry expertise, understand that you are making your process 100 times harder. Sometimes this means that you have to process 500 profiles in order to hire 5 - 10 Good Engineers. This will take months at least, unless you have super resources.&lt;/p&gt;
-
-&lt;p&gt;Add to your list those Good Engineers who are open-source committers, top Engineers from the leading technology companies who are in your location. Even if they do not join your team now, they will be able to recommend others - Good Engineers attract Good Engineers and these activities of yours will be discussed in engineering communities.&lt;/p&gt;
-
-&lt;p&gt;Once you have already recognised all profiles from LinkedIn, GitHub is the next battleground to look up.&lt;/p&gt;
-
-&lt;h4 id=&quot;step-2-determine-technical-fit&quot;&gt;Step 2: Determine technical fit&lt;/h4&gt;
-
-&lt;p&gt;While I don’t recommend the technical phone screen for every single engineering role (as cybersecurity and niche data engineering processes can be designed differently, frontend, full-stack and product or mobile engineering hiring can benefit from a process to review their portfolio and design thinking), most top companies assign tests as the pre-screening round that can be a timed coding test with relevancy, a technical phone screen, a recruiter screen for the role, scope, and culture fit or, a take-home assignment involving designing elements crucial for success in the role.&lt;/p&gt;
-
-&lt;p&gt;Most top companies design this first part to take 1-2 hours of the candidates’ time initially, the phone screen can range from 20 minutes to 1.5 hours.&lt;/p&gt;
-
-&lt;h4 id=&quot;step-3-determine-culture-and-team-fit-based-off-group-interviews&quot;&gt;Step 3: Determine culture and team fit based off group interviews&lt;/h4&gt;
-
-&lt;p&gt;The outcome you should look for is ideally for every one of your warriors to feel comfortable with fighting alongside this battle-ready Good Engineer. Misgivings and possible gaps can always be improved on while working on the product together.&lt;/p&gt;
-
-&lt;p&gt;Also check if the Good Engineer can work well with others in Design, Product and Data functions as well as communicate reasonably well to someone outside your engineering organization. Any HR or Recruitment professional can help check if the Engineer possesses a few of these soft skills you need, such as communicating to stakeholders, business acumen or excitement in helping solve customer issues. Don’t skip this step!&lt;/p&gt;
-
-&lt;h4 id=&quot;step-4-optimise-your-process-to-always-be-closing&quot;&gt;Step 4: Optimise your process to ‘Always Be Closing’&lt;/h4&gt;
-
-&lt;p&gt;Most talent acquisition professionals abide by the ‘always be closing’ mantra - they are selective in the people they talk to and eventually feel proud to represent to top companies, they also choose the roles they want to focus on, usually these are the easier roles to fulfil, according to their expertise.&lt;/p&gt;
-
-&lt;p&gt;It could be a good idea to identify the members in your team who are really ‘strict’ interviewers, we call them ‘bar-raisers’ and only send the super strong profiles across to them. The normal profiles can be sent to other Good Engineers for interviewing, so as not to burn out the strict bar-raiser.&lt;/p&gt;
-
-&lt;p&gt;By following this method we can effectively predict the pipeline of candidates and expedite those who have passed well in the bar-raiser round. Always know your reasons for declining a candidate and always be involved in the interview rounds no matter how big your team gets. Your efforts will definitely be discussed by others, so it’s also a good idea to frequently check in with peers, board members and technical advisors, especially if you find a senior candidate who had overlapping tenures with them. Your board and peers could provide useful information about this candidate or other interesting details that enable you to enhance your decision making process and improve your future hiring process as well.&lt;/p&gt;
-
-&lt;p&gt;If you did not manage to optimise your approach, a possible outcome is that you will be wasting valuable time of your existing Engineers. One hour spent in a bad interview is one hour less that could be spent on coding for your product.&lt;/p&gt;
-
-&lt;p&gt;I think it is a good idea to personally spend more time with all Good Engineer candidates on an informal basis, if you feel that the 1 hour or 1.5 hour session did not suffice to determine if he/she is a suitable hire.&lt;/p&gt;
-
-&lt;p&gt;Many Good Engineers will seem to possess all the right credentials but in the mid to long-term, there will always be some who are much better for your team.&lt;/p&gt;
-
-&lt;h3 id=&quot;final-thoughts&quot;&gt;Final thoughts&lt;/h3&gt;
-
-&lt;p&gt;Aim for a flat structure, even if you get big one day. Companies like Facebook and Grab still try to keep their Engineering structure as flat as possible.&lt;/p&gt;
-
-&lt;p&gt;Company after company who rose to greatness often struggle with scale.&lt;/p&gt;
-
-&lt;p&gt;The first point to the last point of interaction is always important for the candidate experience. Your branding is important if you want to build a strong team from the first hire to the last.&lt;/p&gt;
-
-&lt;p&gt;Hire the really talented Good Engineer, and the rest will follow.&lt;/p&gt;
-
-&lt;p&gt;Ensure your small team still stands for diversity, equality and inclusion&lt;/p&gt;
-
-&lt;p&gt;Always be closing but don’t forget to have fun: Your current challenge will always be to hire the people who really want to see you succeed!&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;/so-you-need-to-hire-good-engineers&quot;&gt;So you need to hire a Good Engineer&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;Thank you for reading and please share some ideas for future inspiration, I love challenges!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 04 Oct 2017 07:30:00 +0000</pubDate>
-        <link>https://engineering.grab.com/the-art-of-hiring-good-engineers</link>
-        <guid isPermaLink="true">https://engineering.grab.com/the-art-of-hiring-good-engineers</guid>
-        
-        <category>Hiring</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
