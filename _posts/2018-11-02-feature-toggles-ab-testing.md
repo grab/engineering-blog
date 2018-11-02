@@ -71,7 +71,7 @@ To overcome these challenges, we designed an SDK with capabilities to:
 
 On the non-functional requirements side, we needed our SDK to be scalable, reliable, and have virtually no latency on the variable retrieval. This meant that we could not make a network call every time we needed a variable. Also, this had to be done asynchronously.
 
-We ended up designing a very simple Go API for our SDK to be used by backend services. The API essentially contains two functions **GetVariable(**) and **Track()** which are rather self-explanatory - one gets a value of the variable and the other lets users track anything they want. 
+We ended up designing a very simple Go API for our SDK to be used by backend services. The API essentially contains two functions **GetVariable()** and **Track()** which are rather self-explanatory - one gets a value of the variable and the other lets users track anything they want.
 
 ~~~go
 type Client interface {
@@ -115,7 +115,7 @@ threshold :=  client.GetVariable(ctx, "myFeature", sdk.NewFacets().
 ).Int64(10)
 ~~~
 
-From the code above, note there's a second step required to actually retrieve the value. In the example we use the method **Int64()**. It checks if a variable is part of the experiment, converts it to **int64,** and returns a value.
+From the code above, note there's a second step required to actually retrieve the value. In the example we use the method **Int64()**. It checks if a variable is part of the experiment, converts it to **int64**, and returns a value.
 
 * The **default value** is used when:
 
