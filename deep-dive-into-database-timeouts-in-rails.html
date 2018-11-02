@@ -202,20 +202,19 @@
 
 <p>The following pseudocode is the algorithm for how ActiveRecord retrieves connections from the pool to perform database queries.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">if</span> <span class="n">there</span> <span class="n">are</span> <span class="n">existing</span> <span class="n">connections</span> <span class="n">to</span> <span class="n">the</span> <span class="n">database</span> <span class="n">available</span><span class="p">:</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span> <span class="n">there</span> <span class="n">are</span> <span class="n">existing</span> <span class="n">connections</span> <span class="n">to</span> <span class="n">the</span> <span class="n">database</span> <span class="n">available</span><span class="p">:</span>
     <span class="k">return</span> <span class="n">one</span> <span class="n">of</span> <span class="n">the</span> <span class="n">existing</span> <span class="n">connections</span>
 
 <span class="k">if</span> <span class="n">the</span> <span class="n">pool</span> <span class="ow">is</span> <span class="n">at</span> <span class="n">capacity</span><span class="p">:</span>
     <span class="n">wait</span> <span class="n">on</span> <span class="n">the</span> <span class="n">queue</span><span class="p">,</span> <span class="k">raise</span> <span class="n">exception</span> <span class="k">if</span> <span class="sb">`checkout_timeout`</span> <span class="n">has</span> <span class="n">elapsed</span>
     <span class="k">return</span> <span class="n">one</span> <span class="n">of</span> <span class="n">the</span> <span class="n">now</span> <span class="n">available</span> <span class="n">connections</span>
 
-<span class="c"># pool is not at capacity</span>
-<span class="k">try</span> <span class="n">to</span> <span class="n">create</span> <span class="n">a</span> <span class="n">new</span> <span class="n">connection</span><span class="p">,</span> <span class="k">raise</span> <span class="n">exception</span> <span class="k">if</span> <span class="sb">`connect_timeout`</span> <span class="n">has</span> <span class="n">elapsed</span>
+<span class="c1"># pool is not at capacity
+</span><span class="k">try</span> <span class="n">to</span> <span class="n">create</span> <span class="n">a</span> <span class="n">new</span> <span class="n">connection</span><span class="p">,</span> <span class="k">raise</span> <span class="n">exception</span> <span class="k">if</span> <span class="sb">`connect_timeout`</span> <span class="n">has</span> <span class="n">elapsed</span>
 
-<span class="c"># connection to database established</span>
-<span class="k">return</span> <span class="n">new</span> <span class="n">connection</span>
-</code></pre>
-</div>
+<span class="c1"># connection to database established
+</span><span class="k">return</span> <span class="n">new</span> <span class="n">connection</span>
+</code></pre></div></div>
 
 <p>This is loosely translated from the <a href="https://github.com/rails/rails/blob/f8c00c130016b248d1d409f131356632dcc418c6/activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb#L725-L749">source code</a>.</p>
 
@@ -227,51 +226,46 @@
 
 <p>First, we will scaffold a fresh Rails application and connect it to two databases that we will call as <code class="highlighter-rouge">db_main</code> and <code class="highlighter-rouge">db_other</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="c"># the flags removes unwanted boilerplate code</span>
-rails new rails-mysql-timeouts --database<span class="o">=</span>mysql --api -M -C -S -J -T
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># the flags removes unwanted boilerplate code</span>
+rails new rails-mysql-timeouts <span class="nt">--database</span><span class="o">=</span>mysql <span class="nt">--api</span> <span class="nt">-M</span> <span class="nt">-C</span> <span class="nt">-S</span> <span class="nt">-J</span> <span class="nt">-T</span>
+</code></pre></div></div>
 
 <p>For simplicity, we will set the <code class="highlighter-rouge">thread_count</code> of our Puma server to <code class="highlighter-rouge">2</code>, in <code class="highlighter-rouge">config/puma.rb</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="n">threads_count</span> <span class="o">=</span> <span class="mi">2</span>
-</code></pre>
-</div>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">threads_count</span> <span class="o">=</span> <span class="mi">2</span>
+</code></pre></div></div>
 
 <p>Using <code class="highlighter-rouge">rails generate scaffold</code>, we set up a <code class="highlighter-rouge">Driver</code> model to talk to our main database, and a <code class="highlighter-rouge">Passenger</code> model to talk to another database we want to test the failure on. This can be done by adding the following line to our <code class="highlighter-rouge">Passengers</code> model.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Passenger</span> <span class="o">&lt;</span> <span class="no">ApplicationRecord</span>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Passenger</span> <span class="o">&lt;</span> <span class="no">ApplicationRecord</span>
   <span class="c1"># connect to #{Rails.env}_other database specified in the database.yml</span>
   <span class="n">establish_connection</span> <span class="s2">"</span><span class="si">#{</span><span class="no">Rails</span><span class="p">.</span><span class="nf">env</span><span class="si">}</span><span class="s2">_other"</span><span class="p">.</span><span class="nf">to_sym</span>
 <span class="k">end</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>We now have the following HTTP routes:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code># connects to db_main
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># connects to db_main
 GET /drivers/1
 
 # connects to db_other
 GET /passengers/1
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Now we will run our Rails server with the following environment variables</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="nb">export </span><span class="nv">RAILS_ENV</span><span class="o">=</span>production
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">RAILS_ENV</span><span class="o">=</span>production
 <span class="nb">export </span><span class="nv">RAILS_LOG_TO_STDOUT</span><span class="o">=</span>1
 
 rails server
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>By using a docker container to run the Rails application, we can isolate the process namespace and focus directly on our application. We run <code class="highlighter-rouge">ps</code> and observe the two threads we have configured puma — <code class="highlighter-rouge">puma 001</code> and <code class="highlighter-rouge">puma 002</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ps -T -e
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ps <span class="nt">-T</span> <span class="nt">-e</span>
   PID  SPID TTY          TIME CMD
-    1     1 ?        00:00:00 sleep
-   30    30 pts/1    00:00:00 bash
+    1     1 ?        00:00:00 <span class="nb">sleep
+   </span>30    30 pts/1    00:00:00 bash
    63    63 pts/0    00:00:00 bash
    97    97 pts/1    00:00:03 ruby
    97    99 pts/1    00:00:00 ruby-timer-thr
@@ -283,8 +277,7 @@ rails server
    97   110 pts/1    00:00:00 thread_pool.rb<span class="k">*</span>
    97   111 pts/1    00:00:00 server.rb:327
   112   112 pts/0    00:00:00 ps
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Note that PID 1 is <code class="highlighter-rouge">sleep</code> because in <a href="https://github.com/grab/blogs/tree/master/2017-01-29-deep-dive-into-database-timeouts-in-rails/docker-compose.yml"><code class="highlighter-rouge">docker-compose.yml</code></a>, we specified that the container should start with <code class="highlighter-rouge">cmd: sleep infinity</code> so that we can attach to the running container at any time, not unlike a <code class="highlighter-rouge">ssh</code> to a machine.</p>
 
@@ -292,13 +285,12 @@ rails server
 
 <p>We make the following requests to ensure that our server is working correctly:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl localhost:3000/drivers
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl localhost:3000/drivers
 <span class="o">[{</span><span class="s2">"id"</span>:1,<span class="s2">"name"</span>:<span class="s2">"test driver"</span>,<span class="s2">"created_at"</span>:<span class="s2">"2017-11-05T11:59:15.000Z"</span>,<span class="s2">"updated_at"</span>:<span class="s2">"2017-11-05T11:59:15.000Z"</span><span class="o">}]</span>
 
-<span class="gp">$ </span>curl localhost:3000/passengers
+<span class="nv">$ </span>curl localhost:3000/passengers
 <span class="o">[{</span><span class="s2">"id"</span>:1,<span class="s2">"name"</span>:<span class="s2">"test"</span>,<span class="s2">"created_at"</span>:<span class="s2">"2017-01-01T00:00:00.000Z"</span>,<span class="s2">"updated_at"</span>:<span class="s2">"2017-01-07T00:00:00.000Z"</span><span class="o">}]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Great! We are now able to see the records generated in the database by the above curl requests.</p>
 
@@ -310,43 +302,37 @@ rails server
 
 <p>First, we use <a href="https://github.com/Shopify/toxiproxy">Toxiproxy</a> as a transport layer proxy to <code class="highlighter-rouge">db_other</code> which allows us to manipulate the pipe between the client and the upstream database. The following command stops all data from getting the proxy, and closes the connection after timeout.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>toxiproxy-cli toxic add db_other_proxy --toxicName timeout --type timeout --attribute<span class="o">=</span><span class="nv">timeout</span><span class="o">=</span>100000
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>toxiproxy-cli toxic add db_other_proxy <span class="nt">--toxicName</span> <span class="nb">timeout</span> <span class="nt">--type</span> <span class="nb">timeout</span> <span class="nt">--attribute</span><span class="o">=</span><span class="nb">timeout</span><span class="o">=</span>100000
+</code></pre></div></div>
 
 <p>Now we test if things are still working for endpoints that access the unaffected database.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl localhost:3000/drivers
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl localhost:3000/drivers
 <span class="o">[{</span><span class="s2">"id"</span>:1,<span class="s2">"name"</span>:<span class="s2">"test driver"</span>,<span class="s2">"created_at"</span>:<span class="s2">"2017-11-05T11:59:15.000Z"</span>,<span class="s2">"updated_at"</span>:<span class="s2">"2017-11-05T11:59:15.000Z"</span><span class="o">}]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This is expected, as the <code class="highlighter-rouge">db_main</code> is still running. Let’s trigger a request to <code class="highlighter-rouge">db_other</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl localhost:3000/passengers
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl localhost:3000/passengers
+</code></pre></div></div>
 
 <p>We notice that the command does not exit and our terminal blocks while waiting for the command to terminate.</p>
 
 <p>Let’s trigger another call to <code class="highlighter-rouge">db_main</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl localhost:3000/drivers
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl localhost:3000/drivers
 <span class="o">[{</span><span class="s2">"id"</span>:1,<span class="s2">"name"</span>:<span class="s2">"test driver"</span>,<span class="s2">"created_at"</span>:<span class="s2">"2017-11-05T11:59:15.000Z"</span>,<span class="s2">"updated_at"</span>:<span class="s2">"2017-11-05T11:59:15.000Z"</span><span class="o">}]</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Seems like it still works! Now let’s make another request to the <code class="highlighter-rouge">db_other</code> to lock up the two threads our server is configured to use.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl localhost:3000/passengers
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl localhost:3000/passengers
+</code></pre></div></div>
 
 <p>And make another request to <code class="highlighter-rouge">db_main</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl localhost:3000/drivers
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl localhost:3000/drivers
+</code></pre></div></div>
 
 <p>Notice that the call to <code class="highlighter-rouge">/drivers</code> is stuck and does not complete now. Because we have set the thread count to <code class="highlighter-rouge">2</code>, and have two <code class="highlighter-rouge">/passengers</code> requests in flight, both threads are stuck waiting for the database and we do not have any more threads available to handle the new request, hence the stalled <code class="highlighter-rouge">/drivers</code> request.</p>
 
@@ -356,10 +342,9 @@ rails server
 
 <p>Let’s perform some experiments to better understand how <code class="highlighter-rouge">connect_timeout</code> and <code class="highlighter-rouge">read_timeout</code> work. We will set the timeouts to the following:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="s">+ connect_timeout</span><span class="pi">:</span> <span class="s">10</span>
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="s">+ connect_timeout</span><span class="pi">:</span> <span class="s">10</span>
 <span class="s">+ read_timeout</span><span class="pi">:</span> <span class="s">5</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>In the following section we will perform two experiments.</p>
 
@@ -388,47 +373,42 @@ rails server
 
 <p>We can use the <a href="http://man7.org/linux/man-pages/man8/ss.8.html"><code class="highlighter-rouge">ss</code></a> command to observe the TCP connections. When Rails has just been started, there are no existing TCP connections .</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="c"># shows TCP connections with the PID</span>
-<span class="gp">$ </span>ss -tnp
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># shows TCP connections with the PID</span>
+<span class="nv">$ </span>ss <span class="nt">-tnp</span>
+</code></pre></div></div>
 
 <p>After a <code class="highlighter-rouge">GET /passengers</code> completes, a TCP connection can be seen in the <code class="highlighter-rouge">ESTAB</code> state.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ss -tnp
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ss <span class="nt">-tnp</span>
 State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
-ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   users:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>13<span class="o">))</span>
-</code></pre>
-</div>
+ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   <span class="nb">users</span>:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>13<span class="o">))</span>
+</code></pre></div></div>
 
 <p>Now we stop the database, and make another call to <code class="highlighter-rouge">GET /passengers</code>. We run <code class="highlighter-rouge">ss</code> when the request is in flight, and observe another TCP connection for the request to the port Rails listens on, port <code class="highlighter-rouge">3000</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ss -tnp
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ss <span class="nt">-tnp</span>
 State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
-ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   users:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>13<span class="o">))</span>
-ESTAB  0       0       172.18.0.4:3000     172.18.0.1:60878  users:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>12<span class="o">))</span>
-</code></pre>
-</div>
+ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   <span class="nb">users</span>:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>13<span class="o">))</span>
+ESTAB  0       0       172.18.0.4:3000     172.18.0.1:60878  <span class="nb">users</span>:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>12<span class="o">))</span>
+</code></pre></div></div>
 
 <p>After <code class="highlighter-rouge">read_timeout</code> has elapsed, we see that a new connection is established to the database, and the first one has transitioned to a <code class="highlighter-rouge">FIN-WAIT</code> state. This new TCP connection is in the <code class="highlighter-rouge">ESTAB</code> state (line 3), because we have only stopped the database on the application layer, but the sockets to the container still accept the TCP handshake on the transport layer.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ss -tnp
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ss <span class="nt">-tnp</span>
 State       Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
 FIN-WAIT-2  0       0       172.18.0.4:54304    172.18.0.3:3306
-ESTAB       0       0       172.18.0.4:54308    172.18.0.3:3306   users:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>13<span class="o">))</span>
-ESTAB       0       0       172.18.0.4:3000     172.18.0.1:60878  users:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>12<span class="o">))</span>
-</code></pre>
-</div>
+ESTAB       0       0       172.18.0.4:54308    172.18.0.3:3306   <span class="nb">users</span>:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>13<span class="o">))</span>
+ESTAB       0       0       172.18.0.4:3000     172.18.0.1:60878  <span class="nb">users</span>:<span class="o">((</span><span class="s2">"ruby"</span>,pid<span class="o">=</span>11683,fd<span class="o">=</span>12<span class="o">))</span>
+</code></pre></div></div>
 
 <p>After <code class="highlighter-rouge">connect_timeout</code> has elapsed, the request terminates with a 500 error, and we observe that all the connections are in the <code class="highlighter-rouge">FIN-WAIT</code> state.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ss -tnp
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ss <span class="nt">-tnp</span>
 State       Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
 FIN-WAIT-2  0       0       172.18.0.4:54310    172.18.0.3:3306
 FIN-WAIT-2  0       0       172.18.0.4:54304    172.18.0.3:3306
 FIN-WAIT-2  0       0       172.18.0.4:54308    172.18.0.3:3306
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The experimental data can be found <a href="#experimental-data">below</a>.</p>
 
@@ -486,25 +466,23 @@ FIN-WAIT-2  0       0       172.18.0.4:54308    172.18.0.3:3306
 
 <p>The following is a snippet for our current <code class="highlighter-rouge">database.yml</code> configuration before the outage, and the changes to resolve the problem.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="c1"># Config for the non-primary `db_other` database</span>
-<span class="s">production_other</span><span class="pi">:</span>
-  <span class="s">adapter</span><span class="pi">:</span> <span class="s">mysql2</span>
-  <span class="s">encoding</span><span class="pi">:</span> <span class="s">utf8</span>
-  <span class="s">reconnect</span><span class="pi">:</span> <span class="s">false</span>
-  <span class="s">database</span><span class="pi">:</span> <span class="s">…</span>
-  <span class="s">pool</span><span class="pi">:</span> <span class="s">…</span>
-  <span class="s">reaping_frequency</span><span class="pi">:</span> <span class="s">120</span>
-  <span class="s">username</span><span class="pi">:</span> <span class="s">…</span>
-  <span class="s">password</span><span class="pi">:</span> <span class="s">…</span>
-  <span class="s">host</span><span class="pi">:</span> <span class="s">…</span>
-</code></pre>
-</div>
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Config for the non-primary `db_other` database</span>
+<span class="na">production_other</span><span class="pi">:</span>
+  <span class="na">adapter</span><span class="pi">:</span> <span class="s">mysql2</span>
+  <span class="na">encoding</span><span class="pi">:</span> <span class="s">utf8</span>
+  <span class="na">reconnect</span><span class="pi">:</span> <span class="no">false</span>
+  <span class="na">database</span><span class="pi">:</span> <span class="s">…</span>
+  <span class="na">pool</span><span class="pi">:</span> <span class="s">…</span>
+  <span class="na">reaping_frequency</span><span class="pi">:</span> <span class="s">120</span>
+  <span class="na">username</span><span class="pi">:</span> <span class="s">…</span>
+  <span class="na">password</span><span class="pi">:</span> <span class="s">…</span>
+  <span class="na">host</span><span class="pi">:</span> <span class="s">…</span>
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code><span class="c1"># New changes</span>
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># New changes</span>
 <span class="s">+ connect_timeout</span><span class="pi">:</span> <span class="s">5</span>
 <span class="s">+ read_timeout</span><span class="pi">:</span> <span class="s">5</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="conclusion">Conclusion</h2>
 
@@ -587,7 +565,7 @@ FIN-WAIT-2  0       0       172.18.0.4:54308    172.18.0.3:3306
 <script>
   var disqus_config = function () {
     this.page.url = 'https://engineering.grab.com/deep-dive-into-database-timeouts-in-rails';
-    this.page.identifier = 'deep-dive-into-database-timeouts-in-rails';
+    this.page.identifier = '/deep-dive-into-database-timeouts-in-rails';
   };
   (function() {
     var d = document, s = d.createElement('script');
