@@ -23,7 +23,7 @@ Grab uses feature toggles to:
 
 2. Run **experiments (A/B tests)** by dynamically changing feature toggles for specific users, rides, etc. For example, a feature can appear only to a particular group of people while running an experiment (treatment group).
 
-![image alt text](/img/feature-toggles-ab-testing/image_0.png)
+![](/img/feature-toggles-ab-testing/image_0.png)
 
 Feature toggles, for both experiments and rollouts, let Grab substantially mitigate the risk of releasing immature functionality and try new features safely. If a release has a negative impact, we roll it back. If it’s doing well, we keep rolling it out. 
 
@@ -43,7 +43,7 @@ With experiments, you can perform tests to find out which changes actually work:
 
 Before 2017, all our experiments were done manually with custom code written here and there in every backend service. As our engineering team grew, this became unsustainable and resulted in excessive friction and endless meetings. The figure below describes problems we used to face before having a centralised experimentation platform. This was an iterative process which sometimes took weeks, slowing down the organisation altogether.
 
-![image alt text](/img/feature-toggles-ab-testing/image_1.png)
+![](/img/feature-toggles-ab-testing/image_1.png)
 
 We needed to solve our A/B testing issues and let Grabbers easily integrate and retrieve feature toggle values dynamically. And we needed to that without having network calls and without subjecting our services to unnecessary network jitter, potential latency, and reliability issues.
 
@@ -170,7 +170,7 @@ This definition contains the rollout of the **automatedMessageDelay** variable.
 
 3. The rollout definition has a version for auditing and a schema for possible evolution.
 
-![image alt text](/img/feature-toggles-ab-testing/image_2.png)
+![](/img/feature-toggles-ab-testing/image_2.png)
 
 Our SDK uses an internal configuration service to store configurations (the Universal Configuration Manager, or UCM, which uses Amazon S3 behind-the-scenes). All of our backend services poll from UCM and get notified when a configuration is updated. The figure below demonstrates the overall system architecture.
 
@@ -206,7 +206,7 @@ Similarly, we have an experiment configuration with more advanced features such 
 }
 ~~~
 
-![image alt text](/img/feature-toggles-ab-testing/image_3.png)
+![](/img/feature-toggles-ab-testing/image_3.png)
 
 Similar to the formalisation of feature toggles, we formalised our experiments as JSON files and configured through our configuration store. Everything is done asynchronously and reliably as our services only depend on a Tier-0 AWS Simple Storage Service (S3). Our goal was to keep everything simple and reliable.
 
