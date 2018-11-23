@@ -6,9 +6,211 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 23 Nov 2018 10:25:27 +0000</pubDate>
-    <lastBuildDate>Fri, 23 Nov 2018 10:25:27 +0000</lastBuildDate>
+    <pubDate>Fri, 23 Nov 2018 10:28:08 +0000</pubDate>
+    <lastBuildDate>Fri, 23 Nov 2018 10:28:08 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Orchestrating Chaos using Grab's Experimentation Platform</title>
+        <description>&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;To everyday users, Grab is an app to book a ride, order food, or make a payment. To engineers, Grab is a distributed system of many services that interact via remote procedure call (RPC), sometimes called a microservice architecture. Hundreds of Grab services run on thousands of machines with engineers making changes every day. In such a complex setup, things can always go wrong. Fortunately, many of the Grab app’s internal services are not critical for user actions like booking a car. For example, bookmarks that recall the user’s previous destination add user value, but if they don’t work, the user should still enjoy a reasonable user experience.&lt;/p&gt;
+
+&lt;p&gt;Partial availability of services is not without risk. Engineers must have an alternative plan if something goes wrong when making RPC calls against non-critical services. If the contingency strategy is not implemented correctly, non-critical service problems can lead to an outage.&lt;/p&gt;
+
+&lt;p&gt;So how do we make sure that Grab users can complete critical functions, such as booking a taxi, even when non-critical services fail? The answer is Chaos Engineering.&lt;/p&gt;
+
+&lt;p&gt;At Grab, we practice chaos engineering by intentionally introducing failures in a service or component in the overall business flow. But the failed’ service is not the experiment’s focus.  We’re interested in testing the services dependent on that failed service.&lt;/p&gt;
+
+&lt;p&gt;Ideally, the dependent services should be resilient and the overall flow should continue working. For example, the booking flow should work even if failures are put in the driver location service. We test whether retries and exponential fallbacks are configured correctly, if the circuit breaker configs are set properly, etc.&lt;/p&gt;
+
+&lt;p&gt;To induce chaos into our systems, we combined the power of our Experimentation Platform (ExP) and &lt;a href=&quot;https://engineering.grab.com/introducing-grab-kit&quot;&gt;Grab-Kit&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Chaos ExP injects failures into traffic-serving server middleware (gRPC or HTTP servers). If the system behaves as expected, you can be confident that services will degrade gracefully when non-critical services fail.&lt;/p&gt;
+
+&lt;p&gt;Chaos ExP simulates different types of chaos, such as latencies and memory leaks within Grab’s infrastructure. This ensures individual components return &lt;em&gt;something&lt;/em&gt; even when system dependencies aren’t responding or respond with unusually high latency. It ensures our resilience to instance failures, as threats to availability can come from microservice level disruptions.&lt;/p&gt;
+
+&lt;h2 id=&quot;setting-up-for-chaos&quot;&gt;Setting up for chaos&lt;/h2&gt;
+
+&lt;p&gt;To build our chaos engineering system, we identified the two main areas for inducing chaos :&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Infrastructure&lt;/strong&gt;: By randomly shutting down instances and other infrastructure parts&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Application&lt;/strong&gt;: By introducing failures during runtime at a granular level (e.g. endpoint/request level)&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;You then enable chaos randomly or intentionally via experiments:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Randomly&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;More suitable for ‘disposable’ infrastructure (e.g. ec2 instances)&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;Tests redundant infrastructure for impact on end-users&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;Used when impact is well-understood&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Experiments&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;Accurately measure impact&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;Control over experimental parameters&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;Can limit impact on end-users&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;Suitable for complex failures (e.g. latency) when impact is not well understood&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Finally, you can categorize failure modes as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Resource&lt;/strong&gt;: CPU, memory, IO, disk&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Network&lt;/strong&gt;: Blackhole, latency, packet loss, DNS&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;State&lt;/strong&gt;: Shutdown, time, process killer&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Many of these modes can be applied or simulated at the infrastructure or app level, as shown:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/chaos-engineering/image_0.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For Grab, it was important to comprehensively test application-level chaos and carefully measure the impact. We decided to leverage an existing experimentation platform to orchestrate application-level chaos around the system, shown in the purple box, by injecting it in the underlying middleware such as &lt;a href=&quot;https://engineering.grab.com/introducing-grab-kit&quot;&gt;Grab-Kit&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-use-the-experimentation-platform&quot;&gt;Why use the Experimentation Platform?&lt;/h2&gt;
+
+&lt;p&gt;There are several chaos engineering tools. However, using them often requires an advanced level of infrastructure and operational skill, the ability to design and execute experiments, and resources to manually orchestrate the failure scenarios in a controlled manner. Chaos engineering is not as simple as breaking things in production.&lt;/p&gt;
+
+&lt;p&gt;Think of chaos engineering as a controlled experiment. Our ExP SDK provides resilient and asynchronous tracking. Thus, we can potentially attribute business metrics to chaos failures directly. For example, by running a chaos failure that introduces 10 second latencies in a booking service, we can determine how many rides were negatively affected and how much money was lost.&lt;/p&gt;
+
+&lt;p&gt;Using ExP as a chaos engineering tool means we can customize it based on the application or environment’s exact needs so that it deeply integrates with other environments like the monitoring and development pipelines.&lt;/p&gt;
+
+&lt;p&gt;There’s a security benefit as well. With ExP, all connections stay within our internal network, giving us control over the attack surface area. Everything can be kept on-premise, with no reliance on the outside world. This also potentially makes it easier to monitor and control traffic.&lt;/p&gt;
+
+&lt;p&gt;Chaos failures can be run ad-hoc, programmatically, or scheduled. You can also schedule them  to execute on certain days and within a specified time window. You can also set the maximum number of failures and customise them (e.g. number of MBs to leak, seconds to wait).&lt;/p&gt;
+
+&lt;p&gt;ExP’s core value proposition is allowing engineers to initiate, control, and observe how a system behaves under various failure conditions. ExP provides a comprehensive set of failure primitives for designing experiments and observing what happens when issues occur within a complex distributed system. Also, by integrating ExP with chaos testing, we did not require any modifications to a deployment pipeline or networking infrastructure. Thus the combination can be utilized more easily for a range of infrastructure and deployment paradigms.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-we-built-the-chaos-sdk-and-ui&quot;&gt;How we built the Chaos SDK and UI&lt;/h2&gt;
+
+&lt;p&gt;To build the chaos engineering SDK, we leveraged a property of our existing ExP SDK - single-digit microsecond-level variable resolution, which does not require a network call. You can read more about ExP SDK’s implementation &lt;a href=&quot;https://engineering.grab.com/feature-toggles-ab-testing&quot;&gt;here&lt;/a&gt;. This let us build two things:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;A smaller chaos SDK on top of ExP SDK. We’ve integrated this directly in our existing middleware, such as Grab-Kit and DB layers.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;A dedicated web-based UI for creating chaos experiments&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Thanks to our Grab-Kit integration, Grab engineers don’t actually need to use the Chaos SDK directly. When Grab-Kit serves an incoming request, it first checks with the ExP SDK. If the request “should fail”, it applies the appropriate failure type. It then forwards it to the handler of the specified endpoint.&lt;/p&gt;
+
+&lt;p&gt;We currently support these failure types:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Error - fails the request with an error&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;CPU Load - creates a load on the CPU&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Memory Leak - creates some memory which is never freed&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Latency - pauses the request’s execution for a random amount of time&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Disk Space - creates some temporary files on the machine&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Goroutine Leak - creates and leaks goroutines&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Panic - creates a panic in the request&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Throttle - creates a rate limiter inside the request that rejects limit-exceeding requests&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;As an example, if a booking request goes to our booking service, we call GetVariable(“chaosFailure”) to determine if this request should succeed. The call contains all of the information required to make this decision (e.g. the request ID, IP address of the instance, etc). For Experimentation SDK implementation details, visit this &lt;a href=&quot;https://engineering.grab.com/feature-toggles-ab-testing&quot;&gt;blog post&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;To promote chaos engineering among our engineers we built a great developer experience around it. Different engineering teams at Grab have expertise in different technologies and domains. So some might not have knowledge and skills to perform proper chaos experiments. But with our simplified user interface, they don’t have to worry about the underlying implementation.&lt;/p&gt;
+
+&lt;p&gt;Also, engineers who run chaos experiments are different experimentation platform users compared with our users like Product Analysts and Product Managers. Because of that, we provide a different experiment creation experience with a simple and specialized UI to configure new chaos experiments.&lt;/p&gt;
+
+&lt;p&gt;In the chaos engineering platform, an experiment has four steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Define the ideal state of the system’s normal behavior.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Create a control configuration group and a treatment configuration group. A control group’s variables are assigned existing values. A treatment group’s variables are assigned new values.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Introduce real-world failures, like an increase in CPU load.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Find the statistically significant difference between the system’s correct and failed states.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;To create a chaos experiment, target the service you want the experiment to break. You can further fine-grain this selection by providing the environment, availability zone, or a specific list of instances.&lt;/p&gt;
+
+&lt;p&gt;Next, specify a list of services affected by breaking the target service. You will closely monitor these services during the experiment. It helps to analyze the impact of the experiment later, though we continue tracking overall metrics indicating overall system health.&lt;/p&gt;
+
+&lt;p&gt;Next, we provide a UI to specify a strategy for dividing control and treatment groups, failure types, and configurations for each treatment. For the final step, provide a time duration and create the experiment. You’ve now added a chaos failure to your system and can monitor how it affects system behavior.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/chaos-engineering/image_1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusions&quot;&gt;Conclusions&lt;/h2&gt;
+
+&lt;p&gt;After running a chaos experiment, there are typically two potential outcomes. You’ve verified your system is resilient to the introduced failure, or you’ve found a problem you need to fix. Both of these are good outcomes if the chaos experiment was first run on a staging environment. In the first case, you’ve increased your confidence in the system and its behavior. In the other case, you’ve found a problem before it caused an outage.&lt;/p&gt;
+
+&lt;p&gt;Chaos Engineering is a tool to make your job easier. By proactively testing and validating your system’s failure modes you reduce your operational burden, increase your resiliency, and will sleep better at night.&lt;/p&gt;
+
+</description>
+        <pubDate>Fri, 23 Nov 2018 06:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/chaos-engineering</link>
+        <guid isPermaLink="true">https://engineering.grab.com/chaos-engineering</guid>
+        
+        <category>Chaos Engineering</category>
+        
+        <category>Resiliency</category>
+        
+        <category>Microservice</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Reliable and Scalable Feature Toggles and A/B Testing SDK at Grab</title>
@@ -1638,111 +1840,6 @@ FIN-WAIT-2  0       0       172.18.0.4:54308    172.18.0.3:3306
         <category>Ruby</category>
         
         <category>Ruby on Rails</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Dealing with the Meltdown patch at Grab</title>
-        <description>&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments across a region of more than 620 million people.&lt;/p&gt;
-
-&lt;p&gt;The &lt;a href=&quot;http://meltdownattack.com/&quot;&gt;meltdown attack&lt;/a&gt; reported recently had far reaching implications in terms of security as well as performance. This post is a quick rundown of what performance impacts we noted as well as how we went on to mitigate them.&lt;/p&gt;
-
-&lt;p&gt;Most of our infrastructure runs on AWS. Initially, the only indicators we had were the slightly more than usual EC2 maintenance notices sent by AWS. However, as most of our EC2 fleet is stateless, we were able to simply terminate the required instances and spin up new ones. All the instances run on HVM across a variety of instance types running multiple Golang and Ruby applications and we didn’t notice any performance impact.&lt;/p&gt;
-
-&lt;p&gt;The one place where we did notice a performance impact was on Elasticache. We use Elasticache, the managed service offered by AWS, to run hundreds of Redis nodes. These Redis instances are used by services in multiple ways and we run both the clustered version as well as the non-clustered version.&lt;/p&gt;
-
-&lt;p&gt;On January 3rd, our automatic alerting triggered at around noon for high CPU utilization on one of our critical redis nodes. The CPU utilisation had jumped from around 36% to 76%. Now those numbers don’t look too bad until you realize that this is an m4.large instance which means it has 2 vCPUs. Combined with the fact that Redis is single-threaded, whenever we see CPU utilization go past 50% it’s a cause for concern.&lt;/p&gt;
-
-&lt;p&gt;The initial suspicions were a deployment / workload change causing the spike and our initial investigations focused on that. However, over the course of a few hours, multiple unrelated Redis nodes started displaying the exact same behaviour with sudden significant spikes in CPU utilisation.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Fig 1. Redis CPU Utilization&quot; src=&quot;/img/dealing-with-the-meltdown-patch-at-grab/redis-cpu.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Fig 1. Redis CPU Utilization&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Notice the multiple sudden steep spikes in CPU utilisation and then plateauing as time goes on.&lt;/p&gt;
-
-&lt;p&gt;Some of the Redis with CPU utilisation spikes were the replica nodes in the multi-az setup. As most services were having these replicas purely for HA and not actively using them, having the CPU utilization on it spike without the master node spiking indicated that it was no longer a workload issue. At this point, we escalated to AWS with the data in hand.&lt;/p&gt;
-
-&lt;p&gt;Later that night, we then attempted to perform &lt;a href=&quot;https://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/AutoFailover.html&quot;&gt;Multi-AZ Failovers for certain nodes &lt;/a&gt; where the master had exhibited a spike but the replica hadn’t. Our suspicions at this time was that there was some underlying hardware issue and failing over to a node that wasn’t affected would help us. It was successful as once the replica became the master the CPU utilization went down to the original levels. We performed this operation for multiple nodes and then called it a night confident we’ve mitigated the problem.&lt;/p&gt;
-
-&lt;p&gt;Alas, our success was short-lived as the example graph below shows.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Fig 2. CPU Utilization of an affected Redis instance&quot; src=&quot;/img/dealing-with-the-meltdown-patch-at-grab/sextant-cpu.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Fig 2. CPU Utilization of an affected Redis instance&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Initially, prd-sextant-001 was the master and 002 was the replica. At noon on the 3rd, you see the CPU spike on master, the corresponding drop on the replica is still unexplained (The hypothesis is that a percentage of updates failed on the master node resulting in a smaller set of changes to be replicated). Early in the morning on the 4th is when we performed the failover, you see 002 now having utilization equal to 001. On the evening of the 4th, however, you see 002 have it’s CPU utilization significantly spike up.&lt;/p&gt;
-
-&lt;p&gt;With &lt;a href=&quot;https://aws.amazon.com/security/security-bulletins/AWS-2018-013/&quot;&gt;information released from AWS&lt;/a&gt; that the EC2 maintenance was related to meltdown and &lt;a href=&quot;https://www.phoronix.com/scan.php?page=article&amp;amp;item=linux-415-x86pti&amp;amp;num=1&quot;&gt;benchmarks&lt;/a&gt; being released about the performance impact of the patches, the two were put together as the possible explanation of what we were seeing. AWS could be performing rolling patches to the Elasticache nodes. As a node gets patched the CPU spikes and our failovers were only successful in reducing the utilization because we were failing over to a node that wasn’t yet patched. However, once that node got patched the CPU would spike again.&lt;/p&gt;
-
-&lt;p&gt;Realizing that this was now going to be the expected performance the teams quickly sprung into action on how to best spread the load.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Clustered Redis&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;We would add additional shards so that the load gets spread evenly. This was complicated by the fact that we were running on the engine version 3.2.4 which didn’t support live re-sharding so we had to spin up a lot of new clusters with the additional shards, ensure that the cache gets warmed up before switching completely over and decommissioning the old one.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Fig 3. Old API Redis Cluster with nodes going up to 50% peak CPU&quot; src=&quot;/img/dealing-with-the-meltdown-patch-at-grab/grab-api-cpu.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Fig 3. Old API Redis Cluster with nodes going up to 50% peak CPU&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Fig 4. New API Redis Cluster with additional shards now hovering at about 30% peak CPU&quot; src=&quot;/img/dealing-with-the-meltdown-patch-at-grab/grab-api-cpu-2.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Fig 4. New API Redis Cluster with additional shards now hovering at about 30% peak CPU&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Fig 5. Old Hot Data Redis Cluster with CPU peaking at around 48%&quot; src=&quot;/img/dealing-with-the-meltdown-patch-at-grab/hot-data-cpu.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Fig 5. Old Hot Data Redis Cluster with CPU peaking at around 48%&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Fig 6. New Hot Data Redis Cluster with CPU peaking at around 24%&quot; src=&quot;/img/dealing-with-the-meltdown-patch-at-grab/hot-data-cpu-2.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Fig 6. New Hot Data Redis Cluster with CPU peaking at around 24%&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Non-Clustered Redis&lt;/strong&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Some of our systems were already designed to use multiple Redis nodes. So provisioning additional nodes and updating the configs to start using these nodes was the easiest solution.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;For certain Redis nodes that were able to utilize Redis Cluster with minimal code change, we switched them to use Redis Cluster.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The final few Redis nodes, the service teams made significant code changes so that they could shard the data onto multiple nodes.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Fig 7. Redis where code changes were made to shard the data across multiple nodes to reduce the overall load on a single critical node&quot; src=&quot;/img/dealing-with-the-meltdown-patch-at-grab/web-cache.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Fig 7. Redis where code changes were made to shard the data across multiple nodes to reduce the overall load on a single critical node&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;All of these mitigations were done over a period of 24 hours to ensure that we go past our Friday peak (our highest traffic point during the week) without any customer facing impact.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Conclusion&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;This post was meant to give a quick glimpse of the impact that Meltdown has had at Grab as well provide some real data on the performance impact of the patches.&lt;/p&gt;
-
-&lt;p&gt;The design of our internal systems in their usage of Redis to quickly be able to horizontally scale-out was key in ensuring that there was minimal impact, if any to our customers.&lt;/p&gt;
-
-&lt;p&gt;We still have further investigation to conduct to truly understand why only certain Redis workloads were affected while others weren’t. We are planning to dive deeper into this and that may be the subject of a future blog post.&lt;/p&gt;
-
-</description>
-        <pubDate>Sun, 07 Jan 2018 07:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/dealing-with-the-meltdown-patch-at-grab</link>
-        <guid isPermaLink="true">https://engineering.grab.com/dealing-with-the-meltdown-patch-at-grab</guid>
-        
-        <category>AWS</category>
-        
-        <category>Meltdown</category>
         
         
         <category>Engineering</category>

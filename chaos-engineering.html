@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Orchestrating Chaos using Grab's Experimentation Platform</title>
+    <meta name="description" content="At Grab, we practice chaos engineering by intentionally introducing failures in a service or component in the overall business flow. But the failed’ service is not the experiment’s focus. We’re interested in testing the services dependent on that failed service.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/chaos-engineering">
+    <meta property="og:title" content="Orchestrating Chaos using Grab's Experimentation Platform">
+    <meta property="og:description" content="At Grab, we practice chaos engineering by intentionally introducing failures in a service or component in the overall business flow. But the failed’ service is not the experiment’s focus. We’re interested in testing the services dependent on that failed service.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/chaos-engineering/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/chaos-engineering">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/roman-atachiants.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/tharaka-wijebandara.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/abeesh-thomas.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Orchestrating Chaos using Grab's Experimentation Platform</h1>
+      <div class="post-meta">
+        23 Nov 2018
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#roman-atachiants">Roman Atachiants</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#tharaka-wijebandara">Tharaka Wijebandara</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#abeesh-thomas">Abeesh Thomas</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#chaos-engineering" class="label tags-label">Chaos Engineering</a>
+  
+    <a href="/tags#microservice" class="label tags-label">Microservice</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <h2 id="background">Background</h2>
+
+<p>To everyday users, Grab is an app to book a ride, order food, or make a payment. To engineers, Grab is a distributed system of many services that interact via remote procedure call (RPC), sometimes called a microservice architecture. Hundreds of Grab services run on thousands of machines with engineers making changes every day. In such a complex setup, things can always go wrong. Fortunately, many of the Grab app’s internal services are not critical for user actions like booking a car. For example, bookmarks that recall the user’s previous destination add user value, but if they don’t work, the user should still enjoy a reasonable user experience.</p>
+
+<p>Partial availability of services is not without risk. Engineers must have an alternative plan if something goes wrong when making RPC calls against non-critical services. If the contingency strategy is not implemented correctly, non-critical service problems can lead to an outage.</p>
+
+<p>So how do we make sure that Grab users can complete critical functions, such as booking a taxi, even when non-critical services fail? The answer is Chaos Engineering.</p>
+
+<p>At Grab, we practice chaos engineering by intentionally introducing failures in a service or component in the overall business flow. But the failed’ service is not the experiment’s focus.  We’re interested in testing the services dependent on that failed service.</p>
+
+<p>Ideally, the dependent services should be resilient and the overall flow should continue working. For example, the booking flow should work even if failures are put in the driver location service. We test whether retries and exponential fallbacks are configured correctly, if the circuit breaker configs are set properly, etc.</p>
+
+<p>To induce chaos into our systems, we combined the power of our Experimentation Platform (ExP) and <a href="https://engineering.grab.com/introducing-grab-kit">Grab-Kit</a>.</p>
+
+<p>Chaos ExP injects failures into traffic-serving server middleware (gRPC or HTTP servers). If the system behaves as expected, you can be confident that services will degrade gracefully when non-critical services fail.</p>
+
+<p>Chaos ExP simulates different types of chaos, such as latencies and memory leaks within Grab’s infrastructure. This ensures individual components return <em>something</em> even when system dependencies aren’t responding or respond with unusually high latency. It ensures our resilience to instance failures, as threats to availability can come from microservice level disruptions.</p>
+
+<h2 id="setting-up-for-chaos">Setting up for chaos</h2>
+
+<p>To build our chaos engineering system, we identified the two main areas for inducing chaos :</p>
+
+<ul>
+  <li>
+    <p><strong>Infrastructure</strong>: By randomly shutting down instances and other infrastructure parts</p>
+  </li>
+  <li>
+    <p><strong>Application</strong>: By introducing failures during runtime at a granular level (e.g. endpoint/request level)</p>
+  </li>
+</ul>
+
+<p>You then enable chaos randomly or intentionally via experiments:</p>
+
+<ul>
+  <li>
+    <p><strong>Randomly</strong></p>
+
+    <ul>
+      <li>
+        <p>More suitable for ‘disposable’ infrastructure (e.g. ec2 instances)</p>
+      </li>
+      <li>
+        <p>Tests redundant infrastructure for impact on end-users</p>
+      </li>
+      <li>
+        <p>Used when impact is well-understood</p>
+      </li>
+    </ul>
+  </li>
+  <li>
+    <p><strong>Experiments</strong></p>
+
+    <ul>
+      <li>
+        <p>Accurately measure impact</p>
+      </li>
+      <li>
+        <p>Control over experimental parameters</p>
+      </li>
+      <li>
+        <p>Can limit impact on end-users</p>
+      </li>
+      <li>
+        <p>Suitable for complex failures (e.g. latency) when impact is not well understood</p>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<p>Finally, you can categorize failure modes as follows:</p>
+
+<ul>
+  <li>
+    <p><strong>Resource</strong>: CPU, memory, IO, disk</p>
+  </li>
+  <li>
+    <p><strong>Network</strong>: Blackhole, latency, packet loss, DNS</p>
+  </li>
+  <li>
+    <p><strong>State</strong>: Shutdown, time, process killer</p>
+  </li>
+</ul>
+
+<p>Many of these modes can be applied or simulated at the infrastructure or app level, as shown:</p>
+
+<p><img src="/img/chaos-engineering/image_0.png" alt="" /></p>
+
+<p>For Grab, it was important to comprehensively test application-level chaos and carefully measure the impact. We decided to leverage an existing experimentation platform to orchestrate application-level chaos around the system, shown in the purple box, by injecting it in the underlying middleware such as <a href="https://engineering.grab.com/introducing-grab-kit">Grab-Kit</a>.</p>
+
+<h2 id="why-use-the-experimentation-platform">Why use the Experimentation Platform?</h2>
+
+<p>There are several chaos engineering tools. However, using them often requires an advanced level of infrastructure and operational skill, the ability to design and execute experiments, and resources to manually orchestrate the failure scenarios in a controlled manner. Chaos engineering is not as simple as breaking things in production.</p>
+
+<p>Think of chaos engineering as a controlled experiment. Our ExP SDK provides resilient and asynchronous tracking. Thus, we can potentially attribute business metrics to chaos failures directly. For example, by running a chaos failure that introduces 10 second latencies in a booking service, we can determine how many rides were negatively affected and how much money was lost.</p>
+
+<p>Using ExP as a chaos engineering tool means we can customize it based on the application or environment’s exact needs so that it deeply integrates with other environments like the monitoring and development pipelines.</p>
+
+<p>There’s a security benefit as well. With ExP, all connections stay within our internal network, giving us control over the attack surface area. Everything can be kept on-premise, with no reliance on the outside world. This also potentially makes it easier to monitor and control traffic.</p>
+
+<p>Chaos failures can be run ad-hoc, programmatically, or scheduled. You can also schedule them  to execute on certain days and within a specified time window. You can also set the maximum number of failures and customise them (e.g. number of MBs to leak, seconds to wait).</p>
+
+<p>ExP’s core value proposition is allowing engineers to initiate, control, and observe how a system behaves under various failure conditions. ExP provides a comprehensive set of failure primitives for designing experiments and observing what happens when issues occur within a complex distributed system. Also, by integrating ExP with chaos testing, we did not require any modifications to a deployment pipeline or networking infrastructure. Thus the combination can be utilized more easily for a range of infrastructure and deployment paradigms.</p>
+
+<h2 id="how-we-built-the-chaos-sdk-and-ui">How we built the Chaos SDK and UI</h2>
+
+<p>To build the chaos engineering SDK, we leveraged a property of our existing ExP SDK - single-digit microsecond-level variable resolution, which does not require a network call. You can read more about ExP SDK’s implementation <a href="https://engineering.grab.com/feature-toggles-ab-testing">here</a>. This let us build two things:</p>
+
+<ol>
+  <li>
+    <p>A smaller chaos SDK on top of ExP SDK. We’ve integrated this directly in our existing middleware, such as Grab-Kit and DB layers.</p>
+  </li>
+  <li>
+    <p>A dedicated web-based UI for creating chaos experiments</p>
+  </li>
+</ol>
+
+<p>Thanks to our Grab-Kit integration, Grab engineers don’t actually need to use the Chaos SDK directly. When Grab-Kit serves an incoming request, it first checks with the ExP SDK. If the request “should fail”, it applies the appropriate failure type. It then forwards it to the handler of the specified endpoint.</p>
+
+<p>We currently support these failure types:</p>
+
+<ul>
+  <li>
+    <p>Error - fails the request with an error</p>
+  </li>
+  <li>
+    <p>CPU Load - creates a load on the CPU</p>
+  </li>
+  <li>
+    <p>Memory Leak - creates some memory which is never freed</p>
+  </li>
+  <li>
+    <p>Latency - pauses the request’s execution for a random amount of time</p>
+  </li>
+  <li>
+    <p>Disk Space - creates some temporary files on the machine</p>
+  </li>
+  <li>
+    <p>Goroutine Leak - creates and leaks goroutines</p>
+  </li>
+  <li>
+    <p>Panic - creates a panic in the request</p>
+  </li>
+  <li>
+    <p>Throttle - creates a rate limiter inside the request that rejects limit-exceeding requests</p>
+  </li>
+</ul>
+
+<p>As an example, if a booking request goes to our booking service, we call GetVariable(“chaosFailure”) to determine if this request should succeed. The call contains all of the information required to make this decision (e.g. the request ID, IP address of the instance, etc). For Experimentation SDK implementation details, visit this <a href="https://engineering.grab.com/feature-toggles-ab-testing">blog post</a>.</p>
+
+<p>To promote chaos engineering among our engineers we built a great developer experience around it. Different engineering teams at Grab have expertise in different technologies and domains. So some might not have knowledge and skills to perform proper chaos experiments. But with our simplified user interface, they don’t have to worry about the underlying implementation.</p>
+
+<p>Also, engineers who run chaos experiments are different experimentation platform users compared with our users like Product Analysts and Product Managers. Because of that, we provide a different experiment creation experience with a simple and specialized UI to configure new chaos experiments.</p>
+
+<p>In the chaos engineering platform, an experiment has four steps:</p>
+
+<ol>
+  <li>
+    <p>Define the ideal state of the system’s normal behavior.</p>
+  </li>
+  <li>
+    <p>Create a control configuration group and a treatment configuration group. A control group’s variables are assigned existing values. A treatment group’s variables are assigned new values.</p>
+  </li>
+  <li>
+    <p>Introduce real-world failures, like an increase in CPU load.</p>
+  </li>
+  <li>
+    <p>Find the statistically significant difference between the system’s correct and failed states.</p>
+  </li>
+</ol>
+
+<p>To create a chaos experiment, target the service you want the experiment to break. You can further fine-grain this selection by providing the environment, availability zone, or a specific list of instances.</p>
+
+<p>Next, specify a list of services affected by breaking the target service. You will closely monitor these services during the experiment. It helps to analyze the impact of the experiment later, though we continue tracking overall metrics indicating overall system health.</p>
+
+<p>Next, we provide a UI to specify a strategy for dividing control and treatment groups, failure types, and configurations for each treatment. For the final step, provide a time duration and create the experiment. You’ve now added a chaos failure to your system and can monitor how it affects system behavior.</p>
+
+<p><img src="/img/chaos-engineering/image_1.png" alt="" /></p>
+
+<h2 id="conclusions">Conclusions</h2>
+
+<p>After running a chaos experiment, there are typically two potential outcomes. You’ve verified your system is resilient to the introduced failure, or you’ve found a problem you need to fix. Both of these are good outcomes if the chaos experiment was first run on a staging environment. In the first case, you’ve increased your confidence in the system and its behavior. In the other case, you’ve found a problem before it caused an outage.</p>
+
+<p>Chaos Engineering is a tool to make your job easier. By proactively testing and validating your system’s failure modes you reduce your operational burden, increase your resiliency, and will sleep better at night.</p>
+
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#chaos-engineering" class="label tags-label">Chaos Engineering</a>
+  
+    <a href="/tags#microservice" class="label tags-label">Microservice</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Orchestrating Chaos using Grab's Experimentation Platform&url=https://engineering.grab.com/chaos-engineering&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/chaos-engineering" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/chaos-engineering&title=Orchestrating Chaos using Grab's Experimentation Platform
+&summary=At Grab, we practice chaos engineering by intentionally introducing failures in a service or component in the overall business flow. But the failed’ service is not the experiment’s focus. We’re interested in testing the services dependent on that failed service.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/chaos-engineering';
+    this.page.identifier = '/chaos-engineering';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
