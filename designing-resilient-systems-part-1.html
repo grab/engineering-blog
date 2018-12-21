@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Designing resilient systems: Circuit Breakers or Retries? (Part 1)</title>
+    <meta name="description" content="Grab designs fault-tolerant systems that can withstand failures allowing us to continuously provide our customers with the many services they expect from us.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/designing-resilient-systems-part-1">
+    <meta property="og:title" content="Designing resilient systems: Circuit Breakers or Retries? (Part 1)">
+    <meta property="og:description" content="Grab designs fault-tolerant systems that can withstand failures allowing us to continuously provide our customers with the many services they expect from us.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/designing-resilient-systems-part-1/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/designing-resilient-systems-part-1">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/corey-scott.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Designing resilient systems: Circuit Breakers or Retries? (Part 1)</h1>
+      <div class="post-meta">
+        21 Dec 2018
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#corey-scott">Corey Scott</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#circuit-breakers" class="label tags-label">Circuit Breakers</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p><em>This post is the first of a two-part series on Circuit Breakers and Retries, where we will introduce and compare these two often used service reliability concepts. For Part 1, we will focus on the use cases for implementing circuit breakers including the different options related to the configuration of circuits.</em></p>
+
+<p>Things should just work. That is the most fundamental expectation that any customer has towards a service provider. But just as poor weather is inevitable and often unpredictable, so are software and hardware failures. That is why it’s important for software engineers to plan and account for failures.</p>
+
+<p>In this first article of a two-part series, we will begin to introduce and compare two frequently used service reliability mechanisms: Circuit Breakers and Retries. At Grab, we use both of these mechanisms extensively throughout our many software systems to ensure that we can weather failures and continue to provide our customers with the services they expect from us. But are both mechanisms equal? Where and how do we choose one over the other?</p>
+
+<p>In this series we will take a close look at both approaches and their use cases, to help you make an informed decision regarding if and when to apply each method. But let’s start by looking at the common reasons for failures. With our services communicating with numerous external resources, failures can be caused by:</p>
+
+<ul>
+  <li>networking issues</li>
+  <li>system overload</li>
+  <li>resource starvation (e.g. out of memory)</li>
+  <li>bad deployment/configuration</li>
+  <li>bad request (e.g. lack of authentication credentials, missing request data)</li>
+</ul>
+
+<p>But rather than thinking of all the ways a call to an upstream service could fail, it is often easier to  consider what a successful request is. It should be <strong>timely</strong>, in the <strong>expected format</strong>, and contain the <strong>expected data</strong>. If we go by this definition, then everything else is therefore some kind of failure, whether it’s:</p>
+
+<ul>
+  <li>a slow response</li>
+  <li>no response at all</li>
+  <li>a response in the wrong format</li>
+  <li>a response that does not contain the expected data</li>
+</ul>
+
+<p>In planning for failures, we should strive to be able to handle each of these errors, just as we should try to prevent our service from emitting them. So lets start looking at the different techniques for addressing these errors.</p>
+
+<p>(Note: All the examples and tools mentioned in this article are in Go. However, prior knowledge of Go is not required, only advantageous.)</p>
+
+<h2 id="introducing-the-circuit-breaker">Introducing the circuit breaker</h2>
+
+<p>Has your electricity ever shorted out? Perhaps you switched on a faulty appliance, plunging your entire house into darkness. Darkness may be inconvenient, but it’s certainly better than things catching fire or getting electrocuted!</p>
+
+<p>The device in your electrical box that is protecting you is called a <strong>circuit breaker</strong>. Instead of letting the electricity through the faulty appliance and potentially causing more problems, it has detected a fault and broken the connection.</p>
+
+<p>Software circuit breakers work the same way. A software circuit breaker is a mechanism that sits between 2 pieces of code and monitors the health of everything flowing through it. However, instead of stopping electricity when there’s a fault, it blocks requests.</p>
+
+<p>A typical “happy path” request from a service to an upstream service looks like this:</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-happy-path.png" alt="cb-happy-path" /></p>
+
+<p>Our <code class="highlighter-rouge">"main"</code> calls the circuit breaker (also inside our code), which in turn makes the request to the upstream service. The upstream service then processes the request and sends a response. The circuit breaker receives the response, and if there was no error, returns it to the original caller.</p>
+
+<p>So, let’s look at what happens when the upstream service fails.</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-error-path.png" alt="cb-error-path" /></p>
+
+<p>The request path is the same. And at this point, you might be wondering what we have gained from this as our request still failed. You are right, for this specific request, we gained nothing. However, let’s assume that all of the requests for the past 3 seconds have failed. The circuit breaker has been monitoring these requests and keeping track of how many passed and how many failed. It notices that all the requests are failing, so instead of making any further requests, it opens the circuit, which prevents any more requests from being made. Our flow now looks like this:</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-circuit-open.png" alt="cb-circuit-open" /></p>
+
+<p>It might look like we still haven’t achieved anything. But we have.</p>
+
+<p>Consider our previous discussion on how services can break: Services can break when they are overwhelmed with requests. Once a service is overloaded, making any further requests could result in two issues. Firstly, making the request is likely pointless, as we are not going to get a valid and/or timely response. Secondly, by creating more requests, we are not allowing the upstream service to recover from being overwhelmed and in fact, most likely overloading it more.</p>
+
+<p>But circuit breakers are not just about being a <em>good user</em> and protecting our upstream services. They are also beneficial for our service as we will see in the next sections.</p>
+
+<h3 id="fallback">Fallback</h3>
+
+<p>Circuit breakers, like Hystrix, include the ability to define a <strong>fallback</strong>. The flow with a fallback in place looks like this:</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-circuit-open-fallback.png" alt="cb-circuit-open-fallback" /></p>
+
+<p>So what does that get us? Let’s consider an example. Assume you are writing a service that requires the road travel distance between 2 locations.</p>
+
+<p>If things are working as they should, we would call the “distance calculator service”, providing it with the start and end locations, and it will return the distance. However, that service is down at the moment. A reasonable fallback in this situation might therefore be to estimate the distance by using some trigonometry.  Of course, calculating distance in this manner would be inaccurate, but using an inaccurate value which allows us to continue processing the user’s request is far better than to fail the request completely.</p>
+
+<p>In fallback processing, using an estimated value instead of the real value not the only option, other common options include:</p>
+
+<ul>
+  <li>retrying the request using a different upstream service</li>
+  <li>scheduling the request for some later time</li>
+  <li>loading potentially <em>out of date</em> data from a cache</li>
+</ul>
+
+<p>There are, of course, cases where there is no reasonable fallback. But even in these situations, using a circuit breaker is still beneficial.</p>
+
+<p>Consider the cost of making and waiting for a request that eventually fails. There are CPU, memory and network resources, all being used to make the request and wait for the response. Then there is the delayed response to your user.</p>
+
+<p>All of these costs are avoided when the circuit is open, as the request is not made but instead immediately failed. While returning an error to our users is not ideal, returning the fastest possible error is the <em>best worst option</em>.</p>
+
+<h3 id="should-the-circuit-breaker-track-all-errors">Should the circuit breaker track all errors?</h3>
+
+<p>The short answer is no. We should only track errors that are not caused by the user (i.e. HTTP error codes 400 and 401), but by the network or infrastructure (i.e. HTTP error codes 503 and 500).</p>
+
+<p>If we tracked errors caused by users, then it would be possible for one malicious user to send a large number of bad requests, causing our circuit to open and creating a service disruption for everyone.</p>
+
+<h3 id="circuit-recovery">Circuit Recovery</h3>
+
+<p>We have talked about how the circuit breaker can open the circuit and cut requests when there have been too many errors. We should also be aware of how the circuit becomes closed again.</p>
+
+<p>Unlike the electricity example we used above, with a software circuit breaker, you don’t need to find the fuse box in the dark and close the circuit manually. The software circuit breaker can close the circuit by itself.</p>
+
+<p>After the circuit breaker opens the circuit, it will wait for a configurable period, called a <strong>Sleep Window</strong>, after which it will test the circuit by allowing some requests through. If the service has recovered, it will close the circuit and resume normal operations. If the requests still return an error, then it will repeat the sleep/try process until recovery.</p>
+
+<h3 id="bulwark">Bulwark</h3>
+
+<p>At Grab, we use the <a href="https://godoc.org/github.com/afex/hystrix-go/hystrix">Hystrix-Go</a> circuit breaker, and this implementation includes a bulwark. A bulwark is a software process that monitors the number of concurrent requests and is able to prevent more than the configured maximum number of concurrent requests from being made.  This is a very cheap form of rate-limiting.</p>
+
+<p>In our case, the prevention of too many requests is achieved by opening the circuit (as we saw above). This process does not count towards the errors and will not directly influence other circuit calculations.</p>
+
+<p>So why is this important? As we talked about earlier, it’s possible for services to become unresponsive (or even crash) when it receives too many concurrent requests.</p>
+
+<p>Consider the following scenario: A hacker has decided to attack your service with a <a href="https://en.wikipedia.org/wiki/Denial-of-service_attack">DOS attack</a>. All of a sudden your service is receiving 100x the usual amount of requests. Your service could then make 100x the amount of requests to your upstream.</p>
+
+<p>If your upstream does not implement some form of rate-limiting, with this many requests, it would crash. By introducing a bulwark between your service and the upstream, you achieve two things:</p>
+
+<ul>
+  <li>You do not crash the upstream service because you limit the amount of requests that it cannot process.</li>
+  <li>The “extra” requests that are failed by the bulwark have both the ability to fallback and the ability to fail fast.</li>
+</ul>
+
+<h3 id="circuit-breaker-settings">Circuit Breaker Settings</h3>
+
+<p>The <a href="https://godoc.org/github.com/afex/hystrix-go/hystrix">Hystrix-Go</a> circuit breaker has five settings, they are:</p>
+
+<h4 id="timeout">Timeout</h4>
+
+<p>This duration is the maximum amount of time a request is allowed to take before being considered an error. This takes into consideration that not all calls to upstream resources will fail promptly.</p>
+
+<p>With this, we can limit the total amount of time it takes us to process a request by defining how long we are willing to wait for our upstream.</p>
+
+<h4 id="max-concurrent-requests">Max Concurrent Requests</h4>
+
+<p>This is the bulwark setting (as mentioned above).</p>
+
+<p>Consider that the default value (10) indicates simultaneous requests and not “per second”. Therefore, if requests are typically fast (completed in a few milliseconds) then there is no need to allow more.</p>
+
+<p>Additionally, setting this value too high can cause your service to become starved of the resources (memory, CPU, ports) that it needs to make the requests.</p>
+
+<h4 id="request-volume-threshold">Request Volume Threshold</h4>
+
+<p>This is the minimum number of requests that must be made within the evaluation (rolling window) period before the circuit can be opened.</p>
+
+<p>This setting is used to ensure that a small number of errors during low request volume does not open the circuit.</p>
+
+<h4 id="sleep-window">Sleep Window</h4>
+
+<p>This is the duration the circuit waits before the circuit breaker will attempt to check the health of the requests (as mentioned above).</p>
+
+<p>Setting this too low limits the effectiveness of the circuit breaker, as it opens/checks often. However, setting this duration too high limits the time to recovery.</p>
+
+<h4 id="error-percent-threshold">Error Percent Threshold</h4>
+
+<p>This is the percentage of requests that must fail before the circuit is opened.</p>
+
+<p>Many factors should be considered when setting this value, including:</p>
+
+<ul>
+  <li>Number of hosts in the upstream service (more info in the next section)</li>
+  <li>Reliability of the upstream service and your connection to it</li>
+  <li>Service’s sensitivity to errors</li>
+  <li>Personal preference</li>
+</ul>
+
+<h3 id="circuit-configuration">Circuit Configuration</h3>
+
+<p>In the next few sections, we will be discussing some different options related to the configuration of circuits, in particular, the per host and per service configuration, and how do we as programmers define the circuit.</p>
+
+<p>In <a href="https://godoc.org/github.com/afex/hystrix-go/hystrix">Hystrix-Go</a>, the typical usage pattern looks like this:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_command"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="c">// talk to other services</span><span class="x">
+    </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+</span><span class="p">},</span><span class="x"> </span><span class="k">func</span><span class="p">(</span><span class="n">err</span><span class="x"> </span><span class="kt">error</span><span class="p">)</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="c">// do this when services are down</span><span class="x">
+    </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+</span><span class="p">})</span><span class="x">
+</span></code></pre></div></div>
+
+<p>The very first parameter “my_command” is the circuit name. The first thing to notice here is that because the circuit name is a parameter, the same value can be supplied to multiple invocations of the circuit breaker.</p>
+
+<p>This has some interesting side effects.</p>
+
+<p>Let’s say your service calls multiple endpoints of an upstream service called ‘list’, ‘create’, ‘edit’ and ‘delete’. If we want to track the error rates of each of these endpoints separately, you can define the circuit like this:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span><span class="x"> </span><span class="n">List</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream_list"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call list endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="n">Create</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream_create"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call create endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">Update</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream_update"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call update endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">Delete</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream_delete"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call delete endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre></div></div>
+
+<p>You will notice that I have prefixed all of the circuits with “my_upstream_” and then appended the name of the endpoint. This gives me 4 circuits for 4 endpoints.</p>
+
+<p>On the other hand, if we want to track all the errors relating to one destination together, we can define our circuits like this:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span><span class="x"> </span><span class="n">List</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call list endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">Create</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call create endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">Update</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call update endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">Delete</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+   </span><span class="n">hystrix</span><span class="o">.</span><span class="n">Go</span><span class="p">(</span><span class="s">"my_upstream"</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="kt">error</span><span class="x"> </span><span class="p">{</span><span class="x">
+      </span><span class="c">// call delete endpoint</span><span class="x">
+      </span><span class="k">return</span><span class="x"> </span><span class="no">nil</span><span class="x">
+   </span><span class="p">},</span><span class="x"> </span><span class="no">nil</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre></div></div>
+
+<p>In the above example, all of the different calls use the same circuit name.</p>
+
+<p>So how do we decide which to go with? In an ideal world, one circuit per upstream destination is sufficient. This is because all failures are infrastructure (i.e. network) related and in these cases when calls to one endpoint fail, all are certain to fail. This approach would result in the circuit being opened in the quickest possible time, thereby reducing our error rates.</p>
+
+<p>However, this approach assumes that our upstream service cannot fail in such a way that one endpoint is broken and the others remain working. It also assumes that our processing of the upstream responses never make a mistake processing the errors returned from the upstream service. For example, if we were to accidentally track user errors on one of our circuit breaker calls, we could quickly find ourselves prevented from making any calls to our upstream.</p>
+
+<p>Therefore, even though having one circuit per endpoint results in circuits that are slightly slower to open, it is my recommended approach. It is better to make as many successful requests as possible than inappropriately open the circuit.</p>
+
+<h3 id="one-circuit-per-service">One circuit per service</h3>
+
+<p>We have talked about upstream services as if they are a single destination, and when dealing with databases or caches, they might be. But when dealing with APIs/services, this will seldom be the case.</p>
+
+<p>But why does this matter? Think back to our earlier discussions regarding how a service can fail. If the machine running our upstream service has a resource issue (out of memory, out of CPU, or disk full), these are issues that are localized to that particular machine. So, if one machine is resource-starved, this does not mean that all of the other machines supporting that service will have the same issue.</p>
+
+<p>When we have one circuit breaker for all calls to a particular resource or service, we are using the circuit breaker in a “per service” model. Let’s look at some examples to examine how this affects the circuit breaker’s behavior.</p>
+
+<p>Firstly, when we only have 1 destination, as is typically the case for databases:</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-service-to-db.png" alt="cb-service-to-db" /></p>
+
+<p>If all calls to the single destination (e.g. database) fail, then our error rate will be 100%.</p>
+
+<p>The circuit is sure to open, and this is desirable as the database is unable to respond appropriately and further requests will waste resources.</p>
+
+<p>Now let’s look at what happens when we add a load balancer and more hosts:</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-service-to-service.png" alt="cb-service-to-service" /></p>
+
+<p>Assuming a simple round-robin load balancing, all calls to one host succeed and all calls to the other fail. Giving us: 1 bad host / 2 total hosts = 50% error rate.</p>
+
+<p>If we were to set our <strong>Error Percent Threshold</strong> to anything over 50%, then the circuit would not open, and we would see 50% of our requests fail. Alternatively, if we were to set our <strong>Error Percent Threshold</strong> to less than 50%, the circuit would open and all requests shortcut to fallback processing or fail.</p>
+
+<p>Now, if we were to add additional hosts to the upstream service, like this:</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-service-to-service-large.png" alt="cb-service-to-service-large" /></p>
+
+<p>Then the calculation and the impact of one bad instance change dramatically. Our results become: 1 bad hosts / 6 total hosts = 16.66% error rate.</p>
+
+<p>There are a few things we can derive from this expanded example:</p>
+
+<ul>
+  <li>One bad instance will not cause the circuit to open (which would prevent all requests from working)</li>
+  <li>Setting a very low error rate (e.g. 10%), which would cause the circuit to open because of our one bad host would be foolish as we have 5 other hosts that are able to service the requests</li>
+  <li>Circuit breakers in a “per service” configuration should only have an open circuit when most (or all) of the destination hosts are unhealthy</li>
+</ul>
+
+<h3 id="one-circuit-per-host">One circuit per host</h3>
+
+<p>As we have seen above, it is possible for one bad host to impact your circuit, so you might then consider having one circuit for each upstream destination host.</p>
+
+<p>However, to achieve this, our service has to be aware of the number and identity of upstream hosts. In the previous example, it was only aware of the existence of the load balancer. Therefore, if we remove the load balancer from our previous example, we are left with this:</p>
+
+<p><img src="img/designing-resilient-systems-part-1/cb-service-to-host.png" alt="cb-service-to-host" /></p>
+
+<p>With this configuration, our one bad host cannot influence the circuits that are tracking the other hosts. Feels like a win.</p>
+
+<p>However, with the load balancer removed, our service will now need to take on its responsibilities and perform <em>client-side load balancing</em>.</p>
+
+<p>To be able to perform <em>client-side load balancing</em>, our service must track the existence and health of all the hosts in our upstream service and balance the requests across the hosts. At Grab, many of our gRPC-based services are configured in this way.</p>
+
+<p>With our new configuration, we have incurred some additional complexity, relating to client-side load balancing, and we have also gone from 1 circuit to 6. These additional 5 circuits also incur some amount of resource (i.e. memory) cost. In this example, it might not seem like a lot, but as we adopt additional upstream services and the numbers of these upstream hosts grow, the cost does multiply.</p>
+
+<p>The last thing we should consider is how this configuration will influence our ability to fulfill requests. When the host first <em>goes bad</em>, our request error rate will be the same as before: 1 bad host / 6 total hosts = 16.66% error rate</p>
+
+<p>However, after sufficient errors have occurred to open the circuit to our bad host, then we will be able to avoid making requests to that host, and we would resume having a 0% error rate.</p>
+
+<h3 id="final-thoughts-on-per-service-vs-per-host">Final thoughts on per service vs per host</h3>
+
+<p>Based on the discussion above, you may want to rush off and convert all of your circuits to per host. However, the additional complexity of doing so should not be underestimated.</p>
+
+<p>Additionally, we should also consider what response our per service load balancer might have when the bad host is failing. If the load balancer in our per service example is configured to monitor the health of service running on each host (and not just the health of the host itself), then it is able to detect and remove that host from the load balancer and potentially replace it with a new host.</p>
+
+<p>It is possible to use both per service and per host at the same time (although I have never tried). In this configuration, the per service circuit should only open when there is little chance there are any valid hosts and by doing so it would save the request processing time taken to run through the retry cycle. The configuration for this has to be:  <strong>Circuit Breaker (per service) → Retry → Circuit Breaker (per host)</strong>.</p>
+
+<p>My advice is to consider how and why your upstream service could fail and then use the simplest possible configuration for your situation.</p>
+
+<h2 id="up-next-retries">Up next, Retries…</h2>
+
+<p>So we’ve taken a look at the first common mechanism used in designing for reliability, which is <em>Circuit Breakers</em>. I hope you have enjoyed this post and found it useful. Comments, corrections, and even considered disagreements are always welcome.</p>
+
+<p>In our next post, we will look at the other service reliability mechanism on the spotlight, which is <em>Retries. _We will see</em> _how it works, how to configure it, and tackle some implementations with backoff and jitter. We will also discuss when we should use circuit breakers versus retries, or even a combination of both.</p>
+
+<p>Stay tuned!</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#circuit-breakers" class="label tags-label">Circuit Breakers</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Designing resilient systems: Circuit Breakers or Retries? (Part 1)&url=https://engineering.grab.com/designing-resilient-systems-part-1&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/designing-resilient-systems-part-1" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/designing-resilient-systems-part-1&title=Designing resilient systems: Circuit Breakers or Retries? (Part 1)
+&summary=Grab designs fault-tolerant systems that can withstand failures allowing us to continuously provide our customers with the many services they expect from us.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/designing-resilient-systems-part-1';
+    this.page.identifier = '/designing-resilient-systems-part-1';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>

@@ -6,9 +6,345 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 21 Dec 2018 11:05:48 +0000</pubDate>
-    <lastBuildDate>Fri, 21 Dec 2018 11:05:48 +0000</lastBuildDate>
+    <pubDate>Fri, 21 Dec 2018 12:49:26 +0000</pubDate>
+    <lastBuildDate>Fri, 21 Dec 2018 12:49:26 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Designing resilient systems: Circuit Breakers or Retries? (Part 1)</title>
+        <description>&lt;p&gt;&lt;em&gt;This post is the first of a two-part series on Circuit Breakers and Retries, where we will introduce and compare these two often used service reliability concepts. For Part 1, we will focus on the use cases for implementing circuit breakers including the different options related to the configuration of circuits.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Things should just work. That is the most fundamental expectation that any customer has towards a service provider. But just as poor weather is inevitable and often unpredictable, so are software and hardware failures. That is why it’s important for software engineers to plan and account for failures.&lt;/p&gt;
+
+&lt;p&gt;In this first article of a two-part series, we will begin to introduce and compare two frequently used service reliability mechanisms: Circuit Breakers and Retries. At Grab, we use both of these mechanisms extensively throughout our many software systems to ensure that we can weather failures and continue to provide our customers with the services they expect from us. But are both mechanisms equal? Where and how do we choose one over the other?&lt;/p&gt;
+
+&lt;p&gt;In this series we will take a close look at both approaches and their use cases, to help you make an informed decision regarding if and when to apply each method. But let’s start by looking at the common reasons for failures. With our services communicating with numerous external resources, failures can be caused by:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;networking issues&lt;/li&gt;
+  &lt;li&gt;system overload&lt;/li&gt;
+  &lt;li&gt;resource starvation (e.g. out of memory)&lt;/li&gt;
+  &lt;li&gt;bad deployment/configuration&lt;/li&gt;
+  &lt;li&gt;bad request (e.g. lack of authentication credentials, missing request data)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;But rather than thinking of all the ways a call to an upstream service could fail, it is often easier to  consider what a successful request is. It should be &lt;strong&gt;timely&lt;/strong&gt;, in the &lt;strong&gt;expected format&lt;/strong&gt;, and contain the &lt;strong&gt;expected data&lt;/strong&gt;. If we go by this definition, then everything else is therefore some kind of failure, whether it’s:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;a slow response&lt;/li&gt;
+  &lt;li&gt;no response at all&lt;/li&gt;
+  &lt;li&gt;a response in the wrong format&lt;/li&gt;
+  &lt;li&gt;a response that does not contain the expected data&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In planning for failures, we should strive to be able to handle each of these errors, just as we should try to prevent our service from emitting them. So lets start looking at the different techniques for addressing these errors.&lt;/p&gt;
+
+&lt;p&gt;(Note: All the examples and tools mentioned in this article are in Go. However, prior knowledge of Go is not required, only advantageous.)&lt;/p&gt;
+
+&lt;h2 id=&quot;introducing-the-circuit-breaker&quot;&gt;Introducing the circuit breaker&lt;/h2&gt;
+
+&lt;p&gt;Has your electricity ever shorted out? Perhaps you switched on a faulty appliance, plunging your entire house into darkness. Darkness may be inconvenient, but it’s certainly better than things catching fire or getting electrocuted!&lt;/p&gt;
+
+&lt;p&gt;The device in your electrical box that is protecting you is called a &lt;strong&gt;circuit breaker&lt;/strong&gt;. Instead of letting the electricity through the faulty appliance and potentially causing more problems, it has detected a fault and broken the connection.&lt;/p&gt;
+
+&lt;p&gt;Software circuit breakers work the same way. A software circuit breaker is a mechanism that sits between 2 pieces of code and monitors the health of everything flowing through it. However, instead of stopping electricity when there’s a fault, it blocks requests.&lt;/p&gt;
+
+&lt;p&gt;A typical “happy path” request from a service to an upstream service looks like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-happy-path.png&quot; alt=&quot;cb-happy-path&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Our &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;main&quot;&lt;/code&gt; calls the circuit breaker (also inside our code), which in turn makes the request to the upstream service. The upstream service then processes the request and sends a response. The circuit breaker receives the response, and if there was no error, returns it to the original caller.&lt;/p&gt;
+
+&lt;p&gt;So, let’s look at what happens when the upstream service fails.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-error-path.png&quot; alt=&quot;cb-error-path&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The request path is the same. And at this point, you might be wondering what we have gained from this as our request still failed. You are right, for this specific request, we gained nothing. However, let’s assume that all of the requests for the past 3 seconds have failed. The circuit breaker has been monitoring these requests and keeping track of how many passed and how many failed. It notices that all the requests are failing, so instead of making any further requests, it opens the circuit, which prevents any more requests from being made. Our flow now looks like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-circuit-open.png&quot; alt=&quot;cb-circuit-open&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It might look like we still haven’t achieved anything. But we have.&lt;/p&gt;
+
+&lt;p&gt;Consider our previous discussion on how services can break: Services can break when they are overwhelmed with requests. Once a service is overloaded, making any further requests could result in two issues. Firstly, making the request is likely pointless, as we are not going to get a valid and/or timely response. Secondly, by creating more requests, we are not allowing the upstream service to recover from being overwhelmed and in fact, most likely overloading it more.&lt;/p&gt;
+
+&lt;p&gt;But circuit breakers are not just about being a &lt;em&gt;good user&lt;/em&gt; and protecting our upstream services. They are also beneficial for our service as we will see in the next sections.&lt;/p&gt;
+
+&lt;h3 id=&quot;fallback&quot;&gt;Fallback&lt;/h3&gt;
+
+&lt;p&gt;Circuit breakers, like Hystrix, include the ability to define a &lt;strong&gt;fallback&lt;/strong&gt;. The flow with a fallback in place looks like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-circuit-open-fallback.png&quot; alt=&quot;cb-circuit-open-fallback&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;So what does that get us? Let’s consider an example. Assume you are writing a service that requires the road travel distance between 2 locations.&lt;/p&gt;
+
+&lt;p&gt;If things are working as they should, we would call the “distance calculator service”, providing it with the start and end locations, and it will return the distance. However, that service is down at the moment. A reasonable fallback in this situation might therefore be to estimate the distance by using some trigonometry.  Of course, calculating distance in this manner would be inaccurate, but using an inaccurate value which allows us to continue processing the user’s request is far better than to fail the request completely.&lt;/p&gt;
+
+&lt;p&gt;In fallback processing, using an estimated value instead of the real value not the only option, other common options include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;retrying the request using a different upstream service&lt;/li&gt;
+  &lt;li&gt;scheduling the request for some later time&lt;/li&gt;
+  &lt;li&gt;loading potentially &lt;em&gt;out of date&lt;/em&gt; data from a cache&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;There are, of course, cases where there is no reasonable fallback. But even in these situations, using a circuit breaker is still beneficial.&lt;/p&gt;
+
+&lt;p&gt;Consider the cost of making and waiting for a request that eventually fails. There are CPU, memory and network resources, all being used to make the request and wait for the response. Then there is the delayed response to your user.&lt;/p&gt;
+
+&lt;p&gt;All of these costs are avoided when the circuit is open, as the request is not made but instead immediately failed. While returning an error to our users is not ideal, returning the fastest possible error is the &lt;em&gt;best worst option&lt;/em&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;should-the-circuit-breaker-track-all-errors&quot;&gt;Should the circuit breaker track all errors?&lt;/h3&gt;
+
+&lt;p&gt;The short answer is no. We should only track errors that are not caused by the user (i.e. HTTP error codes 400 and 401), but by the network or infrastructure (i.e. HTTP error codes 503 and 500).&lt;/p&gt;
+
+&lt;p&gt;If we tracked errors caused by users, then it would be possible for one malicious user to send a large number of bad requests, causing our circuit to open and creating a service disruption for everyone.&lt;/p&gt;
+
+&lt;h3 id=&quot;circuit-recovery&quot;&gt;Circuit Recovery&lt;/h3&gt;
+
+&lt;p&gt;We have talked about how the circuit breaker can open the circuit and cut requests when there have been too many errors. We should also be aware of how the circuit becomes closed again.&lt;/p&gt;
+
+&lt;p&gt;Unlike the electricity example we used above, with a software circuit breaker, you don’t need to find the fuse box in the dark and close the circuit manually. The software circuit breaker can close the circuit by itself.&lt;/p&gt;
+
+&lt;p&gt;After the circuit breaker opens the circuit, it will wait for a configurable period, called a &lt;strong&gt;Sleep Window&lt;/strong&gt;, after which it will test the circuit by allowing some requests through. If the service has recovered, it will close the circuit and resume normal operations. If the requests still return an error, then it will repeat the sleep/try process until recovery.&lt;/p&gt;
+
+&lt;h3 id=&quot;bulwark&quot;&gt;Bulwark&lt;/h3&gt;
+
+&lt;p&gt;At Grab, we use the &lt;a href=&quot;https://godoc.org/github.com/afex/hystrix-go/hystrix&quot;&gt;Hystrix-Go&lt;/a&gt; circuit breaker, and this implementation includes a bulwark. A bulwark is a software process that monitors the number of concurrent requests and is able to prevent more than the configured maximum number of concurrent requests from being made.  This is a very cheap form of rate-limiting.&lt;/p&gt;
+
+&lt;p&gt;In our case, the prevention of too many requests is achieved by opening the circuit (as we saw above). This process does not count towards the errors and will not directly influence other circuit calculations.&lt;/p&gt;
+
+&lt;p&gt;So why is this important? As we talked about earlier, it’s possible for services to become unresponsive (or even crash) when it receives too many concurrent requests.&lt;/p&gt;
+
+&lt;p&gt;Consider the following scenario: A hacker has decided to attack your service with a &lt;a href=&quot;https://en.wikipedia.org/wiki/Denial-of-service_attack&quot;&gt;DOS attack&lt;/a&gt;. All of a sudden your service is receiving 100x the usual amount of requests. Your service could then make 100x the amount of requests to your upstream.&lt;/p&gt;
+
+&lt;p&gt;If your upstream does not implement some form of rate-limiting, with this many requests, it would crash. By introducing a bulwark between your service and the upstream, you achieve two things:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;You do not crash the upstream service because you limit the amount of requests that it cannot process.&lt;/li&gt;
+  &lt;li&gt;The “extra” requests that are failed by the bulwark have both the ability to fallback and the ability to fail fast.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;circuit-breaker-settings&quot;&gt;Circuit Breaker Settings&lt;/h3&gt;
+
+&lt;p&gt;The &lt;a href=&quot;https://godoc.org/github.com/afex/hystrix-go/hystrix&quot;&gt;Hystrix-Go&lt;/a&gt; circuit breaker has five settings, they are:&lt;/p&gt;
+
+&lt;h4 id=&quot;timeout&quot;&gt;Timeout&lt;/h4&gt;
+
+&lt;p&gt;This duration is the maximum amount of time a request is allowed to take before being considered an error. This takes into consideration that not all calls to upstream resources will fail promptly.&lt;/p&gt;
+
+&lt;p&gt;With this, we can limit the total amount of time it takes us to process a request by defining how long we are willing to wait for our upstream.&lt;/p&gt;
+
+&lt;h4 id=&quot;max-concurrent-requests&quot;&gt;Max Concurrent Requests&lt;/h4&gt;
+
+&lt;p&gt;This is the bulwark setting (as mentioned above).&lt;/p&gt;
+
+&lt;p&gt;Consider that the default value (10) indicates simultaneous requests and not “per second”. Therefore, if requests are typically fast (completed in a few milliseconds) then there is no need to allow more.&lt;/p&gt;
+
+&lt;p&gt;Additionally, setting this value too high can cause your service to become starved of the resources (memory, CPU, ports) that it needs to make the requests.&lt;/p&gt;
+
+&lt;h4 id=&quot;request-volume-threshold&quot;&gt;Request Volume Threshold&lt;/h4&gt;
+
+&lt;p&gt;This is the minimum number of requests that must be made within the evaluation (rolling window) period before the circuit can be opened.&lt;/p&gt;
+
+&lt;p&gt;This setting is used to ensure that a small number of errors during low request volume does not open the circuit.&lt;/p&gt;
+
+&lt;h4 id=&quot;sleep-window&quot;&gt;Sleep Window&lt;/h4&gt;
+
+&lt;p&gt;This is the duration the circuit waits before the circuit breaker will attempt to check the health of the requests (as mentioned above).&lt;/p&gt;
+
+&lt;p&gt;Setting this too low limits the effectiveness of the circuit breaker, as it opens/checks often. However, setting this duration too high limits the time to recovery.&lt;/p&gt;
+
+&lt;h4 id=&quot;error-percent-threshold&quot;&gt;Error Percent Threshold&lt;/h4&gt;
+
+&lt;p&gt;This is the percentage of requests that must fail before the circuit is opened.&lt;/p&gt;
+
+&lt;p&gt;Many factors should be considered when setting this value, including:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Number of hosts in the upstream service (more info in the next section)&lt;/li&gt;
+  &lt;li&gt;Reliability of the upstream service and your connection to it&lt;/li&gt;
+  &lt;li&gt;Service’s sensitivity to errors&lt;/li&gt;
+  &lt;li&gt;Personal preference&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;circuit-configuration&quot;&gt;Circuit Configuration&lt;/h3&gt;
+
+&lt;p&gt;In the next few sections, we will be discussing some different options related to the configuration of circuits, in particular, the per host and per service configuration, and how do we as programmers define the circuit.&lt;/p&gt;
+
+&lt;p&gt;In &lt;a href=&quot;https://godoc.org/github.com/afex/hystrix-go/hystrix&quot;&gt;Hystrix-Go&lt;/a&gt;, the typical usage pattern looks like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_command&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// talk to other services&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// do this when services are down&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The very first parameter “my_command” is the circuit name. The first thing to notice here is that because the circuit name is a parameter, the same value can be supplied to multiple invocations of the circuit breaker.&lt;/p&gt;
+
+&lt;p&gt;This has some interesting side effects.&lt;/p&gt;
+
+&lt;p&gt;Let’s say your service calls multiple endpoints of an upstream service called ‘list’, ‘create’, ‘edit’ and ‘delete’. If we want to track the error rates of each of these endpoints separately, you can define the circuit like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream_list&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call list endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Create&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream_create&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call create endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Update&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream_update&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call update endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Delete&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream_delete&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call delete endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;You will notice that I have prefixed all of the circuits with “my_upstream_” and then appended the name of the endpoint. This gives me 4 circuits for 4 endpoints.&lt;/p&gt;
+
+&lt;p&gt;On the other hand, if we want to track all the errors relating to one destination together, we can define our circuits like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call list endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Create&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call create endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Update&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call update endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Delete&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hystrix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Go&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;my_upstream&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// call delete endpoint&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In the above example, all of the different calls use the same circuit name.&lt;/p&gt;
+
+&lt;p&gt;So how do we decide which to go with? In an ideal world, one circuit per upstream destination is sufficient. This is because all failures are infrastructure (i.e. network) related and in these cases when calls to one endpoint fail, all are certain to fail. This approach would result in the circuit being opened in the quickest possible time, thereby reducing our error rates.&lt;/p&gt;
+
+&lt;p&gt;However, this approach assumes that our upstream service cannot fail in such a way that one endpoint is broken and the others remain working. It also assumes that our processing of the upstream responses never make a mistake processing the errors returned from the upstream service. For example, if we were to accidentally track user errors on one of our circuit breaker calls, we could quickly find ourselves prevented from making any calls to our upstream.&lt;/p&gt;
+
+&lt;p&gt;Therefore, even though having one circuit per endpoint results in circuits that are slightly slower to open, it is my recommended approach. It is better to make as many successful requests as possible than inappropriately open the circuit.&lt;/p&gt;
+
+&lt;h3 id=&quot;one-circuit-per-service&quot;&gt;One circuit per service&lt;/h3&gt;
+
+&lt;p&gt;We have talked about upstream services as if they are a single destination, and when dealing with databases or caches, they might be. But when dealing with APIs/services, this will seldom be the case.&lt;/p&gt;
+
+&lt;p&gt;But why does this matter? Think back to our earlier discussions regarding how a service can fail. If the machine running our upstream service has a resource issue (out of memory, out of CPU, or disk full), these are issues that are localized to that particular machine. So, if one machine is resource-starved, this does not mean that all of the other machines supporting that service will have the same issue.&lt;/p&gt;
+
+&lt;p&gt;When we have one circuit breaker for all calls to a particular resource or service, we are using the circuit breaker in a “per service” model. Let’s look at some examples to examine how this affects the circuit breaker’s behavior.&lt;/p&gt;
+
+&lt;p&gt;Firstly, when we only have 1 destination, as is typically the case for databases:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-service-to-db.png&quot; alt=&quot;cb-service-to-db&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;If all calls to the single destination (e.g. database) fail, then our error rate will be 100%.&lt;/p&gt;
+
+&lt;p&gt;The circuit is sure to open, and this is desirable as the database is unable to respond appropriately and further requests will waste resources.&lt;/p&gt;
+
+&lt;p&gt;Now let’s look at what happens when we add a load balancer and more hosts:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-service-to-service.png&quot; alt=&quot;cb-service-to-service&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Assuming a simple round-robin load balancing, all calls to one host succeed and all calls to the other fail. Giving us: 1 bad host / 2 total hosts = 50% error rate.&lt;/p&gt;
+
+&lt;p&gt;If we were to set our &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; to anything over 50%, then the circuit would not open, and we would see 50% of our requests fail. Alternatively, if we were to set our &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; to less than 50%, the circuit would open and all requests shortcut to fallback processing or fail.&lt;/p&gt;
+
+&lt;p&gt;Now, if we were to add additional hosts to the upstream service, like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-service-to-service-large.png&quot; alt=&quot;cb-service-to-service-large&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Then the calculation and the impact of one bad instance change dramatically. Our results become: 1 bad hosts / 6 total hosts = 16.66% error rate.&lt;/p&gt;
+
+&lt;p&gt;There are a few things we can derive from this expanded example:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;One bad instance will not cause the circuit to open (which would prevent all requests from working)&lt;/li&gt;
+  &lt;li&gt;Setting a very low error rate (e.g. 10%), which would cause the circuit to open because of our one bad host would be foolish as we have 5 other hosts that are able to service the requests&lt;/li&gt;
+  &lt;li&gt;Circuit breakers in a “per service” configuration should only have an open circuit when most (or all) of the destination hosts are unhealthy&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;one-circuit-per-host&quot;&gt;One circuit per host&lt;/h3&gt;
+
+&lt;p&gt;As we have seen above, it is possible for one bad host to impact your circuit, so you might then consider having one circuit for each upstream destination host.&lt;/p&gt;
+
+&lt;p&gt;However, to achieve this, our service has to be aware of the number and identity of upstream hosts. In the previous example, it was only aware of the existence of the load balancer. Therefore, if we remove the load balancer from our previous example, we are left with this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-1/cb-service-to-host.png&quot; alt=&quot;cb-service-to-host&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;With this configuration, our one bad host cannot influence the circuits that are tracking the other hosts. Feels like a win.&lt;/p&gt;
+
+&lt;p&gt;However, with the load balancer removed, our service will now need to take on its responsibilities and perform &lt;em&gt;client-side load balancing&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;To be able to perform &lt;em&gt;client-side load balancing&lt;/em&gt;, our service must track the existence and health of all the hosts in our upstream service and balance the requests across the hosts. At Grab, many of our gRPC-based services are configured in this way.&lt;/p&gt;
+
+&lt;p&gt;With our new configuration, we have incurred some additional complexity, relating to client-side load balancing, and we have also gone from 1 circuit to 6. These additional 5 circuits also incur some amount of resource (i.e. memory) cost. In this example, it might not seem like a lot, but as we adopt additional upstream services and the numbers of these upstream hosts grow, the cost does multiply.&lt;/p&gt;
+
+&lt;p&gt;The last thing we should consider is how this configuration will influence our ability to fulfill requests. When the host first &lt;em&gt;goes bad&lt;/em&gt;, our request error rate will be the same as before: 1 bad host / 6 total hosts = 16.66% error rate&lt;/p&gt;
+
+&lt;p&gt;However, after sufficient errors have occurred to open the circuit to our bad host, then we will be able to avoid making requests to that host, and we would resume having a 0% error rate.&lt;/p&gt;
+
+&lt;h3 id=&quot;final-thoughts-on-per-service-vs-per-host&quot;&gt;Final thoughts on per service vs per host&lt;/h3&gt;
+
+&lt;p&gt;Based on the discussion above, you may want to rush off and convert all of your circuits to per host. However, the additional complexity of doing so should not be underestimated.&lt;/p&gt;
+
+&lt;p&gt;Additionally, we should also consider what response our per service load balancer might have when the bad host is failing. If the load balancer in our per service example is configured to monitor the health of service running on each host (and not just the health of the host itself), then it is able to detect and remove that host from the load balancer and potentially replace it with a new host.&lt;/p&gt;
+
+&lt;p&gt;It is possible to use both per service and per host at the same time (although I have never tried). In this configuration, the per service circuit should only open when there is little chance there are any valid hosts and by doing so it would save the request processing time taken to run through the retry cycle. The configuration for this has to be:  &lt;strong&gt;Circuit Breaker (per service) → Retry → Circuit Breaker (per host)&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;My advice is to consider how and why your upstream service could fail and then use the simplest possible configuration for your situation.&lt;/p&gt;
+
+&lt;h2 id=&quot;up-next-retries&quot;&gt;Up next, Retries…&lt;/h2&gt;
+
+&lt;p&gt;So we’ve taken a look at the first common mechanism used in designing for reliability, which is &lt;em&gt;Circuit Breakers&lt;/em&gt;. I hope you have enjoyed this post and found it useful. Comments, corrections, and even considered disagreements are always welcome.&lt;/p&gt;
+
+&lt;p&gt;In our next post, we will look at the other service reliability mechanism on the spotlight, which is &lt;em&gt;Retries. _We will see&lt;/em&gt; _how it works, how to configure it, and tackle some implementations with backoff and jitter. We will also discuss when we should use circuit breakers versus retries, or even a combination of both.&lt;/p&gt;
+
+&lt;p&gt;Stay tuned!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 21 Dec 2018 06:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/designing-resilient-systems-part-1</link>
+        <guid isPermaLink="true">https://engineering.grab.com/designing-resilient-systems-part-1</guid>
+        
+        <category>Resiliency</category>
+        
+        <category>Circuit Breakers</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Orchestrating Chaos using Grab's Experimentation Platform</title>
@@ -1455,394 +1791,6 @@ Grab-Kit provides easy, automatic profiling with flame graphs and execution trac
         
         
         <category>Product</category>
-        
-      </item>
-    
-      <item>
-        <title>Deep Dive into Database Timeouts in Rails</title>
-        <description>&lt;p&gt;A couple of weeks ago, we had a production outage for one of our internal Ruby on Rails application servers. One of the databases that the application connects to had a failover event. It was expected that the server should continue functioning for endpoints which do not depend on this database, but it was observed that our server slowed down to a crawl, and was unable to function properly even after the failover completed, until we manually restarted the servers.&lt;/p&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;http://guides.rubyonrails.org/active_record_basics.html&quot;&gt;ActiveRecord&lt;/a&gt; is the canonical ORM for Rails to access a database. Different requests are handled on different threads, so a connection pool is necessary to maintain a limited set of connections to the database and also to skip the additional latency of establishing a TCP connection.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;A connection pool synchronizes thread access to a limited number of database connections. The basic idea is that each thread checks out a database connection from the pool, uses that connection, and checks the connection back in.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;It will also handle cases in which there are more threads than connections: if all connections have been checked out, and a thread tries to checkout a connection anyway, then ConnectionPool will wait until some other thread has checked in a connection.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Source: The &lt;a href=&quot;http://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/ConnectionPool.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ActiveRecord::Connection Pool&lt;/code&gt;&lt;/a&gt; .&lt;/p&gt;
-
-&lt;h3 id=&quot;options-for-the-connection-pool&quot;&gt;Options for the Connection Pool&lt;/h3&gt;
-
-&lt;p&gt;In Rails, database configurations are set in the &lt;code class=&quot;highlighter-rouge&quot;&gt;config/database.yml&lt;/code&gt; file. These options are either native to the &lt;code class=&quot;highlighter-rouge&quot;&gt;ActiveRecord::ConnectionPool&lt;/code&gt; module, or passed to the underlying adapter, depending on whether MySQL or PostgreSQL is used.&lt;/p&gt;
-
-&lt;p&gt;ActiveRecord uses connection adapters to make database calls. For MySQL, it uses the &lt;a href=&quot;https://github.com/brianmario/mysql2&quot;&gt;mysql2&lt;/a&gt; library, which depends on the &lt;a href=&quot;https://dev.mysql.com/doc/refman/5.7/en/c-api-implementations.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;libmysqlclient&lt;/code&gt;&lt;/a&gt; C library. The following options affect the behaviour of the library:&lt;/p&gt;
-
-&lt;table class=&quot;table table-bordered&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;Option&lt;/th&gt;
-      &lt;th&gt;Description&lt;/th&gt;
-      &lt;th&gt;Source&lt;/th&gt;
-      &lt;th&gt;Default&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;pool&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;This specifies the maximum number of connections to the database that ActiveRecord will maintain per server.&lt;/td&gt;
-      &lt;td&gt;Native to the &lt;a href=&quot;http://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/ConnectionPool.html&quot;&gt;ActiveRecord ConnectionPool&lt;/a&gt;&lt;/td&gt;
-      &lt;td&gt;5 &lt;a href=&quot;http://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/ConnectionPool.html#class-ActiveRecord::ConnectionAdapters::ConnectionPool-label-Options&quot;&gt;Source&lt;/a&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;checkout_timeout&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;When making a ActiveRecord call, ActiveRecord tries to checkout a database connection from the pool. If the pool is at maximum capacity, ActiveRecord will wait for this timeout to elapse before raising an &lt;code class=&quot;highlighter-rouge&quot;&gt;ActiveRecord&lt;/code&gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;ConnectionTimeoutError&lt;/code&gt; exception.&lt;/td&gt;
-      &lt;td&gt;Native to the &lt;a href=&quot;http://api.rubyonrails.org/classes/ActiveRecord/ConnectionAdapters/ConnectionPool.html&quot;&gt;ActiveRecord ConnectionPool&lt;/a&gt;&lt;/td&gt;
-      &lt;td&gt;5 seconds &lt;a href=&quot;https://github.com/rails/rails/blob/e5dc756bf9424086c403d1025971c3e704e1dcfa/activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb#L328&quot;&gt;Source&lt;/a&gt;.&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;If there are no available connections to the database in the connection pool, a new connection will have to be established. &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt;, specifies the timeout to establish a new connection to the database before failing.&lt;/td&gt;
-      &lt;td&gt;Native to the &lt;a href=&quot;https://github.com/brianmario/mysql2&quot;&gt;mysql2&lt;/a&gt; library, passed to &lt;code class=&quot;highlighter-rouge&quot;&gt;libmysqlclient&lt;/code&gt; as &lt;a href=&quot;https://dev.mysql.com/doc/refman/5.7/en/mysql-options.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;MYSQL_OPT_CONNECT_TIMEOUT&lt;/code&gt;&lt;/a&gt;&lt;/td&gt;
-      &lt;td&gt;120 seconds &lt;a href=&quot;https://github.com/brianmario/mysql2/blob/a1c198ee4c8d4d32dfa79f207ec7d0524c5f7bcc/lib/mysql2/client.rb#L31&quot;&gt;Source&lt;/a&gt;.&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;Read timeout is used by the &lt;code class=&quot;highlighter-rouge&quot;&gt;libmysqlclient&lt;/code&gt; library to identify whether the MySQL client is still alive and sending data. As we know that TCP sends data in chunks, the client waits for this timeout when reading from the socket, before deeming that there is an error and closing the connection.&lt;/td&gt;
-      &lt;td&gt;Native to the &lt;a href=&quot;https://github.com/brianmario/mysql2&quot;&gt;mysql2&lt;/a&gt; library, passed to &lt;code class=&quot;highlighter-rouge&quot;&gt;libmysqlclient&lt;/code&gt; as &lt;a href=&quot;https://dev.mysql.com/doc/refman/5.7/en/mysql-options.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;MYSQL_OPT_READ_TIMEOUT&lt;/code&gt;&lt;/a&gt;&lt;/td&gt;
-      &lt;td&gt;3 × 10 minutes &lt;a href=&quot;https://dev.mysql.com/doc/refman/5.7/en/mysql-options.html&quot;&gt;Source&lt;/a&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h3 id=&quot;connection-pooling-algorithm&quot;&gt;Connection Pooling Algorithm&lt;/h3&gt;
-
-&lt;p&gt;The following pseudocode is the algorithm for how ActiveRecord retrieves connections from the pool to perform database queries.&lt;/p&gt;
-
-&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;there&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;are&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;existing&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connections&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;to&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;database&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;available&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;one&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;of&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;existing&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connections&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pool&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;at&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;capacity&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;wait&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;on&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;queue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;sb&quot;&gt;`checkout_timeout`&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;has&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;elapsed&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;one&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;of&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;now&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;available&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connections&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;# pool is not at capacity
-&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;try&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;to&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;create&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exception&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;sb&quot;&gt;`connect_timeout`&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;has&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;elapsed&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;# connection to database established
-&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;connection&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This is loosely translated from the &lt;a href=&quot;https://github.com/rails/rails/blob/f8c00c130016b248d1d409f131356632dcc418c6/activerecord/lib/active_record/connection_adapters/abstract/connection_pool.rb#L725-L749&quot;&gt;source code&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;replicating-and-debugging&quot;&gt;Replicating and Debugging&lt;/h2&gt;
-
-&lt;p&gt;Let’s try to replicate the problem in a small Rails application. We will create a new Rails application, connect it to a database, run it in a Docker container and finally run some experiments to replicate the problem. In production, we use &lt;a href=&quot;https://github.com/puma/puma&quot;&gt;Puma&lt;/a&gt; to run our Rails server and connect to a few MySQL databases managed by &lt;a href=&quot;https://aws.amazon.com/rds/&quot;&gt;Amazon Relational Database Service (RDS)&lt;/a&gt;, so we will try to follow that on our local setup.&lt;/p&gt;
-
-&lt;h3 id=&quot;step-1-create-a-new-rails-application&quot;&gt;Step 1: Create a new Rails Application&lt;/h3&gt;
-
-&lt;p&gt;First, we will scaffold a fresh Rails application and connect it to two databases that we will call as &lt;code class=&quot;highlighter-rouge&quot;&gt;db_main&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# the flags removes unwanted boilerplate code&lt;/span&gt;
-rails new rails-mysql-timeouts &lt;span class=&quot;nt&quot;&gt;--database&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;mysql &lt;span class=&quot;nt&quot;&gt;--api&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-M&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-C&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-S&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-J&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-T&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;For simplicity, we will set the &lt;code class=&quot;highlighter-rouge&quot;&gt;thread_count&lt;/code&gt; of our Puma server to &lt;code class=&quot;highlighter-rouge&quot;&gt;2&lt;/code&gt;, in &lt;code class=&quot;highlighter-rouge&quot;&gt;config/puma.rb&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;threads_count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Using &lt;code class=&quot;highlighter-rouge&quot;&gt;rails generate scaffold&lt;/code&gt;, we set up a &lt;code class=&quot;highlighter-rouge&quot;&gt;Driver&lt;/code&gt; model to talk to our main database, and a &lt;code class=&quot;highlighter-rouge&quot;&gt;Passenger&lt;/code&gt; model to talk to another database we want to test the failure on. This can be done by adding the following line to our &lt;code class=&quot;highlighter-rouge&quot;&gt;Passengers&lt;/code&gt; model.&lt;/p&gt;
-
-&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Passenger&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ApplicationRecord&lt;/span&gt;
-  &lt;span class=&quot;c1&quot;&gt;# connect to #{Rails.env}_other database specified in the database.yml&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;establish_connection&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Rails&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;_other&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;to_sym&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;We now have the following HTTP routes:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# connects to db_main
-GET /drivers/1
-
-# connects to db_other
-GET /passengers/1
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Now we will run our Rails server with the following environment variables&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;export &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;RAILS_ENV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;production
-&lt;span class=&quot;nb&quot;&gt;export &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;RAILS_LOG_TO_STDOUT&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1
-
-rails server
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;By using a docker container to run the Rails application, we can isolate the process namespace and focus directly on our application. We run &lt;code class=&quot;highlighter-rouge&quot;&gt;ps&lt;/code&gt; and observe the two threads we have configured puma — &lt;code class=&quot;highlighter-rouge&quot;&gt;puma 001&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;puma 002&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ps &lt;span class=&quot;nt&quot;&gt;-T&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt;
-  PID  SPID TTY          TIME CMD
-    1     1 ?        00:00:00 &lt;span class=&quot;nb&quot;&gt;sleep
-   &lt;/span&gt;30    30 pts/1    00:00:00 bash
-   63    63 pts/0    00:00:00 bash
-   97    97 pts/1    00:00:03 ruby
-   97    99 pts/1    00:00:00 ruby-timer-thr
-   97   105 pts/1    00:00:00 tmp_restart.rb&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-   97   106 pts/1    00:00:00 puma 001
-   97   107 pts/1    00:00:00 puma 002
-   97   108 pts/1    00:00:00 reactor.rb:152
-   97   109 pts/1    00:00:00 thread_pool.rb&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-   97   110 pts/1    00:00:00 thread_pool.rb&lt;span class=&quot;k&quot;&gt;*&lt;/span&gt;
-   97   111 pts/1    00:00:00 server.rb:327
-  112   112 pts/0    00:00:00 ps
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Note that PID 1 is &lt;code class=&quot;highlighter-rouge&quot;&gt;sleep&lt;/code&gt; because in &lt;a href=&quot;https://github.com/grab/blogs/tree/master/2017-01-29-deep-dive-into-database-timeouts-in-rails/docker-compose.yml&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;docker-compose.yml&lt;/code&gt;&lt;/a&gt;, we specified that the container should start with &lt;code class=&quot;highlighter-rouge&quot;&gt;cmd: sleep infinity&lt;/code&gt; so that we can attach to the running container at any time, not unlike a &lt;code class=&quot;highlighter-rouge&quot;&gt;ssh&lt;/code&gt; to a machine.&lt;/p&gt;
-
-&lt;h3 id=&quot;step-2-verify-our-application&quot;&gt;Step 2: Verify Our Application&lt;/h3&gt;
-
-&lt;p&gt;We make the following requests to ensure that our server is working correctly:&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;curl localhost:3000/drivers
-&lt;span class=&quot;o&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;id&quot;&lt;/span&gt;:1,&lt;span class=&quot;s2&quot;&gt;&quot;name&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;test driver&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;created_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-11-05T11:59:15.000Z&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;updated_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-11-05T11:59:15.000Z&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;}]&lt;/span&gt;
-
-&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;curl localhost:3000/passengers
-&lt;span class=&quot;o&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;id&quot;&lt;/span&gt;:1,&lt;span class=&quot;s2&quot;&gt;&quot;name&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;test&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;created_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-01-01T00:00:00.000Z&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;updated_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-01-07T00:00:00.000Z&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;}]&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Great! We are now able to see the records generated in the database by the above curl requests.&lt;/p&gt;
-
-&lt;p&gt;The entire source code for this application can be found &lt;a href=&quot;https://github.com/grab/blogs/tree/master/2017-01-29-deep-dive-into-database-timeouts-in-rails&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;step-3-simulating-the-production-issue&quot;&gt;Step 3: Simulating the Production Issue&lt;/h3&gt;
-
-&lt;p&gt;We will now try to simulate the production issue by using a proxy to monitor all our TCP connections from our Rails application to our database. Finally, we will run some experiments by sending requests that hit the backend database and analyse the behaviour of both &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; settings.&lt;/p&gt;
-
-&lt;p&gt;First, we use &lt;a href=&quot;https://github.com/Shopify/toxiproxy&quot;&gt;Toxiproxy&lt;/a&gt; as a transport layer proxy to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt; which allows us to manipulate the pipe between the client and the upstream database. The following command stops all data from getting the proxy, and closes the connection after timeout.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;toxiproxy-cli toxic add db_other_proxy &lt;span class=&quot;nt&quot;&gt;--toxicName&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;timeout&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--type&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;timeout&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--attribute&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;timeout&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;100000
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Now we test if things are still working for endpoints that access the unaffected database.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;curl localhost:3000/drivers
-&lt;span class=&quot;o&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;id&quot;&lt;/span&gt;:1,&lt;span class=&quot;s2&quot;&gt;&quot;name&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;test driver&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;created_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-11-05T11:59:15.000Z&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;updated_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-11-05T11:59:15.000Z&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;}]&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This is expected, as the &lt;code class=&quot;highlighter-rouge&quot;&gt;db_main&lt;/code&gt; is still running. Let’s trigger a request to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;curl localhost:3000/passengers
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;We notice that the command does not exit and our terminal blocks while waiting for the command to terminate.&lt;/p&gt;
-
-&lt;p&gt;Let’s trigger another call to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_main&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;curl localhost:3000/drivers
-&lt;span class=&quot;o&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;id&quot;&lt;/span&gt;:1,&lt;span class=&quot;s2&quot;&gt;&quot;name&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;test driver&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;created_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-11-05T11:59:15.000Z&quot;&lt;/span&gt;,&lt;span class=&quot;s2&quot;&gt;&quot;updated_at&quot;&lt;/span&gt;:&lt;span class=&quot;s2&quot;&gt;&quot;2017-11-05T11:59:15.000Z&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;}]&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Seems like it still works! Now let’s make another request to the &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt; to lock up the two threads our server is configured to use.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;curl localhost:3000/passengers
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;And make another request to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_main&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;curl localhost:3000/drivers
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Notice that the call to &lt;code class=&quot;highlighter-rouge&quot;&gt;/drivers&lt;/code&gt; is stuck and does not complete now. Because we have set the thread count to &lt;code class=&quot;highlighter-rouge&quot;&gt;2&lt;/code&gt;, and have two &lt;code class=&quot;highlighter-rouge&quot;&gt;/passengers&lt;/code&gt; requests in flight, both threads are stuck waiting for the database and we do not have any more threads available to handle the new request, hence the stalled &lt;code class=&quot;highlighter-rouge&quot;&gt;/drivers&lt;/code&gt; request.&lt;/p&gt;
-
-&lt;p&gt;This is exactly what happened during our production outage, except on a much larger scale.&lt;/p&gt;
-
-&lt;h3 id=&quot;experiments&quot;&gt;Experiments&lt;/h3&gt;
-
-&lt;p&gt;Let’s perform some experiments to better understand how &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; work. We will set the timeouts to the following:&lt;/p&gt;
-
-&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;s&quot;&gt;+ connect_timeout&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;10&lt;/span&gt;
-&lt;span class=&quot;s&quot;&gt;+ read_timeout&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;5&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In the following section we will perform two experiments.&lt;/p&gt;
-
-&lt;h4 id=&quot;experiment-1-application-has-no-existing-connections-before-database-failure&quot;&gt;Experiment 1: Application has no Existing Connections before Database Failure&lt;/h4&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Stop data transmission to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Start Rails&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;We first block data to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt; , so that on the first ActiveRecord call to retrieve some data from the database, there are no available connections in the connection pool and it needs to establish a fresh connection to the database when it receives the first &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt; request.&lt;/p&gt;
-
-&lt;h4 id=&quot;experiment-2-application-has-existing-connections-before-database-failure&quot;&gt;Experiment 2: Application has Existing Connections before Database Failure&lt;/h4&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Start Rails&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Stop data transmission to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;We’ve started Rails and make a call to &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt;. A connection to the database is established to retrieve the data, and checked back into the pool as an available connection after the request.&lt;/p&gt;
-
-&lt;p&gt;Now, when the proxy stops sending data to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt;, ActiveRecord does not know that the database is unavailable and believes that the previously checked in connection is available for use with the second &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;We can use the &lt;a href=&quot;http://man7.org/linux/man-pages/man8/ss.8.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ss&lt;/code&gt;&lt;/a&gt; command to observe the TCP connections. When Rails has just been started, there are no existing TCP connections .&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# shows TCP connections with the PID&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ss &lt;span class=&quot;nt&quot;&gt;-tnp&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;After a &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt; completes, a TCP connection can be seen in the &lt;code class=&quot;highlighter-rouge&quot;&gt;ESTAB&lt;/code&gt; state.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ss &lt;span class=&quot;nt&quot;&gt;-tnp&lt;/span&gt;
-State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
-ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   &lt;span class=&quot;nb&quot;&gt;users&lt;/span&gt;:&lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ruby&quot;&lt;/span&gt;,pid&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;11683,fd&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;13&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Now we stop the database, and make another call to &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /passengers&lt;/code&gt;. We run &lt;code class=&quot;highlighter-rouge&quot;&gt;ss&lt;/code&gt; when the request is in flight, and observe another TCP connection for the request to the port Rails listens on, port &lt;code class=&quot;highlighter-rouge&quot;&gt;3000&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ss &lt;span class=&quot;nt&quot;&gt;-tnp&lt;/span&gt;
-State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
-ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   &lt;span class=&quot;nb&quot;&gt;users&lt;/span&gt;:&lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ruby&quot;&lt;/span&gt;,pid&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;11683,fd&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;13&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;
-ESTAB  0       0       172.18.0.4:3000     172.18.0.1:60878  &lt;span class=&quot;nb&quot;&gt;users&lt;/span&gt;:&lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ruby&quot;&lt;/span&gt;,pid&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;11683,fd&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;12&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;After &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; has elapsed, we see that a new connection is established to the database, and the first one has transitioned to a &lt;code class=&quot;highlighter-rouge&quot;&gt;FIN-WAIT&lt;/code&gt; state. This new TCP connection is in the &lt;code class=&quot;highlighter-rouge&quot;&gt;ESTAB&lt;/code&gt; state (line 3), because we have only stopped the database on the application layer, but the sockets to the container still accept the TCP handshake on the transport layer.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ss &lt;span class=&quot;nt&quot;&gt;-tnp&lt;/span&gt;
-State       Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
-FIN-WAIT-2  0       0       172.18.0.4:54304    172.18.0.3:3306
-ESTAB       0       0       172.18.0.4:54308    172.18.0.3:3306   &lt;span class=&quot;nb&quot;&gt;users&lt;/span&gt;:&lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ruby&quot;&lt;/span&gt;,pid&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;11683,fd&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;13&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;
-ESTAB       0       0       172.18.0.4:3000     172.18.0.1:60878  &lt;span class=&quot;nb&quot;&gt;users&lt;/span&gt;:&lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ruby&quot;&lt;/span&gt;,pid&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;11683,fd&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;12&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;After &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; has elapsed, the request terminates with a 500 error, and we observe that all the connections are in the &lt;code class=&quot;highlighter-rouge&quot;&gt;FIN-WAIT&lt;/code&gt; state.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;ss &lt;span class=&quot;nt&quot;&gt;-tnp&lt;/span&gt;
-State       Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
-FIN-WAIT-2  0       0       172.18.0.4:54310    172.18.0.3:3306
-FIN-WAIT-2  0       0       172.18.0.4:54304    172.18.0.3:3306
-FIN-WAIT-2  0       0       172.18.0.4:54308    172.18.0.3:3306
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The experimental data can be found &lt;a href=&quot;#experimental-data&quot;&gt;below&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h4 id=&quot;findings&quot;&gt;Findings&lt;/h4&gt;
-
-&lt;p&gt;It’s worth noting that when setting &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; in the &lt;code class=&quot;highlighter-rouge&quot;&gt;database.yml&lt;/code&gt;, there is a difference between empty values and the case where the key is missing entirely in the file. If the values are empty, scenario 1 will fail to terminate after 5 minutes, but if the keys are absent, scenario 1 will fail after 120 seconds, which is the default for &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h5 id=&quot;experiment-1-findings&quot;&gt;Experiment 1 Findings&lt;/h5&gt;
-
-&lt;p&gt;The request waits for &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; to connect to the database, where the default value (when not specified) is indeed 120 seconds.&lt;/p&gt;
-
-&lt;p&gt;As expected, connecting to the database with no existing connections is independent of the &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h5 id=&quot;experiment-2-findings&quot;&gt;Experiment 2 Findings&lt;/h5&gt;
-
-&lt;p&gt;The request waits for &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; + &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; before failing. This is because the connection pool waits for &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; on the existing connection before terminating it, and then waits for &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; as it tries to establish a new connection to &lt;code class=&quot;highlighter-rouge&quot;&gt;db_other&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;analysis&quot;&gt;Analysis&lt;/h2&gt;
-
-&lt;p&gt;With these findings, we can try to understand how the lack of these timeouts affected our Rails server in production during and after the database failover.&lt;/p&gt;
-
-&lt;h3 id=&quot;establishing-terms&quot;&gt;Establishing Terms&lt;/h3&gt;
-
-&lt;p&gt;Our application server constantly receives requests, out of which a certain percentage of requests will trigger the code to connect to the affected database, which we’ll call &lt;em&gt;x&lt;/em&gt;-type requests. The other requests, that do not trigger a database connection, we’ll call &lt;em&gt;x’&lt;/em&gt;-type requests.&lt;/p&gt;
-
-&lt;h3 id=&quot;analysis-1&quot;&gt;Analysis&lt;/h3&gt;
-
-&lt;p&gt;With the background knowledge gathered in our experiments, let’s try to analyse all the steps that happened during our production outage.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Rails started from a clean state, with no connections set up to the database initially&lt;/li&gt;
-  &lt;li&gt;Rails handles the first few &lt;em&gt;x&lt;/em&gt; request types, opens a connection to the database&lt;/li&gt;
-  &lt;li&gt;Subsequent requests of &lt;em&gt;x&lt;/em&gt; type can reuse the same connections from the connection pool&lt;/li&gt;
-  &lt;li&gt;At a certain time, due to a hardware fault out of our control, a failover of the database is triggered&lt;/li&gt;
-  &lt;li&gt;At the same time requests of &lt;em&gt;x&lt;/em&gt; type comes in — and ActiveRecord reuses the same database connection from the pool, but there is no response. It then waits for &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt;, causing the thread to be stuck waiting for the default timeout&lt;/li&gt;
-  &lt;li&gt;Even though Rails can process requests of the &lt;em&gt;x’&lt;/em&gt; type normally, more and more requests of &lt;em&gt;x&lt;/em&gt; type come in and cause more and more threads to be stuck waiting&lt;/li&gt;
-  &lt;li&gt;Eventually, all the available threads to handle requests are stuck waiting on the TCP connection to the failed database, and Rails can no longer respond to new requests&lt;/li&gt;
-  &lt;li&gt;After the default &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; has elapsed (3 × 10 minutes), some threads will be released to handle new requests&lt;/li&gt;
-  &lt;li&gt;Subsequent requests of &lt;em&gt;x&lt;/em&gt; type will cause a new connection to be opened to the database
-    &lt;ul&gt;
-      &lt;li&gt;If the failover is complete and the DNS records for the new instance has been updated, the new connections will be established&lt;/li&gt;
-      &lt;li&gt;If the failover is not complete or the DNS records were not updated, the TCP connections will still try to connect to the old IP address with the failed database instance. The connections will wait for the &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; (default 120 seconds) to elapse before failing&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Finally, once all the threads are stuck, our Rails application stops responding to all requests until it was restarted manually&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;solution&quot;&gt;Solution&lt;/h4&gt;
-
-&lt;p&gt;To fix the problem, we have to prevent our database connections from being stuck in trying to read from an unresponsive socket, and trying to connect to a closed socket.&lt;/p&gt;
-
-&lt;p&gt;This can be done by simply setting the &lt;code class=&quot;highlighter-rouge&quot;&gt;read_timeout&lt;/code&gt; so that when the database fails, existing connections and threads will be released. The &lt;code class=&quot;highlighter-rouge&quot;&gt;connect_timeout&lt;/code&gt; also has to be set so that when the existing connections are released, new connections and threads handling the requests will not be stuck trying to connect to the same unavailable database.&lt;/p&gt;
-
-&lt;p&gt;We set the following values in our staging environment and manually triggered a database failover via the AWS console, and observed that requests of the &lt;em&gt;x’&lt;/em&gt; type are no longer stalled during the failover.&lt;/p&gt;
-
-&lt;p&gt;The following is a snippet for our current &lt;code class=&quot;highlighter-rouge&quot;&gt;database.yml&lt;/code&gt; configuration before the outage, and the changes to resolve the problem.&lt;/p&gt;
-
-&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;# Config for the non-primary `db_other` database&lt;/span&gt;
-&lt;span class=&quot;na&quot;&gt;production_other&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;adapter&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;mysql2&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;encoding&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;utf8&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;reconnect&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;false&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;database&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;…&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;pool&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;…&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;reaping_frequency&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;120&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;username&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;…&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;password&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;…&lt;/span&gt;
-  &lt;span class=&quot;na&quot;&gt;host&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;…&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;# New changes&lt;/span&gt;
-&lt;span class=&quot;s&quot;&gt;+ connect_timeout&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;5&lt;/span&gt;
-&lt;span class=&quot;s&quot;&gt;+ read_timeout&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;5&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;In this post, we have gone over how timeouts are handled by the ActiveRecord ORM with our MySQL database and how failing to configure them brought down some of our production systems.&lt;/p&gt;
-
-&lt;p&gt;Timeouts are very important configurations when setting up distributed systems and they are easily overlooked in the initial deployments of such applications.&lt;/p&gt;
-
-&lt;p&gt;These principles are not just limited to Rails or MySQL, and the experiments and their findings can be easily extended to other technologies as well. Needless to say, these timeout settings are extremely important for the resiliency of applications in the world of micro services.&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/ankane/the-ultimate-guide-to-ruby-timeouts&quot;&gt;ankane/the-ultimate-guide-to-ruby-timeouts&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/ankane/production_rails&quot;&gt;ankane/production_rails&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://dev.mysql.com/doc/refman/5.7/en/mysql-options.html&quot;&gt;MySQL Reference Manual&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://github.com/zach14c/mysql/blob/mysql-5.7/include/mysql_com.h#L298&quot;&gt;MySQL Source Code Mirror&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://blog.confirm.ch/tcp-connection-states/&quot;&gt;TCP Connection States&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Big thanks to &lt;a href=&quot;https://github.com/lowjoel&quot;&gt;Joel Low&lt;/a&gt; for helping out with this investigation and clarifying ambiguities in Rails and MySQL, and my manager Amit Saini for his helpful review of this post!&lt;/p&gt;
-
-&lt;p&gt;Source code for the test rails application can be found &lt;a href=&quot;https://github.com/grab/blogs/tree/master/2017-01-29-deep-dive-into-database-timeouts-in-rails&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 29 Jan 2018 09:36:00 +0000</pubDate>
-        <link>https://engineering.grab.com/deep-dive-into-database-timeouts-in-rails</link>
-        <guid isPermaLink="true">https://engineering.grab.com/deep-dive-into-database-timeouts-in-rails</guid>
-        
-        <category>Back End</category>
-        
-        <category>Database</category>
-        
-        <category>Distributed Systems</category>
-        
-        <category>Ruby</category>
-        
-        <category>Ruby on Rails</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
