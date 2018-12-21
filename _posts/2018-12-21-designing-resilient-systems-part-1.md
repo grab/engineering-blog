@@ -349,6 +349,6 @@ My advice is to consider how and why your upstream service could fail and then u
 
 So we've taken a look at the first common mechanism used in designing for reliability, which is _Circuit Breakers_. I hope you have enjoyed this post and found it useful. Comments, corrections, and even considered disagreements are always welcome.
 
-In our next post, we will look at the other service reliability mechanism on the spotlight, which is _Retries. _We will see_ _how it works, how to configure it, and tackle some implementations with backoff and jitter. We will also discuss when we should use circuit breakers versus retries, or even a combination of both.
+In our next post, we will look at the other service reliability mechanism on the spotlight, which is _Retries_. We will see how it works, how to configure it, and tackle some implementations with backoff and jitter. We will also discuss when we should use circuit breakers versus retries, or even a combination of both.
 
 Stay tuned!
