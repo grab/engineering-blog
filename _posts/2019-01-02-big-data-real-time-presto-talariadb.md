@@ -29,7 +29,7 @@ In this article, we focus on TalariaDB, a distributed, highly available, and low
 
 TalariaDB addresses our need to query at least 2-3 terabytes of data per hour with predictable low query latency and low cost. Most importantly, it plays very nicely with the different tools' ecosystems and lets us query data using SQL. 
 
-The figure below shows how often a particular event happened within the last hour. The query scans through almost **4 million rows** and executes in about **1 second.**
+The figure below shows how often a particular event happened within the last hour. The query scans through almost **4 million rows** and executes in about **1 second**.
 
 # Design goals
 
@@ -37,17 +37,17 @@ TalariaDB attempts to solve a specific business problem by unifying cold and hot
 
 ## Functional requirements
 
-* **Time-Series Metrics.** The system can store thousands of different time-series metrics.
+* **Time-Series Metrics**. The system can store thousands of different time-series metrics.
 
 * **Data Retention**. Keep the most recent data. This is configurable so we can extend the retention period on the fly.
 
-* **Query or Aggregate by any dimension.** We will build very complex queries using the full power of SQL and the Presto query engine for graphing, log retrieval, Grab Splainer, analytics, and other use-cases.
+* **Query or Aggregate by any dimension**. We will build very complex queries using the full power of SQL and the Presto query engine for graphing, log retrieval, Grab Splainer, analytics, and other use-cases.
 
 ## Non-functional requirements
 
 * **Linear, Horizontal Scalability**. The hot data layer can scale to a multi-terabyte or even multi-petabyte scale.
 
-* **Low Latency.** The system responds and retrieves data for a particular combination of metric name and time window. The query executes within a few seconds at most, even if there is a petabyte of data. 
+* **Low Latency**. The system responds and retrieves data for a particular combination of metric name and time window. The query executes within a few seconds at most, even if there is a petabyte of data.
 
 * **Simplicity**. The system is simple, easy to write, understand, and maintain.
 
