@@ -31,6 +31,8 @@ TalariaDB addresses our need to query at least 2-3 terabytes of data per hour wi
 
 The figure below shows how often a particular event happened within the last hour. The query scans through almost **4 million rows** and executes in about **1 second**.
 
+![Query events](/img/big-data-real-time-presto-talariadb/query-event.png)
+
 # Design goals
 
 TalariaDB attempts to solve a specific business problem by unifying cold and hot storage data models. This reduces overall latency, and lets us build a set of simple services that queries and processes data. TalariaDB does not attempt to be a general-purpose database. Simplicity was a primary design goal. We also set the following functional and non-functional requirements:
