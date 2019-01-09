@@ -6,9 +6,332 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 09 Jan 2019 04:51:18 +0000</pubDate>
-    <lastBuildDate>Wed, 09 Jan 2019 04:51:18 +0000</lastBuildDate>
+    <pubDate>Wed, 09 Jan 2019 06:11:42 +0000</pubDate>
+    <lastBuildDate>Wed, 09 Jan 2019 06:11:42 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Designing resilient systems: Circuit Breakers or Retries? (Part 2)</title>
+        <description>&lt;p&gt;&lt;em&gt;This post is the second part of the series on Designing Resilient Systems. In Part 1, we looked at use cases for implementing circuit breakers. In this second part, we will do a deep dive on retries and its use cases, followed by a technical comparison of both approaches.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;introducing-retry&quot;&gt;Introducing Retry&lt;/h2&gt;
+
+&lt;p&gt;Retry is a software mechanism that monitors a request, and if it detects failure, automatically repeats the request.&lt;/p&gt;
+
+&lt;p&gt;Let’s take the following example:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image4.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Assuming our load balancer is configured to perform &lt;em&gt;round-robin&lt;/em&gt; load balancing, this means that with two hosts in our upstream service, the first request will go to one host and the second request will go to the other host.&lt;/p&gt;
+
+&lt;p&gt;If our request was unlucky and we were routed to the broken host, then our interaction would look like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image3.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;However, with retries in place, our interaction would look like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image5.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;You’ll notice a few things here. Firstly, because of the retry, we have successfully completed our processing; meaning we are returning fewer errors to our users.&lt;/p&gt;
+
+&lt;p&gt;Secondly, while our request succeeded, it required more resources (CPU and time) to complete. We have to attempt the first request, wait for and detect the failure, before repeating and succeeding on our second attempt.&lt;/p&gt;
+
+&lt;p&gt;Lastly, unlike the circuit breaker (discussed in Part 1), we are not tracking the results of our requests. We are, therefore, not doing anything to prevent ourselves from making requests to the broken host in the future. Additionally, in our example, our second request was routed to the working host. This will not always be the case, given that there will be multiple concurrent requests from our service and potentially even requests from other services. As such, we are not guaranteed to get a working host on the second attempt. In fact, the chance for us to get a working host is equal to the number of working hosts divided by the total hosts, in this case 50%.&lt;/p&gt;
+
+&lt;p&gt;Digging a little deeper, we had a 50% chance to get a bad host on the first request, and a 50% chance on the retry.  By extension we therefore have a 50% x 50% = 25% chance to fail even after 1 retry. If we were to retry twice, this becomes 12.5%&lt;/p&gt;
+
+&lt;p&gt;Understanding this concept will help you determine your &lt;strong&gt;max retries&lt;/strong&gt; setting.&lt;/p&gt;
+
+&lt;h3 id=&quot;should-we-retry-for-all-errors&quot;&gt;Should we retry for all errors?&lt;/h3&gt;
+
+&lt;p&gt;The short answer is no. We should consider retrying the request if it has any chance of succeeding (i.e. error codes 503 - Service Unavailable and 500 - Internal Server Error). For example, for error code 503, a retry may work if the retry resulted in a call to a host that was not overloaded.   Conversely, for errors like 401 - Unauthorized or 400 - Bad Request, retrying these wastes resources as they will never work without the user changing their request.&lt;/p&gt;
+
+&lt;p&gt;There are two key points to consider: Firstly, the upstream service must return sensible and informative errors and secondly, our retry mechanism must be configured to react to different types of errors differently.&lt;/p&gt;
+
+&lt;h3 id=&quot;idempotency&quot;&gt;Idempotency&lt;/h3&gt;
+
+&lt;p&gt;A process (function or request) is considered to be idempotent if it can be repeated any number of times (i.e. one or more) and have the same result.&lt;/p&gt;
+
+&lt;p&gt;Let’s say you have a REST endpoint that &lt;em&gt;loads a city.&lt;/em&gt; Every time you call this method, you should receive the same outcome. Now, let’s say we have another endpoint, but this one &lt;em&gt;reserves a ticket&lt;/em&gt;. If we call this endpoint twice, then we will have reserved 2 tickets. How does this relate to retries?&lt;/p&gt;
+
+&lt;p&gt;Examine our retry interaction from above again:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image1.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;What happens if our first call to the broken host actually reserves at ticket but fails to respond to us correctly. Our retry to the second working host would then reserve a second ticket, and we would have no idea that we had made a mistake.&lt;/p&gt;
+
+&lt;p&gt;This is because our &lt;em&gt;reserve a ticket&lt;/em&gt; endpoint is not idempotent.&lt;/p&gt;
+
+&lt;p&gt;Please do not take the above example to imply that only read operations can be retried and that all write/mutate changes cannot be; the example was chosen carefully.&lt;/p&gt;
+
+&lt;p&gt;A &lt;em&gt;reserve a ticket&lt;/em&gt; operation is almost always going to involve some finite amount of tickets, and in such a situation it is imperative that 1 request only results in 1 reservation. Other similar situations might include charging a credit card or incrementing a counter.&lt;/p&gt;
+
+&lt;p&gt;Some write operations, like saving a registration or updating a record to a provided value (without calculation) can be repeated. Saving multiple registrations will cause messy data, but that can be cleaned up by some other non-customer related process. In this case, it’s better to ensure we fulfill the customers request at the expense of extra work for us rather than failing, leaving the system in an unknown state and making it the customer’s problem. For example, let’s say we were updating the user’s password to abc123, this end state which was provided by the user is fixed and so, therefore, repeating the process only wastes the resources of the data store.&lt;/p&gt;
+
+&lt;p&gt;In cases where retries are possible, but you want to be able to detect and prevent duplicate transactions (like in our ticket reservation example) it is possible to introduce a &lt;strong&gt;cryptographic nonce&lt;/strong&gt;. This topic would require an article all of its own, but the short version is: a cryptographic nonce is a random number introduced into a request that helps us detect that two requests are actually one.&lt;/p&gt;
+
+&lt;p&gt;If that didn’t make much sense, here’s an example:&lt;/p&gt;
+
+&lt;p&gt;Let’s say we receive a ticket registration request from our customer, and we append to it a random number. Now, when we call our upstream service, we can pass the request data together with the nonce. This request is partially processed but then fails and returns an HTTP 500 - Internal Server Error. We retry this request with another upstream service host and again supply the request data and the exact same nonce. The upstream host is now able to use this nonce and other identifying information in the request (e.g. customer id, amount, ticket type, etc.) to determine that both requests originate from the same user request and therefore should be treated as one. In our case, this might mean we return the tickets reserved by the first partially processed request and complete the processing.&lt;/p&gt;
+
+&lt;p&gt;For more information on cryptographic nonces, start &lt;a href=&quot;https://en.wikipedia.org/wiki/Cryptographic_nonce&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;backoff&quot;&gt;Backoff&lt;/h3&gt;
+
+&lt;p&gt;In our previous example, when we failed, we immediately tried again and because the load balancer gave us a different host, the second request succeeded. However, this is not actually how it works. The actual implementation includes a delay/wait in-between request like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image2.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;This amount of wait time between requests is called the &lt;strong&gt;backoff&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;Consider what happens when all hosts of the upstream service are down. Remember, the upstream service could be just one host (like a database). If we were to retry immediately, we would have a high chance to fail again and again and again, until we exceeded our maximum number of attempts.&lt;/p&gt;
+
+&lt;p&gt;Viewed simply, the backoff is a process that changes the wait time between attempts based on the number of previous failures.&lt;/p&gt;
+
+&lt;p&gt;Going back to our example, let’s assume that our backoff delay is 100 milliseconds.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+   &lt;thead&gt;
+   &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;Retry Attempt&lt;/strong&gt;
+      &lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Delay&lt;/strong&gt;
+      &lt;/th&gt;
+   &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+   &lt;tr&gt;
+      &lt;td&gt;1
+      &lt;/td&gt;
+      &lt;td&gt;1 x 100ms = 100ms
+      &lt;/td&gt;
+   &lt;/tr&gt;
+   &lt;tr&gt;
+      &lt;td&gt;2
+      &lt;/td&gt;
+      &lt;td&gt;2 x 100ms = 200ms
+      &lt;/td&gt;
+   &lt;/tr&gt;
+   &lt;tr&gt;
+      &lt;td&gt;5
+      &lt;/td&gt;
+      &lt;td&gt;5 x 100ms = 500ms
+      &lt;/td&gt;
+   &lt;/tr&gt;
+   &lt;tr&gt;
+      &lt;td&gt;10
+      &lt;/td&gt;
+      &lt;td&gt;10 x 100mx = 1,000ms
+      &lt;/td&gt;
+   &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;The underlying theory here is that if a request has already failed a few times, then it has an increased likelihood of failing again. We, therefore, want to give the upstream service the greater chance to recover and be able to fulfill our request.&lt;/p&gt;
+
+&lt;p&gt;By increasing the delay, we are not only giving it more time to recover, but we are spreading out the load of our requests and retries. In cases where the request failure is caused by the upstream service being overloaded, this spreading out of the load also gives us a greater chance of success.&lt;/p&gt;
+
+&lt;h3 id=&quot;jitter&quot;&gt;Jitter&lt;/h3&gt;
+
+&lt;p&gt;With backoff in-place, we have a way to spread out the load we are sending to our upstream service. However, the load will still be &lt;em&gt;spiky&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;Let’s say we make 10,000 requests and they all fail because the upstream service cannot handle that amount of simultaneous requests. Following our simple backoff implementation from earlier, after 100ms delay we would retry all 10,000 requests which would also fail for the same reason. To avoid this, the retry implementation includes &lt;strong&gt;jitter&lt;/strong&gt;. Jitter is the process of increasing or decreasing the delay from the standard to further spread out the load. In our example, this might mean that our 10,000 requests are delayed between 70-150ms (for the first retry attempt) by a random amount.&lt;/p&gt;
+
+&lt;p&gt;The goal here is similar to above, which is to smooth out the request load.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: For purposes of this article we’ve provided a vastly over-simplified definition of backoff and jitter. If you would like a more in-depth description, please read &lt;a href=&quot;https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/&quot;&gt;this article&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;settings&quot;&gt;Settings&lt;/h3&gt;
+
+&lt;p&gt;In Grab, we have implemented our own retry library inspired by this &lt;a href=&quot;https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/&quot;&gt;AWS blog article&lt;/a&gt;. In this library we have the following settings:&lt;/p&gt;
+
+&lt;h4 id=&quot;maximum-retries&quot;&gt;Maximum Retries&lt;/h4&gt;
+
+&lt;p&gt;This value indicates how many times a request can be retried before giving up (failing).&lt;/p&gt;
+
+&lt;h4 id=&quot;retry-filter&quot;&gt;Retry Filter&lt;/h4&gt;
+
+&lt;p&gt;This is a function that processes the returned error and decides if the request should be retried.&lt;/p&gt;
+
+&lt;h4 id=&quot;base-and-max-delay&quot;&gt;Base and Max Delay&lt;/h4&gt;
+
+&lt;p&gt;When we combine the concepts of &lt;strong&gt;backoff&lt;/strong&gt; and &lt;strong&gt;jitter&lt;/strong&gt;, we are left with these two settings.&lt;/p&gt;
+
+&lt;p&gt;The base delay is the &lt;strong&gt;minimum&lt;/strong&gt; backoff delay between attempts, while the max delay is the &lt;strong&gt;maximum&lt;/strong&gt; delay between attempts.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: The actual delay will always be between these the values for Base and Max Delays and will also be based on the attempt number (number of previous failures).&lt;/p&gt;
+
+&lt;h3 id=&quot;time-boxing-requests&quot;&gt;Time-boxing requests&lt;/h3&gt;
+
+&lt;p&gt;While the underlying goal of the retry mechanism is to do everything possible to fulfill our user’s request by retrying until we successfully complete the request, we cannot try forever.&lt;/p&gt;
+
+&lt;p&gt;At some point, we need to give up and allow the failure.&lt;/p&gt;
+
+&lt;p&gt;When configuring the retry mechanism, it is essential to tune the &lt;strong&gt;Maximum Retries&lt;/strong&gt;, &lt;strong&gt;Request Timeout&lt;/strong&gt;, and &lt;strong&gt;Maximum Delay&lt;/strong&gt; together. The target to keep in mind when tuning these values is the worst-case response time to our customer.&lt;/p&gt;
+
+&lt;p&gt;The worst-case response time can be calculated as: &lt;strong&gt;(maximum retries x request timeout) + (maximum retries x maximum delay)&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;For example:&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+&lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th&gt;&lt;strong&gt;Max Retries&lt;/strong&gt;
+   &lt;/th&gt;
+   &lt;th&gt;&lt;strong&gt;Request Timeout (ms)&lt;/strong&gt;
+   &lt;/th&gt;
+   &lt;th&gt;&lt;strong&gt;Maximum Delay (ms)&lt;/strong&gt;
+   &lt;/th&gt;
+   &lt;th&gt;&lt;strong&gt;Total Time for first attempt and retries&lt;/strong&gt;
+   &lt;/th&gt;
+   &lt;th&gt;&lt;strong&gt;Total time for delays&lt;/strong&gt;
+   &lt;/th&gt;
+   &lt;th&gt;&lt;strong&gt;Total Time Overall (ms)&lt;/strong&gt;
+   &lt;/th&gt;
+  &lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td&gt;2
+   &lt;/td&gt;
+   &lt;td&gt;100
+   &lt;/td&gt;
+   &lt;td&gt;200
+   &lt;/td&gt;
+   &lt;td&gt;3 x 100
+   &lt;/td&gt;
+   &lt;td&gt;2 x 200
+   &lt;/td&gt;
+   &lt;td&gt;
+800
+
+   &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td&gt;5
+   &lt;/td&gt;
+   &lt;td&gt;100
+   &lt;/td&gt;
+   &lt;td&gt;200
+   &lt;/td&gt;
+   &lt;td&gt;6 x 100
+   &lt;/td&gt;
+   &lt;td&gt;5 x 200
+   &lt;/td&gt;
+   &lt;td&gt;
+1,600
+
+   &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td&gt;3
+   &lt;/td&gt;
+   &lt;td&gt;500
+   &lt;/td&gt;
+   &lt;td&gt;200
+   &lt;/td&gt;
+   &lt;td&gt;4 x 500
+   &lt;/td&gt;
+   &lt;td&gt;3 x 200
+   &lt;/td&gt;
+   &lt;td&gt;
+2,600
+
+   &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;You can see from this table how the total amount of time taken very quickly escalates.&lt;/p&gt;
+
+&lt;h2 id=&quot;circuit-breakers-vs-retries&quot;&gt;Circuit Breakers vs Retries&lt;/h2&gt;
+
+&lt;p&gt;Some of the original discussions that started this series was centered around one question “&lt;em&gt;why use a circuit-breaker when you can just retry?&lt;/em&gt;” Let’s dig into this a little deeper.&lt;/p&gt;
+
+&lt;h3 id=&quot;communication-with-retries-only&quot;&gt;Communication with Retries only&lt;/h3&gt;
+
+&lt;p&gt;Assuming we take sufficient time to plan, track and tune our retry settings, a system that only has retries will have an excellent chance of successfully achieving our goals by merely retrying.&lt;/p&gt;
+
+&lt;p&gt;Consider our earlier example:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image4.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In this simple example, setting our retry count to 1 would ensure that we would achieve our goals. If the first attempt went to the broken host, we would merely retry and be load-balanced to the other working host.&lt;/p&gt;
+
+&lt;p&gt;Sounds good right? So where is the downside? Let’s consider a failure scenario where our broken host does not throw an error immediately but instead never responds. This means:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;When routed to the working host first then the response time would be fast, whatever the processing time of the working host is.&lt;/li&gt;
+  &lt;li&gt;When routed to the broken host first then the response time would be equal to our &lt;strong&gt;Request Timeout&lt;/strong&gt; setting plus the processing time of the working host.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;As you can imagine, if we had more hosts and in particular more broken hosts, then we would require a higher setting for &lt;strong&gt;Maximum Retries&lt;/strong&gt;, and this would result in higher potential response time (i.e. multiples of the &lt;strong&gt;Request Timeout&lt;/strong&gt; setting).&lt;/p&gt;
+
+&lt;p&gt;Now consider the worst-case scenario -  when all the upstream hosts are down. All of our requests will take at least &lt;strong&gt;Maximum Retries x Request Timeout&lt;/strong&gt; to complete. This situation is referred to as **cascading failure **(&lt;a href=&quot;https://en.wikipedia.org/wiki/Cascading_failure&quot;&gt;more info&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;Another form of cascading failure occurs when the load that should be handled by a broken host is added to a working host, causing the working host to become overloaded.&lt;/p&gt;
+
+&lt;p&gt;For example, if in our above example, we have 2 hosts that are capable of handling 10k requests/second each. If we currently have 15k requests/second, then our load balancer has spread the load, and we have 7.5k requests/second on each.&lt;/p&gt;
+
+&lt;p&gt;However, because all requests to the broken host are retried on the working host, our working host suddenly has to handle its original 7.5k requests plus 7.5k retries giving it 15k requests/second to handle, which it cannot.&lt;/p&gt;
+
+&lt;h3 id=&quot;communication-with-circuit-breaker-only&quot;&gt;Communication with Circuit Breaker only&lt;/h3&gt;
+
+&lt;p&gt;But what if you only implemented a circuit breaker and no retries? There are two factors to note in this scenario. Firstly, the error rate of our system is the error rate that is seen by our users. For example, if our system has a 10% error rate then 10% of our users would receive an error.&lt;/p&gt;
+
+&lt;p&gt;Secondly, should our error rate exceed the &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; then the circuit would open, and then 100% of our users would get an error even though there are hosts that could successfully process the request.&lt;/p&gt;
+
+&lt;h3 id=&quot;circuit-breaker-and-retries&quot;&gt;Circuit Breaker and Retries&lt;/h3&gt;
+
+&lt;p&gt;The third option is of course to adopt both circuit breaker and retry mechanisms.&lt;/p&gt;
+
+&lt;p&gt;Taking the same example we used in the previous section, if we were to retry the 10% of requests that failed once, 90% of those requests would pass on the second attempt. Our success rate would then go from the original &lt;strong&gt;90%&lt;/strong&gt; to &lt;strong&gt;90% + ( 90% x 10%) = 99%&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Perhaps another interesting side-effect of retrying and successfully completing the request is the effect that it has on the circuit itself. In our example, our error rate has moved from &lt;strong&gt;10%&lt;/strong&gt; to &lt;strong&gt;1%&lt;/strong&gt;. This significant reduction in our error rate means that our circuit is far less likely to open and prevent all requests.&lt;/p&gt;
+
+&lt;h3 id=&quot;circuit-breaker-inside-retries--retries-inside-circuit-breaker&quot;&gt;Circuit Breaker inside Retries / Retries inside Circuit Breaker&lt;/h3&gt;
+
+&lt;p&gt;It might seem strange but it is imperative that you spend some time considering the order in which you place the mechanisms.&lt;/p&gt;
+
+&lt;p&gt;For example, when you have the retry mechanism inside the circuit breaker, then when the circuit breaker sees a failure, this means that we have already attempted retries several times and still failed. An error in this situation should be rather unlikely. By extension then we should consider using a very low &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; as the trigger to open the circuit.&lt;/p&gt;
+
+&lt;p&gt;On the other hand, when we have a circuit breaker inside a retry mechanism, then when the retry mechanism sees a failure, this means either the circuit is open, or we have failed an individual request. In this configuration, the circuit breaker is monitoring all of the individual requests instead of the batch in the previous. As such, errors are going to be much more frequent. We, therefore, should consider a high &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; before opening the circuit. This configuration is also the only way to achieve &lt;em&gt;circuit breaker per host&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;The second configuration is by far my preferred option. I prefer it because:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The circuit breaker is monitoring all requests.&lt;/li&gt;
+  &lt;li&gt;The circuit is not unduly influenced by one bad request. For example, a request with a large payload might fail when sent to all hosts, but all other requests are fine. If we have a low &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; setting, this might unduly influence the circuit.&lt;/li&gt;
+  &lt;li&gt;I like to ensure that bulwark inside our circuit breaker implementation also protects the upstream service from excessive requests, which it does more effectively when tracking individual requests&lt;/li&gt;
+  &lt;li&gt;If I set the &lt;strong&gt;Timeout&lt;/strong&gt; setting on my circuit to some huge number (e.g. 1 hour), then I can effectively ignore it and the calculation of my maximum possible time spent calling the upstream service is simplified to &lt;strong&gt;(maximum retries x request timeout) + (maximum retries x maximum delay)&lt;/strong&gt;.  Yes, this is not so simple, but it is one less setting to worry about.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;final-thoughts&quot;&gt;Final Thoughts&lt;/h2&gt;
+
+&lt;p&gt;In this two-part series, we have introduced two beneficial software mechanisms that can increase the reliability of our communications with external upstream services.&lt;/p&gt;
+
+&lt;p&gt;We have discussed how they work, how to configure them, and some of the less obvious issues that we must consider when using them.&lt;/p&gt;
+
+&lt;p&gt;While it is possible to use them separately, for me, it should never be a question of if you should have a circuit breaker or a retry mechanism. Where possible you should always have both. With the bulwark thrown in for free in our circuit breaker implementation, it gets even better.&lt;/p&gt;
+
+&lt;p&gt;The only thing that could make working with an upstream service even better for me, (e.g. more reliable and potentially faster) would be to add a cache in front of it all. But we’ll save that for another article.&lt;/p&gt;
+
+&lt;p&gt;I hope you have enjoyed this series and found it useful. Comments, corrections, and even considered disagreements are always welcome.&lt;/p&gt;
+
+&lt;p&gt;Happy Coding!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 08 Jan 2019 10:55:40 +0000</pubDate>
+        <link>https://engineering.grab.com/designing-resilient-systems-part-2</link>
+        <guid isPermaLink="true">https://engineering.grab.com/designing-resilient-systems-part-2</guid>
+        
+        <category>Resiliency</category>
+        
+        <category>Circuit Breakers</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Querying Big Data in Real-Time with Presto &amp; Grab's TalariaDB</title>
@@ -1766,124 +2089,6 @@
         <category>Back End</category>
         
         <category>Front End</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Introducing Grab-Kit: Distributed Service Design at Grab</title>
-        <description>&lt;p&gt;As Grab rapidly expands its services, we at Engineering continue to look for ways to work smarter and deliver qualitative and relevant services quickly and efficiently. This helps us to stay true to our commitment to outserve our partners and customers.&lt;/p&gt;
-
-&lt;p&gt;As we evolved from a single monolithic application to a microservices-based architecture, we were faced with a new challenge. How do we support exponential growth while maintaining consistency, coordination, and quality?&lt;/p&gt;
-
-&lt;p&gt;Here is what we came up with.&lt;/p&gt;
-
-&lt;h2 id=&quot;a-framework-to-solve-it-all&quot;&gt;A framework to solve it all&lt;/h2&gt;
-
-&lt;p&gt;Our Grab Developer Experience team came up with the following solution: Grab-Kit - a framework for building Go microservices. Grab-Kit is designed to create a fully functional microservice scaffolding in seconds, allowing engineers to focus on the business logic straight away!&lt;/p&gt;
-
-&lt;p&gt;Grab-Kit provides abstraction from all aspects of distributed system design by simplifying the creation and operation of microservices through scaffolding, using smart library configuration defaults, automatic initialization, context propagation, and runtime framework configuration. Moreover, it provides standardization of communication across services.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/introducing-grab-kit/grab-kit_create.png&quot; alt=&quot;Grab-kit create command&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We no longer need to spend long hours generating boilerplate code, initializing common libraries, creating dashboards and alarms, or creating Data Access Objects (DAOs). Instead, we can concentrate on delivering scalable and agile services that are essential for the success of our engineers and in turn delight our customers.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-heart-of-grab-kit&quot;&gt;The heart of Grab-Kit&lt;/h2&gt;
-
-&lt;p&gt;The inspiration behind the Grab-Kit framework is &lt;a href=&quot;https://gokit.io/&quot;&gt;Go-Kit&lt;/a&gt;. However, Grab-Kit goes beyond the ideas proposed by Go-Kit, for example, our Grab-Kit has added automatic code generation, which saves efforts required in writing boilerplate code for both server and client service sides. While Go-Kit proposes techniques for microservices, there is still a lot of manual work involved in implementing them. In contrast, Grab-Kit actually helps us focus on the business logic by doing this work for us while codifying all best engineering practices around distributed service design.&lt;/p&gt;
-
-&lt;p&gt;Continue reading to see what we love most about Grab-Kit.&lt;/p&gt;
-
-&lt;h3 id=&quot;standardization&quot;&gt;Standardization&lt;/h3&gt;
-
-&lt;p&gt;The underlying intention of Grab-Kit is to gain consistency across services in the following components:&lt;/p&gt;
-
-&lt;h4 id=&quot;service-definitions&quot;&gt;Service definitions&lt;/h4&gt;
-
-&lt;p&gt;&lt;strong&gt;Problems&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Services have multiple sources and configurations, and produce inconsistent APIs, SDKs, error handling, transport layer, and so on.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Reaching a level of consistency relies on having a single source of truth. Grab-Kit defines the service definition in a proto definition file (&lt;code class=&quot;highlighter-rouge&quot;&gt;.proto&lt;/code&gt; file) and considers this file as the single source of truth.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;How is it done?&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Grab-Kit automatically generates a &lt;code class=&quot;highlighter-rouge&quot;&gt;.proto&lt;/code&gt; file when we run &lt;code class=&quot;highlighter-rouge&quot;&gt;Grab-Kit create &amp;lt;service&amp;gt;&lt;/code&gt; for the first time; this file is then used by Grab-Kit to generate all other code such as boilerplates and data transfer objects (DTOs). Grab-Kit automatically generates DTOs for custom message types in the &lt;code class=&quot;highlighter-rouge&quot;&gt;.proto&lt;/code&gt; file. It also generates the protocol buffers (protobuf) bindings for these types, so they can be converted between the Go DTO and protobuf types.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/introducing-grab-kit/proto_file.png&quot; alt=&quot;Protobuf File&quot; /&gt;&lt;/p&gt;
-
-&lt;h4 id=&quot;middleware-stack&quot;&gt;Middleware stack&lt;/h4&gt;
-
-&lt;p&gt;&lt;strong&gt;Problems&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Teams manage multiple logs in various locations. The logs were in many different formats, making it difficult to search and filter them.&lt;/p&gt;
-
-&lt;p&gt;Traceability is another factor that prevented teams from monitoring service health efficiently. There was no indication on what happened to a request.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Grab-Kit uses a consistent middleware stack across all clients. It uses middleware for logging, circuit breaker, stats, panic recovery, profiling, caching, and so on.
-Grab-Kit provides easy, automatic profiling with flame graphs and execution traces available in development mode. Further, all service related metrics and logs are generated automatically.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/introducing-grab-kit/profiling.png&quot; alt=&quot;Profiling&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;How is it done?&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Grab-Kit wraps endpoints with a standard middleware for logging and stats. It also compacts stack traces using the &lt;a href=&quot;https://github.com/maruel/panicparse&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;panicparse&lt;/code&gt;&lt;/a&gt; library. Grab-Kit’s output is much more readable than the default output.&lt;/p&gt;
-
-&lt;p&gt;In addition, the consistent middleware stack automatically starts the CPU profile and trace for each endpoint on developer mode.&lt;/p&gt;
-
-&lt;h4 id=&quot;automated-dashboard-generation&quot;&gt;Automated dashboard generation&lt;/h4&gt;
-
-&lt;p&gt;&lt;strong&gt;Problems&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Our services are monitored on dashboards and monitoring is important to ensure that our services are working as they should. However, it can be time consuming to create meaningful dashboards without fully understanding the available metrics in our libraries, or how to even use them.&lt;/p&gt;
-
-&lt;p&gt;Dashboards also need to be regularly maintained as changes to the metrics or keys used can lead to missing or inaccurate graphs.&lt;/p&gt;
-
-&lt;p&gt;Missing alerts can lead to production incidents going unnoticed, consequently costing Grab business opportunities.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Solution&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;With Grab-Kit, we can automatically create dashboards and add graphs (for monitoring and observing) for our services and all its upstream dependencies. In addition, we can keep the graphs up to date as the codebase changes.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;How is it done?&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;We enable libraries to define the metrics published in a declarative manner (&lt;code class=&quot;highlighter-rouge&quot;&gt;metrics.yaml&lt;/code&gt;). A tool (&lt;code class=&quot;highlighter-rouge&quot;&gt;grab-kit dash&lt;/code&gt;) reads these files and uses the DataDog API to automatically create a dashboard with the given metrics. If a dashboard already exists, Grab-Kit adds any missing metrics and updates the existing ones, ensuring that the dashboard is always complete and in sync.&lt;/p&gt;
-
-&lt;p&gt;Following is an example workflow for creating dashboards and updating existing ones:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/introducing-grab-kit/dashboard_flow.png&quot; alt=&quot;Automated Dashboard Generation Flow&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We’ve gone with the modular approach because not all libraries -are relevant to a particular service. This means that Grab-Kit can selectively publish graphs from just the libraries used by the service. For example, if service X doesn’t use elasticsearch, then it doesn’t need the elasticsearch metrics.&lt;/p&gt;
-
-&lt;p&gt;There is a group of ‘core’ metrics included by default, and additional ones can be selected by the service owner.&lt;/p&gt;
-
-&lt;h2 id=&quot;final-thoughts&quot;&gt;Final thoughts&lt;/h2&gt;
-
-&lt;p&gt;With Grab-Kit’s out-of-the-box support for microservice features such as authentication and authorization, throttling, client-side load balancing, logging, metering, and so on, we’ve seen a huge increase in our productivity. Our friends in the GrabFood team now save up to 70% development time on creating a new service. We have also recorded improvements in stability and availability of our services.&lt;/p&gt;
-
-&lt;p&gt;More and more teams have adopted Grab-Kit since the Grab Developer Experience team released it in November 2017. We see a marginal growth in adoption every month as illustrated in the following chart:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/introducing-grab-kit/adoption_chart.png&quot; alt=&quot;Grab-kit Adoption&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;At Grab, we are on a never-ending journey to deliver robust services that meet our customers’ requirements. We  continue to standardize and streamline our engineering best practices around distributed service design through Grab-Kit. The future is in Grab-Kit!&lt;/p&gt;
-
-&lt;p&gt;Should you have any questions or require more details about Grab-Kit, please don’t hesitate to leave a comment.&lt;/p&gt;
-</description>
-        <pubDate>Fri, 08 Jun 2018 02:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/introducing-grab-kit</link>
-        <guid isPermaLink="true">https://engineering.grab.com/introducing-grab-kit</guid>
-        
-        <category>Back End</category>
-        
-        <category>Engineering</category>
-        
-        <category>Golang</category>
         
         
         <category>Engineering</category>
