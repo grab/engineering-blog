@@ -287,7 +287,7 @@ Sounds good right? So where is the downside? Let's consider a failure scenario w
 
 As you can imagine, if we had more hosts and in particular more broken hosts, then we would require a higher setting for **Maximum Retries**, and this would result in higher potential response time (i.e. multiples of the **Request Timeout** setting).
 
-Now consider the worst-case scenario -  when all the upstream hosts are down. All of our requests will take at least **Maximum Retries x Request Timeout** to complete. This situation is referred to as **cascading failure **([more info](https://en.wikipedia.org/wiki/Cascading_failure)).
+Now consider the worst-case scenario -  when all the upstream hosts are down. All of our requests will take at least **Maximum Retries x Request Timeout** to complete. This situation is referred to as **cascading failure** ([more info](https://en.wikipedia.org/wiki/Cascading_failure)).
 
 Another form of cascading failure occurs when the load that should be handled by a broken host is added to a working host, causing the working host to become overloaded.
 
