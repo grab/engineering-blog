@@ -6,9 +6,272 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 10 Jan 2019 07:49:54 +0000</pubDate>
-    <lastBuildDate>Thu, 10 Jan 2019 07:49:54 +0000</lastBuildDate>
+    <pubDate>Fri, 18 Jan 2019 05:36:17 +0000</pubDate>
+    <lastBuildDate>Fri, 18 Jan 2019 05:36:17 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>A Lean and Scalable Data Pipeline To Capture Large Scale Events and Support Experimentation Platform</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;Fast product development and rapid innovation require running many controlled online experiments on large user groups. This is challenging on multiple fronts, including &lt;a href=&quot;https://www.google.com/url?q=https://dl.acm.org/citation.cfm?id%3D2488217&amp;amp;sa=D&amp;amp;ust=1547713139900000&quot;&gt;cultural, organisational, engineering, and trustworthiness&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;To address these challenges we need a holistic view of all our systems and their interactions:  &lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;For a holistic view, don’t just track systems closely related to your experiments. This mitigates the risk of a positive outcome on specific systems translating into a negative global outcome.&lt;/li&gt;
+  &lt;li&gt;When developing new products, we need to know how events interact&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For example, imagine we plan to implement a new feature to increase user engagement. We can design a simple A/B test that measures the user engagement with our product for two randomized groups of users. Let’s assume we ran the experiment and the test shows the engagement significantly increased for the &lt;a href=&quot;https://www.google.com/url?q=https://engineering.grab.com/building-grab-s-experimentation-platform&amp;amp;sa=D&amp;amp;ust=1547713139902000&quot;&gt;treatment group&lt;/a&gt;. Is it safe to roll out this feature? Not necessarily, since our experiment only monitored one metric without considering others.&lt;/p&gt;
+
+&lt;p&gt;Let’s assume an application where &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Click-through_rate&amp;amp;sa=D&amp;amp;ust=1547713139902000&quot;&gt;click through rate&lt;/a&gt;is a target metric we want to keep optimalsince its value impacts our bottom line. Suppose we add a new feature and want to make sure our metric improves. We experiment and find it does improve our target metric. However our DevOps team tells us the &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Load_(computing)&amp;amp;sa=D&amp;amp;ust=1547713139902000&quot;&gt;server load&lt;/a&gt; metrics degraded. Therefore, our next question is “arethe server load metrics different between &lt;a href=&quot;https://www.google.com/url?q=https://engineering.grab.com/building-grab-s-experimentation-platform&amp;amp;sa=D&amp;amp;ust=1547713139902000&quot;&gt;treatment and control&lt;/a&gt;?”.&lt;/p&gt;
+
+&lt;p&gt;Obviously, it gets complicated when you have many experiments and metrics. Manually keeping track of all the metrics and interactions is neither practical nor scalable. Therefore, we need a system that lets us build metrics, measure and track interactions, and also allows us to develop features enabling global optimization across our various product verticals.&lt;/p&gt;
+
+&lt;p&gt;To build such a system,we must capture, ingest, and process data, and then servethe insights as part of our experiment results. In 2017, we started building the various layers to support this goal. In this post, we describe our progress, and lessons learned in building a system thatingests and processes petabytes of data for analytics.&lt;/p&gt;
+
+&lt;h2 id=&quot;data-lakes-and-data-pipelines&quot;&gt;Data lakes and data pipelines&lt;/h2&gt;
+
+&lt;p&gt;The data pipeline concept is closely related to &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Data_lake&amp;amp;sa=D&amp;amp;ust=1547713139903000&quot;&gt;data lakes&lt;/a&gt;. Just like a lake that rivers and smaller streams flow into, a data lake is where various data streams and sources are collected, stored and utilised. Typically, a data pipeline destination is a data lake.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/experimentation-platform-data-pipeline/image1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;[&lt;a href=&quot;https://www.google.com/url?q=https://aws.amazon.com/big-data/datalakes-and-analytics/what-is-a-data-lake/&amp;amp;sa=D&amp;amp;ust=1547713139904000&quot;&gt;image source&lt;/a&gt;]&lt;/p&gt;
+
+&lt;p&gt;Just as people use lakes for different purposes, Product Analytics and Data Scientists use data lakesfor many purposes, ranging from &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Data_mining&amp;amp;sa=D&amp;amp;ust=1547713139905000&quot;&gt;data mining&lt;/a&gt; to monitoring and alerting.&lt;/p&gt;
+
+&lt;p&gt;In contrast, a data pipeline is one way data is sourced, cleansed,and transformed before being added to the data lake. Moving data from asource to a destination can includesteps such as copying the data, and joining or augmenting it with other data sources. A data pipeline is the sum of all the actions taken from the data source to its destination.It ensures the actions happen automatically and in a reliable way.&lt;/p&gt;
+
+&lt;p&gt;Let’s consider two types of data pipelines: batch and stream. When you ingest data in batches, data is imported at regularly scheduled intervals. On the other hand, real-time ingestion or streaming is necessary when information is very time-sensitive.&lt;/p&gt;
+
+&lt;p&gt;This post focuses on the lessons we learned while building our batch data pipeline.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-we-built-our-own-data-pipeline&quot;&gt;Why we built our own data pipeline&lt;/h2&gt;
+
+&lt;p&gt;At the beginning of 2018, we designed the first part of our Mobile event Collector and Dispenser system (McD) thatlets our mobile and backend applicationssend data to a data pipeline. We started with a small number of events (few thousand per second). But with Grab’s rapid growth,  scaling our data pipeline was challenging. At the time of writing, the McD service ingests approximately400,000 events per second. &lt;img src=&quot;img/experimentation-platform-data-pipeline/image5.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Designing, implementing, and scaling our pipeline in less than a year was not easy. Also, we are a small and lean team.This affected the technologies we could use and how we developed and deployed the various components.&lt;/p&gt;
+
+&lt;p&gt;Most importantly, we needed to keep things operationally simple and reliable. For instance, we decided to seek frameworks that support some form of SQL and a high-level language, since SQL is popular among Grabbers.&lt;/p&gt;
+
+&lt;h1 id=&quot;design-requirements&quot;&gt;Design requirements&lt;/h1&gt;
+
+&lt;p&gt;To kick off the process, we first interviewed the project’s potential stakeholders, including both product owners and engineers.  &lt;/p&gt;
+
+&lt;p&gt;The two questions we asked were:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Who will access the data?&lt;/li&gt;
+  &lt;li&gt;What were their expectations in terms of lag between data being captured at source and the data being available through the serving layer?&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This second question is often missed when building data warehouses and &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Extract,_transform,_load&amp;amp;sa=D&amp;amp;ust=1547713139909000&quot;&gt;ETL&lt;/a&gt;jobs. But for us, its answers were the cornerstone for future decisions.&lt;/p&gt;
+
+&lt;p&gt;From the answers, we realized we needed to support access patterns from different users:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Data analysts performing analytical tasks such as querying the data for counts, averages within specific date ranges (one day, one week), and specific granularity (i.e. one hour). As we need to provide new data daily, this use case has an &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Service-level_agreement&amp;amp;sa=D&amp;amp;ust=1547713139909000&quot;&gt;SLA&lt;/a&gt;of one day.&lt;/li&gt;
+  &lt;li&gt;Data scientists doing Exploratory Data Analysis, building a dataset for training machine learning models, running optimization algorithms, and inferring simulation parameters.&lt;/li&gt;
+  &lt;li&gt;Quality assurance and support engineers searching for specific events who require very fine granular level access. Their SLA is at most a few hours.&lt;/li&gt;
+  &lt;li&gt;Advanced monitoring and anomalies detection systems requiring a &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Time_series&amp;amp;sa=D&amp;amp;ust=1547713139910000&quot;&gt;time series&lt;/a&gt; at different granularity depending on the type of monitoring.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Expert_system&amp;amp;sa=D&amp;amp;ust=1547713139910000&quot;&gt;Expert systems&lt;/a&gt; requiring both coarse and granular data while searching and aggregating across a dynamic set of variables.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;For each use case we asked whether batch or streaming made more sense. We concluded a one hour lag was acceptable for most of the applications, at least for the initial rollout. For the data analysts, an SLA of a few hours was acceptable.&lt;/p&gt;
+
+&lt;p&gt;These initial conclusions gave us a lot of food for thought, particularly in regard to the data’s layout in the data lake and what storage format we planned to use.&lt;/p&gt;
+
+&lt;p&gt;Our next question was: how would the various applications and stakeholders access data?All Grab analysts and data scientists use SQL and our backend applications talk to databases with SQL. It was clear we should access data through an SQL interface.&lt;/p&gt;
+
+&lt;p&gt;Our final question was about democratizing access to our data. We knew we had core applications and users we wanted to support. But we also knew the collected data could be strategic to other stakeholders and future use cases. Since we are a small team, we would not be able to support thousands of concurrent ad-hoc queries. For this reason, we surface this data using the &lt;a href=&quot;https://www.google.com/url?q=https://engineering.grab.com/scaling-like-a-boss-with-presto&amp;amp;sa=D&amp;amp;ust=1547713139911000&quot;&gt;Grab’s general data lake&lt;/a&gt; which is able to serve approximately 3 million queries per month.&lt;/p&gt;
+
+&lt;h1 id=&quot;the-experimentation-platform-exp-data-pipeline&quot;&gt;The Experimentation Platform (ExP) data pipeline&lt;/h1&gt;
+
+&lt;p&gt;Following our initial information gathering sessions, we decided on these objectives:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Develop a pipeline for batch data, making sure it is highly available.&lt;/li&gt;
+  &lt;li&gt;Allow analytical queries that aggregate on a wide range of attributes.&lt;/li&gt;
+  &lt;li&gt;Allow building time series by specific event types.&lt;/li&gt;
+  &lt;li&gt;Allow an SQL-supporting query engine.&lt;/li&gt;
+  &lt;li&gt;Democratize the data access.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Our batch data pipeline’s high-level architecture is pretty simple. It followsthe pattern of most data warehouse &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Extract,_transform,_load&amp;amp;sa=D&amp;amp;ust=1547713139913000&quot;&gt;ETL jobs&lt;/a&gt;except that we do not need to export data. In our data pipeline we perform two operations, Load and Transform, and write the result data into our data lake.&lt;/p&gt;
+
+&lt;p&gt;At a high level, we can think of the data pipeline as performing three key operations:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Load the data the ingestion layer has written on Amazon S3.&lt;/li&gt;
+  &lt;li&gt;Transform the data by ordering and partitioning according to patterns discussed below.&lt;/li&gt;
+  &lt;li&gt;Write data to Amazon S3 and metadata to a metastore.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;We use standard technologies: Apache Spark for compute, Apache Hive for metastore, and Apache Airflow as the workflow engine. We run Apache Spark on top of &lt;a href=&quot;https://www.google.com/url?q=https://aws.amazon.com/emr/&amp;amp;sa=D&amp;amp;ust=1547713139913000&quot;&gt;AWS Elastic MapReduce&lt;/a&gt; (EMR) with external AWS RDS and EC2 instances for Hive and Airflow.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/experimentation-platform-data-pipeline/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Particular topics of interest here are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;How we partition the data to enable the different access patterns discussed above.&lt;/li&gt;
+  &lt;li&gt;How we used &lt;a href=&quot;https://www.google.com/url?q=https://aws.amazon.com/emr/&amp;amp;sa=D&amp;amp;ust=1547713139914000&quot;&gt;EMR&lt;/a&gt; and Airflow to achieve resilience and high availability.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Let’s first look at what partitioning data means.&lt;/p&gt;
+
+&lt;p&gt;For simplicity, we can think of data in a simple tabular format, just like a spreadsheet. Each row is a record and each column is an attribute. The columns can have a different range of values.&lt;/p&gt;
+
+&lt;p&gt;We can organize data stored in the storage layer in hierarchical groups, called partitions, based on rows or columns. The serving layer can use this structure to filter data that needs to be served.For large-scale data, it is convenient to define partitions based on the attributes of one or more columns.&lt;/p&gt;
+
+&lt;p&gt;Within a partition, data can be sorted depending on other attributes. Most data processing frameworks, including Apache Spark, support various partitioning schemes and sorting data within a partition (see &lt;a href=&quot;https://www.google.com/url?q=https://deepsense.ai/optimize-spark-with-distribute-by-and-cluster-by/&amp;amp;sa=D&amp;amp;ust=1547713139915000&quot;&gt;https://deepsense.ai/optimize-spark-with-distribute-by-and-cluster-by/&lt;/a&gt;). In our pipeline, we use these Spark features to minimize the data processed by the serving layer.&lt;/p&gt;
+
+&lt;p&gt;In our data, the time and event types are the key attributes. Every single event has the time that it was ingestedand its associated event type.&lt;/p&gt;
+
+&lt;p&gt;Our goal is to minimize the data the query engine needs to process and serve a specific query. Each query’s workload is the combination of the data that needs to be accessed and the complexity of the operation performed on the data. For analytical queries, common operations are data aggregation and transformations.&lt;/p&gt;
+
+&lt;p&gt;Most of our analytical workloads span across a small number of event types (between 2 to 10) and a time range from one hour to few months. Ourexpert systemand time series systemsworkloads focus on a single event type. In theseworkloads the time range can vary from a few hours to one day.A data scientist’s typical workloads require accessing multiple event types and specific time ranges. For these reasons, we partitioned data by event type and ingestion time.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/experimentation-platform-data-pipeline/image3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;This hierarchical structure’ key advantages are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;When retrieving data for a specific event,we don’t need to scan other events or any &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Database_index&amp;amp;sa=D&amp;amp;ust=1547713139917000&quot;&gt;index&lt;/a&gt;. Thesame applies for time ranges.&lt;/li&gt;
+  &lt;li&gt;We do not need to maintain separate indexes and can easily reprocess part of the data.&lt;/li&gt;
+  &lt;li&gt;Workloads across multiple events and/or time ranges can be easily distributed across multiple processing systems, which can process a specific sub-partition in parallel.&lt;/li&gt;
+  &lt;li&gt;It is easier to enforce an Access Control List (ACL)by using the storage layer ACL system torestrict access to specific events and a time range.&lt;/li&gt;
+  &lt;li&gt;We can reprocess a specific partition or a set of partitions without having to reprocess the full data.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For storing the actual data in each partition, we considered two common storage formats and chose&lt;a href=&quot;https://www.google.com/url?q=https://orc.apache.org/&amp;amp;sa=D&amp;amp;ust=1547713139918000&quot;&gt; Apache ORC&lt;/a&gt;.We compared &lt;a href=&quot;https://www.google.com/url?q=https://parquet.apache.org/&amp;amp;sa=D&amp;amp;ust=1547713139918000&quot;&gt;Apache Parquet&lt;/a&gt;against ORC for our workloads. We found an increase in performance (time saved in retrieving the data and storage utilized) between 12.5% and 80% across different use cases when using ORC with Snappy compression vs equivalent data store in Parquet with Snappy compression.&lt;/p&gt;
+
+&lt;p&gt;Another key aspect was addressing the problem of High Availability of an AWS EMR. As of November 2018, AWS EMR does not support hot-standby and &lt;a href=&quot;https://www.google.com/url?q=http://apache-spark-user-list.1001560.n3.nabble.com/Multi-master-Spark-td4025.html%2520https://mapr.com/community/s/detail/a5b0L0000001zqkQAA&amp;amp;sa=D&amp;amp;ust=1547713139919000&quot;&gt;Spark multi-master deployment&lt;/a&gt;.We considered deploying Spark on top of Kubernetes but the initial deployment’s overhead as well as operating a Kubernetes cluster appeared more complex than our adopted solution. We do plan to revisit Spark on Kubernetes.&lt;/p&gt;
+
+&lt;p&gt;The alternative approach we used was AWS EMR, which leverages the distributed nature of the airflow workers. We run one or more totally independent clusters for each availability zone. On the cluster’s master node, we run the Apache Airflow worker,which pulls any new job from a queue. The Spark jobs are defined as Airflow tasks bundled into a &lt;a href=&quot;https://www.google.com/url?q=https://airflow.apache.org/concepts.html&amp;amp;sa=D&amp;amp;ust=1547713139919000&quot;&gt;DAG&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;If a task fails, we automatically retry up to four times to overcome any transitory issues such as S3 API or KMS issues, availability of EC2 instances, or any other temporary issue with underlying resources.&lt;/p&gt;
+
+&lt;p&gt;Tasks are scheduled across different clusters and therefore different availability zones. If an availability zone fails, generally there is no impact on other tasks’ executions. If two zones fail, then generally the impact is just a delay in when the data is available for serving.&lt;/p&gt;
+
+&lt;p&gt;For deploymentsrequiringan upgrade of the EMR version or of internal libraries, we roll out the new version to a random &lt;a href=&quot;https://www.google.com/url?q=https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html&amp;amp;sa=D&amp;amp;ust=1547713139921000&quot;&gt;availability zone&lt;/a&gt;. This lets us perform &lt;a href=&quot;https://www.google.com/url?q=https://martinfowler.com/bliki/CanaryRelease.html&amp;amp;sa=D&amp;amp;ust=1547713139921000&quot;&gt;canary deployments&lt;/a&gt;of our core processing infrastructure. It also lets us rollback very quickly as the remaining availability zones suffice to execute the pipeline’s workload. To do this, we use terraform and our Gitlab CI.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/experimentation-platform-data-pipeline/image7.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;packaging-and-deployment-of-jobs&quot;&gt;Packaging and deployment of jobs&lt;/h2&gt;
+
+&lt;p&gt;We believe our code’s architecture is also of interest. We use &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/&amp;amp;sa=D&amp;amp;ust=1547713139922000&quot;&gt;Apache Spark&lt;/a&gt; and write our Spark jobs in Python. However, to avoid performance penalties, we avoidprocessing the data within the Python VM. We do most of the processing using Spark SQL and the &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/docs/2.1.3/programming-guide.html&amp;amp;sa=D&amp;amp;ust=1547713139922000&quot;&gt;PySpark APIs&lt;/a&gt;. This lets us have comparable performance with the same job written in Scala or Java while using a programming language most of us are familiar with.&lt;/p&gt;
+
+&lt;p&gt;A key aspect we addressed from the beginning was the package of the Spark jobs.&lt;/p&gt;
+
+&lt;p&gt;The Spark documentation lacks information on how you should package your Python application. This resulted in misleading assumptionson how to write complex applications in Python. Often, Pyspark jobs are written using a single file where all the logic and data models are defined. Another common approach is to package the libraries and install them as part of the EMR bootstrap process where custom libraries can be installed on each node.&lt;/p&gt;
+
+&lt;p&gt;We took a slightly different approach. We package our application using this pattern:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;lib.zip, a zip file containing all the internal modules and the defined data models. These files are shared across different jobs.&lt;/li&gt;
+  &lt;li&gt;Each Spark job has a Python file which defines the job’s core logic and submits the job.&lt;/li&gt;
+  &lt;li&gt;Any configuration file is placed in S3 or in HDFS and loaded at runtime by the job.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We deploy all the files on S3 using our deployment pipeline (Gitlab CI). This pattern gave us greater re-usability of our code across different Spark jobs. We can also deploy new job versions without re-deploying the full set of EMR clusters.&lt;/p&gt;
+
+&lt;h1 id=&quot;lessons-learned&quot;&gt;Lessons learned&lt;/h1&gt;
+
+&lt;p&gt;Throughout our data pipeline’s development, we learned important lessons that improvedour original design. We also better understand what we can improve in the future.&lt;/p&gt;
+
+&lt;p&gt;The first lesson relates to the size of the master node and task node in EMR.&lt;/p&gt;
+
+&lt;p&gt;Our initial clusters had this setup:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Master node was using either an&lt;a href=&quot;https://www.google.com/url?q=https://aws.amazon.com/ec2/instance-types/&amp;amp;sa=D&amp;amp;ust=1547713139924000&quot;&gt;m4.xlarge or m5.xlarge&lt;/a&gt; instance.&lt;/li&gt;
+  &lt;li&gt;One core node was usingan &lt;a href=&quot;https://www.google.com/url?q=https://aws.amazon.com/ec2/instance-types/&amp;amp;sa=D&amp;amp;ust=1547713139924000&quot;&gt;m4.2xlarge or m5.2xlarge&lt;/a&gt; instance.&lt;/li&gt;
+  &lt;li&gt;A dynamic number of task nodes were using &lt;a href=&quot;https://www.google.com/url?q=https://aws.amazon.com/ec2/instance-types/&amp;amp;sa=D&amp;amp;ust=1547713139924000&quot;&gt;m4.2xlarge or m5.2xlarge&lt;/a&gt; instances.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The number of task nodes scaled up depending on the &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/docs/2.3.0/running-on-yarn.html&amp;amp;sa=D&amp;amp;ust=1547713139925000&quot;&gt;number of containers pending&lt;/a&gt;. They could gofrom 5 initial task nodes to 200 at a pace of 25 nodes added every 5 minutes, done automatically using our &lt;a href=&quot;https://www.google.com/url?q=https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-automatic-scaling.html&amp;amp;sa=D&amp;amp;ust=1547713139925000&quot;&gt;scaling policy&lt;/a&gt;. As we reached 100 nodes running on a single cluster, we noticed more task nodes failing during processing due to network timeout issues. This impacted our pipeline’s reliability since a Spark task failing more than 4 times aborted the full Spark job.&lt;/p&gt;
+
+&lt;p&gt;To understand why the failure was happening, we examined the resource manager logs. We closely monitored the cluster while running a sample job of similar scale.&lt;/p&gt;
+
+&lt;p&gt;To monitor the cluster, we used EMR’s default tools (&lt;a href=&quot;https://www.google.com/url?q=http://ganglia.sourceforge.net/&amp;amp;sa=D&amp;amp;ust=1547713139926000&quot;&gt;Ganglia&lt;/a&gt;) (as shown below) and custom monitoring tools for CPU, memory, and network on top of &lt;a href=&quot;https://www.google.com/url?q=https://www.datadoghq.com/&amp;amp;sa=D&amp;amp;ust=1547713139926000&quot;&gt;Datadog&lt;/a&gt;. We noticed the overall cluster was heavily used and sometimes the master node even failed to load the metrics.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/experimentation-platform-data-pipeline/image6.png&quot; alt=&quot;&quot; /&gt;
+EMR cluster CPU monitoring with Ganglia&lt;/p&gt;
+
+&lt;p&gt;Initially, we thought this would not have had any impact on the Spark job as the EMR master node in our settings is not the Spark driver node. Our reasoning was:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We deployed our &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/docs/latest/submitting-applications.html&amp;amp;sa=D&amp;amp;ust=1547713139927000&quot;&gt;applications in cluster mode&lt;/a&gt; and therefore the Spark job’s driver would have been one of the task nodes.&lt;/li&gt;
+  &lt;li&gt;If the master was busy running the other services, such as the Spark history server and the Resource manager, it should have had no impact.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Our reasoning was incorrect because, despite correctly assuming the Spark driver was a task node,we did not consider that Spark on EMR relies on &lt;a href=&quot;https://www.google.com/url?q=https://hadoop.apache.org/docs/r3.1.1/hadoop-yarn/hadoop-yarn-site/ResourceModel.html&amp;amp;sa=D&amp;amp;ust=1547713139927000&quot;&gt;YARN&lt;/a&gt; for all its resource allocation.&lt;/p&gt;
+
+&lt;p&gt;By looking more carefully at the logs on the Spark task, we noticed the tasks nodes were failing to communicate their status to the master node and would then shut themselves down. This was happening at the same time as high CPU and high I/O on the master node.&lt;/p&gt;
+
+&lt;p&gt;We rethought our deployment configuration. We used bigger master instances (m5.2xlarge) as well as much bigger task instances in lower numbers (r4.2xlarge) - up to 100 of them.&lt;/p&gt;
+
+&lt;p&gt;After a few weeks of initial deployment, we noticed our EMR clusters’ core nodes failed quite regularly. This prevented the Spark job from being submitted, and would often require a full cluster redeploymentto get the system healthy. The error in the job indicated an HDFS issue (&lt;a href=&quot;#h.31ylir67bz7z&quot;&gt;see error log below&lt;/a&gt;).In our case, HDFS is only used to store the job’s metadata,such as the libraries, the configurations, and the main scripts. YARN also uses HDFS to store the logs.&lt;/p&gt;
+
+&lt;p&gt;We monitored the core nodes more closely and tried to replicate the issue by running an equal number of Spark jobs to the total number of jobs processed by failed clusters. In our test,we monitored the core node directly, meaning we connected tothe node and monitored it with tools such as iostat and iotop.&lt;/p&gt;
+
+&lt;p&gt;We noticed that after a while the Spark jobs’ logs were using a considerable amount of the HDFS resources. We checked the defaults &lt;a href=&quot;https://www.google.com/url?q=https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html&amp;amp;sa=D&amp;amp;ust=1547713139930000&quot;&gt;configuration in EMR for ‘spark-defaults.confs’&lt;/a&gt;and tweaked the original configuration with:&lt;/p&gt;
+
+&lt;p&gt;{&lt;/p&gt;
+
+&lt;p&gt;      “Classification”: “spark-defaults”,&lt;/p&gt;
+
+&lt;p&gt;      “Properties”:{        ”spark.history.fs.cleaner.enabled” : “true” ,&lt;/p&gt;
+
+&lt;p&gt;        “spark.history.fs.cleaner.maxAge”:  ”72h”,&lt;/p&gt;
+
+&lt;p&gt;        “spark.history.fs.cleaner.interval” : “1h”&lt;/p&gt;
+
+&lt;p&gt;}&lt;/p&gt;
+
+&lt;p&gt;}&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;py4j.protocol.Py4JJavaError: An error occurred while calling o955.start.
+: org.apache.hadoop.ipc.RemoteException(java.io.IOException): File /mnt1/yarn/usercache/hadoop/appcache/application\_1536570288257\_0010/container\_1536570288257\_0010\_01\_000001/tmp/temporary-2a637804-562e-47f2-8e76-bd3d83f79eae/metadata could only be replicated to 0 nodes instead of minReplication (=1).  There are 1 datanode(s) running and 1 node(s) are excluded in this operation.
+        at org.apache.hadoop.hdfs.server.blockmanagement.BlockManager.chooseTarget4NewBlock(BlockManager.java:1735)
+        at org.apache.hadoop.hdfs.server.namenode.FSDirWriteFileOp.chooseTargetForNewBlock(FSDirWriteFileOp.java:265)
+        at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getAdditionalBlock(FSNamesystem.java:2561)
+        at org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.addBlock(NameNodeRpcServer.java:829)
+        at org.apache.hadoop.hdfs.protocolPB.ClientNamenodeProtocolServerSideTranslatorPB.addBlock(ClientNamenodeProtocolServerSideTranslatorPB.java:510)
+        at org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos$ClientNamenodeProtocol$2.callBlockingMethod(ClientNamenodeProtocolProtos.java)
+        at org.apache.hadoop.ipc.ProtobufRpcEngine$Server$ProtoBufRpcInvoker.call(ProtobufRpcEngine.java:447)
+        at org.apache.hadoop.ipc.RPC$Server.call(RPC.java:989)
+        at org.apache.hadoop.ipc.Server$RpcCall.run(Server.java:847)
+        at org.apache.hadoop.ipc.Server$RpcCall.run(Server.java:790)
+        at java.security.AccessController.doPrivileged(Native Method)
+        at javax.security.auth.Subject.doAs(Subject.java:422)
+        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1836)
+        at org.apache.hadoop.ipc.Server$Handler.run(Server.java:2486)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;HDFS failure on spark-submit&lt;/p&gt;
+
+&lt;h1 id=&quot;conclusions&quot;&gt;Conclusions&lt;/h1&gt;
+
+&lt;p&gt;We have processed over 2.5 PB of data in the past 3 and a half months while minimizing the storage used on S3 (500 TB) as shown below. The storage saving is related to both ORC and our partition scheme. After this initial batch data pipeline, our focus has shifted to the streaming data pipeline and serving layer. We plan to improve this setup, especially as new Spark releases improve Kubernetes and Apache Spark support.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/experimentation-platform-data-pipeline/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+</description>
+        <pubDate>Wed, 16 Jan 2019 18:43:40 +0000</pubDate>
+        <link>https://engineering.grab.com/experimentation-platform-data-pipeline</link>
+        <guid isPermaLink="true">https://engineering.grab.com/experimentation-platform-data-pipeline</guid>
+        
+        <category>Big Data</category>
+        
+        <category>Data Pipeline</category>
+        
+        <category>Experiment</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Designing resilient systems: Circuit Breakers or Retries? (Part 2)</title>
@@ -1932,166 +2195,6 @@
         
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>Building Grab’s Experimentation Platform</title>
-        <description>&lt;h1 id=&quot;exp-overview&quot;&gt;ExP Overview&lt;/h1&gt;
-
-&lt;p&gt;At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver partners.&lt;/p&gt;
-
-&lt;p&gt;To do that, we’re constantly experimenting, and in fact, many of the improvements we roll out  to the Grab app are a direct result of successful experiments.&lt;/p&gt;
-
-&lt;p&gt;However, running many experiments at the same time can be a messy, complicated and expensive process. That is why we created the Grab  experimentation platform (ExP), to provide clean and simple ways to identify opportunities, create prototypes, perform experiments, refine, and launch products. Before rolling out new Grab features, ExP enables us to run controlled experiments to test the effectiveness of the new feature. The goal of ExP is to make sure  that new features roll out without any hiccups and causal relationships are analysed correctly.&lt;/p&gt;
-
-&lt;p&gt;Experimentation helps development teams determine if they’re building the right product. It allows the team to scrap an idea early on if it doesn’t make a positive impact. This avoids wastage of precious resources. By adopting experimentation, teams eliminate uncertainty and guesswork from their product  development process; thus avoiding long development cycles. By introducing a new version of our app to only a select group of customers, teams can quickly assess if their new updates are improvements or regressions. This allows for better recovery and damage control if necessary.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure: Experimentation Platform Portal&quot; src=&quot;/img/building-grab-s-experimentation-platform/portal.jpg&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure: Experimentation Platform Portal&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;h1 id=&quot;why-we-built-exp&quot;&gt;Why We Built ExP&lt;/h1&gt;
-
-&lt;p&gt;In the early days experiments were performed on a small scale that allowed users to define metrics, and then compute and surface those metrics for a small set of experiments. The process around experimentation was rather painful. When product managers wanted to run an experiment, they set up a meeting with product analysts, data scientists, and engineers. Experiments were designed, custom logging pipelines were built and services were modified to support each new experiment. It was an expensive and time-consuming process.&lt;/p&gt;
-
-&lt;p&gt;To overcome these challenges, we wanted to build a platform with the following goals in mind:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Create a unified experimentation platform across the organisation that prevents multiple concurrent experiments from interfering with one another and allows engineers and data scientists to work on the same set of tools.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Allow simple, fast, and cost-effective experiments&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Automate the selection of representative cohorts of drivers and passengers to perform A/A testing.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Support power analysis&lt;/strong&gt; to perform appropriate significance tests&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Enable a fully &lt;strong&gt;automated data pipeline&lt;/strong&gt; where experimental data is streamed out in real-time, then tagged and stored in S3&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Create platform for plugging in custom analysis modules&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Create Event Triggers/Alerts&lt;/strong&gt; set up on important business metrics to identify adverse effects of a change&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Design single centralized online UI&lt;/strong&gt; for creating and managing the experiments, which is constantly being improved - long term vision is to allow anyone in the organization to create and run experiments&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Since implementing ExP, we have seen the number of experiments grow from just a handful to about 25 running concurrently. More impressively, the number of metrics computed per day has grown exponentially to ~2500 distinct metrics per day and roughly 50,000 distinct experiment/metric combinations.&lt;/p&gt;
-
-&lt;p&gt;With this scale comes some issues we needed to address. Here is the architectural approach we have taken to address them:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Prevention of network effects&lt;/strong&gt; - At Grab, we have several types of users: our driver partners, passengers, and merchants. Unlike most experimentation platforms out there that deal with a single website visitor, our user types can and do interact with each other which leads to network effects in some cases. For example, an experiment on promotions can lead to a surge of demand more than the supply.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Control and treatment assignment strategies&lt;/strong&gt; - Various teams within the organisation have different requirements and ways of setting up experiments. Some simple aesthetic experiments can be simply randomised by a user ID while other, algorithmic experiments may use a time-slicing strategies with bias minimisation. So we built many different strategies for different use-cases to address the challenging task of having all of these be both random and deterministic at the same time.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/building-grab-s-experimentation-platform/image_1.png&quot; alt=&quot;Control and treatment assignment strategies&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Prevention of experiment interference&lt;/strong&gt; - We also attempt to gate for inter-experiment interference by providing a mechanism similar to Google’s Domains &amp;amp; Layers combined with an expert system for experiment design validation. We attempt to prevent interference of experiments by introducing a geo-temporal segmentation for concurrent experiments running together with advanced validation and suggestions to users on how experiments need to be setup.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/building-grab-s-experimentation-platform/image_2.png&quot; alt=&quot;Prevention of experiment interference&quot; /&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;components-of-exp&quot;&gt;Components of ExP&lt;/h1&gt;
-
-&lt;p&gt;Grab’s ExP allows internal users (engineers, product managers, analysts, and others) to toggle various features on or off, adjust thresholds, change configurations dynamically without restarting anything. To achieve this, we’ve introduced a couple of cornerstone concepts in our UI and SDKs.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Variables and Metrics&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The basic&lt;/strong&gt; components of every experimentation platform are variables and metrics.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;A &lt;strong&gt;Variable&lt;/strong&gt; is something we can change, for example, different payment methods can be enabled for a particular user or a city.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;A &lt;strong&gt;Metric&lt;/strong&gt; is something we want to improve and keep observing. For example, cancellation rate or revenue. In our platform, we constantly keep track of metric changes.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Rollouts&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Our rollout process consists of deploying a feature first to a small portion of users and then gradually ramping up in stages to larger groups. Eventually, we reach 100 percent of all users that fall under a target specification (for instance, geographic location, which can be as small as a district of a city.&lt;/p&gt;
-
-&lt;p&gt;The goal of a feature rollout is to make the deployment of new features as stable and reliable as possible by controlling user exposure in the early stages and monitoring the impact of the feature on key business metrics at each stage.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Groups&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Our platform lets internal users define custom groups (also known segments). A group is a set of identifiers such as passenger IDs, geohashes, cities, and others. We use this to logically group a set of things that we can then conduct rollouts and experiments on.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Experiments&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;At Grab, we have formalised an “experiment definition” which is essentially a time-bound (with start and end time) configuration which can be split between control and treatment(s) for one or multiple variables. This configuration is stored as a JSON document and contains the entire experiment setup.&lt;/p&gt;
-
-&lt;p&gt;It is important to highlight that having a formal experiment definition actually brings several benefits to the table:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Machines can understand it and can automatically and autonomously execute experiments, even in distributed systems.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Communication between teams (engineering, product and data science) is simplified as formal documents to ensure everyone is on the same page.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h1 id=&quot;structured-experimental-design&quot;&gt;Structured Experimental Design&lt;/h1&gt;
-
-&lt;p&gt;With a formalised experiment definition, we then provide Android, iOS and Golang SDKs which consume experiment definitions and apply experiments.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/building-grab-s-experimentation-platform/image_3.png&quot; alt=&quot;Structured Experimental Design&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Experiment definitions allow our SDKs to intelligently apply experiments without actually doing any costly network calls. Experiments get delivered to the SDKs through our configuration management platform, which supports dynamic reconfiguration.&lt;/p&gt;
-
-&lt;p&gt;Our SDKs implement various algorithms that enable experiment designers to set up experiments and define an assignment strategy (algorithm), which determines the value to be returned for a particular variable, and for a particular user.&lt;/p&gt;
-
-&lt;p&gt;Overall, we support two major and frequently used strategies:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Randomised sampling with uniform or weighted probability. This is useful when we want to randomly sample between control and treatment(s), for example, if we want 50% of passengers to get one value and 50% of passengers to get another value for the given variable.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Time-sliced experiments where control and treatment(s) are split by time (for example, 10 minutes control, then 10 minutes for treatment).&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;example-experiment&quot;&gt;Example Experiment&lt;/h1&gt;
-
-&lt;p&gt;Since its rollout, the ExP and its staged rollout framework has proven indispensable to many feature deployments at Grab.&lt;/p&gt;
-
-&lt;p&gt;Take the GrabChat feature for example. Booking cancellations were a key problem and the team believed that with the right interventions in place, some cancellations could be prevented.&lt;/p&gt;
-
-&lt;p&gt;One of the ideas we had was to use GrabChat to establish a conversation between the driver and the passenger by sending automated messages. This transforms the service from a mere transaction to something more human and personal. By adding this human touch to the service, it reduced perceived waiting time, making passengers and driver partners more patient and accepting of any unavoidable delays that might arise.&lt;/p&gt;
-
-&lt;p&gt;When we deployed this new feature for app users in a specific geographic area, we noticed a drop in their cancellations. To validate this, we conducted a series of iterative experiments using ExP. Check out this blog to find out more: https://engineering.grab.com/experiment-chat-booking-cancellations&lt;/p&gt;
-
-&lt;p&gt;Lastly, we used the platform to perform a staged rollout of this functionality to different users in different countries across South East Asia.&lt;/p&gt;
-
-&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
-
-&lt;p&gt;Building our own experimentation platform hasn’t been an easy process, but it  has helped  promote a culture of experimentation within the organisation. It has allowed data scientists and product teams to analyse the quality of new features and perform iterations more frequently, with our team working closely with them to support various assignment strategies and hypothesis.&lt;/p&gt;
-
-&lt;p&gt;Looking ahead, there is more we can do to evolve ExP. We’re looking at building automated and real-time dashboards and funnels with slice and dice functionality for our experiments and further increasing experimental capacity while maintaining strict boundaries in order to maintain validity of experiments. Ultimately, to keep improving, we must keep experimenting.&lt;/p&gt;
-</description>
-        <pubDate>Fri, 13 Jul 2018 02:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/building-grab-s-experimentation-platform</link>
-        <guid isPermaLink="true">https://engineering.grab.com/building-grab-s-experimentation-platform</guid>
-        
-        <category>Experiment</category>
-        
-        <category>Back End</category>
-        
-        <category>Front End</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
