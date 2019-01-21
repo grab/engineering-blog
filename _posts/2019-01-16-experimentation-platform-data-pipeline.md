@@ -28,7 +28,7 @@ Let’s assume an application where [click through rate](https://www.google.com/
 
 Obviously, it gets complicated when you have many experiments and metrics. Manually keeping track of all the metrics and interactions is neither practical nor scalable. Therefore, we need a system that lets us build metrics, measure and track interactions, and also allows us to develop features enabling global optimization across our various product verticals.
 
-To build such a system,we must capture, ingest, and process data, and then servethe insights as part of our experiment results. In 2017, we started building the various layers to support this goal. In this post, we describe our progress, and lessons learned in building a system thatingests and processes petabytes of data for analytics.
+To build such a system,we must capture, ingest, and process data, and then servethe insights as part of our experiment results. In 2017, we started building the various layers to support this goal. In this post, we describe our progress, and lessons learned in building a system that ingests and processes petabytes of data for analytics.
 
 Data lakes and data pipelines
 -----------------------------
@@ -52,7 +52,7 @@ Why we built our own data pipeline
 
 At the beginning of 2018, we designed the first part of our Mobile event Collector and Dispenser system (McD) thatlets our mobile and backend applicationssend data to a data pipeline. We started with a small number of events (few thousand per second). But with Grab’s rapid growth,  scaling our data pipeline was challenging. At the time of writing, the McD service ingests approximately400,000 events per second. ![](img/experimentation-platform-data-pipeline/image5.png)
 
-Designing, implementing, and scaling our pipeline in less than a year was not easy. Also, we are a small and lean team.This affected the technologies we could use and how we developed and deployed the various components.
+Designing, implementing, and scaling our pipeline in less than a year was not easy. Also, we are a small and lean team. This affected the technologies we could use and how we developed and deployed the various components.
 
 Most importantly, we needed to keep things operationally simple and reliable. For instance, we decided to seek frameworks that support some form of SQL and a high-level language, since SQL is popular among Grabbers.
 
@@ -66,11 +66,11 @@ The two questions we asked were:
 1.  Who will access the data?
 2.  What were their expectations in terms of lag between data being captured at source and the data being available through the serving layer?
 
-This second question is often missed when building data warehouses and [ETL](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Extract,_transform,_load&sa=D&ust=1547713139909000)jobs. But for us, its answers were the cornerstone for future decisions.
+This second question is often missed when building data warehouses and [ETL](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Extract,_transform,_load&sa=D&ust=1547713139909000) jobs. But for us, its answers were the cornerstone for future decisions.
 
 From the answers, we realized we needed to support access patterns from different users:
 
-1.  Data analysts performing analytical tasks such as querying the data for counts, averages within specific date ranges (one day, one week), and specific granularity (i.e. one hour). As we need to provide new data daily, this use case has an [SLA](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Service-level_agreement&sa=D&ust=1547713139909000)of one day.
+1.  Data analysts performing analytical tasks such as querying the data for counts, averages within specific date ranges (one day, one week), and specific granularity (i.e. one hour). As we need to provide new data daily, this use case has an [SLA](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Service-level_agreement&sa=D&ust=1547713139909000) of one day.
 2.  Data scientists doing Exploratory Data Analysis, building a dataset for training machine learning models, running optimization algorithms, and inferring simulation parameters.
 3.  Quality assurance and support engineers searching for specific events who require very fine granular level access. Their SLA is at most a few hours.
 4.  Advanced monitoring and anomalies detection systems requiring a [time series](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Time_series&sa=D&ust=1547713139910000) at different granularity depending on the type of monitoring.
@@ -95,7 +95,7 @@ Following our initial information gathering sessions, we decided on these object
 4.  Allow an SQL-supporting query engine.
 5.  Democratize the data access.
 
-Our batch data pipeline’s high-level architecture is pretty simple. It followsthe pattern of most data warehouse [ETL jobs](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Extract,_transform,_load&sa=D&ust=1547713139913000)except that we do not need to export data. In our data pipeline we perform two operations, Load and Transform, and write the result data into our data lake.
+Our batch data pipeline’s high-level architecture is pretty simple. It follows the pattern of most data warehouse [ETL jobs](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Extract,_transform,_load&sa=D&ust=1547713139913000) except that we do not need to export data. In our data pipeline we perform two operations, Load and Transform, and write the result data into our data lake.
 
 At a high level, we can think of the data pipeline as performing three key operations:
 
@@ -136,9 +136,9 @@ This hierarchical structure’ key advantages are:
 *   It is easier to enforce an Access Control List (ACL)by using the storage layer ACL system torestrict access to specific events and a time range.
 *   We can reprocess a specific partition or a set of partitions without having to reprocess the full data.
 
-For storing the actual data in each partition, we considered two common storage formats and chose[ Apache ORC](https://www.google.com/url?q=https://orc.apache.org/&sa=D&ust=1547713139918000).We compared [Apache Parquet](https://www.google.com/url?q=https://parquet.apache.org/&sa=D&ust=1547713139918000)against ORC for our workloads. We found an increase in performance (time saved in retrieving the data and storage utilized) between 12.5% and 80% across different use cases when using ORC with Snappy compression vs equivalent data store in Parquet with Snappy compression.
+For storing the actual data in each partition, we considered two common storage formats and chose[ Apache ORC](https://www.google.com/url?q=https://orc.apache.org/&sa=D&ust=1547713139918000). We compared [Apache Parquet](https://www.google.com/url?q=https://parquet.apache.org/&sa=D&ust=1547713139918000) against ORC for our workloads. We found an increase in performance (time saved in retrieving the data and storage utilized) between 12.5% and 80% across different use cases when using ORC with Snappy compression vs equivalent data store in Parquet with Snappy compression.
 
-Another key aspect was addressing the problem of High Availability of an AWS EMR. As of November 2018, AWS EMR does not support hot-standby and [Spark multi-master deployment](https://www.google.com/url?q=http://apache-spark-user-list.1001560.n3.nabble.com/Multi-master-Spark-td4025.html%2520https://mapr.com/community/s/detail/a5b0L0000001zqkQAA&sa=D&ust=1547713139919000).We considered deploying Spark on top of Kubernetes but the initial deployment’s overhead as well as operating a Kubernetes cluster appeared more complex than our adopted solution. We do plan to revisit Spark on Kubernetes.
+Another key aspect was addressing the problem of High Availability of an AWS EMR. As of November 2018, AWS EMR does not support hot-standby and [Spark multi-master deployment](https://www.google.com/url?q=http://apache-spark-user-list.1001560.n3.nabble.com/Multi-master-Spark-td4025.html%2520https://mapr.com/community/s/detail/a5b0L0000001zqkQAA&sa=D&ust=1547713139919000). We considered deploying Spark on top of Kubernetes but the initial deployment’s overhead as well as operating a Kubernetes cluster appeared more complex than our adopted solution. We do plan to revisit Spark on Kubernetes.
 
 The alternative approach we used was AWS EMR, which leverages the distributed nature of the airflow workers. We run one or more totally independent clusters for each availability zone. On the cluster’s master node, we run the Apache Airflow worker,which pulls any new job from a queue. The Spark jobs are defined as Airflow tasks bundled into a [DAG](https://www.google.com/url?q=https://airflow.apache.org/concepts.html&sa=D&ust=1547713139919000).
 
@@ -146,7 +146,7 @@ If a task fails, we automatically retry up to four times to overcome any transit
 
 Tasks are scheduled across different clusters and therefore different availability zones. If an availability zone fails, generally there is no impact on other tasks’ executions. If two zones fail, then generally the impact is just a delay in when the data is available for serving.
 
-For deploymentsrequiringan upgrade of the EMR version or of internal libraries, we roll out the new version to a random [availability zone](https://www.google.com/url?q=https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html&sa=D&ust=1547713139921000). This lets us perform [canary deployments](https://www.google.com/url?q=https://martinfowler.com/bliki/CanaryRelease.html&sa=D&ust=1547713139921000)of our core processing infrastructure. It also lets us rollback very quickly as the remaining availability zones suffice to execute the pipeline’s workload. To do this, we use terraform and our Gitlab CI.
+For deploymentsrequiringan upgrade of the EMR version or of internal libraries, we roll out the new version to a random [availability zone](https://www.google.com/url?q=https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html&sa=D&ust=1547713139921000). This lets us perform [canary deployments](https://www.google.com/url?q=https://martinfowler.com/bliki/CanaryRelease.html&sa=D&ust=1547713139921000) of our core processing infrastructure. It also lets us rollback very quickly as the remaining availability zones suffice to execute the pipeline’s workload. To do this, we use terraform and our Gitlab CI.
 
 ![](img/experimentation-platform-data-pipeline/image7.png)
 
@@ -201,7 +201,7 @@ By looking more carefully at the logs on the Spark task, we noticed the tasks no
 
 We rethought our deployment configuration. We used bigger master instances (m5.2xlarge) as well as much bigger task instances in lower numbers (r4.2xlarge) \- up to 100 of them.
 
-After a few weeks of initial deployment, we noticed our EMR clusters’ core nodes failed quite regularly. This prevented the Spark job from being submitted, and would often require a full cluster redeploymentto get the system healthy. The error in the job indicated an HDFS issue ([see error log below](#h.31ylir67bz7z)).In our case, HDFS is only used to store the job’s metadata,such as the libraries, the configurations, and the main scripts. YARN also uses HDFS to store the logs.
+After a few weeks of initial deployment, we noticed our EMR clusters’ core nodes failed quite regularly. This prevented the Spark job from being submitted, and would often require a full cluster redeploymentto get the system healthy. The error in the job indicated an HDFS issue ([see error log below](#h.31ylir67bz7z)). In our case, HDFS is only used to store the job’s metadata, such as the libraries, the configurations, and the main scripts. YARN also uses HDFS to store the logs.
 
 We monitored the core nodes more closely and tried to replicate the issue by running an equal number of Spark jobs to the total number of jobs processed by failed clusters. In our test,we monitored the core node directly, meaning we connected tothe node and monitored it with tools such as iostat and iotop.
 
