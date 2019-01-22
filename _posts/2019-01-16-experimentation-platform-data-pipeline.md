@@ -24,7 +24,7 @@ To address these challenges we need a holistic view of all our systems and their
 
 For example, imagine we plan to implement a new feature to increase user engagement. We can design a simple A/B test that measures the user engagement with our product for two randomized groups of users. Let's assume we ran the experiment and the test shows the engagement significantly increased for the [treatment group](https://www.google.com/url?q=https://engineering.grab.com/building-grab-s-experimentation-platform&sa=D&ust=1547713139902000). Is it safe to roll out this feature? Not necessarily, since our experiment only monitored one metric without considering others.
 
-Let’s assume an application where [click through rate](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Click-through_rate&sa=D&ust=1547713139902000) is a target metric we want to keep optimalsince its value impacts our bottom line. Suppose we add a new feature and want to make sure our metric improves. We experiment and find it does improve our target metric. However our DevOps team tells us the [server load](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Load_(computing)&sa=D&ust=1547713139902000) metrics degraded. Therefore, our next question is “arethe server load metrics different between [treatment and control](https://www.google.com/url?q=https://engineering.grab.com/building-grab-s-experimentation-platform&sa=D&ust=1547713139902000)?”.
+Let’s assume an application where [click through rate](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Click-through_rate&sa=D&ust=1547713139902000) is a target metric we want to keep optimalsince its value impacts our bottom line. Suppose we add a new feature and want to make sure our metric improves. We experiment and find it does improve our target metric. However our DevOps team tells us the [server load](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Load_(computing)&sa=D&ust=1547713139902000) metrics degraded. Therefore, our next question is “are the server load metrics different between [treatment and control](https://www.google.com/url?q=https://engineering.grab.com/building-grab-s-experimentation-platform&sa=D&ust=1547713139902000)?”.
 
 Obviously, it gets complicated when you have many experiments and metrics. Manually keeping track of all the metrics and interactions is neither practical nor scalable. Therefore, we need a system that lets us build metrics, measure and track interactions, and also allows us to develop features enabling global optimization across our various product verticals.
 
@@ -39,9 +39,9 @@ The data pipeline concept is closely related to [data lakes](https://www.google.
 
 \[[image source](https://www.google.com/url?q=https://aws.amazon.com/big-data/datalakes-and-analytics/what-is-a-data-lake/&sa=D&ust=1547713139904000)\]
 
-Just as people use lakes for different purposes, Product Analytics and Data Scientists use data lakesfor many purposes, ranging from [data mining](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Data_mining&sa=D&ust=1547713139905000) to monitoring and alerting.
+Just as people use lakes for different purposes, Product Analytics and Data Scientists use data lakes for many purposes, ranging from [data mining](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Data_mining&sa=D&ust=1547713139905000) to monitoring and alerting.
 
-In contrast, a data pipeline is one way data is sourced, cleansed,and transformed before being added to the data lake. Moving data from asource to a destination can includesteps such as copying the data, and joining or augmenting it with other data sources. A data pipeline is the sum of all the actions taken from the data source to its destination.It ensures the actions happen automatically and in a reliable way.
+In contrast, a data pipeline is one way data is sourced, cleansed, and transformed before being added to the data lake. Moving data from asource to a destination can includesteps such as copying the data, and joining or augmenting it with other data sources. A data pipeline is the sum of all the actions taken from the data source to its destination. It ensures the actions happen automatically and in a reliable way.
 
 Let’s consider two types of data pipelines: batch and stream. When you ingest data in batches, data is imported at regularly scheduled intervals. On the other hand, real-time ingestion or streaming is necessary when information is very time-sensitive.
 
@@ -50,7 +50,7 @@ This post focuses on the lessons we learned while building our batch data pipeli
 Why we built our own data pipeline
 ----------------------------------
 
-At the beginning of 2018, we designed the first part of our Mobile event Collector and Dispenser system (McD) thatlets our mobile and backend applicationssend data to a data pipeline. We started with a small number of events (few thousand per second). But with Grab’s rapid growth,  scaling our data pipeline was challenging. At the time of writing, the McD service ingests approximately400,000 events per second. ![](img/experimentation-platform-data-pipeline/image5.png)
+At the beginning of 2018, we designed the first part of our Mobile event Collector and Dispenser system (McD) thatlets our mobile and backend applicationssend data to a data pipeline. We started with a small number of events (few thousand per second). But with Grab’s rapid growth, scaling our data pipeline was challenging. At the time of writing, the McD service ingests approximately400,000 events per second. ![](img/experimentation-platform-data-pipeline/image5.png)
 
 Designing, implementing, and scaling our pipeline in less than a year was not easy. Also, we are a small and lean team. This affected the technologies we could use and how we developed and deployed the various components.
 
@@ -124,7 +124,7 @@ In our data, the time and event types are the key attributes. Every single event
 
 Our goal is to minimize the data the query engine needs to process and serve a specific query. Each query’s workload is the combination of the data that needs to be accessed and the complexity of the operation performed on the data. For analytical queries, common operations are data aggregation and transformations.
 
-Most of our analytical workloads span across a small number of event types (between 2 to 10) and a time range from one hour to few months. Ourexpert systemand time series systemsworkloads focus on a single event type. In theseworkloads the time range can vary from a few hours to one day.A data scientist’s typical workloads require accessing multiple event types and specific time ranges. For these reasons, we partitioned data by event type and ingestion time.
+Most of our analytical workloads span across a small number of event types (between 2 to 10) and a time range from one hour to few months. Ourexpert systemand time series systemsworkloads focus on a single event type. In theseworkloads the time range can vary from a few hours to one day. A data scientist’s typical workloads require accessing multiple event types and specific time ranges. For these reasons, we partitioned data by event type and ingestion time.
 
 ![](img/experimentation-platform-data-pipeline/image3.png)
 
@@ -205,7 +205,7 @@ After a few weeks of initial deployment, we noticed our EMR clusters’ core nod
 
 We monitored the core nodes more closely and tried to replicate the issue by running an equal number of Spark jobs to the total number of jobs processed by failed clusters. In our test,we monitored the core node directly, meaning we connected tothe node and monitored it with tools such as iostat and iotop.
 
-We noticed that after a while the Spark jobs’ logs were using a considerable amount of the HDFS resources. We checked the defaults [configuration in EMR for ‘spark-defaults.confs’](https://www.google.com/url?q=https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html&sa=D&ust=1547713139930000)and tweaked the original configuration with:
+We noticed that after a while the Spark jobs’ logs were using a considerable amount of the HDFS resources. We checked the defaults [configuration in EMR for ‘spark-defaults.confs’](https://www.google.com/url?q=https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html&sa=D&ust=1547713139930000) and tweaked the original configuration with:
 
 {
 
