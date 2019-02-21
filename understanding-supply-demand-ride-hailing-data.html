@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Understanding Supply & Demand in Ride-hailing Through the Lens of Data</title>
+    <meta name="description" content="Grab aims to ensure that our passengers can get a ride conveniently while providing our drivers better livelihood. To achieve this, balancing demand and supply is crucial. This article gives you a glimpse of one of our analytics initiatives - how to measure the supply and demand ratio at any given area and time.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/understanding-supply-demand-ride-hailing-data">
+    <meta property="og:title" content="Understanding Supply & Demand in Ride-hailing Through the Lens of Data">
+    <meta property="og:description" content="Grab aims to ensure that our passengers can get a ride conveniently while providing our drivers better livelihood. To achieve this, balancing demand and supply is crucial. This article gives you a glimpse of one of our analytics initiatives - how to measure the supply and demand ratio at any given area and time.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/understanding-supply-demand-ride-hailing-data/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/understanding-supply-demand-ride-hailing-data">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/lara-pureum-yim.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/aayush-garg.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/chunkai-phang.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Understanding Supply & Demand in Ride-hailing Through the Lens of Data</h1>
+      <div class="post-meta">
+        20 Feb 2019
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#lara-pureum-yim">Lara PuReum Yim</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#aayush-garg">Aayush Garg</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#chunkai-phang">ChunKai Phang</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#analytics" class="label tags-label">Analytics</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#data-analytics" class="label tags-label">Data Analytics</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <h2 id="the-1-goal-in-ride-hailing-allocation">The #1 Goal in Ride-Hailing: Allocation</h2>
+
+<p>Grab’s ride-hailing business in its simplest form is about matchmaking <strong>Passengers</strong> looking for a comfortable mode of transport and <strong>Drivers</strong> looking for a flexible earning opportunity.</p>
+
+<p>Over the last 6 years, Grab has repeatedly fine-tuned its machine learning algorithms with the goal of ensuring that passengers get a ride when they want it, and that they are matched to the drivers that are closest to them.</p>
+
+<p>But drivers are constantly on the move, and at any one point there could be hundreds of passengers requesting a ride within the same area. This means that sometimes, the closest available drivers might still be too far away.</p>
+
+<p>The Analytics team at Grab attempts to analyze these instances at scale via clearly-defined metrics. We study the gaps so that we can identify potential product and operational solutions that may guide supply and demand towards geo-temporal alignment and better experience.</p>
+
+<p>In this article, we give you a glimpse of one of our analytics initiatives - to measure the supply and demand ratio at any given area and time.</p>
+
+<h2 id="defining-supply-and-demand">Defining Supply and Demand</h2>
+
+<p>A single unit of <strong>Supply</strong> is considered as a driver who is Online and Idle (not currently on a job) at the beginning of an <em>x</em> seconds slot, where <em>x</em> is a miniscule unit of time. The driver’s GPS ping at the beginning of this <em>x</em> seconds slot is considered to be his or her location.</p>
+
+<p>A single unit of <strong>Demand</strong> is considered as a passenger who is checking fares for a ride via our app within the same <em>x</em> seconds slot. We consider the passenger’s location to be the pick up address entered.</p>
+
+<h2 id="mapping-supply-and-demand">Mapping Supply and Demand</h2>
+
+<p>For the purpose of analysis, each location is aggregated to a geohash (a geographic location encoded into a string of letters and digits) with a precision of <em>y</em> where <em>y</em> refers to a very small polygon space of dimensions on the map. Each unit of Supply is then mapped to all units of Demand within the supply’s neighbouring geohashes as displayed in Figure 1.</p>
+
+<p><img src="img/understanding-supply-demand-ride-hailing-data/image1.png" alt="" /></p>
+
+<p>Figure 1: Illustration depicting a supply unit distributed among the demand units in its neighbouring geohashes</p>
+
+<p>A fraction of each unit of Supply is assigned to each unit of Demand in the neighbouring geohashes inversely weighted by Distance. <strong>Essentially, this means that a driver is more available to nearer passengers compared to further ones.</strong></p>
+
+<p>To keep things simple for this article, we have used Straight Line Distance instead of Route Distance as a proxy to reduce the complexity of the algorithms.</p>
+
+<p>Summation of fractions of available drivers for each passenger would give the <strong>effective supply</strong> for each passenger. This is depicted in figure 1 where each passenger shares a small fraction of the supply.</p>
+
+<p>For this analysis, we have aggregated demand and effective supply for every geohash <em>i</em> and a time slot <em>j</em> combination, resulting in two simple aggregated metrics: <strong>Supply Demand Ratio</strong> and <strong>Supply Demand Difference</strong> (Figure 2).</p>
+
+<p><img src="img/understanding-supply-demand-ride-hailing-data/image4.png" alt="" /></p>
+
+<p>Figure 2: The metrics aggregated for any area and time slot</p>
+
+<h2 id="processing-the-data">Processing the Data</h2>
+
+<p>While the resulting metrics may look like a simple ratio and difference, calculating effective supply, which requires mapping every driver and passenger in neighbouring space, is a considerably heavy computation.</p>
+
+<p>Across the region, there could be hundreds of thousands of passengers looking for a ride at any given point in time. Our algorithms not only identify each Demand and Supply unit and its location, but also maps every Supply unit to all the Demand units in the same neighbourhood to output the fractional supply available to each passenger.</p>
+
+<p>Simply put, the complexity can be summarised as the following: Every extra Supply or Demand unit exponentially increases the algorithm’s computation power.</p>
+
+<p>This is just one of many high-computation problems that the Analytics team handles on a daily basis. So the problem solving doesn’t necessarily end with developing a network-representative algorithm or metric, but to be able to make it performant and usable, even as the business scales.</p>
+
+<h2 id="visualizing-the-metrics-on-a-map">Visualizing the Metrics on a Map</h2>
+
+<p>With the metrics we discussed above, we can map out how gaps between demand and supply can evolve throughout the day. The GIF below displays Singapore’s supply demand gap on a typical day.</p>
+
+<p><img src="img/understanding-supply-demand-ride-hailing-data/image5.gif" alt="" /></p>
+
+<p>Each bubble indicates a miniscule area on the map. The size of each bubble indicates the Supply Demand difference in that area - the bigger the bubble, the bigger the gap. We’ve also colored the bubbles to indicate the Supply Demand Ratio where Red signifies Undersupplied and Green signifies Oversupplied.</p>
+
+<p>To meet our goals of ensuring that passengers can always find a ride whenever they want it, we need to balance demand and supply. At Grab, we do this in many ways, including on one hand - finding ways to move oversupply to areas where there is higher demand, and on the other - shifting less time-sensitive demand away from peak time-slots.</p>
+
+<h2 id="identifying-spatial-opportunities-to-position-supply">Identifying Spatial Opportunities to Position Supply</h2>
+
+<p><img src="img/understanding-supply-demand-ride-hailing-data/image3.png" alt="" /></p>
+
+<p>Figure 3: Supply Demand Distribution in Singapore on a typical weekday</p>
+
+<p>At any given time of the day, there may be an oversupply of drivers in one area while there is undersupply in others.</p>
+
+<p>As shown in Figure 3, this is common in Singapore after morning peak hours when most rides end in CBD which results in an oversupply in the area. Such scenarios are also common at queueing spots such as Changi Airport.</p>
+
+<p>To address this geo-temporal misalignment, Grab recently updated the <strong>Heatmap</strong> on the Grab Driver app to encourage drivers to move away from oversupplied areas to areas where there is higher demand.</p>
+
+<h2 id="identifying-temporal-opportunities-to-move-demand">Identifying Temporal Opportunities to move Demand</h2>
+
+<p><img src="img/understanding-supply-demand-ride-hailing-data/image6.png" alt="" /></p>
+
+<p>Figure 4: Typical Supply Demand Distribution in a small residential area in Singapore across the day.</p>
+
+<p>Figure 4 is an aggregated representation of supply and demand on a typical weekday in a small residential area in Singapore.</p>
+
+<p>The highlighted region in Figure 4 depicts a time period when demand and supply are mismatched. Based on historical data, we know that demand can peak due to various factors both expected (usual peak hours) and unexpected (sudden heavy rain). However, supply amplifies at a delayed time period, usually when the demand is already subsiding.</p>
+
+<p><img src="img/understanding-supply-demand-ride-hailing-data/image2.jpg" alt="" /></p>
+
+<p>Figure 5: Travel Trends Widget on the Passenger App showing best times to book in River Valley (Singapore)</p>
+
+<p>To address this imbalance, Grab recently launched a <strong>Travel Trends Widget</strong> (Figure 5) on the passenger app to let our riders know of the predicted demand distribution across hours.</p>
+
+<p>This widget shows you demand trends, based on the summation of historical data for a passenger’s specific location. The goal here is to encourage <em>time-insensitive demand</em> (passengers who don’t need a ride immediately) to book slightly later, helping passengers with more urgent needs to get allocated with higher ease.</p>
+
+<p>As testimony to its usefulness, the Travel Trends Widget is now ranked #1 among all of Grab’s widgets! With the highest number of click-throughs, we have observed that hundreds of thousands of people are finding it useful for their daily use! Watch out for the next upgraded version as we continue to improve it to be more contextual and smart!</p>
+
+<h2 id="stay-tuned-for-more">Stay tuned for more!</h2>
+
+<p>Given the continuously-changing reality where there is a constantly-fluctuating supply and demand, Grab’s Transportation team’s ultimate goal boils down to just one thing: to ensure that our passengers can get a ride when and where they need it, as fast and easy as possible; while providing our drivers better livelihood, through rewarding experience.</p>
+
+<p>To get this right - balancing demand and supply is crucial. There are many ways we do it. We have shared a couple in this piece, but another important element is dynamic pricing - where fares respond to shifts in supply and demand.</p>
+
+<p>We’ll be taking a closer look at this topic in another article. So stay tuned!</p>
+
+<h2 id="interested-join-us">Interested? Join us!</h2>
+
+<p>Grab’s Analytics team provides integral support to all of Grab’s services and products.</p>
+
+<p>This is only a glimpse of the Analytics team’s efforts to deeply understand our data, use it to evaluate the platform’s performance and continuously iterate to build better data driven products.</p>
+
+<p>If you are interested in solving problems like this, join us! We are hiring! Visit our <a href="https://grab.careers/">career website</a> to check out the openings!</p>
+
+<h3 id="acknowledgement">Acknowledgement:</h3>
+
+<p>We would like to thank the many contributors to the work mentioned above: Ashwin Madelil (Product Manager), Shrey Jain (Product Manager), Brahmasta Adipradana (Product Manager), Prashant Kumar (Product Manager), Ajmal Jamal (Designer)</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#analytics" class="label tags-label">Analytics</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#data-analytics" class="label tags-label">Data Analytics</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Understanding Supply & Demand in Ride-hailing Through the Lens of Data&url=https://engineering.grab.com/understanding-supply-demand-ride-hailing-data&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/understanding-supply-demand-ride-hailing-data" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/understanding-supply-demand-ride-hailing-data&title=Understanding Supply & Demand in Ride-hailing Through the Lens of Data
+&summary=Grab aims to ensure that our passengers can get a ride conveniently while providing our drivers better livelihood. To achieve this, balancing demand and supply is crucial. This article gives you a glimpse of one of our analytics initiatives - how to measure the supply and demand ratio at any given area and time.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/understanding-supply-demand-ride-hailing-data';
+    this.page.identifier = '/understanding-supply-demand-ride-hailing-data';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
