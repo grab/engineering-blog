@@ -91,7 +91,7 @@ Figure 4 is an aggregated representation of supply and demand on a typical weekd
 
 The highlighted region in Figure 4 depicts a time period when demand and supply are mismatched. Based on historical data, we know that demand can peak due to various factors both expected (usual peak hours) and unexpected (sudden heavy rain). However, supply amplifies at a delayed time period, usually when the demand is already subsiding.
 
-![](img/understanding-supply-demand-ride-hailing-data/image2.jpg)
+![](img/understanding-supply-demand-ride-hailing-data/image2.png)
 
 Figure 5: Travel Trends Widget on the Passenger App showing best times to book in River Valley (Singapore)
 
