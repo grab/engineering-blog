@@ -6,9 +6,207 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 21 Feb 2019 06:58:28 +0000</pubDate>
-    <lastBuildDate>Thu, 21 Feb 2019 06:58:28 +0000</lastBuildDate>
+    <pubDate>Mon, 04 Mar 2019 09:12:17 +0000</pubDate>
+    <lastBuildDate>Mon, 04 Mar 2019 09:12:17 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>How we simplified our Data Ingestion &amp; Transformation Process</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;As Grab grew from a small startup to an organisation serving millions of customers and driver partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.&lt;/p&gt;
+
+&lt;p&gt;Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab scale it is a non-trivial task. We had to prepare for two key scenarios:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Business growth, including organic growth over time and expected &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Seasonality&amp;amp;sa=D&amp;amp;ust=1551691540952000&quot;&gt;seasonality&lt;/a&gt; effects.&lt;/li&gt;
+  &lt;li&gt;Any unexpected peaks due to unforeseen circumstances. Our systems have to be &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Scalability&amp;amp;sa=D&amp;amp;ust=1551691540952000&quot;&gt;horizontally scalable&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We could ingest data in batches, in real time, or a combination of the two. When you ingest data in batches, you can import it at regularly scheduled intervals or when it reaches a certain size. This is very useful when processes run on a schedule, such as reports that run daily at a specific time. Typically, batched data is useful for offline analytics and data science.&lt;/p&gt;
+
+&lt;p&gt;On the other hand, real-time ingestion has significant &lt;a href=&quot;https://www.google.com/url?q=https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/%23459fc6d61220&amp;amp;sa=D&amp;amp;ust=1551691540953000&quot;&gt;business value&lt;/a&gt;, such as with &lt;a href=&quot;https://www.google.com/url?q=https://www.reactivemanifesto.org/&amp;amp;sa=D&amp;amp;ust=1551691540954000&quot;&gt;reactive systems&lt;/a&gt;. For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note when information is very time-sensitive, you must continuously monitor its data.&lt;/p&gt;
+
+&lt;p&gt;This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.&lt;/p&gt;
+
+&lt;h1 id=&quot;building-the-system-without-reinventing-the-wheel&quot;&gt;Building the system without reinventing the wheel&lt;/h1&gt;
+
+&lt;p&gt;The data ingestion system:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Collects raw data as app events.&lt;/li&gt;
+  &lt;li&gt;Transforms the data into a structured format.&lt;/li&gt;
+  &lt;li&gt;Stores the data for analysis and monitoring.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;In a &lt;a href=&quot;https://www.google.com/url?q=https://engineering.grab.com/experimentation-platform-data-pipeline&amp;amp;sa=D&amp;amp;ust=1551691540956000&quot;&gt;previous blog post&lt;/a&gt;, we discussed dealing with batched data ETL with Spark. This post focuses on real-time ingestion.&lt;/p&gt;
+
+&lt;p&gt;We separated the data ingestion system into 3 layers: collection, transformation, and storage. This table and diagram highlights the tools used in each layer in our system’s first design.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;&lt;th&gt;Layer&lt;/th&gt;&lt;th&gt;Tools&lt;/th&gt;&lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Collection&lt;/td&gt;
+      &lt;td&gt;Gateway, &lt;a href=&quot;https://www.google.com/url?q=https://kafka.apache.org/&amp;amp;sa=D&amp;amp;ust=1551691540959000&quot;&gt;Kafka&lt;/a&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Transformation&lt;/td&gt;
+      &lt;td&gt;Go processing service, &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/streaming/&amp;amp;sa=D&amp;amp;ust=1551691540961000&quot;&gt;Spark Streaming&lt;/a&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Storage&lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://www.google.com/url?q=https://engineering.grab.com/big-data-real-time-presto-talariadb&amp;amp;sa=D&amp;amp;ust=1551691540962000&quot;&gt;TalariaDB&lt;/a&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Our first design might seem complex, but we used battle-tested and common tools such as Apache &lt;a href=&quot;https://www.google.com/url?q=https://kafka.apache.org/uses&amp;amp;sa=D&amp;amp;ust=1551691540963000&quot;&gt;Kafka&lt;/a&gt; and &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/streaming/&amp;amp;sa=D&amp;amp;ust=1551691540964000&quot;&gt;Spark Streaming&lt;/a&gt;. This let us get an end-to-end solution up and running quickly.&lt;/p&gt;
+
+&lt;h3 id=&quot;collection-layer&quot;&gt;Collection layer&lt;/h3&gt;
+
+&lt;p&gt;Our collection layer had two sub-layers:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Our custom built API Gateway received HTTP requests from the mobile app. It simply decoded and authenticated HTTP requests, streaming the data to the Kafka queue.&lt;/li&gt;
+  &lt;li&gt;The Kafka queue decoupled the transformation layer (shown in the above figure as the processing service and Spark streaming) from the collection layer (shown above as the Gateway service). We needed to retain raw data in the Kafka queue for &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Fault_tolerance&amp;amp;sa=D&amp;amp;ust=1551691540965000&quot;&gt;fault tolerance&lt;/a&gt; of the entire system. Imagine an error where a data pipeline pollutes the data with flawed transformation code or just simply crashes. The Kafka queue saves us from data loss by data backfilling.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Since it’s robust and battle-tested, we chose Kafka as our queueing solution. It perfectly met our requirements, such as high throughput and low latency. Although Kafka takes some operational effort such as self-hosting and monitoring, Grab has a proficient and dedicated team managing our Kafka cluster.&lt;/p&gt;
+
+&lt;h3 id=&quot;transformation-layer&quot;&gt;Transformation layer&lt;/h3&gt;
+
+&lt;p&gt;There are many options for real-time data processing, including &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/docs/latest/streaming-programming-guide.html&amp;amp;sa=D&amp;amp;ust=1551691540966000&quot;&gt;Spark&lt;/a&gt;&lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/docs/latest/streaming-programming-guide.html&amp;amp;sa=D&amp;amp;ust=1551691540967000&quot;&gt; Streaming&lt;/a&gt;, &lt;a href=&quot;https://www.google.com/url?q=https://flink.apache.org/&amp;amp;sa=D&amp;amp;ust=1551691540967000&quot;&gt;Flink&lt;/a&gt;, and &lt;a href=&quot;https://www.google.com/url?q=http://storm.apache.org/&amp;amp;sa=D&amp;amp;ust=1551691540968000&quot;&gt;Storm&lt;/a&gt;. Since we use Spark for all our batch processing, we decided to use Spark Streaming.&lt;/p&gt;
+
+&lt;p&gt;We deployed a Golang processing service between Kafka and Spark Streaming. This service converts the data from &lt;a href=&quot;https://www.google.com/url?q=https://developers.google.com/protocol-buffers/&amp;amp;sa=D&amp;amp;ust=1551691540968000&quot;&gt;Protobuf&lt;/a&gt; to &lt;a href=&quot;https://www.google.com/url?q=https://avro.apache.org/docs/current/&amp;amp;sa=D&amp;amp;ust=1551691540969000&quot;&gt;Avro&lt;/a&gt;. Instead of pointing Spark Streaming directly to Kafka, we used this processing service as an intermediary. This was because our Spark Streaming job was written in Python and Spark doesn’t natively support &lt;a href=&quot;https://www.google.com/url?q=https://developers.google.com/protocol-buffers/&amp;amp;sa=D&amp;amp;ust=1551691540969000&quot;&gt;protobuf&lt;/a&gt; decoding.  We used Avro format, since Grab historically used it for archiving streaming data. Each raw event was enriched and batched together with other events. Batches were then uploaded to S3.&lt;/p&gt;
+
+&lt;h3 id=&quot;storage-layer&quot;&gt;Storage layer&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.google.com/url?q=https://docs.google.com/document/d/1k3QM2193opQ56qNO_C1JO9-nFdF5KqjJ7cOuFxkpwPo/edit%23heading%3Dh.3c9vjztk1zsf&amp;amp;sa=D&amp;amp;ust=1551691540970000&quot;&gt;TalariaDB&lt;/a&gt; is a Grab-built time-series database. It ingests events as columnar ORC files, indexing them by event name and time. We use the same ORC format files for batch processing. TalariaDB also implements the Presto Thrift connector interface, so our users could query certain event types by time range. They did this by connecting a Presto to a TalariaDB hosting distributed cluster.&lt;/p&gt;
+
+&lt;h1 id=&quot;problems&quot;&gt;Problems&lt;/h1&gt;
+
+&lt;p&gt;Building and deploying our data pipeline’s &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Minimum_viable_product&amp;amp;sa=D&amp;amp;ust=1551691540971000&quot;&gt;MVP&lt;/a&gt; provided great value to our data analysts, engineers, and QA team. For example, our mobile app team could monitor any abnormal change in the real-time metrics, such as the screen load time for the latest released app version. The QA team could perform app side actions (book a ride, make payment, etc.) and check which events were triggered and received by the backend. The latency between the ingestion and the serving layer was only 4 minutes instead of the batch processing system’s 60 minutes. The streaming processing’s data showed good business value.&lt;/p&gt;
+
+&lt;p&gt;This prompted us to develop more features on top of our platform-collected real-time data. Very soon our QA engineers and the product analytics team used more and more of the real-time data processing system. They started &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Instrumentation_(computer_programming)&amp;amp;sa=D&amp;amp;ust=1551691540972000&quot;&gt;instrumenting&lt;/a&gt; various mobile applications so more data started flowing in. However, as our ingested data increased, so did our problems. These were mostly related to operational complexity and the increased latency.&lt;/p&gt;
+
+&lt;h3 id=&quot;operational-complexity&quot;&gt;Operational complexity&lt;/h3&gt;
+
+&lt;p&gt;Only a few team members could operate Spark Streaming and EMR. With more data and variable rates, our streaming jobs had scaling issues and failed occasionally. This was due to checkpoint issues when the cluster was under heavy load. Increasing the cluster size helped, but adding more nodes also increased the likelihood of losing more cluster nodes. When we lost nodes,our latency went up and added more work for our already busy on-call engineers.&lt;/p&gt;
+
+&lt;h3 id=&quot;supporting-native-protobuf&quot;&gt;Supporting native Protobuf&lt;/h3&gt;
+
+&lt;p&gt;To simplify the architecture, we initially planned to bypass our Golang-written processing service for the real-time data pipeline. Our plan was to let Spark directly talk to the Kafka queue and send the output to S3. This required packaging the decoders for our protobuf messages for Python Spark jobs, which was cumbersome. We thought about rewriting our job in Scala, but we didn’t have enough experience with it.&lt;/p&gt;
+
+&lt;p&gt;Also, we’d soon hit some streaming limits from S3. Our Spark streaming job was consuming objects from S3, but the process was not continuous due to S3’s &lt;a href=&quot;https://www.google.com/url?q=https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html%23ConsistencyModel&amp;amp;sa=D&amp;amp;ust=1551691540977000&quot;&gt; eventual consistency&lt;/a&gt;. To avoid long pagination queries in the S3 API, we had to prefix the data with the hour in which it was ingested. This resulted in some data loss after processing by the Spark streaming. The loss happened because the new data would appear in S3 while Spark Streaming had already moved on to the next hour. We tried various tweaks, but it was just a bad design. As our data grew to over one terabyte per hour, our data loss grew with it.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;processing-lag&quot;&gt;Processing lag&lt;/h3&gt;
+
+&lt;p&gt;On average, the time from our system ingesting an event to when it was available on the Presto was 4 to 6 minutes. We call that processing lag, as it happened due to our data processing. It was substantially worse under heavy loads, increasing to 8 to 13 minutes. While that wasn’t bad at this scale (a few TBs of data), it made some use cases impossible, such as monitoring. We needed to do better.&lt;/p&gt;
+
+&lt;h2 id=&quot;simplifying-the-architecture-and-rewriting-in-golang&quot;&gt;Simplifying the architecture and rewriting in Golang&lt;/h2&gt;
+
+&lt;p&gt;After completing the MVP phase development, we noticed the Spark Streaming functionality we actually used was relatively trivial. In the Spark Streaming job, we only:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Partitioned the batch of events by event name.&lt;/li&gt;
+  &lt;li&gt;Encoded the data in ORC format.&lt;/li&gt;
+  &lt;li&gt;And uploaded to an S3 bucket.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To mitigate the problems mentioned above, we tried re-implementing the features in our existing Golang processing service. Besides consuming the data and publishing to an S3 bucket, the transformation service also needed to deal with event partitioning and ORC encoding.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;One key problem we addressed was implementing a robust event partitioner with a large write throughput and low read latency. Fortunately, Golang has a nice &lt;a href=&quot;https://www.google.com/url?q=https://golang.org/pkg/sync/%23Map&amp;amp;sa=D&amp;amp;ust=1551691540985000&quot;&gt;concurrent map&lt;/a&gt; package. To further reduce the lock contention, we added &lt;a href=&quot;https://www.google.com/url?q=https://www.openmymind.net/Shard-Your-Hash-table-to-reduce-write-locks/&amp;amp;sa=D&amp;amp;ust=1551691540986000&quot;&gt;sharding&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;We made the changes, deployed the service to production,and discovered our service was now &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Memory_bound_function&amp;amp;sa=D&amp;amp;ust=1551691540987000&quot;&gt;memory-bound&lt;/a&gt; as we buffered data for 1 minute. We did thorough benchmarking and profiling on heap allocation to improve memory utilization. By iteratively reducing inefficiencies and contributing to a lower CPU consumption, we made our data transformation more efficient.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;performance&quot;&gt;Performance&lt;/h3&gt;
+
+&lt;p&gt;After revamping the system, the elapsed time for a single event to travel from the gateway to our dashboard is about 1 minute. We also fixed the data loss issue. Finally, we significantly reduced our on-call workload by removing Spark Streaming.&lt;/p&gt;
+
+&lt;h3 id=&quot;validation&quot;&gt;Validation&lt;/h3&gt;
+
+&lt;p&gt;At this point, we had both our old and new pipelines running in parallel. After drastically improving our performance, we needed to confirm we still got the same end results. This was done by running a query against each of the pipelines and comparing the results. Both systems were registered to the same Presto cluster.&lt;/p&gt;
+
+&lt;p&gt;We ran two SQL “excerpts” between the two pipelines in different order. Both queries returned the same events, validating our new pipeline’s correctness.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;select count(1) from ((
+ select uuid, time from grab_x.realtime_new
+ where event = 'app.metric1' and time between 1541734140 and 1541734200
+) except (
+ select uuid, time from grab_x.realtime_old
+ where event = 'app.metric1' and time between 1541734140 and 1541734200
+))
+
+/* output: 0 */
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;conclusions&quot;&gt;Conclusions&lt;/h1&gt;
+
+&lt;p&gt;Scaling a data ingestion system to handle hundreds of thousands of events per second was a non-trivial task. However, by iterating and constantly simplifying our overall architecture, we were able to efficiently ingest the data and drive down its lag to around one minute.&lt;/p&gt;
+
+&lt;p&gt;Spark Streaming was a great tool and gave us time to understand the problem. But, understanding what we actually needed to build and iteratively optimise the entire data pipeline led us to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Replacing Spark Streaming with our new Golang-implemented pipeline.&lt;/li&gt;
+  &lt;li&gt;Removing Avro encoding.&lt;/li&gt;
+  &lt;li&gt;Removing an intermediary S3 step.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Differences between the old and new pipelines are:&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th&gt;Old Pipeline&lt;/th&gt;
+    &lt;th&gt;New Pipeline&lt;/th&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Languages&lt;/th&gt;
+    &lt;td&gt;Python, Go&lt;/td&gt;
+    &lt;td&gt;Go&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Stages&lt;/th&gt;
+    &lt;td&gt;4 services&lt;/td&gt;
+    &lt;td&gt;3 services&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Conversions&lt;/th&gt;
+    &lt;td&gt;Protobuf → Avro → ORC&lt;/td&gt;
+    &lt;td&gt;Protobuf → ORC&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Lag&lt;/th&gt;
+    &lt;td&gt;4-13 min&lt;/td&gt;
+    &lt;td&gt;1 min&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p&gt;Systems usually become more and more complex over time, leading to tech debt and decreased performance. In our case, starting with more steps in the data pipeline was actually the simple solution, since we could re-use existing tools. But as we reduced processing stages, we’ve also seen fewer failures. By simplifying the problem, we improved performance and decreased operational complexity. At the end of the day, our data pipeline solves exactly our problem and does nothing else, keeping things fast.&lt;/p&gt;
+</description>
+        <pubDate>Sun, 03 Mar 2019 18:43:40 +0000</pubDate>
+        <link>https://engineering.grab.com/data-ingestion-transformation-product-insights</link>
+        <guid isPermaLink="true">https://engineering.grab.com/data-ingestion-transformation-product-insights</guid>
+        
+        <category>Big Data</category>
+        
+        <category>Data Pipeline</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Understanding Supply &amp; Demand in Ride-hailing Through the Lens of Data</title>
@@ -2067,209 +2265,6 @@ EMR cluster CPU monitoring with Ganglia&lt;/p&gt;
         
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>How we designed the Quotas microservice to prevent resource abuse</title>
-        <description>&lt;h1 id=&quot;how-we-designed-the-quotas-microservice-to-prevent-resource-abuse&quot;&gt;How we designed the Quotas microservice to prevent resource abuse&lt;/h1&gt;
-
-&lt;p&gt;As the business has grown, Grab’s infrastructure has changed from a monolithic service to dozens of microservices. And that number will soon be expressed in hundreds. As our engineering team grows in parallel, having a microservice framework provides benefits such as higher flexibility, productivity, security, and system reliability. Teams define Service Level Agreements (SLA) with their clients, meaning specification of their service’s API interface and its related performance metrics. As long as the SLAs are maintained, individual teams can focus on their services without worrying about breaking other services.&lt;/p&gt;
-
-&lt;p&gt;However, migrating to a microservice framework can be tricky - due to the the large number of services and having to communicate between them. Problems that are simple to solve or don’t exist for a monolithic service such as service discovery, security, load balancing, monitoring, and rate limiting are challenging for a microservice based framework. Reliable, scalable, and high performing solutions for common system level issues are essential for microservice success, and there is a Grab-wide initiative to provide those common solutions.&lt;/p&gt;
-
-&lt;p&gt;As an important component of the initiative, we wrote a microservice called Quotas, a highly scalable API request rate limiting solution to mitigate the problems of service abuse and cascading service failures. In this article, we discuss the challenges Quotas addresses, how we designed it, and the end results. &lt;/p&gt;
-
-&lt;h2 id=&quot;what-quotas-tries-to-address&quot;&gt;What Quotas tries to address&lt;/h2&gt;
-
-&lt;p&gt;Rate-limiting is an well-known concept, used by many companies for years. For example, telecommunication companies and content providers frequently throttle requests from abusive users by using popular rate-limiting algorithms such as leaky bucket, fixed window, sliding log, sliding window, etc. All of these avoid resource abuse and protect important resources. Companies have also developed rate limiting solutions for inter-service communications, such as Doorman (&lt;a href=&quot;https://github.com/youtube/doorman/blob/master/doc/design.md&quot;&gt;https://github.com/youtube/doorman/blob/master/doc/design.md&lt;/a&gt;), Ambassador (&lt;a href=&quot;https://www.getambassador.io/reference/services/rate-limit-service&quot;&gt;https://www.getambassador.io/reference/services/rate-limit-service&lt;/a&gt;), etc, just to name a few.&lt;/p&gt;
-
-&lt;p&gt;Rate limiting can be enforced locally or globally. Local rate limiting means an instance accumulates API request information and makes decisions locally, with no coordination required. For example, a local rate limiting strategy can specify that each service instance can serve up to 1000 requests per second for an API, and the service instance will keep a local time-aware request counter. Once the number of received requests exceeds the threshold, it will reject new requests immediately until the next time bucket with available quota. Global rate limiting means multiple instances share the same enforcement policy. With global rate limiting, regardless of the service instance a client calls, it will be subjected to the same global API quota. Global rate limiting ensures there is a global view and it is preferred in many scenarios. In a cloud context, with auto scaling policy setup, the number of instances for a service can increase significantly during peak traffic hours. If only local rate limiting is enforced, the accumulative effect can still put great pressure on critical resources such as databases, network, or downstream services and the cumulative effects can cause service failures.&lt;/p&gt;
-
-&lt;p&gt;However, to support global rate limiting in a distributed environment is not easy, and it becomes even more challenging when the number of services and instances increases. To support a global view, Quotas needs to know how many requests a client service A (i.e., service A is a client of Quotas) is getting now on an endpoint comparing to the defined thresholds. If the number of requests is already over the thresholds, Quotas service should help to block a new request before service A executes its main logic. By doing that, Quotas service helps service A protect resources such as CPU, memory, database, network, and its downstream services, etc. To track the global request counts on service endpoints, a centralized data store such as Redis or Dynamo is generally used for the aggregation and decision making. In addition, decision latency and scalability become major concerns if each request needs to make a call to the rate limiting service (i.e., Quotas) to decide if the request should be throttled. And if that is the case, the rate limiting service will be on the critical path of every request and it will be a major concern for services. That is the scenario we absolutely wanted to avoid when designing Quotas service.&lt;/p&gt;
-
-&lt;h2 id=&quot;designing-quotas&quot;&gt;Designing Quotas&lt;/h2&gt;
-
-&lt;p&gt;Quotas ensures Grab internal services can guarantee their service level agreement (SLA) by throttling “excessive” API requests made to them, thereby avoiding cascading failures . By rejecting these calls early through throttling, services can be protected from depleting critical resources such as databases, computation resources, etc.&lt;/p&gt;
-
-&lt;p&gt;The two main goals for Quotas are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Help client services throttle excessive API requests in a timely fashion.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Minimize latency impacts on client services, i.e., client services should only see negligible latency increase on API response time.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We followed these design guidelines:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Providing a thin client implementation. Quotas service should keep most of the processing logic at the service side. Once we release a client SDK, it’s very hard to track who’s using what version and to update every client service with a new client SDK version. Also, more complex client side logic increases the chances of introducing bugs.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;To allow scaling of Quotas service, we use an asynchronous processing pipeline instead of a synchronous one (i.e., client service makes calls Quotas for every API request). By asynchronously processing events, a client service can immediately decide whether to throttle an API request when it comes in, without delaying the response too much.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Allowing for horizontal scaling through config changes. This is very important since the goal is to onboard all Grab internal services.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Figure 1 is a high-level system diagram for Quotas’ client and server side interactions. Kafka sits at the core of the system design. Kafka is an open-source distributed streaming platform under the Apache license and it’s widely adopted by the industry (&lt;a href=&quot;https://kafka.apache.org/intro&quot;&gt;https://kafka.apache.org/intro&lt;/a&gt;). Kafka is used in Quotas system design for the following purposes:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Quotas client services (i.e., services B and C in Figure 1) send API usage information through a dedicated Kafka topic and Quotas service consumes the events and performs its business logic.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Quotas service sends rate-limiting decisions through application-specific Kafka topics and the Quotas client SDKs running on the client service instances consume the rate-limiting events and update the local in-memory cache for rate-limiting decisions. For example, Quotas service uses topic names such as “rate-limiting-service-b” for rate-limiting decisions with service B and “rate-limiting-service-c” for service C.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;An archiver is running with Kafka to archive the events to AWS S3 buckets for additional analysis.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 1: Quotas High-level System Design&quot; src=&quot;/img/quotas-service/image_0.jpg&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1: Quotas High-level System Design&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The details of Quotas client side logic is shown in Figure 2 using service B as an example. As it shows, when a request comes in (e.g., from service A), service B will perform the following logic:&lt;/p&gt;
-
-&lt;ol&gt;
-	&lt;li&gt;Quotas middleware running with service B
-		&lt;ol type=&quot;a&quot;&gt;
-		  &lt;li&gt;intercepts the request and calls Quotas client SDK for the rate limiting decision based on API and client information.
-		  	&lt;ol type=&quot;i&quot;&gt;
-		  		&lt;li&gt;If it throttles the request, service B returns a response code indicating the request is throttled.&lt;/li&gt;
-		  		&lt;li&gt;If it doesn't throttle the request, service B handles it with its normal business logic.&lt;/li&gt;
-		  	&lt;/ol&gt;
-		  &lt;/li&gt;
-		  &lt;li&gt;asynchronously sends the API request information to a Kafka topic for processing.&lt;/li&gt;
-		&lt;/ol&gt;
-	&lt;/li&gt;
-	&lt;li&gt;Quotas client SDK running with service B
-		&lt;ol&gt;
-			&lt;li&gt;consumes the application-specific rate-limiting Kafka stream and updates its local in-memory cache for new rate-limiting decisions. For example, if the previous decision is true (i.e., enforcing rate limiting), and the new decision from the Kafka stream is false, the local in-memory cache will be updated to reflect the change. After that, if a new request comes in from service A, it will be allowed to go through and served by service B.&lt;/li&gt;
-			&lt;li&gt;provides a single public API to read the rate limiting decision based on API and client information. This public API reads the decisions from its local in-memory cache.&lt;/li&gt;
-		&lt;/ol&gt;
-	&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 2: Quotas Client Side Logic&quot; src=&quot;/img/quotas-service/image_1.jpg&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 2: Quotas Client Side Logic&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Figure 3 shows the details of Quotas server side logic. It performs the following business logic:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Consumes the Kafka stream topic for API request information&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Performs aggregations on the API usages&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Stores the stats in a Redis cluster periodically&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Makes a rate-limiting decision periodically&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Sends the rate-limiting decisions to an application-specific Kafka stream&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Sends the stats to DataDog for monitoring and alerting periodically&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In addition, an admin UI is available for service owners to update thresholds and the changes are picked up immediately for the upcoming rate-limiting decisions.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 3: Quotas Server Side Logic&quot; src=&quot;/img/quotas-service/image_2.jpg&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 3: Quotas Server Side Logic&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;implementation-decisions-and-optimizations&quot;&gt;Implementation decisions and optimizations&lt;/h2&gt;
-
-&lt;p&gt;On the client service side (service B in the above diagrams), the Quotas client SDK is initialized when service B instance is initialized. The Quotas client SDK is a wrapper that consumes Kafka rate-limiting events and writes/reads the in-memory cache. It exposes a single API to check the rate-limiting decisions on a client with a given API method. Also, service B is hooked up with Quotas middleware to intercept API requests. Internally, it calls the Quotas client SDK API to determine if it should allow/reject the requests before the actual business logic. Currently, Quotas middleware supports both &lt;a href=&quot;https://grpc.io/&quot;&gt;gRPC&lt;/a&gt; and REST protocols.&lt;/p&gt;
-
-&lt;p&gt;Quotas utilizes a company-wide streaming solution called Sprinkler for the Kafka stream Producer and Consumer implementations. It provides streaming SDKs built on top of &lt;a href=&quot;https://github.com/Shopify/sarama&quot;&gt;sarama&lt;/a&gt; (an MIT-license Go library for Apache Kafka), providing asynchronous event sending/consuming, retry, and circuit breaking capabilities.&lt;/p&gt;
-
-&lt;p&gt;Quotas provides throttling capabilities based on the sliding window algorithm on the 1-second and 5-second levels. To support extremely high TPS demands, most of Quotas intermediate operations are designed to be done asynchronously. Internal benchmarks show the delay for enforcing a rate-limiting decision is up to 200 milliseconds. By combining 1-second and 5-second level settings, client services can more effectively throttle requests.&lt;/p&gt;
-
-&lt;p&gt;During system implementation, we find that if Quotas instances make a call to the Redis cluster every time it receives an event from the Kafka API usage stream, the Redis cluster will quickly become a bottleneck due to the amount of calculations. By aggregating API usage stats locally in-memory and calling Redis instances periodically (i.e., every 50 ms), we can significantly reduce Redis usage and still keep the overall decision latency at a relatively low level. In addition, we designed the hash keys in a way to make sure requests are evenly distributed across Redis instances.&lt;/p&gt;
-
-&lt;h2 id=&quot;evaluation-and-benchmarks&quot;&gt;Evaluation and benchmarks&lt;/h2&gt;
-
-&lt;p&gt;We did multiple rounds of load tests, both before and after launching Quotas, to evaluate its performance and find potential scaling bottlenecks. After the optimization efforts, Quotas now gracefully handles 200k peak production TPS. More importantly, critical system resource usage for Quotas’ application server, Redis and Kafka are still at a relatively low level, suggesting that Quotas can support much higher TPS before the need to scale up.&lt;/p&gt;
-
-&lt;p&gt;Quotas current production settings are:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;12 c5.2xlarge (8 vCPU, 16GB) AWS EC2 instances&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;6 cache.m4.large (2 vCPU, 6.42GB, master-slave) AWS ElasticCaches&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Shared Kafka cluster with other application topics&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Figures 4 &amp;amp; 5 show a typical day’s CPU usage for the Quotas application server and Redis Cache respectively. With 200k peak TPS, Quotas handles the load with peak application server CPU usage at about 20% and Redis CPU usage of 15%. Due to the nature of Quotas data usage, most of the data stored in Redis cache is time sensitive and stored with time-to-live (TTL) values.&lt;/p&gt;
-
-&lt;p&gt;However, because of how Redis expires keys (&lt;a href=&quot;https://redis.io/commands/expire&quot;&gt;https://redis.io/commands/expire&lt;/a&gt;) and the amount of time-sensitive data Quotas stores in Redis, we have implemented a proprietary cron job to actively garbage collect expired Redis keys. By running the cron job every 15 minutes, Quotas keeps the Redis memory usage at a low level.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 4: Quotas CPU Usage&quot; src=&quot;/img/quotas-service/image_3.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 4: Quotas CPU Usage&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 5: Quotas Redis CPU Usage&quot; src=&quot;/img/quotas-service/image_4.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 5: Quotas Redis CPU Usage&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We have conducted load tests to identify the potential issues for scaling Quotas. The tests have shown that we can horizontally scale Quotas to support extremely high TPS using only configuration changes:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Kafka is well known for its high throughput, low-latency, high scalability characteristics. By either increasing the number of partitions on Quotas API usage topic or adding more Kafka nodes, the system can evenly distribute and handle additional load.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;All Quotas application servers form a consumer group (CG) to consume the Kafka API usage topic (partitioned based on the number of instance expectations). Whenever an instance starts or goes offline, the topic partitions are re-distributed among the application servers. This allows balanced topic partition consumptions and thus somewhat evenly distributed application server CPU and memory usages. &lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;We have also implemented a consistent hashing based algorithm to support multiple Redis instances. It supports easy Redis instances addition or removal by configuration changes. With well chosen hash keys, load can be evenly distributed to the Redis instances.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;With the above design and implementations, all the critical Quotas components can be easily scaled and extended when a bottleneck occurs either at Kafka, application server, or Redis levels.&lt;/p&gt;
-
-&lt;h2 id=&quot;roadmap-for-quotas&quot;&gt;Roadmap for Quotas&lt;/h2&gt;
-
-&lt;p&gt;Quotas is currently used by more than a dozen internal Grab services, and soon all Grab internal services will use it.&lt;/p&gt;
-
-&lt;p&gt;Quotas is part of the company-wide ServiceMesh effort to handle service discovery, load balancing, circuit breaker, retry, health monitoring, rate-limiting, security, etc. consistently across all Grab services.&lt;/p&gt;
-
-</description>
-        <pubDate>Fri, 10 Aug 2018 02:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/quotas-service</link>
-        <guid isPermaLink="true">https://engineering.grab.com/quotas-service</guid>
-        
-        <category>Quota</category>
-        
-        <category>Back End</category>
-        
-        <category>Service</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     

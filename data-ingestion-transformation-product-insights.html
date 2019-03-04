@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>How we simplified our Data Ingestion & Transformation Process</title>
+    <meta name="description" content="This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/data-ingestion-transformation-product-insights">
+    <meta property="og:title" content="How we simplified our Data Ingestion & Transformation Process">
+    <meta property="og:description" content="This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/data-ingestion-transformation-product-insights/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/data-ingestion-transformation-product-insights">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/yichao-wang.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/roman-atachiants.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/oscar-cassetti.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/corey-scott.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">How we simplified our Data Ingestion & Transformation Process</h1>
+      <div class="post-meta">
+        3 Mar 2019
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#yichao-wang">Yichao Wang</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#roman-atachiants">Roman Atachiants</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#oscar-cassetti">Oscar Cassetti</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#corey-scott">Corey Scott</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#big-data" class="label tags-label">Big Data</a>
+  
+    <a href="/tags#data-pipeline" class="label tags-label">Data Pipeline</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <h1 id="introduction">Introduction</h1>
+
+<p>As Grab grew from a small startup to an organisation serving millions of customers and driver partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.</p>
+
+<p>Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab scale it is a non-trivial task. We had to prepare for two key scenarios:</p>
+
+<ul>
+  <li>Business growth, including organic growth over time and expected <a href="https://www.google.com/url?q=https://en.wikipedia.org/wiki/Seasonality&amp;sa=D&amp;ust=1551691540952000">seasonality</a> effects.</li>
+  <li>Any unexpected peaks due to unforeseen circumstances. Our systems have to be <a href="https://www.google.com/url?q=https://en.wikipedia.org/wiki/Scalability&amp;sa=D&amp;ust=1551691540952000">horizontally scalable</a>.</li>
+</ul>
+
+<p>We could ingest data in batches, in real time, or a combination of the two. When you ingest data in batches, you can import it at regularly scheduled intervals or when it reaches a certain size. This is very useful when processes run on a schedule, such as reports that run daily at a specific time. Typically, batched data is useful for offline analytics and data science.</p>
+
+<p>On the other hand, real-time ingestion has significant <a href="https://www.google.com/url?q=https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/%23459fc6d61220&amp;sa=D&amp;ust=1551691540953000">business value</a>, such as with <a href="https://www.google.com/url?q=https://www.reactivemanifesto.org/&amp;sa=D&amp;ust=1551691540954000">reactive systems</a>. For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note when information is very time-sensitive, you must continuously monitor its data.</p>
+
+<p>This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.</p>
+
+<h1 id="building-the-system-without-reinventing-the-wheel">Building the system without reinventing the wheel</h1>
+
+<p>The data ingestion system:</p>
+
+<ol>
+  <li>Collects raw data as app events.</li>
+  <li>Transforms the data into a structured format.</li>
+  <li>Stores the data for analysis and monitoring.</li>
+</ol>
+
+<p>In a <a href="https://www.google.com/url?q=https://engineering.grab.com/experimentation-platform-data-pipeline&amp;sa=D&amp;ust=1551691540956000">previous blog post</a>, we discussed dealing with batched data ETL with Spark. This post focuses on real-time ingestion.</p>
+
+<p>We separated the data ingestion system into 3 layers: collection, transformation, and storage. This table and diagram highlights the tools used in each layer in our system’s first design.</p>
+
+<table class="table">
+  <thead>
+    <tr><th>Layer</th><th>Tools</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Collection</td>
+      <td>Gateway, <a href="https://www.google.com/url?q=https://kafka.apache.org/&amp;sa=D&amp;ust=1551691540959000">Kafka</a></td>
+    </tr>
+    <tr>
+      <td>Transformation</td>
+      <td>Go processing service, <a href="https://www.google.com/url?q=https://spark.apache.org/streaming/&amp;sa=D&amp;ust=1551691540961000">Spark Streaming</a></td>
+    </tr>
+    <tr>
+      <td>Storage</td>
+      <td><a href="https://www.google.com/url?q=https://engineering.grab.com/big-data-real-time-presto-talariadb&amp;sa=D&amp;ust=1551691540962000">TalariaDB</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p><img src="img/data-ingestion-transformation-product-insights/image3.png" alt="" /></p>
+
+<p>Our first design might seem complex, but we used battle-tested and common tools such as Apache <a href="https://www.google.com/url?q=https://kafka.apache.org/uses&amp;sa=D&amp;ust=1551691540963000">Kafka</a> and <a href="https://www.google.com/url?q=https://spark.apache.org/streaming/&amp;sa=D&amp;ust=1551691540964000">Spark Streaming</a>. This let us get an end-to-end solution up and running quickly.</p>
+
+<h3 id="collection-layer">Collection layer</h3>
+
+<p>Our collection layer had two sub-layers:</p>
+
+<ol>
+  <li>Our custom built API Gateway received HTTP requests from the mobile app. It simply decoded and authenticated HTTP requests, streaming the data to the Kafka queue.</li>
+  <li>The Kafka queue decoupled the transformation layer (shown in the above figure as the processing service and Spark streaming) from the collection layer (shown above as the Gateway service). We needed to retain raw data in the Kafka queue for <a href="https://www.google.com/url?q=https://en.wikipedia.org/wiki/Fault_tolerance&amp;sa=D&amp;ust=1551691540965000">fault tolerance</a> of the entire system. Imagine an error where a data pipeline pollutes the data with flawed transformation code or just simply crashes. The Kafka queue saves us from data loss by data backfilling.</li>
+</ol>
+
+<p>Since it’s robust and battle-tested, we chose Kafka as our queueing solution. It perfectly met our requirements, such as high throughput and low latency. Although Kafka takes some operational effort such as self-hosting and monitoring, Grab has a proficient and dedicated team managing our Kafka cluster.</p>
+
+<h3 id="transformation-layer">Transformation layer</h3>
+
+<p>There are many options for real-time data processing, including <a href="https://www.google.com/url?q=https://spark.apache.org/docs/latest/streaming-programming-guide.html&amp;sa=D&amp;ust=1551691540966000">Spark</a><a href="https://www.google.com/url?q=https://spark.apache.org/docs/latest/streaming-programming-guide.html&amp;sa=D&amp;ust=1551691540967000"> Streaming</a>, <a href="https://www.google.com/url?q=https://flink.apache.org/&amp;sa=D&amp;ust=1551691540967000">Flink</a>, and <a href="https://www.google.com/url?q=http://storm.apache.org/&amp;sa=D&amp;ust=1551691540968000">Storm</a>. Since we use Spark for all our batch processing, we decided to use Spark Streaming.</p>
+
+<p>We deployed a Golang processing service between Kafka and Spark Streaming. This service converts the data from <a href="https://www.google.com/url?q=https://developers.google.com/protocol-buffers/&amp;sa=D&amp;ust=1551691540968000">Protobuf</a> to <a href="https://www.google.com/url?q=https://avro.apache.org/docs/current/&amp;sa=D&amp;ust=1551691540969000">Avro</a>. Instead of pointing Spark Streaming directly to Kafka, we used this processing service as an intermediary. This was because our Spark Streaming job was written in Python and Spark doesn’t natively support <a href="https://www.google.com/url?q=https://developers.google.com/protocol-buffers/&amp;sa=D&amp;ust=1551691540969000">protobuf</a> decoding.  We used Avro format, since Grab historically used it for archiving streaming data. Each raw event was enriched and batched together with other events. Batches were then uploaded to S3.</p>
+
+<h3 id="storage-layer">Storage layer</h3>
+
+<p><a href="https://www.google.com/url?q=https://docs.google.com/document/d/1k3QM2193opQ56qNO_C1JO9-nFdF5KqjJ7cOuFxkpwPo/edit%23heading%3Dh.3c9vjztk1zsf&amp;sa=D&amp;ust=1551691540970000">TalariaDB</a> is a Grab-built time-series database. It ingests events as columnar ORC files, indexing them by event name and time. We use the same ORC format files for batch processing. TalariaDB also implements the Presto Thrift connector interface, so our users could query certain event types by time range. They did this by connecting a Presto to a TalariaDB hosting distributed cluster.</p>
+
+<h1 id="problems">Problems</h1>
+
+<p>Building and deploying our data pipeline’s <a href="https://www.google.com/url?q=https://en.wikipedia.org/wiki/Minimum_viable_product&amp;sa=D&amp;ust=1551691540971000">MVP</a> provided great value to our data analysts, engineers, and QA team. For example, our mobile app team could monitor any abnormal change in the real-time metrics, such as the screen load time for the latest released app version. The QA team could perform app side actions (book a ride, make payment, etc.) and check which events were triggered and received by the backend. The latency between the ingestion and the serving layer was only 4 minutes instead of the batch processing system’s 60 minutes. The streaming processing’s data showed good business value.</p>
+
+<p>This prompted us to develop more features on top of our platform-collected real-time data. Very soon our QA engineers and the product analytics team used more and more of the real-time data processing system. They started <a href="https://www.google.com/url?q=https://en.wikipedia.org/wiki/Instrumentation_(computer_programming)&amp;sa=D&amp;ust=1551691540972000">instrumenting</a> various mobile applications so more data started flowing in. However, as our ingested data increased, so did our problems. These were mostly related to operational complexity and the increased latency.</p>
+
+<h3 id="operational-complexity">Operational complexity</h3>
+
+<p>Only a few team members could operate Spark Streaming and EMR. With more data and variable rates, our streaming jobs had scaling issues and failed occasionally. This was due to checkpoint issues when the cluster was under heavy load. Increasing the cluster size helped, but adding more nodes also increased the likelihood of losing more cluster nodes. When we lost nodes,our latency went up and added more work for our already busy on-call engineers.</p>
+
+<h3 id="supporting-native-protobuf">Supporting native Protobuf</h3>
+
+<p>To simplify the architecture, we initially planned to bypass our Golang-written processing service for the real-time data pipeline. Our plan was to let Spark directly talk to the Kafka queue and send the output to S3. This required packaging the decoders for our protobuf messages for Python Spark jobs, which was cumbersome. We thought about rewriting our job in Scala, but we didn’t have enough experience with it.</p>
+
+<p>Also, we’d soon hit some streaming limits from S3. Our Spark streaming job was consuming objects from S3, but the process was not continuous due to S3’s <a href="https://www.google.com/url?q=https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html%23ConsistencyModel&amp;sa=D&amp;ust=1551691540977000"> eventual consistency</a>. To avoid long pagination queries in the S3 API, we had to prefix the data with the hour in which it was ingested. This resulted in some data loss after processing by the Spark streaming. The loss happened because the new data would appear in S3 while Spark Streaming had already moved on to the next hour. We tried various tweaks, but it was just a bad design. As our data grew to over one terabyte per hour, our data loss grew with it.</p>
+
+<p><img src="img/data-ingestion-transformation-product-insights/image1.png" alt="" /></p>
+
+<h3 id="processing-lag">Processing lag</h3>
+
+<p>On average, the time from our system ingesting an event to when it was available on the Presto was 4 to 6 minutes. We call that processing lag, as it happened due to our data processing. It was substantially worse under heavy loads, increasing to 8 to 13 minutes. While that wasn’t bad at this scale (a few TBs of data), it made some use cases impossible, such as monitoring. We needed to do better.</p>
+
+<h2 id="simplifying-the-architecture-and-rewriting-in-golang">Simplifying the architecture and rewriting in Golang</h2>
+
+<p>After completing the MVP phase development, we noticed the Spark Streaming functionality we actually used was relatively trivial. In the Spark Streaming job, we only:</p>
+
+<ul>
+  <li>Partitioned the batch of events by event name.</li>
+  <li>Encoded the data in ORC format.</li>
+  <li>And uploaded to an S3 bucket.</li>
+</ul>
+
+<p>To mitigate the problems mentioned above, we tried re-implementing the features in our existing Golang processing service. Besides consuming the data and publishing to an S3 bucket, the transformation service also needed to deal with event partitioning and ORC encoding.</p>
+
+<p><img src="img/data-ingestion-transformation-product-insights/image4.png" alt="" /></p>
+
+<p>One key problem we addressed was implementing a robust event partitioner with a large write throughput and low read latency. Fortunately, Golang has a nice <a href="https://www.google.com/url?q=https://golang.org/pkg/sync/%23Map&amp;sa=D&amp;ust=1551691540985000">concurrent map</a> package. To further reduce the lock contention, we added <a href="https://www.google.com/url?q=https://www.openmymind.net/Shard-Your-Hash-table-to-reduce-write-locks/&amp;sa=D&amp;ust=1551691540986000">sharding</a>.</p>
+
+<p>We made the changes, deployed the service to production,and discovered our service was now <a href="https://www.google.com/url?q=https://en.wikipedia.org/wiki/Memory_bound_function&amp;sa=D&amp;ust=1551691540987000">memory-bound</a> as we buffered data for 1 minute. We did thorough benchmarking and profiling on heap allocation to improve memory utilization. By iteratively reducing inefficiencies and contributing to a lower CPU consumption, we made our data transformation more efficient.</p>
+
+<p><img src="img/data-ingestion-transformation-product-insights/image2.png" alt="" /></p>
+
+<h3 id="performance">Performance</h3>
+
+<p>After revamping the system, the elapsed time for a single event to travel from the gateway to our dashboard is about 1 minute. We also fixed the data loss issue. Finally, we significantly reduced our on-call workload by removing Spark Streaming.</p>
+
+<h3 id="validation">Validation</h3>
+
+<p>At this point, we had both our old and new pipelines running in parallel. After drastically improving our performance, we needed to confirm we still got the same end results. This was done by running a query against each of the pipelines and comparing the results. Both systems were registered to the same Presto cluster.</p>
+
+<p>We ran two SQL “excerpts” between the two pipelines in different order. Both queries returned the same events, validating our new pipeline’s correctness.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>select count(1) from ((
+ select uuid, time from grab_x.realtime_new
+ where event = 'app.metric1' and time between 1541734140 and 1541734200
+) except (
+ select uuid, time from grab_x.realtime_old
+ where event = 'app.metric1' and time between 1541734140 and 1541734200
+))
+
+/* output: 0 */
+</code></pre></div></div>
+
+<h1 id="conclusions">Conclusions</h1>
+
+<p>Scaling a data ingestion system to handle hundreds of thousands of events per second was a non-trivial task. However, by iterating and constantly simplifying our overall architecture, we were able to efficiently ingest the data and drive down its lag to around one minute.</p>
+
+<p>Spark Streaming was a great tool and gave us time to understand the problem. But, understanding what we actually needed to build and iteratively optimise the entire data pipeline led us to:</p>
+
+<ul>
+  <li>Replacing Spark Streaming with our new Golang-implemented pipeline.</li>
+  <li>Removing Avro encoding.</li>
+  <li>Removing an intermediary S3 step.</li>
+</ul>
+
+<p>Differences between the old and new pipelines are:</p>
+
+<table class="table">
+  <tr>
+    <th></th>
+    <th>Old Pipeline</th>
+    <th>New Pipeline</th>
+  </tr>
+  <tr>
+    <th>Languages</th>
+    <td>Python, Go</td>
+    <td>Go</td>
+  </tr>
+  <tr>
+    <th>Stages</th>
+    <td>4 services</td>
+    <td>3 services</td>
+  </tr>
+  <tr>
+    <th>Conversions</th>
+    <td>Protobuf → Avro → ORC</td>
+    <td>Protobuf → ORC</td>
+  </tr>
+  <tr>
+    <th>Lag</th>
+    <td>4-13 min</td>
+    <td>1 min</td>
+  </tr>
+</table>
+
+<p>Systems usually become more and more complex over time, leading to tech debt and decreased performance. In our case, starting with more steps in the data pipeline was actually the simple solution, since we could re-use existing tools. But as we reduced processing stages, we’ve also seen fewer failures. By simplifying the problem, we improved performance and decreased operational complexity. At the end of the day, our data pipeline solves exactly our problem and does nothing else, keeping things fast.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#big-data" class="label tags-label">Big Data</a>
+  
+    <a href="/tags#data-pipeline" class="label tags-label">Data Pipeline</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=How we simplified our Data Ingestion & Transformation Process&url=https://engineering.grab.com/data-ingestion-transformation-product-insights&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/data-ingestion-transformation-product-insights" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/data-ingestion-transformation-product-insights&title=How we simplified our Data Ingestion & Transformation Process
+&summary=This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/data-ingestion-transformation-product-insights';
+    this.page.identifier = '/data-ingestion-transformation-product-insights';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
