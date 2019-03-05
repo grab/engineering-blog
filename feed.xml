@@ -6,8 +6,8 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 04 Mar 2019 09:12:17 +0000</pubDate>
-    <lastBuildDate>Mon, 04 Mar 2019 09:12:17 +0000</lastBuildDate>
+    <pubDate>Tue, 05 Mar 2019 13:33:46 +0000</pubDate>
+    <lastBuildDate>Tue, 05 Mar 2019 13:33:46 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
     
       <item>
@@ -19,13 +19,13 @@
 &lt;p&gt;Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab scale it is a non-trivial task. We had to prepare for two key scenarios:&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;Business growth, including organic growth over time and expected &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Seasonality&amp;amp;sa=D&amp;amp;ust=1551691540952000&quot;&gt;seasonality&lt;/a&gt; effects.&lt;/li&gt;
-  &lt;li&gt;Any unexpected peaks due to unforeseen circumstances. Our systems have to be &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Scalability&amp;amp;sa=D&amp;amp;ust=1551691540952000&quot;&gt;horizontally scalable&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;Business growth, including organic growth over time and expected &lt;a href=&quot;https://en.wikipedia.org/wiki/Seasonality&quot;&gt;seasonality&lt;/a&gt; effects.&lt;/li&gt;
+  &lt;li&gt;Any unexpected peaks due to unforeseen circumstances. Our systems have to be &lt;a href=&quot;https://en.wikipedia.org/wiki/Scalability&quot;&gt;horizontally scalable&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;We could ingest data in batches, in real time, or a combination of the two. When you ingest data in batches, you can import it at regularly scheduled intervals or when it reaches a certain size. This is very useful when processes run on a schedule, such as reports that run daily at a specific time. Typically, batched data is useful for offline analytics and data science.&lt;/p&gt;
 
-&lt;p&gt;On the other hand, real-time ingestion has significant &lt;a href=&quot;https://www.google.com/url?q=https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/%23459fc6d61220&amp;amp;sa=D&amp;amp;ust=1551691540953000&quot;&gt;business value&lt;/a&gt;, such as with &lt;a href=&quot;https://www.google.com/url?q=https://www.reactivemanifesto.org/&amp;amp;sa=D&amp;amp;ust=1551691540954000&quot;&gt;reactive systems&lt;/a&gt;. For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note when information is very time-sensitive, you must continuously monitor its data.&lt;/p&gt;
+&lt;p&gt;On the other hand, real-time ingestion has significant &lt;a href=&quot;https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/#459fc6d61220&quot;&gt;business value&lt;/a&gt;, such as with &lt;a href=&quot;https://www.reactivemanifesto.org/&quot;&gt;reactive systems&lt;/a&gt;. For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note when information is very time-sensitive, you must continuously monitor its data.&lt;/p&gt;
 
 &lt;p&gt;This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.&lt;/p&gt;
 
@@ -39,7 +39,7 @@
   &lt;li&gt;Stores the data for analysis and monitoring.&lt;/li&gt;
 &lt;/ol&gt;
 
-&lt;p&gt;In a &lt;a href=&quot;https://www.google.com/url?q=https://engineering.grab.com/experimentation-platform-data-pipeline&amp;amp;sa=D&amp;amp;ust=1551691540956000&quot;&gt;previous blog post&lt;/a&gt;, we discussed dealing with batched data ETL with Spark. This post focuses on real-time ingestion.&lt;/p&gt;
+&lt;p&gt;In a &lt;a href=&quot;https://engineering.grab.com/experimentation-platform-data-pipeline&quot;&gt;previous blog post&lt;/a&gt;, we discussed dealing with batched data ETL with Spark. This post focuses on real-time ingestion.&lt;/p&gt;
 
 &lt;p&gt;We separated the data ingestion system into 3 layers: collection, transformation, and storage. This table and diagram highlights the tools used in each layer in our system’s first design.&lt;/p&gt;
 
@@ -50,22 +50,22 @@
   &lt;tbody&gt;
     &lt;tr&gt;
       &lt;td&gt;Collection&lt;/td&gt;
-      &lt;td&gt;Gateway, &lt;a href=&quot;https://www.google.com/url?q=https://kafka.apache.org/&amp;amp;sa=D&amp;amp;ust=1551691540959000&quot;&gt;Kafka&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt;Gateway, &lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt;&lt;/td&gt;
     &lt;/tr&gt;
     &lt;tr&gt;
       &lt;td&gt;Transformation&lt;/td&gt;
-      &lt;td&gt;Go processing service, &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/streaming/&amp;amp;sa=D&amp;amp;ust=1551691540961000&quot;&gt;Spark Streaming&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt;Go processing service, &lt;a href=&quot;https://spark.apache.org/streaming/&quot;&gt;Spark Streaming&lt;/a&gt;&lt;/td&gt;
     &lt;/tr&gt;
     &lt;tr&gt;
       &lt;td&gt;Storage&lt;/td&gt;
-      &lt;td&gt;&lt;a href=&quot;https://www.google.com/url?q=https://engineering.grab.com/big-data-real-time-presto-talariadb&amp;amp;sa=D&amp;amp;ust=1551691540962000&quot;&gt;TalariaDB&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://engineering.grab.com/big-data-real-time-presto-talariadb&quot;&gt;TalariaDB&lt;/a&gt;&lt;/td&gt;
     &lt;/tr&gt;
   &lt;/tbody&gt;
 &lt;/table&gt;
 
 &lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
 
-&lt;p&gt;Our first design might seem complex, but we used battle-tested and common tools such as Apache &lt;a href=&quot;https://www.google.com/url?q=https://kafka.apache.org/uses&amp;amp;sa=D&amp;amp;ust=1551691540963000&quot;&gt;Kafka&lt;/a&gt; and &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/streaming/&amp;amp;sa=D&amp;amp;ust=1551691540964000&quot;&gt;Spark Streaming&lt;/a&gt;. This let us get an end-to-end solution up and running quickly.&lt;/p&gt;
+&lt;p&gt;Our first design might seem complex, but we used battle-tested and common tools such as Apache &lt;a href=&quot;https://kafka.apache.org/uses&quot;&gt;Kafka&lt;/a&gt; and &lt;a href=&quot;https://spark.apache.org/streaming/&quot;&gt;Spark Streaming&lt;/a&gt;. This let us get an end-to-end solution up and running quickly.&lt;/p&gt;
 
 &lt;h3 id=&quot;collection-layer&quot;&gt;Collection layer&lt;/h3&gt;
 
@@ -73,26 +73,26 @@
 
 &lt;ol&gt;
   &lt;li&gt;Our custom built API Gateway received HTTP requests from the mobile app. It simply decoded and authenticated HTTP requests, streaming the data to the Kafka queue.&lt;/li&gt;
-  &lt;li&gt;The Kafka queue decoupled the transformation layer (shown in the above figure as the processing service and Spark streaming) from the collection layer (shown above as the Gateway service). We needed to retain raw data in the Kafka queue for &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Fault_tolerance&amp;amp;sa=D&amp;amp;ust=1551691540965000&quot;&gt;fault tolerance&lt;/a&gt; of the entire system. Imagine an error where a data pipeline pollutes the data with flawed transformation code or just simply crashes. The Kafka queue saves us from data loss by data backfilling.&lt;/li&gt;
+  &lt;li&gt;The Kafka queue decoupled the transformation layer (shown in the above figure as the processing service and Spark streaming) from the collection layer (shown above as the Gateway service). We needed to retain raw data in the Kafka queue for &lt;a href=&quot;https://en.wikipedia.org/wiki/Fault_tolerance&quot;&gt;fault tolerance&lt;/a&gt; of the entire system. Imagine an error where a data pipeline pollutes the data with flawed transformation code or just simply crashes. The Kafka queue saves us from data loss by data backfilling.&lt;/li&gt;
 &lt;/ol&gt;
 
 &lt;p&gt;Since it’s robust and battle-tested, we chose Kafka as our queueing solution. It perfectly met our requirements, such as high throughput and low latency. Although Kafka takes some operational effort such as self-hosting and monitoring, Grab has a proficient and dedicated team managing our Kafka cluster.&lt;/p&gt;
 
 &lt;h3 id=&quot;transformation-layer&quot;&gt;Transformation layer&lt;/h3&gt;
 
-&lt;p&gt;There are many options for real-time data processing, including &lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/docs/latest/streaming-programming-guide.html&amp;amp;sa=D&amp;amp;ust=1551691540966000&quot;&gt;Spark&lt;/a&gt;&lt;a href=&quot;https://www.google.com/url?q=https://spark.apache.org/docs/latest/streaming-programming-guide.html&amp;amp;sa=D&amp;amp;ust=1551691540967000&quot;&gt; Streaming&lt;/a&gt;, &lt;a href=&quot;https://www.google.com/url?q=https://flink.apache.org/&amp;amp;sa=D&amp;amp;ust=1551691540967000&quot;&gt;Flink&lt;/a&gt;, and &lt;a href=&quot;https://www.google.com/url?q=http://storm.apache.org/&amp;amp;sa=D&amp;amp;ust=1551691540968000&quot;&gt;Storm&lt;/a&gt;. Since we use Spark for all our batch processing, we decided to use Spark Streaming.&lt;/p&gt;
+&lt;p&gt;There are many options for real-time data processing, including &lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-programming-guide.html&quot;&gt;Spark&lt;/a&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-programming-guide.html&quot;&gt; Streaming&lt;/a&gt;, &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt;, and &lt;a href=&quot;http://storm.apache.org/&quot;&gt;Storm&lt;/a&gt;. Since we use Spark for all our batch processing, we decided to use Spark Streaming.&lt;/p&gt;
 
-&lt;p&gt;We deployed a Golang processing service between Kafka and Spark Streaming. This service converts the data from &lt;a href=&quot;https://www.google.com/url?q=https://developers.google.com/protocol-buffers/&amp;amp;sa=D&amp;amp;ust=1551691540968000&quot;&gt;Protobuf&lt;/a&gt; to &lt;a href=&quot;https://www.google.com/url?q=https://avro.apache.org/docs/current/&amp;amp;sa=D&amp;amp;ust=1551691540969000&quot;&gt;Avro&lt;/a&gt;. Instead of pointing Spark Streaming directly to Kafka, we used this processing service as an intermediary. This was because our Spark Streaming job was written in Python and Spark doesn’t natively support &lt;a href=&quot;https://www.google.com/url?q=https://developers.google.com/protocol-buffers/&amp;amp;sa=D&amp;amp;ust=1551691540969000&quot;&gt;protobuf&lt;/a&gt; decoding.  We used Avro format, since Grab historically used it for archiving streaming data. Each raw event was enriched and batched together with other events. Batches were then uploaded to S3.&lt;/p&gt;
+&lt;p&gt;We deployed a Golang processing service between Kafka and Spark Streaming. This service converts the data from &lt;a href=&quot;https://developers.google.com/protocol-buffers/&quot;&gt;Protobuf&lt;/a&gt; to &lt;a href=&quot;https://avro.apache.org/docs/current/&quot;&gt;Avro&lt;/a&gt;. Instead of pointing Spark Streaming directly to Kafka, we used this processing service as an intermediary. This was because our Spark Streaming job was written in Python and Spark doesn’t natively support &lt;a href=&quot;https://developers.google.com/protocol-buffers/&quot;&gt;protobuf&lt;/a&gt; decoding.  We used Avro format, since Grab historically used it for archiving streaming data. Each raw event was enriched and batched together with other events. Batches were then uploaded to S3.&lt;/p&gt;
 
 &lt;h3 id=&quot;storage-layer&quot;&gt;Storage layer&lt;/h3&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://www.google.com/url?q=https://docs.google.com/document/d/1k3QM2193opQ56qNO_C1JO9-nFdF5KqjJ7cOuFxkpwPo/edit%23heading%3Dh.3c9vjztk1zsf&amp;amp;sa=D&amp;amp;ust=1551691540970000&quot;&gt;TalariaDB&lt;/a&gt; is a Grab-built time-series database. It ingests events as columnar ORC files, indexing them by event name and time. We use the same ORC format files for batch processing. TalariaDB also implements the Presto Thrift connector interface, so our users could query certain event types by time range. They did this by connecting a Presto to a TalariaDB hosting distributed cluster.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://engineering.grab.com/big-data-real-time-presto-talariadb&quot;&gt;TalariaDB&lt;/a&gt; is a Grab-built time-series database. It ingests events as columnar ORC files, indexing them by event name and time. We use the same ORC format files for batch processing. TalariaDB also implements the Presto Thrift connector interface, so our users could query certain event types by time range. They did this by connecting a Presto to a TalariaDB hosting distributed cluster.&lt;/p&gt;
 
 &lt;h1 id=&quot;problems&quot;&gt;Problems&lt;/h1&gt;
 
-&lt;p&gt;Building and deploying our data pipeline’s &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Minimum_viable_product&amp;amp;sa=D&amp;amp;ust=1551691540971000&quot;&gt;MVP&lt;/a&gt; provided great value to our data analysts, engineers, and QA team. For example, our mobile app team could monitor any abnormal change in the real-time metrics, such as the screen load time for the latest released app version. The QA team could perform app side actions (book a ride, make payment, etc.) and check which events were triggered and received by the backend. The latency between the ingestion and the serving layer was only 4 minutes instead of the batch processing system’s 60 minutes. The streaming processing’s data showed good business value.&lt;/p&gt;
+&lt;p&gt;Building and deploying our data pipeline’s &lt;a href=&quot;https://en.wikipedia.org/wiki/Minimum_viable_product&quot;&gt;MVP&lt;/a&gt; provided great value to our data analysts, engineers, and QA team. For example, our mobile app team could monitor any abnormal change in the real-time metrics, such as the screen load time for the latest released app version. The QA team could perform app side actions (book a ride, make payment, etc.) and check which events were triggered and received by the backend. The latency between the ingestion and the serving layer was only 4 minutes instead of the batch processing system’s 60 minutes. The streaming processing’s data showed good business value.&lt;/p&gt;
 
-&lt;p&gt;This prompted us to develop more features on top of our platform-collected real-time data. Very soon our QA engineers and the product analytics team used more and more of the real-time data processing system. They started &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Instrumentation_(computer_programming)&amp;amp;sa=D&amp;amp;ust=1551691540972000&quot;&gt;instrumenting&lt;/a&gt; various mobile applications so more data started flowing in. However, as our ingested data increased, so did our problems. These were mostly related to operational complexity and the increased latency.&lt;/p&gt;
+&lt;p&gt;This prompted us to develop more features on top of our platform-collected real-time data. Very soon our QA engineers and the product analytics team used more and more of the real-time data processing system. They started &lt;a href=&quot;https://en.wikipedia.org/wiki/Instrumentation_(computer_programming)&quot;&gt;instrumenting&lt;/a&gt; various mobile applications so more data started flowing in. However, as our ingested data increased, so did our problems. These were mostly related to operational complexity and the increased latency.&lt;/p&gt;
 
 &lt;h3 id=&quot;operational-complexity&quot;&gt;Operational complexity&lt;/h3&gt;
 
@@ -102,7 +102,7 @@
 
 &lt;p&gt;To simplify the architecture, we initially planned to bypass our Golang-written processing service for the real-time data pipeline. Our plan was to let Spark directly talk to the Kafka queue and send the output to S3. This required packaging the decoders for our protobuf messages for Python Spark jobs, which was cumbersome. We thought about rewriting our job in Scala, but we didn’t have enough experience with it.&lt;/p&gt;
 
-&lt;p&gt;Also, we’d soon hit some streaming limits from S3. Our Spark streaming job was consuming objects from S3, but the process was not continuous due to S3’s &lt;a href=&quot;https://www.google.com/url?q=https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html%23ConsistencyModel&amp;amp;sa=D&amp;amp;ust=1551691540977000&quot;&gt; eventual consistency&lt;/a&gt;. To avoid long pagination queries in the S3 API, we had to prefix the data with the hour in which it was ingested. This resulted in some data loss after processing by the Spark streaming. The loss happened because the new data would appear in S3 while Spark Streaming had already moved on to the next hour. We tried various tweaks, but it was just a bad design. As our data grew to over one terabyte per hour, our data loss grew with it.&lt;/p&gt;
+&lt;p&gt;Also, we’d soon hit some streaming limits from S3. Our Spark streaming job was consuming objects from S3, but the process was not continuous due to S3’s &lt;a href=&quot;https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel&quot;&gt; eventual consistency&lt;/a&gt;. To avoid long pagination queries in the S3 API, we had to prefix the data with the hour in which it was ingested. This resulted in some data loss after processing by the Spark streaming. The loss happened because the new data would appear in S3 while Spark Streaming had already moved on to the next hour. We tried various tweaks, but it was just a bad design. As our data grew to over one terabyte per hour, our data loss grew with it.&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
 
@@ -124,9 +124,9 @@
 
 &lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
 
-&lt;p&gt;One key problem we addressed was implementing a robust event partitioner with a large write throughput and low read latency. Fortunately, Golang has a nice &lt;a href=&quot;https://www.google.com/url?q=https://golang.org/pkg/sync/%23Map&amp;amp;sa=D&amp;amp;ust=1551691540985000&quot;&gt;concurrent map&lt;/a&gt; package. To further reduce the lock contention, we added &lt;a href=&quot;https://www.google.com/url?q=https://www.openmymind.net/Shard-Your-Hash-table-to-reduce-write-locks/&amp;amp;sa=D&amp;amp;ust=1551691540986000&quot;&gt;sharding&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;One key problem we addressed was implementing a robust event partitioner with a large write throughput and low read latency. Fortunately, Golang has a nice &lt;a href=&quot;https://golang.org/pkg/sync/#Map&quot;&gt;concurrent map&lt;/a&gt; package. To further reduce the lock contention, we added &lt;a href=&quot;https://www.openmymind.net/Shard-Your-Hash-table-to-reduce-write-locks/&quot;&gt;sharding&lt;/a&gt;.&lt;/p&gt;
 
-&lt;p&gt;We made the changes, deployed the service to production,and discovered our service was now &lt;a href=&quot;https://www.google.com/url?q=https://en.wikipedia.org/wiki/Memory_bound_function&amp;amp;sa=D&amp;amp;ust=1551691540987000&quot;&gt;memory-bound&lt;/a&gt; as we buffered data for 1 minute. We did thorough benchmarking and profiling on heap allocation to improve memory utilization. By iteratively reducing inefficiencies and contributing to a lower CPU consumption, we made our data transformation more efficient.&lt;/p&gt;
+&lt;p&gt;We made the changes, deployed the service to production,and discovered our service was now &lt;a href=&quot;https://en.wikipedia.org/wiki/Memory_bound_function&quot;&gt;memory-bound&lt;/a&gt; as we buffered data for 1 minute. We did thorough benchmarking and profiling on heap allocation to improve memory utilization. By iteratively reducing inefficiencies and contributing to a lower CPU consumption, we made our data transformation more efficient.&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
 
