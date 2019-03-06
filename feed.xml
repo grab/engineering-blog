@@ -6,9 +6,184 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 05 Mar 2019 13:33:46 +0000</pubDate>
-    <lastBuildDate>Tue, 05 Mar 2019 13:33:46 +0000</lastBuildDate>
+    <pubDate>Wed, 06 Mar 2019 09:44:39 +0000</pubDate>
+    <lastBuildDate>Wed, 06 Mar 2019 09:44:39 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Structured Logging: The Best Friend You’ll Want When Things Go Wrong</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Everyday millions of people around Southeast Asia count on Grab to get themselves or what they need from point A to B in a safe, comfortable and reliable manner. In fact, just very recently we crossed our 3 billion transport rides milestone, gaining the last billion in just a mere 6 months!&lt;/p&gt;
+
+&lt;p&gt;We take this responsibility very seriously, and as we continue to grow and expand, it’s important for us to maintain a sophisticated backend system that is capable of sustaining the kind of scale needed to support all our customers in Southeast Asia. This backend system is comprised of multiple services that interact with each other in many different ways. As Grab evolves, maintaining them becomes a significantly larger and harder task as developers continuously develop new features.&lt;/p&gt;
+
+&lt;p&gt;To maintain these systems well, it’s important to have better observability; data that helps us better understand what is happening in the system by having good monitoring (metrics), event logs, and tracing for request scope data. Out of these, logs provide the most complete picture of what happened within the system - and is typically the first and most engaged point of contact. With good logs, the backend becomes much easier to understand, maintain, and debug. Without logs or with bad logs - we have a recipe for disaster; making it nearly impossible to understand what’s happening.&lt;/p&gt;
+
+&lt;p&gt;In this article, we focus on a form of logging called structured logging. We discuss what it is, why is it better, and how we built a framework that integrates well with our current Elastic stack-based logging backend, allowing us to do logging better and more efficiently.&lt;/p&gt;
+
+&lt;p&gt;Structured Logging is a part of a larger endeavour which will enable us to reduce the Mean Time To Resolve (MTTR), helping developers to mitigate issues faster when outages happen.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-are-logs&quot;&gt;What are Logs?&lt;/h2&gt;
+
+&lt;p&gt;Logs are lines of texts containing some information about some event that occurred in our system, and they serve a crucial function of helping us understand what’s happening in the backend. Logs are usually placed at points in the code where a significant event has happened (for example, some database operation succeeded or a passenger got assigned to a driver) or at any other place in the code that we are interested in observing.&lt;/p&gt;
+
+&lt;p&gt;The first thing that a developer would normally do when an error is reported is check the logs - sort of like walking through the history of the system and finding out what happened. Therefore, logs can be a developer’s best friend in times of service outages, errors, and failed builds.&lt;/p&gt;
+
+&lt;p&gt;Logs in today’s world have varying formats and features.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Log Format&lt;/strong&gt;: These range from simple key-value based (like syslog) to quite structured and detailed (like JSON). Since logs are mostly meant for developer eyes, how detailed or structured a log is dictates how fast the developer can query the logs, as well as read them. The more structured the data is - the larger the size is per log line, although it’s more queryable and contains richer information.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Levelled Logging (or Log Levels)&lt;/strong&gt;: Logs with different severities can be logged at different levels. The visibility can be limited to a single level, limiting all logs only with a certain severity or above (for example, only logs WARN and above). Usually log levels are static in production environments, and finding DEBUG logs usually requires redeploying.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Log Aggregation Backend&lt;/strong&gt;: Logs can have different log aggregation backends, which means different backends (i.e. Scalyr, Kibana, etc.) decide what your logs might look like or what you might be able to do with them. Some might cost a lot more than others.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Causal Ordering&lt;/strong&gt;: Logs might or might not preserve the exact time in which they are written. This is important, as how exact the time is dictates how accurately we can predict the sequence of events via logs.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Log Correlation&lt;/strong&gt;: We serve countless requests from our backend services. Being able to see all the logs relevant to a particular request or a particular event helps us drill down to relevant  information for a specific request (e.g. for a specific passenger trying to book a ride).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Combine this with the plethora of logging libraries available and you easily have a developer who is holding his head in confusion, unable to decide what to use. Also, each library has their own set of advantages and disadvantages, so the discussion might quickly become subjective and polarized - therefore it is crucial that you choose the appropriate library and backend pair for your applications.&lt;/p&gt;
+
+&lt;p&gt;We at Grab use different types of logging libraries. However, as requirements changed  - we also found ourselves re-evaluating our logging strategy.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-state-of-logging-at-grab&quot;&gt;The State of Logging at Grab&lt;/h2&gt;
+
+&lt;p&gt;The number of Golang services at Grab has continuously grown. Most services used syslog-style key-value format logs, recognized as the most common format of logs for server-side applications due to its simplicity and ease for reading and writing. All these logs were made possible by a handful of common libraries, which were directly imported and used by different services.&lt;/p&gt;
+
+&lt;p&gt;We used Scalyr as a frontend for these logs, where application-emitted logs were routed to files and sent to Scalyr, making it possible to view and query them in real time. Things were pretty great and frictionless for a long time.&lt;/p&gt;
+
+&lt;p&gt;However, as time went by, our Scalyr bill for logs started mounting to unprecedented levels and we found ourselves revisiting and re-evaluating how we did logging. A few issues surfaced:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Logging volume reduction efforts were successful to some extent - but were arduous and painful. Part of the reason was that almost all the logs were at a single log level - INFO.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 1: Log Level Usage&quot; src=&quot;/img/structured-logging/image3.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1: Log Level Usage&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;This issue was not limited to a single service, but pervasive across services. For mitigation, some services added sampling to logs, some removed logs altogether. The latter is only a recipe for disaster, so it was known that we had to &lt;strong&gt;improve levelled logging&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Scalyr was prohibitively expensive and also had some issues - at times it rate limited our logs which led to lost logs in some cases, their DSL (query language) was pretty bare-bones and one couldn’t do complex things with them. There were many good open source alternatives available - Elastic stack to name one. Our engineers felt confident that we could probably manage our logging infrastructure and manage the costs better - which led to the proposal and building of Elastic stack logging cluster. Elasticsearch is vastly more powerful and rich than Scalyr and our current libraries weren’t enough to fully leverage its capabilities, so we needed a library which can &lt;strong&gt;leverage structure in logs better&lt;/strong&gt; and &lt;strong&gt;easily integrate with Elastic stack&lt;/strong&gt;.&lt;/li&gt;
+  &lt;li&gt;There were some minor issues in our logging libraries namely:
+    &lt;ul&gt;
+      &lt;li&gt;Singleton initialisation pattern that made unit-testing harder&lt;/li&gt;
+      &lt;li&gt;Single logger interface that reduced the possibility of extending the core logging functionality as almost all the services imported the logger interface directly&lt;/li&gt;
+      &lt;li&gt;No out-of-the-box support for multiple writers&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;If we were to write a library, we had to fix these issues - and also &lt;strong&gt;encourage usage of best practices&lt;/strong&gt;.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Grab’s critical path (number of services traversed by a single booking flow request) has grown in size. On average, a single booking request touches multiple microservices - each of which does something different. At the large scale at which we operate, it’s necessary therefore to easily view logs from all the services for a single request - however this was not something which was done automatically by the library. Hence, we also wanted to &lt;strong&gt;make log correlation easier and better&lt;/strong&gt;.&lt;/li&gt;
+  &lt;li&gt;Logs are events which happened at some point of time. The order in which these events occurred gives us a complete history of what happened in the system. However, the core logging library which formed the base of the logging across our Golang services didn’t preserve the log generation time (it instead used write time). This led to jumbling of logs which are generated in a span of a few microseconds - which not only makes the lives of our developers harder, but makes it near impossible to get an exact history of the system. This is why we wanted to also &lt;strong&gt;improve and enable causal ordering of logs&lt;/strong&gt; - one of the key steps in understanding what’s happening in the system.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;why-change&quot;&gt;Why Change?&lt;/h2&gt;
+
+&lt;p&gt;As mentioned, we knew there were issues with how we were logging. To best approach the problem and be able to solve it as much as possible without affecting existing infrastructure and services, it was decided to bootstrap a new library from the ground up. This library would solve known issues, as well as contain features which would not have been possible by modifying existing libraries. For a recap, here’s what we wanted to solve:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Improve levelled logging&lt;/li&gt;
+  &lt;li&gt;Leverate structure in logs better&lt;/li&gt;
+  &lt;li&gt;Easily integrate with Elastic stack&lt;/li&gt;
+  &lt;li&gt;Encourage usage of best practices&lt;/li&gt;
+  &lt;li&gt;Make log correlation easier and better&lt;/li&gt;
+  &lt;li&gt;Improve and enable causal ordering of logs for a better understanding of service distribution&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Enter Structured Logging. Structured Logging has been quite popular around the world, finding widespread adoption. It was easily integrable with our Elastic stack backend and would also solve most of our pain points.&lt;/p&gt;
+
+&lt;h2 id=&quot;structured-logging&quot;&gt;Structured Logging&lt;/h2&gt;
+
+&lt;p&gt;Keeping our previous problems and requirements in mind, we bootstrapped a library in Golang, which has the following features:&lt;/p&gt;
+
+&lt;h3 id=&quot;dynamic-log-levels&quot;&gt;Dynamic Log Levels&lt;/h3&gt;
+
+&lt;p&gt;This allows us to change our initialized log levels at runtime from a configuration management system - something which was not possible and encouraged before.&lt;/p&gt;
+
+&lt;p&gt;This makes the log levels actually more meaningful now -  developers can now deploy with the usual WARN or INFO log levels, and when things go wrong, just with a configuration change they can update the log level to DEBUG and make their services output more logs when debugging. This also helps us keep our logging costs in check. We made support for integrating this with our configuration management system easy and straightforward.&lt;/p&gt;
+
+&lt;h3 id=&quot;consistent-structure-in-logs&quot;&gt;Consistent Structure in Logs&lt;/h3&gt;
+
+&lt;p&gt;Logs are inherently unstructured unlike database schema, which is rigid, or a freeform text, which has no structure. Our Elastic stack backend is primarily based on indices (sort of like tables) with mapping (sort of like a loose schema). For this, we needed to output logs in JSON with a consistent structure (for example, we cannot output integer and string under the same JSON field because that will cause an indexing failure in Elasticsearch). Also, we were aware that one of our primary goals was keeping our logging costs in check, and since it didn’t make sense to structure and index almost every field - adding only the structure which is useful to us made sense.&lt;/p&gt;
+
+&lt;p&gt;For addressing this, we built a utility that allows us to add structure to our logs deterministically. This is built on top of a schema in which we can add key-value pairs with a specific key name and type, generate code based on that - and use the generated code to make sure that things are consistently formatted and don’t break. We called this schema (a collection of key name and type pairs) the Common Grab Log Schema (CGLS). We only add structure to CGLS which is important - everything included in CGLS gets formatted in the different field and everything else gets formatted in a single field in the generated JSON. This helps keeps our structure consistent and easily usable with Elastic stack.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 2: Overview of Common Grab Log Schema for Golang backend services&quot; src=&quot;/img/structured-logging/image1.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 2: Overview of Common Grab Log Schema for Golang backend services&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;plug-and-play-support-with-grab-kit&quot;&gt;Plug and Play support with Grab-Kit&lt;/h3&gt;
+
+&lt;p&gt;We made the initialization and use easy and out-of-the-box with our in-house support for &lt;a href=&quot;https://engineering.grab.com/introducing-grab-kit&quot;&gt;Grab-Kit&lt;/a&gt;, so developers can just use it without making any drastic changes. Also, as part of this integration, we added automatic log correlation based on request IDs present in traces, which ensured that all the logs generated for a particular request already have that trace ID.&lt;/p&gt;
+
+&lt;h3 id=&quot;configurable-log-format&quot;&gt;Configurable Log Format&lt;/h3&gt;
+
+&lt;p&gt;Our primary requirement was building a logger expressive and consistent enough to integrate with the Elastic stack backend well - without going through fancy log parsing in the downstream. Therefore, the library is expressive and configurable enough to allow any log format (we can write different log formats for different future use cases. For example, readable format in development settings and JSON output in production settings), with a default option of JSON output. This ensures that we can produce log output which is compatible with Elastic stack, but still be configurable enough for different use cases.&lt;/p&gt;
+
+&lt;h3 id=&quot;support-for-multiple-writes-with-different-formats&quot;&gt;Support for Multiple Writes with Different Formats&lt;/h3&gt;
+
+&lt;p&gt;As part of extending the library’s functionality, we needed enough configurability to be able to send different logs to different places at different settings. For example, sending FATAL logs to Slack asynchronously in some readable format, while sending all the usual logs to our Elastic stack backend. This library includes support for chaining such “cores” to any arbitrary degree possible - making sure that this logger can be used in such highly specialized cases as well.&lt;/p&gt;
+
+&lt;h3 id=&quot;production-like-logging-environment-in-development&quot;&gt;Production-like Logging Environment in Development&lt;/h3&gt;
+
+&lt;p&gt;Developers have been seeing console logs since the dawn of time, however having structured JSON logs which are only meant for production logs and are more searchable provides more power. To leverage this power in development better and allow developers to directly see their logs in Kibana, we provide a dockerized version of Kibana which can be spun up locally to accept structured logs. This allows developers to directly use the structured logs and see their logs in Kibana - just like production!&lt;/p&gt;
+
+&lt;p&gt;Having this library enabled us to do logging in a much better way. The most noticeable impact was that our simple access logs can now be queried better - with more filters and conditions.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 3: Production-like Logging Environment in Development&quot; src=&quot;/img/structured-logging/image4.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 3: Production-like Logging Environment in Development&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;causal-ordering&quot;&gt;Causal Ordering&lt;/h3&gt;
+
+&lt;p&gt;Having an exact history of events makes debugging issues in production systems easier - as one can just look at the history and quickly hypothesize what’s wrong and fix it. To this end, the structured logging library adds the exact write timestamp in nanoseconds in the logger. This combined with the structured JSON-like format makes it possible to sort all the logs by this field - so we can see logs in the exact order as they happened - achieving causal ordering in logs. This is an underplayed but highly powerful feature that makes debugging easier.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 4: Causal ordering of logs with Y'ALL&quot; src=&quot;/img/structured-logging/image2.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 4: Causal ordering of logs with Y'ALL&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;but-why-structured-logging&quot;&gt;But Why Structured Logging?&lt;/h2&gt;
+
+&lt;p&gt;Now that you know about the history and the reasons behind our logging strategy, let’s discuss the benefits that you reap from it.&lt;/p&gt;
+
+&lt;p&gt;On the outset, having logs well-defined and structured (like JSON) has multiple benefits, including but not limited to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Better root cause analysis&lt;/strong&gt;: With structured logs, we can ingest and perform more powerful queries which won’t be possible with simple unstructured logs. Developers can do more informative queries on finding the logs which are relevant to the situation. Not only this, log correlation and causal ordering make it possible to gain a better understanding of the distributed logs. Unlike unstructured data, where we are only limited to full-text or a handful of log types, structured logs take the possibility to a whole new level.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;More transparency or better observability&lt;/strong&gt;: With structured logs, you increase the visibility of what is happening with your system - since now you can log information in a better, more expressive way. This enables you to have a more transparent view of what is happening in the system and makes your systems easier to maintain and debug over longer periods of time.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Better consistency&lt;/strong&gt;: With structured logs, you increase the structure present in your logs - and in turn, make your logs more consistent as the systems evolve. This allows us to index our logs in a system like Elastic stack more easily as we can be sure that we are sticking to some structure. Also with the adoption of a common schema, we can be rest assured that we are all using the same structure.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Better standardization&lt;/strong&gt;: Having a single, well-defined, structured way to do logging allows us to standardize logging - which reduces cognitive overhead of figuring out what happened in systems via logs and allows easier adoption. Instead of going through 100 different types of logs, you instead would only have a single format. This is also one of the goals of the library - standardizing the usage of the library across Golang backend services.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We get some additional benefits as well:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Dynamic Log Levels&lt;/strong&gt;: This allows us to have meaningful log levels in our code - where we can deploy with baseline warning settings and switch to lower levels (debug logs) only when we need them. This helps keep our logging costs low, as well as reduces the noise that developers usually need to go through when debugging.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Future-proof Consistency in Logs&lt;/strong&gt;: With the adoption of a common schema, we make sure that we stick with the same structure, even if say tomorrow our logging infrastructure changes - making us future-ready. Instead of manually specifying what to log, we can simply expose a function in our loggers.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Production-Like Logging Environment in Development&lt;/strong&gt;: The dockerized Kibana allows developers to enjoy the same benefits as the production Kibana. This also encourages developers to use Elastic stack more and explore its features such as building dashboards based on the log data, having better watchers, and so on.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;I hope you have enjoyed this article and found it useful. Comments and corrections are always welcome.&lt;/p&gt;
+
+&lt;p&gt;Happy Logging!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 05 Mar 2019 13:07:40 +0000</pubDate>
+        <link>https://engineering.grab.com/structured-logging</link>
+        <guid isPermaLink="true">https://engineering.grab.com/structured-logging</guid>
+        
+        <category>Logging</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>How we simplified our Data Ingestion &amp; Transformation Process</title>
@@ -2163,108 +2338,6 @@ EMR cluster CPU monitoring with Ganglia&lt;/p&gt;
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Journey of a Tourist via Grab</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;The recent premiere of the “made-with-Singapore” blockbuster movie “Crazy Rich Asians” has garnered real hype around the city-state as a lavish tourist destination. Do tourists travel on Grab to outlandishly fancy places like those you see in the movie? What were their favorite local places? Other than major attractions and shopping destinations, where do they go? Here are some exciting travel patterns that we found about our tourists’ rides in Singapore!&lt;/p&gt;
-
-&lt;h2 id=&quot;1-tourists-arrival-pattern-in-singapore&quot;&gt;1. Tourists Arrival Pattern in Singapore&lt;/h2&gt;
-
-&lt;p&gt;Let’s look at the composition of tourist-passengers on Grab platform.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/journey-tourist-grab/image_0.png&quot; alt=&quot;Where do Grab Tourist-Passengers come from&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;More than 60% of total tourist-passengers on Grab come from Southeast Asia, mainly from Malaysia, Indonesia, Philippines, Vietnam, and Thailand.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/journey-tourist-grab/image_1.png&quot; alt=&quot;World Map of Grab's Tourist-Passengers&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;With our data that covers millions of passengers from more than 150 countries (the list includes passengers from Seychelles, Madagascar, and even North Korea!), we found that more than half of Grab’s international tourists come from China, USA, and India, outside of Southeast Asia.&lt;/p&gt;
-
-&lt;p&gt;In terms of seasonality, we found distinguished differences between those who come from countries around the equator and those from places with four-seasons.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/journey-tourist-grab/image_2.png&quot; alt=&quot;Monthly Distribution of Bookings Per Region&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Tourists coming from tropical region tend to follow the usual festivity season, resembling a trimodal distribution - where Grab sees high peaks of tourist-passengers in start-of-year, mid-year and end-of-year. South/Southeast Asian and Middle Easterners seem to leverage on school holidays and major public holidays to travel to Singapore.&lt;/p&gt;
-
-&lt;p&gt;Meanwhile, those who seek to avoid cold weather in Europe, North America, as well as Northeast Asia, tend to come to Singapore and ride with Grab during their winter time, mainly from September to January. Singapore’s warm weather tends to provide the much needed sunlight to those tourists-passengers while Grab provides them with convenient and reliable transportation to various attractions.&lt;/p&gt;
-
-&lt;h2 id=&quot;2-tourists-mobility-in-singapore-with-grab&quot;&gt;2. Tourists Mobility in Singapore with Grab&lt;/h2&gt;
-
-&lt;p&gt;Where do they like to visit and enjoy in the Lion City? Which of Singapore’s most iconic landmarks do they like to travel to via Grab? At which pick-up points do Grab serve the tourist-passengers the most?&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/journey-tourist-grab/image_3.png&quot; alt=&quot;Popular Destinations for Tourist-Passengers on Grab&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;21-connecting-tourist-passengers-from-airport-to-hotels&quot;&gt;2.1. Connecting Tourist-Passengers from Airport to Hotels&lt;/h3&gt;
-
-&lt;p&gt;Once they land in Singapore, tourists-passengers’ first ride out of Changi offers evergreen view of the “Garden City.” When Grab cruises out of the Skytrax World’s Best Airport, almost 90% of our tourist-passengers headed straight to hotels, according to our data.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/journey-tourist-grab/image_4.png&quot; alt=&quot;Where do Tourist-Passengers go from the Airport?&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Most of these hotels are in the central region - in fact, a cluster of green circles on the map below is where 80% of tourists go to via Grab. Sure enough, Orchard, Bugis, Singapore River, Downtown Core areas are heavily crowded with excellent hotels, exotic restaurants, and exciting nightlife scenes.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/journey-tourist-grab/image_5.png&quot; alt=&quot;Which Hotels do Tourist-Passengers go from the Airport?&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;What’s interesting is the large volume of Grab bookings from the airport to Kallang where Kampong glam is located. It nests just as many tourists as all the other smaller areas combined, with high concentration of affordable hotels as well as bustling streets filled with colourful shophouses, mosques, temples, and local eateries.&lt;/p&gt;
-
-&lt;h3 id=&quot;22-connecting-tourist-passengers-from-airport-to-cruises-mice-and-major-attractions&quot;&gt;2.2. Connecting Tourist-Passengers from Airport to Cruises, MICE, and Major Attractions&lt;/h3&gt;
-
-&lt;p&gt;Those who were too excited to skip the hotel check-in, where do they go from the airport? Our data shows that tourists craving for crazy-rich-Asian shopping went to Singapore’s iconic Marina Bay Sands as well as prominent shopping malls in downtown. Island-hoppers’ destinations were either Harbourfront Cruise and Ferry Terminal or Tanah Merah Ferry Terminal.&lt;/p&gt;
-
-&lt;p&gt;The list goes on to show that some people went straight to Sentosa from the airport for their exclusive holidays, while some went to MICE (Meetings, Incentives, Conferences, Exhibitions) venues to attend to business.&lt;/p&gt;
-
-&lt;h3 id=&quot;23-singapore-shopping-spree&quot;&gt;2.3. Singapore Shopping Spree&lt;/h3&gt;
-
-&lt;p&gt;A significant proportion of our passengers took a ride with us to major shopping areas, especially Orchard, Downtown, Bugis, Harbourfront, and Kallang.&lt;/p&gt;
-
-&lt;p&gt;Undoubtedly, these places offer a lively and picturesque array of shopping options, ranging from antique jewelries to boutique luxurious handbags.&lt;/p&gt;
-
-&lt;p&gt;Given the popular timing of their pick-ups from these malls -which peaks at 2pm, 4pm, and 9pm-, we are delighted to know that Grab is there to complete our tourist-passengers’ shopping or dining experience.&lt;/p&gt;
-
-&lt;h3 id=&quot;24-food-food-food&quot;&gt;2.4. Food, food, food!&lt;/h3&gt;
-
-&lt;p&gt;Hawker centers are an indispensable part of Singapore’s food culture. And our data shows that tourists value that too! Also known as the place where “Crazy Rich Asians” local delicacies dining scene was filmed, Newton Food Centre is one of the most sought-after dining places for our tourist-passengers.&lt;/p&gt;
-
-&lt;p&gt;Chinatown and Chijmes are other venues that topped the list for Grab-riding-tourists’ favourite dining list. Our data shows that Grab rides are more than doubled during the late night hours, and especially so on Friday, Saturday, Sunday. And yes, Chijmes was where the wedding was held in the movie – but in reality, it’s a friendly heritage building that houses many dining options.&lt;/p&gt;
-
-&lt;h3 id=&quot;25-medical-tourism&quot;&gt;2.5. Medical Tourism&lt;/h3&gt;
-
-&lt;p&gt;We observed that hospitals and medical centers (both private and public) are popular destinations for our tourist-passengers.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/journey-tourist-grab/image_6.png&quot; alt=&quot;Medical Tourism&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;What’s even more striking is its growth on Grab platform which has increased over 500% over 2015-2017. According to data from a medical tourism index in 2017, Singapore was ranked the most attractive among seven Asian countries in terms of “patient experience.”  Majority of these medical-tourists on our platform come from Southeast Asian countries.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Grab’s services to tourists are an integral part of connecting tourists to various destinations and attractions. Our data shows that there is a plethora of captivating locations in Singapore that are both uniquely local and vibrantly modern. Our tourist-passengers were a mixed bunch who seemed to know how to enjoy Singapore!&lt;/p&gt;
-
-&lt;p&gt;This is only the beginning of Grab’s effort to interpret more about tourists’ mobility patterns.&lt;/p&gt;
-
-&lt;p&gt;Grab is dedicated to making the tourists’ experience on our platform more convenient and delightful. By delving into Singapore-loving visitors’ behavioural patterns through our data, we hope to serve you better.&lt;/p&gt;
-
-&lt;p&gt;If you are curious about how tourists are travelling via Grab in other countries, let us know! We will drill down into our data to discover something interesting for you!&lt;/p&gt;
-
-</description>
-        <pubDate>Tue, 11 Sep 2018 08:43:40 +0000</pubDate>
-        <link>https://engineering.grab.com/journey-tourist-grab</link>
-        <guid isPermaLink="true">https://engineering.grab.com/journey-tourist-grab</guid>
-        
-        <category>Analytics</category>
-        
-        <category>Data</category>
-        
-        <category>Data Analytics</category>
-        
-        <category>Tourism</category>
-        
-        <category>Tourists</category>
-        
-        
-        <category>Data Science</category>
         
       </item>
     
