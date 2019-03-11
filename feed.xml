@@ -6,9 +6,325 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 08 Mar 2019 09:57:07 +0000</pubDate>
-    <lastBuildDate>Fri, 08 Mar 2019 09:57:07 +0000</lastBuildDate>
+    <pubDate>Mon, 11 Mar 2019 08:28:26 +0000</pubDate>
+    <lastBuildDate>Mon, 11 Mar 2019 08:28:26 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Context Deadlines and How to Set Them</title>
+        <description>&lt;p&gt;At Grab, our microservice architecture involves a huge amount of network traffic and inevitably, network issues will sometimes occur, causing API calls to fail or take longer than expected. We strive to make such incidents a non-event, by designing with the expectation of such incidents in mind. With the aid of Go’s &lt;a href=&quot;https://blog.golang.org/context&quot;&gt;context package&lt;/a&gt;, we have improved upon basic timeouts by passing timeout information along the request path. However, this introduces extra complexity, and care must be taken to ensure timeouts are configured in a way that is efficient and does not worsen problems. This article explains from the ground up a strategy for configuring timeouts and using context deadlines correctly, drawing from our experience developing microservices in a large scale and often turbulent network environment.&lt;/p&gt;
+
+&lt;h2 id=&quot;timeouts&quot;&gt;Timeouts&lt;/h2&gt;
+
+&lt;p&gt;Timeouts are a fundamental concept in computer networking. Almost every kind of network communication will have some kind of timeout associated with it, often configurable with a parameter. The idea is to place a time limit on some event happening, often a network response; after the limit has passed, the operation is aborted rather than waiting indefinitely. Examples of useful places to put timeouts include connecting to a database, making a HTTP request or on idle connections in a pool.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 1.1: How timeouts prevent long API calls&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image5.jpg&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1.1: How timeouts prevent long API calls&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;Timeouts allow a program to continue where it otherwise might hang, providing a better experience to the end user. Often the default way for programs to handle timeouts is to return an error, but this doesn’t have to be the case: there are several better alternatives for handling timeouts which we’ll cover later.&lt;/p&gt;
+
+&lt;p&gt;While they may sound like a panacea, timeouts must be configured carefully to be effective: too short a timeout will result in increased errors from a resource which could still be working normally, and too long a timeout will risk consuming excess resources and a poor user experience. Furthermore, timeouts have evolved over time with new concepts such as Go’s &lt;a href=&quot;https://golang.org/pkg/context/&quot;&gt;context&lt;/a&gt; package, and the trend towards distributed systems has raised the stakes: timeouts are more important, and can cause more damage if misused!&lt;/p&gt;
+
+&lt;h3 id=&quot;why-timeouts-are-useful&quot;&gt;Why timeouts are useful&lt;/h3&gt;
+
+&lt;p&gt;In the context of microservices, timeouts are useful as a defensive measure against misbehaving or faulty dependencies. It is a guarantee that no matter how badly the dependency is failing, your call will never take longer than the timeout setting (for example 1 second). With so many other things to worry about, that’s a really nice thing to have! So there’s an instant benefit to your service’s resiliency, even if you do nothing more than set the timeout.&lt;/p&gt;
+
+&lt;p&gt;However, a service can choose what to do when it encounters a timeout, which can make them even more useful. Generally there are three options:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Return an error&lt;/strong&gt;. This is the simplest, but unless you know there is error handling upstream, this can actually deliver the worst user experience.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Return a fallback value&lt;/strong&gt;. We can return a default value, a cached value, or fall back to a simpler computed value. Depending on the circumstances, this can offer a better user experience.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Retry&lt;/strong&gt;. In the best case, a retry will succeed and deliver the intended response to the caller, albeit with the added timeout delay. However, there are other complexities to consider for retries to be effective. For a full discussion on this topic, see &lt;a href=&quot;https://engineering.grab.com/designing-resilient-systems-part-1&quot;&gt;Circuit Breaker vs Retries Part 1&lt;/a&gt;and &lt;a href=&quot;https://engineering.grab.com/designing-resilient-systems-part-2&quot;&gt;Circuit Breaker vs Retries Part 2&lt;/a&gt;.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;At Grab, our services tend towards using retries wherever possible, to make minor errors as transparent as possible.&lt;/p&gt;
+
+&lt;p&gt;The main advantage of timeouts is that they give your service &lt;em&gt;time to do something else&lt;/em&gt;, and this should be kept in mind when considering a good timeout value: not only do you want to allow the remote call time to complete (or not), but you need to allow enough time to handle the potential timeout as well.&lt;/p&gt;
+
+&lt;h3 id=&quot;different-types-of-timeouts&quot;&gt;Different types of timeouts&lt;/h3&gt;
+
+&lt;p&gt;Not all timeouts are the same. There are different types of timeouts with crucial differences in semantics, and you should check the behaviour of the timeout settings in the library or resource you’re using before configuring them for production use.&lt;/p&gt;
+
+&lt;p&gt;In Go, there are three common classes of timeouts:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Network timeouts&lt;/strong&gt;: These come from the &lt;a href=&quot;https://golang.org/pkg/net/&quot;&gt;net&lt;/a&gt; package and apply to the underlying network connection. These are the best to use when available, because you can be sure that the network call has been cancelled when the call returns to your function.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Context timeouts&lt;/strong&gt;: Context is discussed &lt;a href=&quot;#contexttimeout&quot;&gt;later in this article&lt;/a&gt;, but for now just note that these timeouts are propagated to the server. Since the server is aware of the timeout, it can avoid wasted effort by abandoning computation after the timeout is reached.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Asynchronous timeouts&lt;/strong&gt;: These are when a goroutine is executed and abandoned after some time. This does &lt;strong&gt;not&lt;/strong&gt; automatically cancel the goroutine (you can’t really cancel goroutines without extra handling), so it risks leaking the goroutine and other resources. This approach should be avoided in production unless combined with some other measures to provide cancellation or avoid leaking resources.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dangers-of-poor-timeout-configuration-for-microservice-calls&quot;&gt;Dangers of poor timeout configuration for microservice calls&lt;/h3&gt;
+
+&lt;p&gt;The benefits of using timeouts are enticing, but there’s no free lunch: relying on timeouts too heavily can lead to disastrous &lt;em&gt;cascading failure&lt;/em&gt; scenarios. Worse, the effects of a poor timeout configuration often don’t become evident until it’s too late: it’s peak hour, traffic just reached an all-time high and… all your services froze up at the same time. Not good.&lt;/p&gt;
+
+&lt;p&gt;To demonstrate this effect, imagine a simple 3-service architecture where each service naively uses a default timeout of 1 second:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 1.2: Example of how incorrect timeout configuration causes cascading failure&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image3.jpg&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1.2: Example of how incorrect timeout configuration causes cascading failure&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;Service A’s timeout does not account for the fact that Service B calls C. If B itself is experiencing problems and takes 800ms to complete its work, then C effectively only has 200ms to complete before service A gives up. But since B’s timeout to C is also 1s, that means that C could be wasting up to 800ms of computational effort that ‘leaks’ - it has no chance of being used. Both B and C are blissfully unaware at first that anything is wrong - they happily return successful responses that A never receives!&lt;/p&gt;
+
+&lt;p&gt;This resource leak can soon be catastrophic, though: since the calls from B to A are timing out, A (or A’s clients) are likely to retry, causing the load on B to increase. This in turn causes the load on C to increase, and eventually all services will stop responding.&lt;/p&gt;
+
+&lt;p&gt;The same thing happens if B is healthy but C is experiencing problems: B’s calls to C will build up and cause B to become overloaded and fail too. This is a common cause of cascading failure.&lt;/p&gt;
+
+&lt;h3 id=&quot;how-to-set-a-good-timeout&quot;&gt;How to set a good timeout&lt;/h3&gt;
+
+&lt;p&gt;Given the importance of correctly configuring timeout values, the question remains as to how to decide upon a ‘correct’ timeout value. If the timeout is for an API call to another service, a good place to start would be that service’s service-level agreements (SLAs). Often SLAs are based on latency &lt;em&gt;percentiles&lt;/em&gt;, which is a value below which a given percentage of latencies fall. For example, a system might have a 99th percentile (also known as &lt;em&gt;P99&lt;/em&gt;) latency of 300ms; this would mean that 99% of latencies are below 300ms. A high-order percentile such as P99 or even P99.9 can be used as a ballpark &lt;em&gt;worst-case&lt;/em&gt; value.&lt;/p&gt;
+
+&lt;p&gt;Let’s say a service (B)’s endpoint has a 99th percentile latency of 600ms. Setting the timeout for this call at 600ms would guarantee that no calls take longer than 600ms, while returning errors for the rest and accepting an error rate of at most 1% (assuming the service is keeping to their SLA.) This is an example of how the timeout can be combined with information about latencies to give predictable behaviour.&lt;/p&gt;
+
+&lt;p&gt;This idea can be taken further by considering retries too. If the median latency for this service is 50ms, then you could introduce a retry of a shorter timeout, say 100ms, for an overall timeout of 100ms + 600ms = 700ms:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Service B&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Service B P99 latency SLA = 600ms&lt;/p&gt;
+
+&lt;p&gt;Service B median latency = 50ms&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Service A&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Request timeout = 600ms&lt;/p&gt;
+
+&lt;p&gt;Number of retries = 1&lt;/p&gt;
+
+&lt;p&gt;Retry request timeout = 100ms&lt;/p&gt;
+
+&lt;p&gt;Overall timeout = 100ms+600ms = 700ms&lt;/p&gt;
+
+&lt;p&gt;Chance of timeout after retry = 1% * 50% = 0.5%&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1.3: Example timeout configuration settings based on latency data&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;This would still cut off the top 1% of latencies, while optimistically making another attempt for the median latency. This way, even for the 1% of calls that encounter a timeout, our service would still expect to return a successful response within 700ms more than half the time, for an overall success rate of 99.5%.&lt;/p&gt;
+
+&lt;h2 id=&quot;context-propagation&quot;&gt;Context propagation&lt;/h2&gt;
+
+&lt;p&gt;Go officially introduced the concept of &lt;a href=&quot;https://golang.org/doc/go1.7%23context&quot;&gt;context in Go 1.7&lt;/a&gt;, as a way of passing request-scoped information across server boundaries. This includes deadlines, cancellation signals and arbitrary values. Let’s ignore the last part for now and focus on deadlines and cancellations. Often, when setting a regular timeout on a remote call, the server side is unaware of the timeout. Even if the server is notified indirectly when the client closes the connection, it’s still not necessarily clear whether the client timed out or encountered another issue. This can lead to wasted resources, because without knowing the client timed out, the server often carries on regardless. Context aims to solve this problem by propagating the timeout and context information across API boundaries.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 1.4: Context propagation cancels work on B and C&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image1.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1.4: Context propagation cancels work on B and C&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;Server A sets a context timeout of 1 second. Since this information spans the entire request and gets propagated to C, C is always aware of the remaining time it has to do useful work - work that won’t get discarded. The remaining time can be defined as (1 - b), where b is the amount of time that server B spent processing before calling C. When the deadline is exceeded, the context is immediately cancelled, along with any child contexts that were created from the parent.&lt;/p&gt;
+
+&lt;p&gt;The context timeout can be a relative time (eg. 3 seconds from now) or an absolute time (eg. 7pm). In practice they are equivalent, and the absolute deadline can be queried from a timeout created with a relative time and vice-versa.&lt;/p&gt;
+
+&lt;p&gt;Another useful feature of contexts is cancellation. The client has the ability to cancel the request for any reason, which will immediately signal the server to stop working. When a context is cancelled manually, this is very similar to a context being cancelled when it exceeds the deadline. The main difference is the error message will be &lt;em&gt;‘context cancelled’&lt;/em&gt; instead of &lt;em&gt;‘context deadline exceeded’&lt;/em&gt;. This is a common cause of confusion, but &lt;em&gt;context cancelled&lt;/em&gt; is &lt;strong&gt;always&lt;/strong&gt; caused by an upstream client, while &lt;em&gt;deadline exceeded&lt;/em&gt; could be a deadline set upstream or locally.&lt;/p&gt;
+
+&lt;p&gt;The server must still listen for the ‘context done’ signal and implement cancellation logic, but at least it has the option of doing so, unlike with ordinary timeouts. The most common reason for cancelling a request is because the client encountered an error and no longer needs the response that the server is processing. However, this technique can also be used in &lt;em&gt;request hedging&lt;/em&gt;, where concurrent duplicate requests are sent to the server to decrease the impact of an individual call experiencing latency. When the first response returns, the other requests are cancelled because they are no longer needed.&lt;/p&gt;
+
+&lt;p&gt;Context can be seen as ‘distributed timeouts’ - an improvement to the concept of timeouts by propagating them. But while they achieve the same goal, they introduce other issues that must be considered.&lt;/p&gt;
+
+&lt;h3 id=&quot;context-propagation-and-timeout-configuration&quot;&gt;Context propagation and timeout configuration&lt;/h3&gt;
+
+&lt;p&gt;When propagating timeout information via context, there is no longer a static ‘timeout’ setting per call. This can complicate debugging: even if the client has correctly configured their own timeout as above, a context timeout could mean that either the remote downstream server is slow, or that an upstream client was slow and there was insufficient time remaining in the propagated context!&lt;/p&gt;
+
+&lt;p&gt;Let’s revisit the scenario from earlier, and assume that service A has set a context timeout of 1 second. If B is still taking 800ms, then the call to C will time out after 200ms. This changes things completely: although there is no longer the resource leak (because both B and C will terminate the call once the context timeout is exceeded), B will have an increase in errors whereas previously it would not (at least until it became overloaded.) This may be worse than completing the request after A has given up, depending on the circumstances. There is also a dangerous interaction with &lt;em&gt;circuit breakers&lt;/em&gt; which we will discuss in the next section.&lt;/p&gt;
+
+&lt;p&gt;If allowing the request to complete is preferable than cancelling it even in the event of a client timeout, the request should be made with a new context decoupled from the parent (ie. &lt;code class=&quot;highlighter-rouge&quot;&gt;context.Background()&lt;/code&gt;). This will ensure that the timeout is not propagated to the remote service. When doing this, it is still a good idea to set a timeout, to avoid waiting indefinitely for it to complete.&lt;/p&gt;
+
+&lt;h3 id=&quot;context-and-circuit-breakers&quot;&gt;Context and circuit-breakers&lt;/h3&gt;
+
+&lt;p&gt;A circuit-breaker is a software library or function which monitors calls to external resources with the aim of preventing calls which are likely to fail, ‘short-circuiting’ them (hence the name.) It is a good practice to use a circuit-breaker for all outgoing calls to dependencies, especially potentially unreliable ones. But when combined with context propagation, that raises an important question: should context timeouts or cancellation cause the circuit to open?&lt;/p&gt;
+
+&lt;p&gt;Let’s consider the options. If ‘yes’, this means the client will avoid wasting calls to the server if it’s repeatedly hitting the context timeout. This might seem desirable at first, but there are drawbacks too.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Consistent behaviour with other server errors&lt;/li&gt;
+  &lt;li&gt;Avoids making calls that are unlikely to succeed&lt;/li&gt;
+  &lt;li&gt;It is obvious when things are going wrong&lt;/li&gt;
+  &lt;li&gt;Client has more time to fall back to other behaviour&lt;/li&gt;
+  &lt;li&gt;More lenient on misconfigured timeouts&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Unpredictable&lt;/li&gt;
+  &lt;li&gt;A misconfigured upstream client can cause the circuit to open for all other clients&lt;/li&gt;
+  &lt;li&gt;Can be misinterpreted as a server error&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;It is generally better not to open the circuit on context errors. However, this relies on context timeouts beings set properly:&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;More predictable&lt;/li&gt;
+  &lt;li&gt;Circuit depends mostly on server health, not client&lt;/li&gt;
+  &lt;li&gt;Clients are isolated&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;May be confusing for clients who expect the circuit to open&lt;/li&gt;
+  &lt;li&gt;Misconfigured timeouts are more likely to waste resources&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Note that the above only applies to propagated contexts. If the context only spans a single individual call, then it is equivalent to a static request timeout, and such errors &lt;em&gt;should&lt;/em&gt; cause circuits to open.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-to-set-context-deadlines&quot;&gt;&lt;a name=&quot;contexttimeout&quot;&gt;&lt;/a&gt;How to set context deadlines&lt;/h2&gt;
+
+&lt;p&gt;Let’s recap some of the concepts covered in this article so far:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Timeouts&lt;/strong&gt; are a time limit on an event taking place, such as a microservice completing an API call to another service.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Request timeouts&lt;/strong&gt; refer to the timeout of a single individual request. When accounting for retries, an API call may include several request timeouts before completing successfully.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Context timeouts&lt;/strong&gt; are introduced in Go to propagate timeouts across API boundaries.&lt;/li&gt;
+  &lt;li&gt;A &lt;strong&gt;context deadline&lt;/strong&gt; is an absolute timestamp at which the context is considered to be ‘done’, and work covered by this context should be cancelled.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Fortunately, there is a simple rule for correctly configuring context timeouts:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;The upstream timeout must always be longer than the total downstream timeouts including retries.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;The upstream timeout should be set at the ‘edge’ server and cascade throughout.&lt;/p&gt;
+
+&lt;p&gt;In our scenario, A is the edge server. Let’s say that B’s timeout to C is 1s, and it may retry at most once, after a delay of 500ms. The appropriate context timeout (CT) set from A can be calculated as follows:&lt;/p&gt;
+
+&lt;p&gt;CT(A) = (timeout to C * number of attempts) + (retry delay * number of retries)&lt;/p&gt;
+
+&lt;p&gt;CT(A) = (1s * 2) + (500ms * 1) = 2,500ms&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Figure 1.5: Formula for calculating context timeouts&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image2.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1.5: Formula for calculating context timeouts&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;Extra time can be allocated for B’s processing time and to allow B to return a fallback response if appropriate.&lt;/p&gt;
+
+&lt;p&gt;Note that if A configures its timeout according to this rule, then many of the above issues disappear. There are no wasted resources, because B and C are given the maximum time to complete their requests successfully. There is no chance for B’s circuit-breaker to open unexpectedly, and cascading failure is mostly avoided: a failure in C will be handled and be returned by B, instead of A timing out as well.&lt;/p&gt;
+
+&lt;p&gt;A possible alternative would be to rely on context cancellation: allow A to set a shorter timeout, which cancels B and C if the timeout is exceeded. This is an acceptable approach to avoiding cascading failure (and cancellation should be implemented in any case), but it is less optimal than configuring timeouts according to the above formula. One reason is that there is no guarantee of the downstream services handling the timeout gracefully; as mentioned previously, the service must explicitly check for &lt;code class=&quot;highlighter-rouge&quot;&gt;ctx.Done()&lt;/code&gt; and this is rarely followed in practice. It is also impractical to place checks at every point in the code, so there could be a considerable delay between the client cancellation and the server abandoning the processing.&lt;/p&gt;
+
+&lt;p&gt;A second reason not to set shorter timeouts is that it could lead to unexpected errors on the downstream services. Even if B and C are healthy, a shorter context timeout could lead to errors if A has timed out. Besides the problem of having to handle the cancelled requests, the errors could create noise in the logs, and more importantly could have been avoided. If the downstream services are healthy and responding within their SLA, there is no point in timing out earlier. An exception might be for the edge server (A) to allow for only 1 attempt or fewer retries than the downstream service actually performs. But this is tricky to configure and weakens the resiliency. If it is desirable to shorten the timeouts to decrease latency, it is better to start adjusting the timeouts of the downstream resources first, starting from the innermost service outwards.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-model-implementation-for-using-context-timeouts-in-calls-between-microservices&quot;&gt;A model implementation for using context timeouts in calls between microservices&lt;/h2&gt;
+
+&lt;p&gt;We’ve touched on several useful concepts for improving resiliency in distributed systems: timeouts, context, circuit-breakers and retries. It is desirable to use all of them together in a good resiliency strategy. However, the actual implementation is far from trivial; finding the right order and configuration to use them effectively can seem like searching for the holy grail, and many teams go through a long process of trial and error, continuously improving their implementation. Let’s try to formally put together an ideal implementation, step by step.&lt;/p&gt;
+
+&lt;p&gt;Note that the code below is not a final or production-ready implementation. At Grab we have developed independent circuit-breaker and retry libraries, with many settings that can be configured for fine-tuning. However, it should serve as a guide for writing resilient client libraries.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 1: Context propagation&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Context propagation code&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image7.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The skeleton function signature includes a context object as the first parameter, which is the &lt;a href=&quot;https://blog.golang.org/context%23TOC_5.&quot;&gt;best practice intended by Google&lt;/a&gt;. We check whether the context is already done before proceeding, in which case we ‘fail fast’ without wasting any further effort.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 2: Create child context with request timeout&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Child context with request timeout code&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image8.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Our service has no control over the parent context. Indeed, it could have no deadline at all! Therefore it’s important to create a new context and timeout for our own outgoing request as well, using &lt;strong&gt;WithTimeout&lt;/strong&gt;. It is mandatory to call the returned &lt;strong&gt;cancel&lt;/strong&gt; function to ensure the context is properly cancelled and avoid a goroutine leak.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 3: Introduce circuit-breaker logic&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Introduce circuit-breaker logic code&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image6.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Next, we wrap our call to the external service in a circuit-breaker. The actual circuit-breaker implementation has been omitted for brevity, but there are two important points to consider:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;It should only consider opening the circuit-breaker when &lt;strong&gt;requestTimeout&lt;/strong&gt; is reached, not on &lt;code class=&quot;highlighter-rouge&quot;&gt;ctx.Done()&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;The circuit name should ideally be unique for this specific endpoint&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Introduce circuit-breaker logic code - 2&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image9.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 4: Introduce retries&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;The last step is to add retries to our request in the case of error. This can be implemented as a simple &lt;strong&gt;for&lt;/strong&gt; loop, but there are some key things to include in a complete retry implementation:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ctx.Done()&lt;/code&gt; should be checked after each retry attempt to avoid wasting a call if the client has given up.&lt;/li&gt;
+  &lt;li&gt;The request context should be cancelled before the next retry to avoid duplicate concurrent calls and goroutine leaks.&lt;/li&gt;
+  &lt;li&gt;Not all kinds of requests should be retried.&lt;/li&gt;
+  &lt;li&gt;A delay should be added before the next retry, using exponential backoff.&lt;/li&gt;
+  &lt;li&gt;See &lt;a href=&quot;https://engineering.grab.com/designing-resilient-systems-part-2&quot;&gt;Circuit Breaker vs Retries Part 2&lt;/a&gt; for a thorough guide to implementing retries.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Step 5: The complete implementation&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Complete implementation&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image4.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And here we have arrived at our ‘ideal’ implementation of an external call including context handling and propagation, two levels of timeout (parent and request), circuit-breaking and retries. This should be sufficient for a good level of resiliency, avoiding wasted effort on both the client and server.&lt;/p&gt;
+
+&lt;p&gt;As a future enhancement, we could consider introducing a ‘minimum time per request’, which the retry loop should use to check for remaining time as well as &lt;code class=&quot;highlighter-rouge&quot;&gt;ctx.Done()&lt;/code&gt; (but not instead - we need to account for client cancellation too). Of course metrics, logging and error handling should also be added as necessary.&lt;/p&gt;
+
+&lt;h2 id=&quot;important-takeaways&quot;&gt;Important Takeaways&lt;/h2&gt;
+
+&lt;p&gt;To summarise, here are a few of the best practices for working with context timeouts:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;em&gt;Use SLAs and latency data to set effective timeouts&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Having a default timeout value for everything doesn’t scale well. Use available information on SLAs and historic latency to set timeouts that give predictable results.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;em&gt;Understand the common error messages&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;The context canceled (context.Canceled) error occurs when the context is manually cancelled. This automatically cancels any child contexts attached to the parent. It is rare for this error to surface on the same service that triggered the cancellation; if cancel is called, it is usually because another error has been detected (such as a timeout) which would be returned instead. Therefore, context canceled is usually caused by an upstream error: either the client timed out and cancelled the request, or cancelled the request because it was no longer needed, or closed the connection (this typically results in a cancelled context from Go libraries).&lt;/p&gt;
+
+&lt;p&gt;The context deadline exceeded error occurs only when the time limit was reached. This could have been set locally (by the server processing the request) or by an upstream client. Unfortunately, it’s often difficult to distinguish between them, although they should generally be handled in the same way. If a more granular error is required, it is recommended to use child contexts and explicitly check them for &lt;code class=&quot;highlighter-rouge&quot;&gt;ctx.Done()&lt;/code&gt;, as shown in our model implementation.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;em&gt;Check for &lt;code class=&quot;highlighter-rouge&quot;&gt;ctx.Done()&lt;/code&gt; before starting any significant work&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Don’t enter an expensive block of code without checking the context; if the client has already given up, the work will be wasted.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;em&gt;Don’t open circuits for context errors&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;This leads to unpredictable behaviour, because there could be a number of reasons why the context might have been cancelled. Only context errors due to request timeouts originating from the local service should lead to circuit-breaker errors.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;em&gt;Set context timeouts at the edge service, using a cascading timeout budget&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;The upstream timeout must always be longer than the total downstream timeouts. Following this formula will help to avoid wasted effort and cascading failure.&lt;/p&gt;
+
+&lt;h2 id=&quot;in-conclusion&quot;&gt;In Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Go’s context package provides two extremely valuable tools that complement timeouts: deadline propagation and cancellation. This article has shown the benefits of using context timeouts and how to correctly configure them in a multi-server request path. Finally, we have discussed the relationship between context timeouts and circuit-breakers, proposing a model implementation for integrating them together in a common library.&lt;/p&gt;
+
+&lt;p&gt;If you have a Go server, chances are it’s already making heavy use of context. If you’re new to Go or had been confused by how context works, hopefully this article has helped to clarify misunderstandings. Otherwise, perhaps some of the topics covered will be useful in reviewing and improving your current context handling or circuit-breaker implementation.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 11 Mar 2019 02:50:40 +0000</pubDate>
+        <link>https://engineering.grab.com/context-deadlines-and-how-to-set-them</link>
+        <guid isPermaLink="true">https://engineering.grab.com/context-deadlines-and-how-to-set-them</guid>
+        
+        <category>Resiliency</category>
+        
+        <category>Microservice</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Recipe for building a widget: How we helped to “peak-shift” demand by helping passengers understand travel trends</title>
@@ -2048,295 +2364,6 @@ EMR cluster CPU monitoring with Ganglia&lt;/p&gt;
         <category>Resiliency</category>
         
         <category>Microservice</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Reliable and Scalable Feature Toggles and A/B Testing SDK at Grab</title>
-        <description>&lt;p&gt;Imagine this scenario. You’re on one of several teams working on a sophisticated ride allocation service. Your team is responsible for the core booking allocation engine. You’re tasked with increasing the efficiency of the booking allocation algorithm for allocating drivers to passengers. You know this requires a fairly large overhaul of the implementation which will take several weeks. Meanwhile other team members need to continue ongoing work on related areas of the codebase. You need to be able to ship this algorithm in an incomplete state, but dynamically enable it in the testing environment while keeping it disabled in the production environment.&lt;/p&gt;
-
-&lt;p&gt;How do you control releasing a new feature like this, or hide a feature still in development? The answer is &lt;em&gt;&lt;a href=&quot;https://martinfowler.com/articles/feature-toggles.html&quot;&gt;feature toggling&lt;/a&gt;&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;Grab’s Product Insights &amp;amp; Experimentation platform provides a dynamic feature toggle capability to our engineering, data, product, and even business teams. Feature toggles also let teams modify system behavior without changing code.&lt;/p&gt;
-
-&lt;p&gt;Grab uses feature toggles to:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Gate &lt;strong&gt;feature deployment&lt;/strong&gt; in production to keep new features hidden until product and marketing teams are ready to share.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Run &lt;strong&gt;experiments (A/B tests)&lt;/strong&gt; by dynamically changing feature toggles for specific users, rides, etc. For example, a feature can appear only to a particular group of people while running an experiment (treatment group).&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/feature-toggles-ab-testing/image_0.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Feature toggles, for both experiments and rollouts, let Grab substantially mitigate the risk of releasing immature functionality and try new features safely. If a release has a negative impact, we roll it back. If it’s doing well, we keep rolling it out.&lt;/p&gt;
-
-&lt;p&gt;Product and marketing teams then use a web portal to turn features on/off, set up user targeting rules, set various configurations, perform percentage rollouts, and test in production.&lt;/p&gt;
-
-&lt;p&gt;Engineers use our solution to run experiments in their server-side application logic. This includes search and recommendation algorithms, pricing &amp;amp; fees, site architecture, outbound marketing campaigns, transactional messaging, and product rollouts.&lt;/p&gt;
-
-&lt;p&gt;With experiments, you can perform tests to find out which changes actually work:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;A/B tests&lt;/strong&gt; to determine which of two or more variations, usually minor improvements, produces the best results.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Feature tests&lt;/strong&gt; to safely test a significant change, such as trying out a new feature on a limited audience.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Feature rollout&lt;/strong&gt; to launch a feature (independent of a test). At this stage, you also make the feature available to more users by increasing the traffic allocation to 100%.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;legacy-experimentation&quot;&gt;Legacy Experimentation&lt;/h2&gt;
-
-&lt;p&gt;Before 2017, all our experiments were done manually with custom code written here and there in every backend service. As our engineering team grew, this became unsustainable and resulted in excessive friction and endless meetings. The figure below describes problems we used to face before having a centralised experimentation platform. This was an iterative process which sometimes took weeks, slowing down the organisation altogether.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/feature-toggles-ab-testing/image_1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We needed to solve our A/B testing issues and let Grabbers easily integrate and retrieve feature toggle values dynamically. And we needed to that without having network calls and without subjecting our services to unnecessary network jitter, potential latency, and reliability issues.&lt;/p&gt;
-
-&lt;p&gt;Moreover, we also needed to track metrics and results of dynamic retrieval. For example, if an A/B test is running on a specific feature toggle, we needed to track what choice was made (i.e. users that got A and those that got B).&lt;/p&gt;
-
-&lt;h2 id=&quot;legacy-feature-rollout&quot;&gt;Legacy Feature Rollout&lt;/h2&gt;
-
-&lt;p&gt;Our legacy feature toggling system was essentially a library shipped with all of our Golang services that wrapped calls to a shared Redis. Retrieving values involved network calls and local caching to support our scale, but slowly, as the number of backend microservices grew, it started to become a single point of failure.&lt;/p&gt;
-
-&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;// Retrieve a feature flag using our legacy system&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sitevar&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetFeatureFlagOrDefault&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;someFeatureFlagKey&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;no&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;design-goals-of-our-sdk&quot;&gt;Design goals of our SDK&lt;/h2&gt;
-
-&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: We call a specific feature toggle a &lt;em&gt;variable&lt;/em&gt;. In this section, the word “variable” refers to a feature toggle.&lt;/p&gt;
-
-&lt;p&gt;To overcome these challenges, we designed an SDK with capabilities to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Retrieve values of variables dynamically&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Track every retrieval made along with an experiment which might have potentially been applied to the variable. For example, if a user retrieves a value of a variable for a particular passenger, this value along with the context (e.g. passenger, country, time) will be tracked throughout our data logging system.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;On the non-functional requirements side, we needed our SDK to be scalable, reliable, and have virtually no latency on the variable retrieval. This meant that we could not make a network call every time we needed a variable. Also, this had to be done asynchronously.&lt;/p&gt;
-
-&lt;p&gt;We ended up designing a very simple Go API for our SDK to be used by backend services. The API essentially contains two functions &lt;strong&gt;GetVariable()&lt;/strong&gt; and &lt;strong&gt;Track()&lt;/strong&gt; which are rather self-explanatory - one gets a value of the variable and the other lets users track anything they want.&lt;/p&gt;
-
-&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Client&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// GetVariables with name is either domain or experiment name&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetVariables&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;facets&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Facets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Variables&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-
-    &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Track an event with a value and metadata*&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Track&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;eventName&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;float64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;facets&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Facets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;We started the design of the entire platform by designing the APIs first. We wanted to make it simple to use for developers without requiring them to change code each time experiment conditions change or have to move from testing to rollout, and so on. Making the API simple was also crucial as our engineering team grew significantly and the code needed to be very simple to read and understand.&lt;/p&gt;
-
-&lt;p&gt;We have also introduced a concept of “facets” which is essentially a set of well-defined attributes used for many different purposes within the platform, from making decisions to tracking and analysing metrics.&lt;/p&gt;
-
-&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;Passenger&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;  &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;  &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The passenger identifier&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Driver&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;  &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The driver identifier&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Service&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;  &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The equivalent to a vehicle type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Booking&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The booking code&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Location&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;   &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The location (geohash or coordinates)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Session&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The session identifier&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Request&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The request identifier&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Device&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The device identifier&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Tag&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// The user-defined tag&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;making-sub-microsecond-decisions&quot;&gt;Making sub-microsecond decisions&lt;/h2&gt;
-
-&lt;p&gt;The retrieval of feature toggles is done using the &lt;strong&gt;GetVariable()&lt;/strong&gt; method of the client which takes few parameters:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;The &lt;strong&gt;name of the variable&lt;/strong&gt; to retrieve. This is essentially the feature toggle name that uniquely identifies a specific product feature or a configuration.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The &lt;strong&gt;facets&lt;/strong&gt; representing contextual information about this event and are sent to our data pipeline. In fact, every time GetVariable() is called, an event is automatically generated and reported.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;threshold&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetVariable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;myFeature&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sdk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NewFacets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Driver&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;driverID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;City&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cityID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Int64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;From the code above, note there’s a second step required to actually retrieve the value. In the example we use the method &lt;strong&gt;Int64()&lt;/strong&gt;. It checks if a variable is part of the experiment, converts it to &lt;strong&gt;int64&lt;/strong&gt;, and returns a value.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;The &lt;strong&gt;default value&lt;/strong&gt; is used when:&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;no experiment and no rollout are configured for that variable or&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;the experiment or rollout are not valid or do not match constraints or&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;some errors occurred.&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;It is important to note that no network I/O happens during the &lt;strong&gt;GetVariables()&lt;/strong&gt; call, as everything is done in the client. The variable tracking is done behind the scenes. The analyst sees it being reflected directly in our data lake, which consists of Simple Storage Service (S3) &amp;amp; Presto.&lt;/p&gt;
-
-&lt;p&gt;To make sure no network I/O happens on each &lt;strong&gt;GetVariable()&lt;/strong&gt;, we made our SDK intelligent and formalised both dynamic configurations (we call them rollouts) and experiments. The SDK periodically fetches configurations from S3 and constructs internal, in-memory models to execute.&lt;/p&gt;
-
-&lt;p&gt;Let’s start with a rollout definition example. It’s essentially a JSON document with a set of constraints the SDK can evaluate.&lt;/p&gt;
-
-&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;variable&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;automatedMessageDelay&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rolloutBy&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;city&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;rollouts&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;60&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;string&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;60s delay&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;constraints&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;target&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;city&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;op&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;=&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;6&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;target&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;svc&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;op&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;in&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;[302, 11]&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;90&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;string&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;90s delay&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;constraints&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;target&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;city&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;op&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;=&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;10&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;target&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;pax&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;op&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;/&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;0.25&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;default&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;30&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1515051871&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;schema&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This definition contains the rollout of the &lt;strong&gt;automatedMessageDelay&lt;/strong&gt; variable.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;The City facet configures the rollout. This means each city becomes a feature on its own for this variable. We also provide a web-based UI for configuring everything, as shown in the figure below.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;There are two specific rollouts and one default rollout:&lt;/p&gt;
-
-    &lt;p&gt;a. For Singapore (City = 6) and Vehicle types 302 and 11, the variable is set to 60.&lt;/p&gt;
-
-    &lt;p&gt;b. For Jakarta (City = 10) and 25% of Passengers, the variable is set to 90.&lt;/p&gt;
-
-    &lt;p&gt;c. For everything else, the default rollout value is 30.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The rollout definition has a version for auditing and a schema for possible evolution.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/feature-toggles-ab-testing/image_2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Our SDK uses an internal configuration service to store configurations (the Universal Configuration Manager, or UCM, which uses Amazon S3 behind-the-scenes). All of our backend services poll from UCM and get notified when a configuration is updated. The figure below demonstrates the overall system architecture.&lt;/p&gt;
-
-&lt;p&gt;Similarly, we have an experiment configuration with more advanced features such as assignment strategy and values changing dynamically. In the example below, we define an experiment that randomly changes the value between 0 and 1 every 30 seconds..&lt;/p&gt;
-
-&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;domain&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;primary&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;primary.testTimeSlicedShuffleStrategy&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;variables&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;timeSlicedShuffleTest1&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;salt&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;primary.testTimeSlicedShuffleStrategy&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;facets&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ts&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;strategy&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;timeSliceShuffle&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;choices&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;span&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;30&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;span&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;30&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;constraints&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;target&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ts&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;op&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&amp;gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;1528714601&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;target&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ts&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;op&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&amp;lt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;1528801001&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;target&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;city&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;op&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;=&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;5&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;schemaVersion&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;state&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;COMPLETED&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;slotting&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;byPercentage&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0.5&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/feature-toggles-ab-testing/image_3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Similar to the formalisation of feature toggles, we formalised our experiments as JSON files and configured through our configuration store. Everything is done asynchronously and reliably as our services only depend on a Tier-0 AWS Simple Storage Service (S3). Our goal was to keep everything simple and reliable.&lt;/p&gt;
-
-&lt;h2 id=&quot;embracing-the-binary&quot;&gt;Embracing the binary&lt;/h2&gt;
-
-&lt;p&gt;As mentioned earlier, our users need the ability to track things. In the SDK, GetVariable() tracks its specified variable value whenever it’s called.&lt;/p&gt;
-
-&lt;p&gt;The experimentation platform SDK provides an easy way to track any variable from the code and directly surface it in the presto table for data analysts. Use the client’s &lt;strong&gt;Track()&lt;/strong&gt; method which takes several parameters:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;The &lt;strong&gt;name of the event&lt;/strong&gt;, which gets prefixed by the service name.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The &lt;strong&gt;value of the event&lt;/strong&gt;, which currently can be only a numeric value.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The &lt;strong&gt;facets&lt;/strong&gt; representing contextual information about this event. Users are encouraged to provide as much information as possible, for example, passenger ID, booking code, driver ID.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Track&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;myEvent&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;42&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sdk&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NewFacets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Passenger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;123&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Booking&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;ADR-123-2-001&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;City&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;We use tracking for reporting when a decision is made. For example, when &lt;strong&gt;GetVariable()&lt;/strong&gt; is called, we need to report whether control or treatment was applied to a particular passenger or booking code. Since there’s no direct network call to get a variable, we internally track every decision and send it to our data pipeline periodically and asynchronously. We also use tracking for capturing important metrics such as the duration of taxi pickup, whether a promotion applied, etc.&lt;/p&gt;
-
-&lt;p&gt;When designing tracking, a major goal was to minimise network traffic while keeping performance impact of event reporting small. While this isn’t very important for backend services, we also use the same design for our mobile and web applications. In South East Asia, mobile networks may not be great. Also, data can be expensive for our drivers who cannot afford the fastest network plan and the latest iPhone. These business needs must be translated in the design.&lt;/p&gt;
-
-&lt;p&gt;So how do we design an efficient protocol for telemetry transmission which keeps both CPU and network use down? We kept it simple, embracing the binary and batch events. We use variable size integer encoding and a minimisation technique for each batch, where once a string is written, it is assigned to an auto-incremented integer value and is written only once to the batch.&lt;/p&gt;
-
-&lt;p&gt;This technique did miracles for us and kept network overhead at bay while still keeping our encoding algorithm relatively simple and efficient. It was more efficient than using generic serialisations such as Protocol Buffers, Avro, or JSON.&lt;/p&gt;
-
-&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
-
-&lt;p&gt;We have described our feature toggles SDK, but what benefits have we seen? We’ve seen fast adoption of the platform in the company, product managers rolling out features, and data scientists/analysts able to run experiments autonomously. Engineers are happy and things move faster inside the company. This makes us more competitive as an organisation and focused on our customer’s needs, instead of spending time in meetings and on communication.&lt;/p&gt;
-
-</description>
-        <pubDate>Fri, 02 Nov 2018 06:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/feature-toggles-ab-testing</link>
-        <guid isPermaLink="true">https://engineering.grab.com/feature-toggles-ab-testing</guid>
-        
-        <category>Experiment</category>
-        
-        <category>Back End</category>
-        
-        <category>Front End</category>
-        
-        <category>Feature Toggle</category>
-        
-        <category>A/B Testing</category>
         
         
         <category>Engineering</category>
