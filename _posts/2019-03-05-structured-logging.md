@@ -35,7 +35,7 @@ Logs in today's world have varying formats and features.
 
 *   **Log Format**: These range from simple key-value based (like syslog) to quite structured and detailed (like JSON). Since logs are mostly meant for developer eyes, how detailed or structured a log is dictates how fast the developer can query the logs, as well as read them. The more structured the data is - the larger the size is per log line, although it's more queryable and contains richer information.
 *   **Levelled Logging (or Log Levels)**: Logs with different severities can be logged at different levels. The visibility can be limited to a single level, limiting all logs only with a certain severity or above (for example, only logs WARN and above). Usually log levels are static in production environments, and finding DEBUG logs usually requires redeploying.
-*   **Log Aggregation Backend**: Logs can have different log aggregation backends, which means different backends (i.e. Scalyr, Kibana, etc.) decide what your logs might look like or what you might be able to do with them. Some might cost a lot more than others.
+*   **Log Aggregation Backend**: Logs can have different log aggregation backends, which means different backends (i.e. Splunk, Kibana, etc.) decide what your logs might look like or what you might be able to do with them. Some might cost a lot more than others.
 *   **Causal Ordering**: Logs might or might not preserve the exact time in which they are written. This is important, as how exact the time is dictates how accurately we can predict the sequence of events via logs.
 *   **Log Correlation**: We serve countless requests from our backend services. Being able to see all the logs relevant to a particular request or a particular event helps us drill down to relevant  information for a specific request (e.g. for a specific passenger trying to book a ride).
 
@@ -48,9 +48,9 @@ The State of Logging at Grab
 
 The number of Golang services at Grab has continuously grown. Most services used syslog-style key-value format logs, recognized as the most common format of logs for server-side applications due to its simplicity and ease for reading and writing. All these logs were made possible by a handful of common libraries, which were directly imported and used by different services.
 
-We used Scalyr as a frontend for these logs, where application-emitted logs were routed to files and sent to Scalyr, making it possible to view and query them in real time. Things were pretty great and frictionless for a long time.
+We used a cloud-based SaaS vendor as a frontend for these logs, where application-emitted logs were routed to files and sent to our logging vendor, making it possible to view and query them in real time. Things were pretty great and frictionless for a long time.
 
-However, as time went by, our Scalyr bill for logs started mounting to unprecedented levels and we found ourselves revisiting and re-evaluating how we did logging. A few issues surfaced:
+However, as time went by, our logging bills started mounting to unprecedented levels and we found ourselves revisiting and re-evaluating how we did logging. A few issues surfaced:
 
 *   Logging volume reduction efforts were successful to some extent - but were arduous and painful. Part of the reason was that almost all the logs were at a single log level - INFO.
 
@@ -63,7 +63,7 @@ However, as time went by, our Scalyr bill for logs started mounting to unprecede
 
 This issue was not limited to a single service, but pervasive across services. For mitigation, some services added sampling to logs, some removed logs altogether. The latter is only a recipe for disaster, so it was known that we had to **improve levelled logging**.
 
-*   Scalyr was prohibitively expensive and also had some issues - at times it rate limited our logs which led to lost logs in some cases, their DSL (query language) was pretty bare-bones and one couldn't do complex things with them. There were many good open source alternatives available - Elastic stack to name one. Our engineers felt confident that we could probably manage our logging infrastructure and manage the costs better - which led to the proposal and building of Elastic stack logging cluster. Elasticsearch is vastly more powerful and rich than Scalyr and our current libraries weren't enough to fully leverage its capabilities, so we needed a library which can **leverage structure in logs better** and **easily integrate with Elastic stack**.
+*   The vendor was expensive for us at the time and also had a few concerns - primarily with limitations around DSL (query language). There were many good open source alternatives available - Elastic stack to name one. Our engineers felt confident that we could probably manage our logging infrastructure and manage the costs better - which led to the proposal and building of Elastic stack logging cluster. Elasticsearch is vastly more powerful and rich than our vendor at the time and our current libraries weren't enough to fully leverage its capabilities, so we needed a library which can **leverage structure in logs better** and **easily integrate with Elastic stack**.
 *   There were some minor issues in our logging libraries namely:
     *   Singleton initialisation pattern that made unit-testing harder
     *   Single logger interface that reduced the possibility of extending the core logging functionality as almost all the services imported the logger interface directly
