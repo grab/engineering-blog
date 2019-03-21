@@ -6,9 +6,100 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 15 Mar 2019 07:07:01 +0000</pubDate>
-    <lastBuildDate>Fri, 15 Mar 2019 07:07:01 +0000</lastBuildDate>
+    <pubDate>Thu, 21 Mar 2019 05:30:39 +0000</pubDate>
+    <lastBuildDate>Thu, 21 Mar 2019 05:30:39 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Designing resilient systems beyond retries (Part 1): Rate-Limiting</title>
+        <description>&lt;p&gt;&lt;em&gt;This post is the first of a three-part series on going beyond retries to improve system resiliency. In this series, we will discuss other techniques and architectures that can be used as part of a strategy to improve resiliency. To start off the series, we will cover rate-limiting.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Software engineers aim for &lt;em&gt;reliability&lt;/em&gt;. Systems that have predictable and consistent behaviour in terms of performance and availability. In the electricity industry, reliability may equate to being able to keep the lights on. But just because a system has remained reliable up until a certain point, does not mean that it will continue to be. This is where &lt;em&gt;resiliency&lt;/em&gt; comes in: the ability to &lt;em&gt;withstand&lt;/em&gt; or &lt;em&gt;recover&lt;/em&gt; from problematic conditions or failure. Going back to our electricity analogy - resiliency is the ability to turn the lights back on quickly when say, a natural disaster hits the power grid.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-we-value-resiliency&quot;&gt;Why we value resiliency&lt;/h2&gt;
+
+&lt;p&gt;Being resilient to many different failures is the best way to ensure a system is reliable and - more importantly - stays that way. At Grab, our architecture features hundreds of microservices, which is constantly stressed in an increasing number of different ways at higher and higher volumes. Failures that would be rare or unusual become more likely as our scale increases. For that reason, we proactively focus on - and require our services to think about - resiliency, even if they have historically been very reliable.&lt;/p&gt;
+
+&lt;p&gt;As software systems evolve and become more complex, the number of potential failure modes that software engineers have to account for grows. Fortunately, so too have the techniques for dealing with them. The &lt;a href=&quot;https://engineering.grab.com/designing-resilient-systems-part-1&quot;&gt;circuit-breaker pattern&lt;/a&gt; and &lt;a href=&quot;https://engineering.grab.com/designing-resilient-systems-part-2&quot;&gt;retries&lt;/a&gt; are two such techniques commonly employed to improve resiliency specifically in the context of distributed systems. In pursuit of reliability, this is a fine start, but it would be wrong to assume that this will keep the service reliable forever. This article will discuss how you can use &lt;em&gt;rate-limiting&lt;/em&gt; as part of a strategy to improve resilience, &lt;em&gt;beyond retries&lt;/em&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;challenges-with-retries-and-circuit-breakers&quot;&gt;Challenges with retries and circuit breakers&lt;/h2&gt;
+
+&lt;p&gt;A common risk when introducing retries in a resiliency strategy is ‘retry storms’. Retries by definition increase the number of requests from the client, especially when the system is experiencing some kind of failure. If the server is not prepared to handle this increase in traffic, and is possibly already struggling to handle the load, it can quickly become overwhelmed. This is counter-productive to introducing retries in the first place!&lt;/p&gt;
+
+&lt;p&gt;When using a circuit-breaker in combination with retries, the application has some form of safety net: too many failures and the circuit will open, preventing the retry storms. However, this can be dangerous to rely on. For one thing, it assumes that all clients have the correct circuit-breaker configurations. Knowing how to configure the circuit-breaker correctly is difficult because it requires knowledge of the downstream service’s configurations too.&lt;/p&gt;
+
+&lt;h2 id=&quot;introducing-rate-limiting&quot;&gt;Introducing rate-limiting&lt;/h2&gt;
+
+&lt;p&gt;In a large organization such as Grab with hundreds of microservices, it becomes increasingly difficult to coordinate and maintain the correct circuit-breaker configurations as the number of services increases.&lt;/p&gt;
+
+&lt;p&gt;Secondly, it is never a good idea for the server to depend on its clients for resiliency. The circuit-breaker could fail or simply be bypassed, and the server would have to deal with all requests the client makes.&lt;/p&gt;
+
+&lt;p&gt;It is therefore desirable to have some form of rate-limiting/throttling as another line of defense. There are many strategies for rate-limiting to consider.&lt;/p&gt;
+
+&lt;h3 id=&quot;types-of-thresholds-for-rate-limiting&quot;&gt;Types of thresholds for rate-limiting&lt;/h3&gt;
+
+&lt;p&gt;The traditional approach to rate-limiting is to implement a server-side check which monitors the rate of incoming requests and if it exceeds a certain threshold, an error will be returned instead of processing the request. There are many algorithms such as ‘&lt;a href=&quot;https://en.wikipedia.org/wiki/Leaky_bucket&quot;&gt;leaky bucket&lt;/a&gt;’, &lt;a href=&quot;https://konghq.com/blog/how-to-design-a-scalable-rate-limiting-algorithm/&quot;&gt;fixed/sliding window&lt;/a&gt; and so on. A key decision is where to set the thresholds: usually by client, endpoint, or a combination of both.&lt;/p&gt;
+
+&lt;p&gt;Rate-limiting by client or user account is the approach taken by many public APIs: Each client is allowed to make a certain number of requests over a period, say 1000 requests per hour, and once that number is exceeded then their requests will be rejected until the time window resets. In this approach, the server must ensure that it has enough capacity (or can scale adequately) to handle the maximum allowed number of requests for each client. If new clients are added frequently, the overhead of maintaining and adjusting the limits may be significant. However, it can be a good way to guarantee a service-level agreement (SLA) with your clients.&lt;/p&gt;
+
+&lt;p&gt;An alternative to per-client thresholds is to use per-endpoint thresholds. This limit is applied across all clients and can be set according to the server’s true capacity using benchmarks. Compared with per-client limits this is easier to configure and more reliable in preventing the server from becoming overloaded. However, one misbehaving client may be able to consume the entire quota, blocking other clients of the service.&lt;/p&gt;
+
+&lt;p&gt;A rate-limiting strategy may use different levels of thresholds, and this is the best approach to get the benefits of both per-client and per-endpoint thresholds. For example, the following rules might be applied (in order):&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Per-client, per-endpoint&lt;/strong&gt;: For example, client A accessing the sendEmail endpoint. It is not necessary to configure thresholds at this granularity, but may be useful for critical endpoints.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Per-client&lt;/strong&gt;: In addition to any per-client per-endpoint settings, client A could have a global threshold of 1000 requests/hour to any API.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Per-endpoint&lt;/strong&gt;: This is the server’s catch-all guard to guarantee that none of its endpoints become overloaded. If client limits are properly configured, this limit should never be reached.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Server-wide&lt;/strong&gt;: Finally, a limit on the number of requests a server can handle in total. This is important because even if endpoints can meet their limits individually, they are never completely isolated: the server will have some overhead and limited resources for processing any kind of request, opening and closing network connections etc.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;local-vs-global-rate-limiting&quot;&gt;Local vs global rate-limiting&lt;/h3&gt;
+
+&lt;p&gt;Another consideration is &lt;em&gt;local&lt;/em&gt; vs &lt;em&gt;global rate-limiting&lt;/em&gt;. As we saw in the previous section, backend servers are usually pooled together for resiliency. A naive rate-limiting solution might be implemented at the individual server instance level. This sounds intuitive because the thresholds can be calculated exactly according to the instance’s computing power, and it scales automatically as the number of instances increases. However, in a microservice architecture, this is rarely correct as the bottlenecks are unlikely to be so closely tied to individual instance hardware.&lt;/p&gt;
+
+&lt;p&gt;More often, the capacity is reached when a downstream resource is exhausted, such as a database, a third-party service or another microservice. If the rate-limiting is only enforced at the instance level, when the service scales, the pressure on these resources will increase and quickly overload them. Local rate-limiting’s effectiveness is limited.&lt;/p&gt;
+
+&lt;p&gt;Global rate-limiting on the other hand monitors thresholds and enforces limits across the entire backend server pool. This is usually achieved through the use of a centralized rate-limiting service to make the decisions about whether or not requests should be allowed to go through. While this is much more desirable, implementing such a service is not without challenges.&lt;/p&gt;
+
+&lt;h2 id=&quot;considerations-when-implementing-rate-limiting&quot;&gt;Considerations when implementing rate-limiting&lt;/h2&gt;
+
+&lt;p&gt;Care must be taken to ensure the rate-limiting service does not become a &lt;em&gt;single point of failure&lt;/em&gt;. The system should still function when the rate-limiter itself is experiencing problems (perhaps by falling back to a local limiter). Since the rate-limiter must be in the request path, it should not add significant latency because any latency would be multiplied across every endpoint being monitored. Grab’s own &lt;a href=&quot;https://engineering.grab.com/quotas-service&quot;&gt;Quotas service&lt;/a&gt; is an example of a global rate-limiter which addresses these concerns.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Global rate-limiting with a central server&quot; src=&quot;/img/beyond-retries-part-1/image1.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Global rate-limiting with a central server. The servers send information about the request volumes, and the rate-limiting service responds with the rate-limiting decisions. This is done asynchronously to avoid introducing a point of failure.&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;Generally, it is more important to implement rate-limiting at the server side. This is because, once again, assuming that clients have correct implementation and configurations is risky. However, there is a case to be made for rate-limiting on the client as well, especially if the clients can be trusted or share a common SDK.&lt;/p&gt;
+
+&lt;p&gt;With server-side limiting, the server still has to accept the initial connection, process the rate-limiting logic and return an appropriate error response. With sufficient load, this overhead can be enough to render the system unresponsive; an unintentional denial-of-service (DoS) effect.&lt;/p&gt;
+
+&lt;p&gt;Client-side limiting can be implemented by using a central service as described above or, more commonly, utilizing response headers from the server. In this approach, the server response may include information about the client’s remaining quota and/or a timestamp at which the quota is reset. If the client implements logic for these headers, it can avoid sending requests at all if it knows they will be rate-limited. The disadvantage of this is that the client-side logic becomes more complex and another possible source of bugs, so this cost has to be considered against the simpler server-only method.&lt;/p&gt;
+
+&lt;h2 id=&quot;up-next-bulkheading-load-balancing-and-fallbacks&quot;&gt;Up next, Bulkheading, Load Balancing, and Fallbacks…&lt;/h2&gt;
+
+&lt;p&gt;So we’ve taken a look at rate-limiting as a strategy for having resilient systems. I hope you found this article useful. Comments are always welcome.&lt;/p&gt;
+
+&lt;p&gt;In our next post, we will look at the other resiliency techniques such as bulkheading (isolation), load balancing, and fallbacks.&lt;/p&gt;
+
+&lt;p&gt;Please stay tuned!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 20 Mar 2019 14:39:33 +0000</pubDate>
+        <link>https://engineering.grab.com/beyond-retries-part-1</link>
+        <guid isPermaLink="true">https://engineering.grab.com/beyond-retries-part-1</guid>
+        
+        <category>Resiliency</category>
+        
+        <category>Microservice</category>
+        
+        <category>Rate-limiting</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Context Deadlines and How to Set Them</title>
@@ -2162,208 +2253,6 @@ EMR cluster CPU monitoring with Ganglia&lt;/p&gt;
         <category>Resiliency</category>
         
         <category>Circuit Breakers</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Orchestrating Chaos using Grab's Experimentation Platform</title>
-        <description>&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;To everyday users, Grab is an app to book a ride, order food, or make a payment. To engineers, Grab is a distributed system of many services that interact via remote procedure call (RPC), sometimes called a microservice architecture. Hundreds of Grab services run on thousands of machines with engineers making changes every day. In such a complex setup, things can always go wrong. Fortunately, many of the Grab app’s internal services are not critical for user actions like booking a car. For example, bookmarks that recall the user’s previous destination add user value, but if they don’t work, the user should still enjoy a reasonable user experience.&lt;/p&gt;
-
-&lt;p&gt;Partial availability of services is not without risk. Engineers must have an alternative plan if something goes wrong when making RPC calls against non-critical services. If the contingency strategy is not implemented correctly, non-critical service problems can lead to an outage.&lt;/p&gt;
-
-&lt;p&gt;So how do we make sure that Grab users can complete critical functions, such as booking a taxi, even when non-critical services fail? The answer is Chaos Engineering.&lt;/p&gt;
-
-&lt;p&gt;At Grab, we practice chaos engineering by intentionally introducing failures in a service or component in the overall business flow. But the failed’ service is not the experiment’s focus.  We’re interested in testing the services dependent on that failed service.&lt;/p&gt;
-
-&lt;p&gt;Ideally, the dependent services should be resilient and the overall flow should continue working. For example, the booking flow should work even if failures are put in the driver location service. We test whether retries and exponential fallbacks are configured correctly, if the circuit breaker configs are set properly, etc.&lt;/p&gt;
-
-&lt;p&gt;To induce chaos into our systems, we combined the power of our Experimentation Platform (ExP) and &lt;a href=&quot;https://engineering.grab.com/introducing-grab-kit&quot;&gt;Grab-Kit&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Chaos ExP injects failures into traffic-serving server middleware (gRPC or HTTP servers). If the system behaves as expected, you can be confident that services will degrade gracefully when non-critical services fail.&lt;/p&gt;
-
-&lt;p&gt;Chaos ExP simulates different types of chaos, such as latencies and memory leaks within Grab’s infrastructure. This ensures individual components return &lt;em&gt;something&lt;/em&gt; even when system dependencies aren’t responding or respond with unusually high latency. It ensures our resilience to instance failures, as threats to availability can come from microservice level disruptions.&lt;/p&gt;
-
-&lt;h2 id=&quot;setting-up-for-chaos&quot;&gt;Setting up for chaos&lt;/h2&gt;
-
-&lt;p&gt;To build our chaos engineering system, we identified the two main areas for inducing chaos :&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Infrastructure&lt;/strong&gt;: By randomly shutting down instances and other infrastructure parts&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Application&lt;/strong&gt;: By introducing failures during runtime at a granular level (e.g. endpoint/request level)&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;You then enable chaos randomly or intentionally via experiments:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Randomly&lt;/strong&gt;&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;More suitable for ‘disposable’ infrastructure (e.g. ec2 instances)&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;Tests redundant infrastructure for impact on end-users&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;Used when impact is well-understood&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Experiments&lt;/strong&gt;&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;Accurately measure impact&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;Control over experimental parameters&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;Can limit impact on end-users&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;Suitable for complex failures (e.g. latency) when impact is not well understood&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Finally, you can categorize failure modes as follows:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Resource&lt;/strong&gt;: CPU, memory, IO, disk&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Network&lt;/strong&gt;: Blackhole, latency, packet loss, DNS&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;State&lt;/strong&gt;: Shutdown, time, process killer&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Many of these modes can be applied or simulated at the infrastructure or app level, as shown:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/chaos-engineering/image_0.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;For Grab, it was important to comprehensively test application-level chaos and carefully measure the impact. We decided to leverage an existing experimentation platform to orchestrate application-level chaos around the system, shown in the purple box, by injecting it in the underlying middleware such as &lt;a href=&quot;https://engineering.grab.com/introducing-grab-kit&quot;&gt;Grab-Kit&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-use-the-experimentation-platform&quot;&gt;Why use the Experimentation Platform?&lt;/h2&gt;
-
-&lt;p&gt;There are several chaos engineering tools. However, using them often requires an advanced level of infrastructure and operational skill, the ability to design and execute experiments, and resources to manually orchestrate the failure scenarios in a controlled manner. Chaos engineering is not as simple as breaking things in production.&lt;/p&gt;
-
-&lt;p&gt;Think of chaos engineering as a controlled experiment. Our ExP SDK provides resilient and asynchronous tracking. Thus, we can potentially attribute business metrics to chaos failures directly. For example, by running a chaos failure that introduces 10 second latencies in a booking service, we can determine how many rides were negatively affected and how much money was lost.&lt;/p&gt;
-
-&lt;p&gt;Using ExP as a chaos engineering tool means we can customize it based on the application or environment’s exact needs so that it deeply integrates with other environments like the monitoring and development pipelines.&lt;/p&gt;
-
-&lt;p&gt;There’s a security benefit as well. With ExP, all connections stay within our internal network, giving us control over the attack surface area. Everything can be kept on-premise, with no reliance on the outside world. This also potentially makes it easier to monitor and control traffic.&lt;/p&gt;
-
-&lt;p&gt;Chaos failures can be run ad-hoc, programmatically, or scheduled. You can also schedule them  to execute on certain days and within a specified time window. You can also set the maximum number of failures and customise them (e.g. number of MBs to leak, seconds to wait).&lt;/p&gt;
-
-&lt;p&gt;ExP’s core value proposition is allowing engineers to initiate, control, and observe how a system behaves under various failure conditions. ExP provides a comprehensive set of failure primitives for designing experiments and observing what happens when issues occur within a complex distributed system. Also, by integrating ExP with chaos testing, we did not require any modifications to a deployment pipeline or networking infrastructure. Thus the combination can be utilized more easily for a range of infrastructure and deployment paradigms.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-we-built-the-chaos-sdk-and-ui&quot;&gt;How we built the Chaos SDK and UI&lt;/h2&gt;
-
-&lt;p&gt;To build the chaos engineering SDK, we leveraged a property of our existing ExP SDK - single-digit microsecond-level variable resolution, which does not require a network call. You can read more about ExP SDK’s implementation &lt;a href=&quot;https://engineering.grab.com/feature-toggles-ab-testing&quot;&gt;here&lt;/a&gt;. This let us build two things:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;A smaller chaos SDK on top of ExP SDK. We’ve integrated this directly in our existing middleware, such as Grab-Kit and DB layers.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;A dedicated web-based UI for creating chaos experiments&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Thanks to our Grab-Kit integration, Grab engineers don’t actually need to use the Chaos SDK directly. When Grab-Kit serves an incoming request, it first checks with the ExP SDK. If the request “should fail”, it applies the appropriate failure type. It then forwards it to the handler of the specified endpoint.&lt;/p&gt;
-
-&lt;p&gt;We currently support these failure types:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Error - fails the request with an error&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;CPU Load - creates a load on the CPU&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Memory Leak - creates some memory which is never freed&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Latency - pauses the request’s execution for a random amount of time&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Disk Space - creates some temporary files on the machine&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Goroutine Leak - creates and leaks goroutines&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Panic - creates a panic in the request&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Throttle - creates a rate limiter inside the request that rejects limit-exceeding requests&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;As an example, if a booking request goes to our booking service, we call GetVariable(“chaosFailure”) to determine if this request should succeed. The call contains all of the information required to make this decision (e.g. the request ID, IP address of the instance, etc). For Experimentation SDK implementation details, visit this &lt;a href=&quot;https://engineering.grab.com/feature-toggles-ab-testing&quot;&gt;blog post&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;To promote chaos engineering among our engineers we built a great developer experience around it. Different engineering teams at Grab have expertise in different technologies and domains. So some might not have knowledge and skills to perform proper chaos experiments. But with our simplified user interface, they don’t have to worry about the underlying implementation.&lt;/p&gt;
-
-&lt;p&gt;Also, engineers who run chaos experiments are different experimentation platform users compared with our users like Product Analysts and Product Managers. Because of that, we provide a different experiment creation experience with a simple and specialized UI to configure new chaos experiments.&lt;/p&gt;
-
-&lt;p&gt;In the chaos engineering platform, an experiment has four steps:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Define the ideal state of the system’s normal behavior.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Create a control configuration group and a treatment configuration group. A control group’s variables are assigned existing values. A treatment group’s variables are assigned new values.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Introduce real-world failures, like an increase in CPU load.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Find the statistically significant difference between the system’s correct and failed states.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;To create a chaos experiment, target the service you want the experiment to break. You can further fine-grain this selection by providing the environment, availability zone, or a specific list of instances.&lt;/p&gt;
-
-&lt;p&gt;Next, specify a list of services affected by breaking the target service. You will closely monitor these services during the experiment. It helps to analyze the impact of the experiment later, though we continue tracking overall metrics indicating overall system health.&lt;/p&gt;
-
-&lt;p&gt;Next, we provide a UI to specify a strategy for dividing control and treatment groups, failure types, and configurations for each treatment. For the final step, provide a time duration and create the experiment. You’ve now added a chaos failure to your system and can monitor how it affects system behavior.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/chaos-engineering/image_1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusions&quot;&gt;Conclusions&lt;/h2&gt;
-
-&lt;p&gt;After running a chaos experiment, there are typically two potential outcomes. You’ve verified your system is resilient to the introduced failure, or you’ve found a problem you need to fix. Both of these are good outcomes if the chaos experiment was first run on a staging environment. In the first case, you’ve increased your confidence in the system and its behavior. In the other case, you’ve found a problem before it caused an outage.&lt;/p&gt;
-
-&lt;p&gt;Chaos Engineering is a tool to make your job easier. By proactively testing and validating your system’s failure modes you reduce your operational burden, increase your resiliency, and will sleep better at night.&lt;/p&gt;
-
-</description>
-        <pubDate>Fri, 23 Nov 2018 06:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/chaos-engineering</link>
-        <guid isPermaLink="true">https://engineering.grab.com/chaos-engineering</guid>
-        
-        <category>Chaos Engineering</category>
-        
-        <category>Resiliency</category>
-        
-        <category>Microservice</category>
         
         
         <category>Engineering</category>

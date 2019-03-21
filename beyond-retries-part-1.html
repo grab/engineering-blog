@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Designing resilient systems beyond retries (Part 1): Rate-Limiting</title>
+    <meta name="description" content="This post is the first of a three-part series on going beyond retries to improve system resiliency. In this series, we will discuss other techniques and architectures that can be used as part of a strategy to improve resiliency. To start off the series, we will cover rate-limiting.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/beyond-retries-part-1">
+    <meta property="og:title" content="Designing resilient systems beyond retries (Part 1): Rate-Limiting">
+    <meta property="og:description" content="This post is the first of a three-part series on going beyond retries to improve system resiliency. In this series, we will discuss other techniques and architectures that can be used as part of a strategy to improve resiliency. To start off the series, we will cover rate-limiting.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/beyond-retries-part-1/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/beyond-retries-part-1">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/michael-cartmell.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Designing resilient systems beyond retries (Part 1): Rate-Limiting</h1>
+      <div class="post-meta">
+        20 Mar 2019
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#michael-cartmell">Michael Cartmell</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#microservice" class="label tags-label">Microservice</a>
+  
+    <a href="/tags#rate-limiting" class="label tags-label">Rate-limiting</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p><em>This post is the first of a three-part series on going beyond retries to improve system resiliency. In this series, we will discuss other techniques and architectures that can be used as part of a strategy to improve resiliency. To start off the series, we will cover rate-limiting.</em></p>
+
+<p>Software engineers aim for <em>reliability</em>. Systems that have predictable and consistent behaviour in terms of performance and availability. In the electricity industry, reliability may equate to being able to keep the lights on. But just because a system has remained reliable up until a certain point, does not mean that it will continue to be. This is where <em>resiliency</em> comes in: the ability to <em>withstand</em> or <em>recover</em> from problematic conditions or failure. Going back to our electricity analogy - resiliency is the ability to turn the lights back on quickly when say, a natural disaster hits the power grid.</p>
+
+<h2 id="why-we-value-resiliency">Why we value resiliency</h2>
+
+<p>Being resilient to many different failures is the best way to ensure a system is reliable and - more importantly - stays that way. At Grab, our architecture features hundreds of microservices, which is constantly stressed in an increasing number of different ways at higher and higher volumes. Failures that would be rare or unusual become more likely as our scale increases. For that reason, we proactively focus on - and require our services to think about - resiliency, even if they have historically been very reliable.</p>
+
+<p>As software systems evolve and become more complex, the number of potential failure modes that software engineers have to account for grows. Fortunately, so too have the techniques for dealing with them. The <a href="https://engineering.grab.com/designing-resilient-systems-part-1">circuit-breaker pattern</a> and <a href="https://engineering.grab.com/designing-resilient-systems-part-2">retries</a> are two such techniques commonly employed to improve resiliency specifically in the context of distributed systems. In pursuit of reliability, this is a fine start, but it would be wrong to assume that this will keep the service reliable forever. This article will discuss how you can use <em>rate-limiting</em> as part of a strategy to improve resilience, <em>beyond retries</em>.</p>
+
+<h2 id="challenges-with-retries-and-circuit-breakers">Challenges with retries and circuit breakers</h2>
+
+<p>A common risk when introducing retries in a resiliency strategy is ‘retry storms’. Retries by definition increase the number of requests from the client, especially when the system is experiencing some kind of failure. If the server is not prepared to handle this increase in traffic, and is possibly already struggling to handle the load, it can quickly become overwhelmed. This is counter-productive to introducing retries in the first place!</p>
+
+<p>When using a circuit-breaker in combination with retries, the application has some form of safety net: too many failures and the circuit will open, preventing the retry storms. However, this can be dangerous to rely on. For one thing, it assumes that all clients have the correct circuit-breaker configurations. Knowing how to configure the circuit-breaker correctly is difficult because it requires knowledge of the downstream service’s configurations too.</p>
+
+<h2 id="introducing-rate-limiting">Introducing rate-limiting</h2>
+
+<p>In a large organization such as Grab with hundreds of microservices, it becomes increasingly difficult to coordinate and maintain the correct circuit-breaker configurations as the number of services increases.</p>
+
+<p>Secondly, it is never a good idea for the server to depend on its clients for resiliency. The circuit-breaker could fail or simply be bypassed, and the server would have to deal with all requests the client makes.</p>
+
+<p>It is therefore desirable to have some form of rate-limiting/throttling as another line of defense. There are many strategies for rate-limiting to consider.</p>
+
+<h3 id="types-of-thresholds-for-rate-limiting">Types of thresholds for rate-limiting</h3>
+
+<p>The traditional approach to rate-limiting is to implement a server-side check which monitors the rate of incoming requests and if it exceeds a certain threshold, an error will be returned instead of processing the request. There are many algorithms such as ‘<a href="https://en.wikipedia.org/wiki/Leaky_bucket">leaky bucket</a>’, <a href="https://konghq.com/blog/how-to-design-a-scalable-rate-limiting-algorithm/">fixed/sliding window</a> and so on. A key decision is where to set the thresholds: usually by client, endpoint, or a combination of both.</p>
+
+<p>Rate-limiting by client or user account is the approach taken by many public APIs: Each client is allowed to make a certain number of requests over a period, say 1000 requests per hour, and once that number is exceeded then their requests will be rejected until the time window resets. In this approach, the server must ensure that it has enough capacity (or can scale adequately) to handle the maximum allowed number of requests for each client. If new clients are added frequently, the overhead of maintaining and adjusting the limits may be significant. However, it can be a good way to guarantee a service-level agreement (SLA) with your clients.</p>
+
+<p>An alternative to per-client thresholds is to use per-endpoint thresholds. This limit is applied across all clients and can be set according to the server’s true capacity using benchmarks. Compared with per-client limits this is easier to configure and more reliable in preventing the server from becoming overloaded. However, one misbehaving client may be able to consume the entire quota, blocking other clients of the service.</p>
+
+<p>A rate-limiting strategy may use different levels of thresholds, and this is the best approach to get the benefits of both per-client and per-endpoint thresholds. For example, the following rules might be applied (in order):</p>
+
+<ul>
+  <li><strong>Per-client, per-endpoint</strong>: For example, client A accessing the sendEmail endpoint. It is not necessary to configure thresholds at this granularity, but may be useful for critical endpoints.</li>
+  <li><strong>Per-client</strong>: In addition to any per-client per-endpoint settings, client A could have a global threshold of 1000 requests/hour to any API.</li>
+  <li><strong>Per-endpoint</strong>: This is the server’s catch-all guard to guarantee that none of its endpoints become overloaded. If client limits are properly configured, this limit should never be reached.</li>
+  <li><strong>Server-wide</strong>: Finally, a limit on the number of requests a server can handle in total. This is important because even if endpoints can meet their limits individually, they are never completely isolated: the server will have some overhead and limited resources for processing any kind of request, opening and closing network connections etc.</li>
+</ul>
+
+<h3 id="local-vs-global-rate-limiting">Local vs global rate-limiting</h3>
+
+<p>Another consideration is <em>local</em> vs <em>global rate-limiting</em>. As we saw in the previous section, backend servers are usually pooled together for resiliency. A naive rate-limiting solution might be implemented at the individual server instance level. This sounds intuitive because the thresholds can be calculated exactly according to the instance’s computing power, and it scales automatically as the number of instances increases. However, in a microservice architecture, this is rarely correct as the bottlenecks are unlikely to be so closely tied to individual instance hardware.</p>
+
+<p>More often, the capacity is reached when a downstream resource is exhausted, such as a database, a third-party service or another microservice. If the rate-limiting is only enforced at the instance level, when the service scales, the pressure on these resources will increase and quickly overload them. Local rate-limiting’s effectiveness is limited.</p>
+
+<p>Global rate-limiting on the other hand monitors thresholds and enforces limits across the entire backend server pool. This is usually achieved through the use of a centralized rate-limiting service to make the decisions about whether or not requests should be allowed to go through. While this is much more desirable, implementing such a service is not without challenges.</p>
+
+<h2 id="considerations-when-implementing-rate-limiting">Considerations when implementing rate-limiting</h2>
+
+<p>Care must be taken to ensure the rate-limiting service does not become a <em>single point of failure</em>. The system should still function when the rate-limiter itself is experiencing problems (perhaps by falling back to a local limiter). Since the rate-limiter must be in the request path, it should not add significant latency because any latency would be multiplied across every endpoint being monitored. Grab’s own <a href="https://engineering.grab.com/quotas-service">Quotas service</a> is an example of a global rate-limiter which addresses these concerns.</p>
+
+<div class="post-image-section">
+  <img alt="Global rate-limiting with a central server" src="/img/beyond-retries-part-1/image1.png" />
+  <small class="post-image-caption">Global rate-limiting with a central server. The servers send information about the request volumes, and the rate-limiting service responds with the rate-limiting decisions. This is done asynchronously to avoid introducing a point of failure.</small>
+</div>
+
+<p>&nbsp;</p>
+
+<p>Generally, it is more important to implement rate-limiting at the server side. This is because, once again, assuming that clients have correct implementation and configurations is risky. However, there is a case to be made for rate-limiting on the client as well, especially if the clients can be trusted or share a common SDK.</p>
+
+<p>With server-side limiting, the server still has to accept the initial connection, process the rate-limiting logic and return an appropriate error response. With sufficient load, this overhead can be enough to render the system unresponsive; an unintentional denial-of-service (DoS) effect.</p>
+
+<p>Client-side limiting can be implemented by using a central service as described above or, more commonly, utilizing response headers from the server. In this approach, the server response may include information about the client’s remaining quota and/or a timestamp at which the quota is reset. If the client implements logic for these headers, it can avoid sending requests at all if it knows they will be rate-limited. The disadvantage of this is that the client-side logic becomes more complex and another possible source of bugs, so this cost has to be considered against the simpler server-only method.</p>
+
+<h2 id="up-next-bulkheading-load-balancing-and-fallbacks">Up next, Bulkheading, Load Balancing, and Fallbacks…</h2>
+
+<p>So we’ve taken a look at rate-limiting as a strategy for having resilient systems. I hope you found this article useful. Comments are always welcome.</p>
+
+<p>In our next post, we will look at the other resiliency techniques such as bulkheading (isolation), load balancing, and fallbacks.</p>
+
+<p>Please stay tuned!</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#microservice" class="label tags-label">Microservice</a>
+  
+    <a href="/tags#rate-limiting" class="label tags-label">Rate-limiting</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Designing resilient systems beyond retries (Part 1): Rate-Limiting&url=https://engineering.grab.com/beyond-retries-part-1&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/beyond-retries-part-1" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/beyond-retries-part-1&title=Designing resilient systems beyond retries (Part 1): Rate-Limiting
+&summary=This post is the first of a three-part series on going beyond retries to improve system resiliency. In this series, we will discuss other techniques and architectures that can be used as part of a strategy to improve resiliency. To start off the series, we will cover rate-limiting.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/beyond-retries-part-1';
+    this.page.identifier = '/beyond-retries-part-1';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
