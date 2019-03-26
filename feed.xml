@@ -6,8 +6,8 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 26 Mar 2019 08:55:37 +0000</pubDate>
-    <lastBuildDate>Tue, 26 Mar 2019 08:55:37 +0000</lastBuildDate>
+    <pubDate>Tue, 26 Mar 2019 09:00:09 +0000</pubDate>
+    <lastBuildDate>Tue, 26 Mar 2019 09:00:09 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
     
       <item>
@@ -264,7 +264,7 @@
 &lt;ul&gt;
   &lt;li&gt;&lt;strong&gt;Network timeouts&lt;/strong&gt;: These come from the &lt;a href=&quot;https://golang.org/pkg/net/&quot;&gt;net&lt;/a&gt; package and apply to the underlying network connection. These are the best to use when available, because you can be sure that the network call has been cancelled when the call returns to your function.&lt;/li&gt;
   &lt;li&gt;&lt;strong&gt;Context timeouts&lt;/strong&gt;: Context is discussed &lt;a href=&quot;#contexttimeout&quot;&gt;later in this article&lt;/a&gt;, but for now just note that these timeouts are propagated to the server. Since the server is aware of the timeout, it can avoid wasted effort by abandoning computation after the timeout is reached.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Asynchronous timeouts&lt;/strong&gt;: These are when a goroutine is executed and abandoned after some time. This does &lt;strong&gt;not&lt;/strong&gt; automatically cancel the goroutine (you can’t really cancel goroutines without extra handling), so it risks leaking the goroutine and other resources. This approach should be avoided in production unless combined with some other measures to provide cancellation or avoid leaking resources.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Asynchronous timeouts&lt;/strong&gt;: These occur when a goroutine is executed and abandoned after some time. This does &lt;strong&gt;not&lt;/strong&gt; automatically cancel the goroutine (you can’t really cancel goroutines without extra handling), so it risks leaking the goroutine and other resources. This approach should be avoided in production unless combined with some other measures to provide cancellation or avoid leaking resources.&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h3 id=&quot;dangers-of-poor-timeout-configuration-for-microservice-calls&quot;&gt;Dangers of poor timeout configuration for microservice calls&lt;/h3&gt;
@@ -290,9 +290,9 @@
 
 &lt;p&gt;Given the importance of correctly configuring timeout values, the question remains as to how to decide upon a ‘correct’ timeout value. If the timeout is for an API call to another service, a good place to start would be that service’s service-level agreements (SLAs). Often SLAs are based on latency &lt;em&gt;percentiles&lt;/em&gt;, which is a value below which a given percentage of latencies fall. For example, a system might have a 99th percentile (also known as &lt;em&gt;P99&lt;/em&gt;) latency of 300ms; this would mean that 99% of latencies are below 300ms. A high-order percentile such as P99 or even P99.9 can be used as a ballpark &lt;em&gt;worst-case&lt;/em&gt; value.&lt;/p&gt;
 
-&lt;p&gt;Let’s say a service (B)’s endpoint has a 99th percentile latency of 600ms. Setting the timeout for this call at 600ms would guarantee that no calls take longer than 600ms, while returning errors for the rest and accepting an error rate of at most 1% (assuming the service is keeping to their SLA.) This is an example of how the timeout can be combined with information about latencies to give predictable behaviour.&lt;/p&gt;
+&lt;p&gt;Let’s say a service (B)’s endpoint has a 99th percentile latency of 600ms. Setting the timeout for this call at 600ms would guarantee that no calls take longer than 600ms, while returning errors for the rest and accepting an error rate of at most 1% (assuming the service is keeping to their SLA). This is an example of how the timeout can be combined with information about latencies to give predictable behaviour.&lt;/p&gt;
 
-&lt;p&gt;This idea can be taken further by considering retries too. If the median latency for this service is 50ms, then you could introduce a retry of a shorter timeout, say 100ms, for an overall timeout of 100ms + 600ms = 700ms:&lt;/p&gt;
+&lt;p&gt;This idea can be taken further by considering retries too. If the median latency for this service is 50ms, then you could introduce a retry of 50ms for an overall timeout of 50ms + 600ms = 650ms:&lt;/p&gt;
 
 &lt;p&gt;&lt;strong&gt;Service B&lt;/strong&gt;&lt;/p&gt;
 
@@ -306,9 +306,9 @@
 
 &lt;p&gt;Number of retries = 1&lt;/p&gt;
 
-&lt;p&gt;Retry request timeout = 100ms&lt;/p&gt;
+&lt;p&gt;Retry request timeout = 50ms&lt;/p&gt;
 
-&lt;p&gt;Overall timeout = 100ms+600ms = 700ms&lt;/p&gt;
+&lt;p&gt;Overall timeout = 50ms+600ms = 650ms&lt;/p&gt;
 
 &lt;p&gt;Chance of timeout after retry = 1% * 50% = 0.5%&lt;/p&gt;
 
@@ -318,7 +318,7 @@
 
 &lt;p&gt;&amp;nbsp;&lt;/p&gt;
 
-&lt;p&gt;This would still cut off the top 1% of latencies, while optimistically making another attempt for the median latency. This way, even for the 1% of calls that encounter a timeout, our service would still expect to return a successful response within 700ms more than half the time, for an overall success rate of 99.5%.&lt;/p&gt;
+&lt;p&gt;This would still cut off the top 1% of latencies, while optimistically making another attempt for the median latency. This way, even for the 1% of calls that encounter a timeout, our service would still expect to return a successful response within 650ms more than half the time, for an overall success rate of 99.5%.&lt;/p&gt;
 
 &lt;h2 id=&quot;context-propagation&quot;&gt;Context propagation&lt;/h2&gt;
 
@@ -345,13 +345,13 @@
 
 &lt;p&gt;When propagating timeout information via context, there is no longer a static ‘timeout’ setting per call. This can complicate debugging: even if the client has correctly configured their own timeout as above, a context timeout could mean that either the remote downstream server is slow, or that an upstream client was slow and there was insufficient time remaining in the propagated context!&lt;/p&gt;
 
-&lt;p&gt;Let’s revisit the scenario from earlier, and assume that service A has set a context timeout of 1 second. If B is still taking 800ms, then the call to C will time out after 200ms. This changes things completely: although there is no longer the resource leak (because both B and C will terminate the call once the context timeout is exceeded), B will have an increase in errors whereas previously it would not (at least until it became overloaded.) This may be worse than completing the request after A has given up, depending on the circumstances. There is also a dangerous interaction with &lt;em&gt;circuit breakers&lt;/em&gt; which we will discuss in the next section.&lt;/p&gt;
+&lt;p&gt;Let’s revisit the scenario from earlier, and assume that service A has set a context timeout of 1 second. If B is still taking 800ms, then the call to C will time out after 200ms. This changes things completely: although there is no longer the resource leak (because both B and C will terminate the call once the context timeout is exceeded), B will have an increase in errors whereas previously it would not (at least until it became overloaded). This may be worse than completing the request after A has given up, depending on the circumstances. There is also a dangerous interaction with &lt;em&gt;circuit breakers&lt;/em&gt; which we will discuss in the next section.&lt;/p&gt;
 
 &lt;p&gt;If allowing the request to complete is preferable than cancelling it even in the event of a client timeout, the request should be made with a new context decoupled from the parent (ie. &lt;code class=&quot;highlighter-rouge&quot;&gt;context.Background()&lt;/code&gt;). This will ensure that the timeout is not propagated to the remote service. When doing this, it is still a good idea to set a timeout, to avoid waiting indefinitely for it to complete.&lt;/p&gt;
 
 &lt;h3 id=&quot;context-and-circuit-breakers&quot;&gt;Context and circuit-breakers&lt;/h3&gt;
 
-&lt;p&gt;A circuit-breaker is a software library or function which monitors calls to external resources with the aim of preventing calls which are likely to fail, ‘short-circuiting’ them (hence the name.) It is a good practice to use a circuit-breaker for all outgoing calls to dependencies, especially potentially unreliable ones. But when combined with context propagation, that raises an important question: should context timeouts or cancellation cause the circuit to open?&lt;/p&gt;
+&lt;p&gt;A circuit-breaker is a software library or function which monitors calls to external resources with the aim of preventing calls which are likely to fail, ‘short-circuiting’ them (hence the name). It is a good practice to use a circuit-breaker for all outgoing calls to dependencies, especially potentially unreliable ones. But when combined with context propagation, that raises an important question: should context timeouts or cancellation cause the circuit to open?&lt;/p&gt;
 
 &lt;p&gt;Let’s consider the options. If ‘yes’, this means the client will avoid wasting calls to the server if it’s repeatedly hitting the context timeout. This might seem desirable at first, but there are drawbacks too.&lt;/p&gt;
 
@@ -362,7 +362,7 @@
   &lt;li&gt;Avoids making calls that are unlikely to succeed&lt;/li&gt;
   &lt;li&gt;It is obvious when things are going wrong&lt;/li&gt;
   &lt;li&gt;Client has more time to fall back to other behaviour&lt;/li&gt;
-  &lt;li&gt;More lenient on misconfigured timeouts&lt;/li&gt;
+  &lt;li&gt;More lenient on misconfigured timeouts because circuit-breaking ensures that subsequent calls will fail fast, thus avoiding cascading failure&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;Cons:&lt;/p&gt;
@@ -373,7 +373,7 @@
   &lt;li&gt;Can be misinterpreted as a server error&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;It is generally better not to open the circuit on context errors. However, this relies on context timeouts beings set properly:&lt;/p&gt;
+&lt;p&gt;It is generally better &lt;em&gt;not&lt;/em&gt; to open the circuit when the context deadline set upstream is exceeded. The only timeout allowed to trigger the circuit-breaker should be the request timeout of the specific call for that circuit.&lt;/p&gt;
 
 &lt;p&gt;Pros:&lt;/p&gt;
 
@@ -400,7 +400,7 @@
   &lt;li&gt;&lt;strong&gt;Timeouts&lt;/strong&gt; are a time limit on an event taking place, such as a microservice completing an API call to another service.&lt;/li&gt;
   &lt;li&gt;&lt;strong&gt;Request timeouts&lt;/strong&gt; refer to the timeout of a single individual request. When accounting for retries, an API call may include several request timeouts before completing successfully.&lt;/li&gt;
   &lt;li&gt;&lt;strong&gt;Context timeouts&lt;/strong&gt; are introduced in Go to propagate timeouts across API boundaries.&lt;/li&gt;
-  &lt;li&gt;A &lt;strong&gt;context deadline&lt;/strong&gt; is an absolute timestamp at which the context is considered to be ‘done’, and work covered by this context should be cancelled.&lt;/li&gt;
+  &lt;li&gt;A &lt;strong&gt;context deadline&lt;/strong&gt; is an absolute timestamp at which the context is considered to be ‘done’, and work covered by this context should be cancelled when the deadline is exceeded.&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;Fortunately, there is a simple rule for correctly configuring context timeouts:&lt;/p&gt;
@@ -442,7 +442,7 @@
   &lt;img alt=&quot;Context propagation code&quot; src=&quot;/img/context-deadlines-and-how-to-set-them/image7.png&quot; /&gt;
 &lt;/div&gt;
 
-&lt;p&gt;The skeleton function signature includes a context object as the first parameter, which is the &lt;a href=&quot;https://blog.golang.org/context%23TOC_5.&quot;&gt;best practice intended by Google&lt;/a&gt;. We check whether the context is already done before proceeding, in which case we ‘fail fast’ without wasting any further effort.&lt;/p&gt;
+&lt;p&gt;The skeleton function signature includes a context object as the first parameter, which is the &lt;a href=&quot;https://blog.golang.org/context%23TOC_5&quot;&gt;best practice intended by Google&lt;/a&gt;. We check whether the context is already done before proceeding, in which case we ‘fail fast’ without wasting any further effort.&lt;/p&gt;
 
 &lt;p&gt;&lt;strong&gt;Step 2: Create child context with request timeout&lt;/strong&gt;&lt;/p&gt;
 
