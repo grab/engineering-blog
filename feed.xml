@@ -6,9 +6,91 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 26 Mar 2019 09:00:09 +0000</pubDate>
-    <lastBuildDate>Tue, 26 Mar 2019 09:00:09 +0000</lastBuildDate>
+    <pubDate>Thu, 28 Mar 2019 04:32:09 +0000</pubDate>
+    <lastBuildDate>Thu, 28 Mar 2019 04:32:09 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Designing resilient systems beyond retries (Part 3): Architecture Patterns and Chaos Engineering</title>
+        <description>&lt;p&gt;&lt;em&gt;This post is the third of a three-part series on going beyond retries and circuit breakers to improve system resiliency. This whole series covers techniques and architectures that can be used as part of a strategy to improve resiliency. In this article, we will focus on architecture patterns and chaos engineering to reduce, prevent, and test resiliency.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;reducing-failure-through-architecture-patterns&quot;&gt;Reducing failure through architecture patterns&lt;/h2&gt;
+
+&lt;p&gt;Resiliency is all about preparing for and handling failure. So the most effective way to improve resiliency is undoubtedly to reduce the possible ways in which failure can occur, and several architectural patterns have emerged with this aim in mind. Unfortunately these are easier to apply when designing new systems and less relevant to existing ones, but if resiliency is still an issue and no other techniques are helping, then refactoring the system is a good approach to consider.&lt;/p&gt;
+
+&lt;h3 id=&quot;idempotency&quot;&gt;Idempotency&lt;/h3&gt;
+
+&lt;p&gt;One popular pattern for improving resiliency is the concept of &lt;em&gt;idempotency&lt;/em&gt;. Strictly speaking, an idempotent endpoint is one which always returns the same result given the same parameters, no matter how many times it is called. However, the definition is usually extended to mean it returns the results and has no side-effects, or any side-effects are &lt;em&gt;only executed&lt;/em&gt; once. The main benefit of making endpoints idempotent is that they are always safe to retry, so it complements the retry technique to make it more effective. It also means there is less chance of the system getting into an inconsistent or worse state after experiencing failure.&lt;/p&gt;
+
+&lt;p&gt;If an operation has side-effects but cannot distinguish unique calls with its current parameters, it can be made to be idempotent by adding an &lt;em&gt;idempotency key&lt;/em&gt; parameter. The classic example is money: a ‘transfer money to X’ operation may legitimately occur multiple times with the same parameters, but making the same call twice would be a mistake, so it is not idempotent. A client would not be able to retry a call that timed out, because it does not know whether or not the server processed the request. However, if the client generates and sends a unique ID as an &lt;em&gt;idempotency key&lt;/em&gt; parameter, then it can safely retry. The server can then use this information to determine whether to process the request (if it sees the request for the first time) or return the result of the previous operation.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Using idempotency keys can guarantee idempotency for endpoints with side-effects&quot; src=&quot;/img/beyond-retries-part-3/image1.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Using idempotency keys can guarantee idempotency for endpoints with side-effects&lt;/small&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;h3 id=&quot;asynchronous-responses&quot;&gt;Asynchronous responses&lt;/h3&gt;
+
+&lt;p&gt;A second pattern is making use of asynchronous responses. Rather than relying on a successful call to a dependency which may fail, a service may complete its own work and return a successful or partial response to the client. The client would then have to receive the response in an alternate way, either by polling (‘pull’) until the result is ready or the response being ‘pushed’ from the server when it completes.&lt;/p&gt;
+
+&lt;p&gt;From a resiliency perspective, this guarantees that the downstream errors do not affect the endpoint. Furthermore, the risk of the dependency causing latency or consuming resources goes away, and it can be retried in the background until it succeeds. The disadvantage is that this works against the ‘fail fast’ principle, since the call might be retried indefinitely without ever failing. It might not be clear to the client what to do in this case.&lt;/p&gt;
+
+&lt;p&gt;Not all endpoints have to be made asynchronous, and the decision to be synchronous or not could be made by the endpoint dynamically, depending on the service health. Work that can be made asynchronous is known as &lt;em&gt;deferrable work&lt;/em&gt;, and utilizing this information can save resources and allow the more critical endpoints to complete. For example, a fraud system may decide whether or not a newly registered user should be allowed to use the application, but such decisions are often complex and costly. Rather than slow down the registration process for every user and create a poor first impression, the decision can be made asynchronously. When the fraud-decision system is available, it picks up the task and processes it. If the user is then found to be fraudulent, their account can be deactivated at that point.&lt;/p&gt;
+
+&lt;h2 id=&quot;preventing-disaster-through-chaos-engineering&quot;&gt;Preventing disaster through chaos engineering&lt;/h2&gt;
+
+&lt;p&gt;It is famously understood that disaster recovery is worthless unless it’s tested regularly. There are dozens of stories of employees diligently performing backups every day only to find that when they actually needed to restore from it, the backups were empty. The same thing applies to resiliency, albeit with less spectacular consequences.&lt;/p&gt;
+
+&lt;p&gt;The emerging best practice for testing resiliency is &lt;em&gt;chaos engineering&lt;/em&gt;. This practice, made famous by Netflix’s &lt;a href=&quot;https://medium.com/netflix-techblog/the-netflix-simian-army-16e57fbab116&quot;&gt;Chaos Monkey&lt;/a&gt;, is the idea of deliberately causing parts of a system to fail in order to test (and subsequently improve) its resiliency. There are many different kinds of chaos engineering that vary in scope, from simulating an outage in an entire AWS region to injecting latency into a single endpoint. A chaos engineering strategy may include multiple types of failure, to build confidence in the ability of various parts of the system to withstand failure.&lt;/p&gt;
+
+&lt;p&gt;Chaos engineering has evolved since its inception, ironically becoming less ‘chaotic’, despite the name. Shutting off parts of a system without a clear plan is unlikely to provide much value, but is practically guaranteed to frustrate your customers - and upper management! Since it is recommended to experiment on production, minimizing the &lt;em&gt;blast radius&lt;/em&gt; of chaos experiments, at least at the beginning, is crucial to avoid unnecessary impact to the system.&lt;/p&gt;
+
+&lt;h3 id=&quot;chaos-experiment-process&quot;&gt;Chaos experiment process&lt;/h3&gt;
+
+&lt;p&gt;The basic process for conducting a chaos experiment is as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Define how to measure a ‘steady state’, in order to confirm that the system is currently working as expected.&lt;/li&gt;
+  &lt;li&gt;Decide on a ‘control group’ (which does not change) and an ‘experiment group’ from the pool of backend servers.&lt;/li&gt;
+  &lt;li&gt;Hypothesize that the steady state will not change during the experiment.&lt;/li&gt;
+  &lt;li&gt;Introduce a failure in one component or aspect of the system in the control group, such as the network connection to the database.&lt;/li&gt;
+  &lt;li&gt;Attempt to disprove the hypothesis by analyzing the difference in metrics between the control and experiment groups.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;If the hypothesis is disproved, then the parts of the system which failed are candidates for improvement. After making changes, the experiments are run again, and gradually confidence in the system should improve.&lt;/p&gt;
+
+&lt;p&gt;Chaos experiments should ideally mimic real-world scenarios that could actually happen, such as a server shutting down or a network connection being disconnected. These events do not necessarily have to be directly related to failure - ordinary events such as auto-scaling or a change in server hardware or VM type can be experimented with, as they could still potentially affect the steady state.&lt;/p&gt;
+
+&lt;p&gt;Finally, it is important to automate as much of the chaos experiment process as possible. From setting up the control group to starting the experiment and measuring the results, to automatically disabling the experiment if the impact to production has exceeded the blast radius, the investment in automating them will save valuable engineering time and allow for experiments to eventually be run continuously.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Retries are a useful and important part of building resilient software systems. However, they only solve one part of the resiliency problem, namely recovery. Recovery via retries is only possible under certain conditions and could potentially exacerbate a system failure if other safeguards aren’t also in place. Some of these safeguards and other resiliency patterns have been discussed in this article.&lt;/p&gt;
+
+&lt;p&gt;The excellent Hystrix library combines multiple resiliency techniques, such as circuit-breaking, timeouts and bulkheading, in a single place. But even Hystrix cannot claim to solve all resiliency issues, and it would not be wise to rely on a single library completely. However, just as it can’t be recommended to only use Hystrix, suddenly introducing all of the above patterns isn’t advisable either. There is a point of diminishing returns with adding more; more techniques means more complexity, and more possible things that could go wrong.&lt;/p&gt;
+
+&lt;p&gt;Rather than implement all of the resiliency patterns described above, it is recommended to selectively apply patterns that complement each other and cover existing gaps that have previously been identified. For example, an existing retry strategy can be enhanced by gradually switching to idempotent endpoints, improving the coverage of API calls that can be retried.&lt;/p&gt;
+
+&lt;p&gt;A microservice architecture is a good foundation for building a resilient system, but it requires careful planning and implementation to achieve. By identifying the possible ways in which a system can fail, then evaluating and applying the tried-and-tested patterns to withstand them, a reliable system can become one that is truly resilient.&lt;/p&gt;
+
+&lt;p&gt;I hope you found this series useful. Comments are always welcome.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 27 Mar 2019 17:17:35 +0000</pubDate>
+        <link>https://engineering.grab.com/beyond-retries-part-3</link>
+        <guid isPermaLink="true">https://engineering.grab.com/beyond-retries-part-3</guid>
+        
+        <category>Resiliency</category>
+        
+        <category>Microservice</category>
+        
+        <category>Chaos Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Designing resilient systems beyond retries (Part 2): Bulkheading, Load Balancing, and Fallbacks</title>
@@ -1821,221 +1903,6 @@ EMR cluster CPU monitoring with Ganglia&lt;/p&gt;
         <category>Resiliency</category>
         
         <category>Circuit Breakers</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Querying Big Data in Real-Time with Presto &amp; Grab's TalariaDB</title>
-        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
-
-&lt;p&gt;Enabling the millions and millions of transactions and connections that take place every day on our platform requires data-driven decision making. And these decisions need to be made based on real-time data. For example, an experiment might inadvertently cause a significant increase of waiting time for riders.&lt;/p&gt;
-
-&lt;p&gt;Without the right tools and setup, we might only know the reason for this longer waiting time much later. And that would negatively impact our driver partners’ livelihoods and our customers’ Grab experience.&lt;/p&gt;
-
-&lt;p&gt;To overcome the challenge of retrieving information from large amounts of data, our first step was to adopt the open-source &lt;a href=&quot;https://prestodb.io/&quot;&gt;Facebook’s Presto&lt;/a&gt;, that makes it possible to query petabytes with plain SQL. However, given our many teams, tools, and data sources, we also needed a way to reliably ingest and disperse data at scale throughout our platform.&lt;/p&gt;
-
-&lt;p&gt;To cope with our data’s scale and &lt;a href=&quot;https://www.zdnet.com/article/volume-velocity-and-variety-understanding-the-three-vs-of-big-data/&quot;&gt;velocity&lt;/a&gt; (how fast is data coming in), we built two major systems:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;McD: Our scalable data ingestion and augmentation service.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;TalariaDB: A custom data store used, along with Presto and S3, by a scalable data querying engine.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In this article, we focus on TalariaDB, a distributed, highly available, and low latency time-series database that stores real-time data. For example, logs, metrics, and click streams generated by mobile apps and backend services that use Grab’s &lt;a href=&quot;https://engineering.grab.com/feature-toggles-ab-testing&quot;&gt;Experimentation Platform SDK&lt;/a&gt;. It “stalks” the real-time data feed and only keeps the last one hour of data.&lt;/p&gt;
-
-&lt;p&gt;TalariaDB addresses our need to query at least 2-3 terabytes of data per hour with predictable low query latency and low cost. Most importantly, it plays very nicely with the different tools’ ecosystems and lets us query data using SQL.&lt;/p&gt;
-
-&lt;p&gt;The figure below shows how often a particular event happened within the last hour. The query scans through almost &lt;strong&gt;4 million rows&lt;/strong&gt; and executes in about &lt;strong&gt;1 second&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/big-data-real-time-presto-talariadb/query-event.png&quot; alt=&quot;Query events&quot; /&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;design-goals&quot;&gt;Design goals&lt;/h1&gt;
-
-&lt;p&gt;TalariaDB attempts to solve a specific business problem by unifying cold and hot storage data models. This reduces overall latency, and lets us build a set of simple services that queries and processes data. TalariaDB does not attempt to be a general-purpose database. Simplicity was a primary design goal. We also set the following functional and non-functional requirements:&lt;/p&gt;
-
-&lt;h2 id=&quot;functional-requirements&quot;&gt;Functional requirements&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Time-Series Metrics&lt;/strong&gt;. The system can store thousands of different time-series metrics.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Data Retention&lt;/strong&gt;. Keep the most recent data. This is configurable so we can extend the retention period on the fly.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Query or Aggregate by any dimension&lt;/strong&gt;. We will build very complex queries using the full power of SQL and the Presto query engine for graphing, log retrieval, Grab Splainer, analytics, and other use-cases.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;non-functional-requirements&quot;&gt;Non-functional requirements&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Linear, Horizontal Scalability&lt;/strong&gt;. The hot data layer can scale to a multi-terabyte or even multi-petabyte scale.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Low Latency&lt;/strong&gt;. The system responds and retrieves data for a particular combination of metric name and time window. The query executes within a few seconds at most, even if there is a petabyte of data.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Simplicity&lt;/strong&gt;. The system is simple, easy to write, understand, and maintain.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Availability&lt;/strong&gt;. The system is an &lt;strong&gt;A&lt;/strong&gt;vailable &amp;amp; &lt;strong&gt;P&lt;/strong&gt;artition tolerant system (AP in &lt;a href=&quot;https://en.wikipedia.org/wiki/CAP_theorem&quot;&gt;CAP&lt;/a&gt; terms), always responding to queries even when some nodes are unavailable. For our purposes, partial data is better than no data.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Zero Operation&lt;/strong&gt;. The system “just works”, with zero manual intervention. It needs to scale for the years to come.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;High Write Throughput&lt;/strong&gt;. Since both read and write throughput are high, we support at least &lt;strong&gt;one million events per second&lt;/strong&gt; on a cluster.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Cost&lt;/strong&gt;. Given the scale, the system should be as low cost as possible. Ideally it should be as cheap as the SSDs, and still be able to query terabytes or even petabytes of data with predictable, low latency.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;where-talariadb-sits-in-our-data-pipeline&quot;&gt;Where TalariaDB sits in our data pipeline&lt;/h1&gt;
-
-&lt;p&gt;The figure below shows where TalariaDB fits in our event ingestion data pipeline’s architecture.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/big-data-real-time-presto-talariadb/talariadb-data-pipeline.png&quot; alt=&quot;TalariaDB data pipeline&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;To help you understand this schema, let’s walk through what happens to a single event published from mobile app or a backend service.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;xsdk.Track(ctx, &quot;myEvent&quot;, 42, sdk.NewFacets().
-    Passenger(123).
-    Booking(&quot;ADR-123-2-001&quot;).
-    City(10)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;First, using the &lt;strong&gt;Track()&lt;/strong&gt; function in our &lt;a href=&quot;https://engineering.grab.com/feature-toggles-ab-testing&quot;&gt;Golang, Android or iOS SDKs&lt;/a&gt; an engineer tracks a metric as follows:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;The tracked event goes into our McD Gateway service. It performs authentication if necessary, along with some basic enrichment (e.g.  adding a unique event identifier). It then writes these events into our Kafka topic.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The &lt;strong&gt;McD Consumer&lt;/strong&gt; service reads from Kafka and prepares a &lt;a href=&quot;https://orc.apache.org/&quot;&gt;columnar ORC&lt;/a&gt; file which is then &lt;strong&gt;partitioned by event name&lt;/strong&gt;. In the example above, &lt;em&gt;myEvent&lt;/em&gt; is pushed into its own file together with all the other &lt;em&gt;myEvents&lt;/em&gt; which are ingested at more or less the same time. This happens in real time and is written to an S3 bucket every 30 seconds.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;A &lt;a href=&quot;https://en.wikipedia.org/wiki/Apache_Spark&quot;&gt;Spark&lt;/a&gt; &lt;strong&gt;hourly job&lt;/strong&gt; kicks in every hour to create massive columnar files used for cold/warm storage retrieval.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The Presto query engine has both schemas registered letting users (people or systems) to perform &lt;strong&gt;sub-second queries&lt;/strong&gt; on the data, and &lt;strong&gt;even combine the two schemas together by having a unified SQL layer&lt;/strong&gt;.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h1 id=&quot;how-talariadb-is-designed&quot;&gt;How TalariaDB is designed&lt;/h1&gt;
-
-&lt;p&gt;Now, let’s look at TalariaDB and its main components.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/big-data-real-time-presto-talariadb/talariadb-main-components.png&quot; alt=&quot;TalariaDB main components&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;One of TalariaDB’s goals is simplicity. The system itself is &lt;strong&gt;not responsible for data transformation and data re-partitioning&lt;/strong&gt; but only &lt;strong&gt;ingests&lt;/strong&gt; and &lt;strong&gt;serves&lt;/strong&gt; data to Presto.&lt;/p&gt;
-
-&lt;p&gt;To make sure TalariaDB scales to millions of events per second, it needs to leverage batching. A single event in TalariaDB is &lt;strong&gt;not stored as a single row&lt;/strong&gt;. Instead we store a &lt;strong&gt;pre-partitioned batch of events in a binary, columnar format&lt;/strong&gt;. Spark streaming takes care of partitioning by event name (metric name) before writing to S3, makingour design more streamlined and efficient.&lt;/p&gt;
-
-&lt;p&gt;You can see from the schema above, that the system really does only a few things:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Listens to SQS S3 notifications of Put Object, downloading each file and writing it to an internal &lt;a href=&quot;https://en.wikipedia.org/wiki/Log-structured_merge-tree&quot;&gt;LSM Tree&lt;/a&gt; with expiration.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Performs periodic compaction and garbage collection to evict expired data. This is essentially done by the underlying &lt;a href=&quot;https://en.wikipedia.org/wiki/Log-structured_merge-tree&quot;&gt;LSM Tree&lt;/a&gt;.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Exposes an API for Presto by implementing &lt;a href=&quot;https://prestodb.io/docs/current/connector/thrift.html&quot;&gt;PrestoThriftConnector&lt;/a&gt;.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;We experimented with several different storage backends, and &lt;a href=&quot;https://github.com/dgraph-io/badger&quot;&gt;Badger key-value store&lt;/a&gt; ended up winning our hearts. It’s an efficient and persistent log structured merge (LSM) tree based key-value store, purely written in Go. It is based upon the &lt;a href=&quot;https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf&quot;&gt;WiscKey paper from USENIX FAST 2016&lt;/a&gt;. This design is highly SSD-optimized and separates keys from values to minimize I/O amplification. It leverages both the sequential and the random performance of SSDs.&lt;/p&gt;
-
-&lt;p&gt;TalariaDB specifically leverages two of Badger’s unique features:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Very &lt;a href=&quot;https://blog.dgraph.io/post/badger-lmdb-boltdb/&quot;&gt;fast key iteration and seek&lt;/a&gt;. This lets us store millions of keys and quickly figure out which ones need to be retrieved.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Separation of keys and values. We keep the full key space in memory for fast seeks. But iteration and our values  are memory-mapped for faster retrieval.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;columnar-time-series-database&quot;&gt;Columnar time-series database&lt;/h2&gt;
-
-&lt;p&gt;As mentioned, a single event in TalariaDB is not stored as a single row, but as a pre-partitioned batch of events in binary, columnar format. This achieves fast ingestion and fast retrieval. As data will be aligned on disk, only that column needs to be selected and sent to Presto. The illustration in the next section shows the difference. That being said, it is inefficient to store large amounts of data in a single column. For fast iteration, TalariaDB stores millions of individual columnar values (smaller batches) and exposes a combined “index” of metric name and time.&lt;/p&gt;
-
-&lt;p&gt;The query pattern we serve is key to understand why we do this. We need to answer questions such as:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;How many of a given event types are in a time window?&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;What is an aggregate for a given metric captured on a specific event (e.g. count, average)?&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;What are all the events for a passenger / driver-partner / merchant?&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;These use cases can be served with various &lt;a href=&quot;https://www.slideshare.net/planetcassandra/bitmap-indexes&quot;&gt;trickery&lt;/a&gt; using a row based storage, but they require fairly complex and non-standard access patterns. We want to support anyone with an SQL client and SQL basic knowledge.&lt;/p&gt;
-
-&lt;h2 id=&quot;data-layout--query&quot;&gt;Data layout &amp;amp; query&lt;/h2&gt;
-
-&lt;p&gt;TalariaDB combines a &lt;a href=&quot;https://en.wikipedia.org/wiki/Log-structured_merge-tree&quot;&gt;log-structured merge tree (LSMT)&lt;/a&gt; and columnar values to provide fast iteration and retrieval of an individual event type within a given time window. The keys are lexicographically ordered. When a query comes, TalariaDB essentially seeks to the first key for that metric and stops iterating when either it finds the next metric or reaches the time bound. The diagram below shows how the query is processed.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/big-data-real-time-presto-talariadb/query.png&quot; alt=&quot;query&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;During the implementation, we had to reduce memory allocations and memory copies on read, which led us to implementing a zero-copy decoder. In other words, when a memory-mapped value is decoded, no data is copied around and we simply send it to PrestoDB as quickly and efficiently as possible.&lt;/p&gt;
-
-&lt;h2 id=&quot;integrating-with-presto&quot;&gt;Integrating with Presto&lt;/h2&gt;
-
-&lt;p&gt;TalariaDB is queryable using the &lt;a href=&quot;https://prestodb.io/&quot;&gt;Presto query engine&lt;/a&gt; (or a thrift client implementing the Presto protocol) so we can keep things simple. To integrate TalariaDB and Presto, we leveraged the &lt;a href=&quot;https://prestodb.io/docs/current/connector/thrift.html&quot;&gt;Presto Thrift Connector&lt;/a&gt;. To use the Thrift connector with an external system, you need to implement the PrestoThriftService interface. Next, configure the Thrift Connector to point to a set of machines, called Thrift servers, that implement the interface. As part of the interface implementation, the Thrift servers provide metadata, splits, and data. The Thrift server instances are assumed to be stateless and independent from each other.&lt;/p&gt;
-
-&lt;p&gt;What Presto essentially does is query one of the TalariaDB nodes and requests “data splits”. TalariaDB replies with a list of machines containing the query’s data. In fact, it simply maintains a &lt;strong&gt;membership list of all of the nodes&lt;/strong&gt; (using the reliable Gossip protocol) and returns to Presto a list of all the machines in the cluster. We solve the bootstrapping problem by simply registering the full membership list at a random period in Route53.&lt;/p&gt;
-
-&lt;p&gt;Next, Presto hits every TalariaDB instance in parallel for data retrieval. Interestingly enough, by adding a new machine in the TalariaDB cluster we gain data capacity and reduce query latency at the same time. This is provided the Presto cluster has an equal or larger amount of executors to process the data.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/big-data-real-time-presto-talariadb/integrating-with-presto.png&quot; alt=&quot;Integrating with Presto&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;scale-and-elasticity&quot;&gt;Scale and elasticity&lt;/h2&gt;
-
-&lt;p&gt;While scaling databases is not a trivial task, by sacrificing some of the requirements (such as strong consistency as per CAP), &lt;strong&gt;TalariaDB can scale horizontally&lt;/strong&gt; by simply adding more hardware servers.&lt;/p&gt;
-
-&lt;p&gt;TalariaDB is not only highly available but also tolerant to network partitions. If a node goes down, data residing on the node becomes unavailable but new data will still be ingested and presented. We would much rather serve our customers some data than no data at all. Going forward, we plan to transition the entire system to a &lt;a href=&quot;https://kubernetes.io/&quot;&gt;Kubernetes&lt;/a&gt; &lt;a href=&quot;https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/&quot;&gt;StatefulSet&lt;/a&gt; integration. This lets us auto-heal the TalariaDB cluster without data loss, as Kubermates manages the data volumes.&lt;/p&gt;
-
-&lt;p&gt;We do &lt;strong&gt;upscaling&lt;/strong&gt; by adding a new machine to the cluster. It automatically joins the cluster by starting gossipping with one of the nodes (discovery is done using a DNS record, Route53 in our case). Once the instance joins the cluster, it starts polling from a queue the files it has to ingest.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Downscaling&lt;/strong&gt; must be graceful, given we currently don’t replicate data. However, we can exploit  that TalariaDB only stores data for the trailing time period. A graceful downscaling might be implemented by simply stopping ingesting new data but still serving data until everything the node holds is expired and storage is cleared. This is similar to how EMR deals with downscaling.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;We have been running TalariaDB in production for a few months. Together with some major improvements in our data pipeline, we have built a global real-time feed from our mobile applications for our analysts, data scientists, and mobile engineers by helping them monitor and analyse behavior and diagnose issues.&lt;/p&gt;
-
-&lt;p&gt;We achieved our initial goal of fast SQL queries while ingesting several terabytes of data per hour on our cluster. A query of a single metric typically takes a few seconds, even when returning several million rows. Moreover, we’ve also achieved one minute of end-to-end latency: when we track an event on the mobile app, it can be retrieved from TalariaDB within one minute of its happening.&lt;/p&gt;
-
-</description>
-        <pubDate>Wed, 02 Jan 2019 02:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/big-data-real-time-presto-talariadb</link>
-        <guid isPermaLink="true">https://engineering.grab.com/big-data-real-time-presto-talariadb</guid>
-        
-        <category>Big Data</category>
-        
-        <category>Real-Time</category>
-        
-        <category>Database</category>
-        
-        <category>Presto</category>
-        
-        <category>TalariaDB</category>
         
         
         <category>Engineering</category>
