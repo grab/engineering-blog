@@ -6,9 +6,150 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 28 Mar 2019 04:32:09 +0000</pubDate>
-    <lastBuildDate>Thu, 28 Mar 2019 04:32:09 +0000</lastBuildDate>
+    <pubDate>Tue, 02 Apr 2019 09:06:18 +0000</pubDate>
+    <lastBuildDate>Tue, 02 Apr 2019 09:06:18 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>How we harnessed the wisdom of crowds to improve restaurant location accuracy</title>
+        <description>&lt;p&gt;While studying GPS ping data to understand how long our driver-partners needed to spend at restaurants during a GrabFood delivery, we came across an interesting observation. We realized that there was a significant proportion of restaurants where our driver-partners were waiting for abnormally short durations, often for just seconds.&lt;/p&gt;
+
+&lt;p&gt;Considering that it typically takes a driver a few minutes to enter the restaurant, pick up the order and then leave, we decided to dig further into this phenomenon. What we uncovered was that these super short pit stops were restaurants that were registered at incorrect coordinates within the system due to reasons such as the restaurant had moved to a new location, or human error during onboarding the restaurants. Incorrectly registered locations within our system impact all involved parties - eaters may not see the restaurant because it falls outside their delivery radius or they may see an incorrect ETA, drivers may have trouble finding the restaurant and may end up having to cancel the order, and restaurants who may get fewer orders without really knowing why. &lt;/p&gt;
+
+&lt;p&gt;So we asked ourselves - how can we improve this situation by leveraging the wealth of data that we have? &lt;/p&gt;
+
+&lt;h2 id=&quot;the-solution&quot;&gt;The Solution&lt;/h2&gt;
+
+&lt;p&gt;One of the biggest advantages we have is the huge driver-partner fleet we have on the ground in cities across Southeast Asia. They know the roads and cities like the back of their hand, and they are resourceful. As a result, they are often able to find the restaurants and complete orders even if the location was registered incorrectly. Knowing this, we looked at GPS pings and timestamps from these drivers, and combined this information with when they indicated that they have ordered or collected food from the restaurant. This is then used to infer the “pick-up location” from which the food was collected. &lt;/p&gt;
+
+&lt;p&gt;Inferring this location is not so straightforward though. GPS ping quality can vary significantly across devices and will be affected by whether the device is outdoors or indoors (e.g. if the restaurant is inside a mall). Hence we compute metrics from times and distances between pings, ping frequency and ping quality to filter out orders where the GPS quality is determined to be sub-par. The thresholds for such filtering are determined based on a statistical analysis of orders by regions and times of day. &lt;/p&gt;
+
+&lt;p&gt;One of the outcomes of such an analysis is that we deemed it acceptable to consider a driver “at” a restaurant, if their GPS ping falls within a predetermined radius of the registered location of the restaurant. However, knowing that a driver is at the restaurant does not necessarily tell us “when” he or she  is actually at the restaurant. See the following figure for an example. &lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Map showing driver paths and GPS location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image1.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;As you can see from the area covered by the green circle, there are 3 distinct occurrences or “streaks” when the driver can be determined to be at the restaurant location - once when they are approaching the restaurant from the southwest before taking two right turns, then again when they are actually at the restaurant coming in from the northeast, and again when they leave the restaurant heading southwest before making a U-turn and then heading northeast. In this case, if the driver indicates that they have collected the food during the second streak, chronology is respected - the driver reaches the restaurant, the driver collects the food, the driver leaves the restaurant. However if the driver indicates that they have collected the food during one of the other streaks, that is an invalid pick-up even though it is “at” the restaurant.&lt;/p&gt;
+
+&lt;p&gt;Such potentially invalid pick-ups could result in noisy estimates of restaurant location, as well as hamper us in our parent task of accurately estimating how long drivers need to wait at restaurants. Therefore, we modify the definition of the driver being at the restaurant to only include the time of the longest streak i.e. the time when the driver spent the longest time within the registered location radius. &lt;/p&gt;
+
+&lt;p&gt;Extending this across multiple orders and drivers, we can form a cluster of pick-up locations (both “at” and otherwise) for each restaurant. Each restaurant then gets ranked through a combination of:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Order volume&lt;/strong&gt;: Restaurants which receive more orders are likely to have more valid signals for any predictions we make. Increasing the confidence we have in our estimates.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Fraction of the orders where the pick-up location was not “at” the restaurant&lt;/strong&gt;: This fraction indicates the number of orders with a pick-up location not near the registered restaurant location (with near being defined both spatially and temporally as above). A higher value indicates a higher likelihood of the restaurant not being in the registered location subject to order volume&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Median distance between registered and estimated locations&lt;/strong&gt;: This factor is used to rank restaurants by a notion of “importance”. A restaurant which is just outside the fixed radius from above can be addressed after another restaurant which is a kilometer away. &lt;/p&gt;
+
+&lt;p&gt;This ranked list of restaurants is then passed on to our mapping operations team to verify. The team checks various sources to verify if the restaurant is incorrectly located which is then fed back to the GrabFood system and the locations updated accordingly.&lt;/p&gt;
+
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We have a system to catch and fix obvious errors&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The table below shows a few examples of errors we were able to catch and fix. The image on the left shows the distance between an incorrectly registered address and the actual location of the restaurant.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Restaurant&lt;/th&gt;
+      &lt;th&gt;Path from registered location to estimated location&lt;/th&gt;
+      &lt;th&gt;Zoomed in view of estimated location&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Sederhana  Minang&lt;/td&gt;
+      &lt;td&gt;&lt;img alt=&quot;Sederhana  Minang path from registered to estimated location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image3.png&quot; /&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;img alt=&quot;Sederhana  Minang zoomed in view of estimated location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image2.png&quot; /&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Papa Ron's Pizza&lt;/td&gt;
+      &lt;td&gt;&lt;img alt=&quot;Papa Ron's Pizza path from registered to estimated location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image6.png&quot; /&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;img alt=&quot;Papa Ron's Pizza zoomed in view of estimated location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image4.png&quot; /&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Rich-O Donuts &amp;amp; Cafe&lt;/td&gt;
+      &lt;td&gt;&lt;img alt=&quot;Rich-O Donuts &amp;amp; Cafe path from registered to estimated location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image9.png&quot; /&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;img alt=&quot;Rich-O Donuts &amp;amp; Cafe zoomed in view of estimated location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image7.png&quot; /&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;Fixing these errors periodically greatly reduced the median error distance (measured as the straight line distance between the estimated location and registered location) in each city as restaurant locations were corrected.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Bangkok&lt;/th&gt;
+      &lt;th&gt;Ho Chi Minh&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;img alt=&quot;Median error distance in Bangkok&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image13.png&quot; /&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;img alt=&quot;Median error distance in Ho Chi Minh&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image5.png&quot; /&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We helped to reduce cancellations&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We also tracked the number of GrabFood orders cancelled because the restaurant could not be found by our driver-partners as indicated on the app. Once we started making periodic updates, we saw a 5x decrease in cancellations because of incorrect restaurant locations. &lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Relative cancellation rate due to incorrect location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image8.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We discovered some interesting findings!&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In some cases, we were actually stumped when trying to correct some of the locations according to what the system estimated. One of the most interesting examples was the restaurant “Waroeng Steak and Shake” in Bekasi. According to our system, the restaurant’s location was further up Jalan Raya Jatiwaringin than we thought it to be. &lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Waroeng Steak and Shake map location&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image10.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Examining this on Google Maps, we noticed that both locations oddly seemed to have a branch of the restaurant. What was going on here? &lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Waroeng Steak and Shake map location on Google Maps&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image11.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;By looking at Google Reviews (credit to my colleague Kenneth Loh for the idea), we realized that  the restaurant seemed to have changed its location, and this is what our system was picking up on. &lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Waroeng Steak and Shake Google Maps reviews&quot; src=&quot;/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image12.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In summary, the system was able to respond to a change in location for the restaurant without any active action taken by the restaurant and while other data sources had duplicates. &lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next?&lt;/h2&gt;
+
+&lt;p&gt;Going forward, we are looking to automate some aspects of this workflow. Currently, the validation part is handled by our mapping operations team and we are looking to feedback their validation and actions taken so that we can finetune various hyperparameters in our system (registered location radii, normalization factors, etc) and/or train more advanced models that are cognizant of different geo and driver characteristics in different markets.&lt;/p&gt;
+
+&lt;p&gt;Additionally while we know that we should expect poor results for some scenarios (e.g. inside malls due to poor GPS quality and often approximate registered locations), we can extract such information (restaurant is inside a mall in this case) through a combination of manual feedback from operations teams and drivers, as well as automated NLP techniques such as name and address parsing and entity recognition. &lt;/p&gt;
+
+&lt;p&gt;In the end, it is always useful to question the predictions that a system makes. By looking at some abnormally small wait times at restaurants, we were able to discover, provide feedback and continually update restaurant locations within the GrabFood ecosystem resulting in an overall better experience for our eaters, driver-partners and merchant-partners.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 02 Apr 2019 07:43:40 +0000</pubDate>
+        <link>https://engineering.grab.com/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd</link>
+        <guid isPermaLink="true">https://engineering.grab.com/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd</guid>
+        
+        <category>Data Science</category>
+        
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>Designing resilient systems beyond retries (Part 3): Architecture Patterns and Chaos Engineering</title>
@@ -1580,329 +1721,6 @@ EMR cluster CPU monitoring with Ganglia&lt;/p&gt;
         <category>Data Pipeline</category>
         
         <category>Experiment</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Designing resilient systems: Circuit Breakers or Retries? (Part 2)</title>
-        <description>&lt;p&gt;&lt;em&gt;This post is the second part of the series on Designing Resilient Systems. In Part 1, we looked at use cases for implementing circuit breakers. In this second part, we will do a deep dive on retries and its use cases, followed by a technical comparison of both approaches.&lt;/em&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;introducing-retry&quot;&gt;Introducing Retry&lt;/h2&gt;
-
-&lt;p&gt;Retry is a software mechanism that monitors a request, and if it detects failure, automatically repeats the request.&lt;/p&gt;
-
-&lt;p&gt;Let’s take the following example:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image4.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Assuming our load balancer is configured to perform &lt;em&gt;round-robin&lt;/em&gt; load balancing, this means that with two hosts in our upstream service, the first request will go to one host and the second request will go to the other host.&lt;/p&gt;
-
-&lt;p&gt;If our request was unlucky and we were routed to the broken host, then our interaction would look like this:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image3.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;However, with retries in place, our interaction would look like this:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image5.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;You’ll notice a few things here. Firstly, because of the retry, we have successfully completed our processing; meaning we are returning fewer errors to our users.&lt;/p&gt;
-
-&lt;p&gt;Secondly, while our request succeeded, it required more resources (CPU and time) to complete. We have to attempt the first request, wait for and detect the failure, before repeating and succeeding on our second attempt.&lt;/p&gt;
-
-&lt;p&gt;Lastly, unlike the circuit breaker (discussed in Part 1), we are not tracking the results of our requests. We are, therefore, not doing anything to prevent ourselves from making requests to the broken host in the future. Additionally, in our example, our second request was routed to the working host. This will not always be the case, given that there will be multiple concurrent requests from our service and potentially even requests from other services. As such, we are not guaranteed to get a working host on the second attempt. In fact, the chance for us to get a working host is equal to the number of working hosts divided by the total hosts, in this case 50%.&lt;/p&gt;
-
-&lt;p&gt;Digging a little deeper, we had a 50% chance to get a bad host on the first request, and a 50% chance on the retry.  By extension we therefore have a 50% x 50% = 25% chance to fail even after 1 retry. If we were to retry twice, this becomes 12.5%&lt;/p&gt;
-
-&lt;p&gt;Understanding this concept will help you determine your &lt;strong&gt;max retries&lt;/strong&gt; setting.&lt;/p&gt;
-
-&lt;h3 id=&quot;should-we-retry-for-all-errors&quot;&gt;Should we retry for all errors?&lt;/h3&gt;
-
-&lt;p&gt;The short answer is no. We should consider retrying the request if it has any chance of succeeding (i.e. error codes 503 - Service Unavailable and 500 - Internal Server Error). For example, for error code 503, a retry may work if the retry resulted in a call to a host that was not overloaded.   Conversely, for errors like 401 - Unauthorized or 400 - Bad Request, retrying these wastes resources as they will never work without the user changing their request.&lt;/p&gt;
-
-&lt;p&gt;There are two key points to consider: Firstly, the upstream service must return sensible and informative errors and secondly, our retry mechanism must be configured to react to different types of errors differently.&lt;/p&gt;
-
-&lt;h3 id=&quot;idempotency&quot;&gt;Idempotency&lt;/h3&gt;
-
-&lt;p&gt;A process (function or request) is considered to be idempotent if it can be repeated any number of times (i.e. one or more) and have the same result.&lt;/p&gt;
-
-&lt;p&gt;Let’s say you have a REST endpoint that &lt;em&gt;loads a city.&lt;/em&gt; Every time you call this method, you should receive the same outcome. Now, let’s say we have another endpoint, but this one &lt;em&gt;reserves a ticket&lt;/em&gt;. If we call this endpoint twice, then we will have reserved 2 tickets. How does this relate to retries?&lt;/p&gt;
-
-&lt;p&gt;Examine our retry interaction from above again:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image1.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;What happens if our first call to the broken host actually reserves at ticket but fails to respond to us correctly. Our retry to the second working host would then reserve a second ticket, and we would have no idea that we had made a mistake.&lt;/p&gt;
-
-&lt;p&gt;This is because our &lt;em&gt;reserve a ticket&lt;/em&gt; endpoint is not idempotent.&lt;/p&gt;
-
-&lt;p&gt;Please do not take the above example to imply that only read operations can be retried and that all write/mutate changes cannot be; the example was chosen carefully.&lt;/p&gt;
-
-&lt;p&gt;A &lt;em&gt;reserve a ticket&lt;/em&gt; operation is almost always going to involve some finite amount of tickets, and in such a situation it is imperative that 1 request only results in 1 reservation. Other similar situations might include charging a credit card or incrementing a counter.&lt;/p&gt;
-
-&lt;p&gt;Some write operations, like saving a registration or updating a record to a provided value (without calculation) can be repeated. Saving multiple registrations will cause messy data, but that can be cleaned up by some other non-customer related process. In this case, it’s better to ensure we fulfill the customers request at the expense of extra work for us rather than failing, leaving the system in an unknown state and making it the customer’s problem. For example, let’s say we were updating the user’s password to abc123, this end state which was provided by the user is fixed and so, therefore, repeating the process only wastes the resources of the data store.&lt;/p&gt;
-
-&lt;p&gt;In cases where retries are possible, but you want to be able to detect and prevent duplicate transactions (like in our ticket reservation example) it is possible to introduce a &lt;strong&gt;cryptographic nonce&lt;/strong&gt;. This topic would require an article all of its own, but the short version is: a cryptographic nonce is a random number introduced into a request that helps us detect that two requests are actually one.&lt;/p&gt;
-
-&lt;p&gt;If that didn’t make much sense, here’s an example:&lt;/p&gt;
-
-&lt;p&gt;Let’s say we receive a ticket registration request from our customer, and we append to it a random number. Now, when we call our upstream service, we can pass the request data together with the nonce. This request is partially processed but then fails and returns an HTTP 500 - Internal Server Error. We retry this request with another upstream service host and again supply the request data and the exact same nonce. The upstream host is now able to use this nonce and other identifying information in the request (e.g. customer id, amount, ticket type, etc.) to determine that both requests originate from the same user request and therefore should be treated as one. In our case, this might mean we return the tickets reserved by the first partially processed request and complete the processing.&lt;/p&gt;
-
-&lt;p&gt;For more information on cryptographic nonces, start &lt;a href=&quot;https://en.wikipedia.org/wiki/Cryptographic_nonce&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;backoff&quot;&gt;Backoff&lt;/h3&gt;
-
-&lt;p&gt;In our previous example, when we failed, we immediately tried again and because the load balancer gave us a different host, the second request succeeded. However, this is not actually how it works. The actual implementation includes a delay/wait in-between request like this:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image2.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;This amount of wait time between requests is called the &lt;strong&gt;backoff&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;Consider what happens when all hosts of the upstream service are down. Remember, the upstream service could be just one host (like a database). If we were to retry immediately, we would have a high chance to fail again and again and again, until we exceeded our maximum number of attempts.&lt;/p&gt;
-
-&lt;p&gt;Viewed simply, the backoff is a process that changes the wait time between attempts based on the number of previous failures.&lt;/p&gt;
-
-&lt;p&gt;Going back to our example, let’s assume that our backoff delay is 100 milliseconds.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-   &lt;thead&gt;
-   &lt;tr&gt;
-      &lt;th&gt;&lt;strong&gt;Retry Attempt&lt;/strong&gt;
-      &lt;/th&gt;
-      &lt;th&gt;&lt;strong&gt;Delay&lt;/strong&gt;
-      &lt;/th&gt;
-   &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-   &lt;tr&gt;
-      &lt;td&gt;1
-      &lt;/td&gt;
-      &lt;td&gt;1 x 100ms = 100ms
-      &lt;/td&gt;
-   &lt;/tr&gt;
-   &lt;tr&gt;
-      &lt;td&gt;2
-      &lt;/td&gt;
-      &lt;td&gt;2 x 100ms = 200ms
-      &lt;/td&gt;
-   &lt;/tr&gt;
-   &lt;tr&gt;
-      &lt;td&gt;5
-      &lt;/td&gt;
-      &lt;td&gt;5 x 100ms = 500ms
-      &lt;/td&gt;
-   &lt;/tr&gt;
-   &lt;tr&gt;
-      &lt;td&gt;10
-      &lt;/td&gt;
-      &lt;td&gt;10 x 100mx = 1,000ms
-      &lt;/td&gt;
-   &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;The underlying theory here is that if a request has already failed a few times, then it has an increased likelihood of failing again. We, therefore, want to give the upstream service the greater chance to recover and be able to fulfill our request.&lt;/p&gt;
-
-&lt;p&gt;By increasing the delay, we are not only giving it more time to recover, but we are spreading out the load of our requests and retries. In cases where the request failure is caused by the upstream service being overloaded, this spreading out of the load also gives us a greater chance of success.&lt;/p&gt;
-
-&lt;h3 id=&quot;jitter&quot;&gt;Jitter&lt;/h3&gt;
-
-&lt;p&gt;With backoff in-place, we have a way to spread out the load we are sending to our upstream service. However, the load will still be &lt;em&gt;spiky&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;Let’s say we make 10,000 requests and they all fail because the upstream service cannot handle that amount of simultaneous requests. Following our simple backoff implementation from earlier, after 100ms delay we would retry all 10,000 requests which would also fail for the same reason. To avoid this, the retry implementation includes &lt;strong&gt;jitter&lt;/strong&gt;. Jitter is the process of increasing or decreasing the delay from the standard to further spread out the load. In our example, this might mean that our 10,000 requests are delayed between 70-150ms (for the first retry attempt) by a random amount.&lt;/p&gt;
-
-&lt;p&gt;The goal here is similar to above, which is to smooth out the request load.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: For purposes of this article we’ve provided a vastly over-simplified definition of backoff and jitter. If you would like a more in-depth description, please read &lt;a href=&quot;https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/&quot;&gt;this article&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;settings&quot;&gt;Settings&lt;/h3&gt;
-
-&lt;p&gt;In Grab, we have implemented our own retry library inspired by this &lt;a href=&quot;https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/&quot;&gt;AWS blog article&lt;/a&gt;. In this library we have the following settings:&lt;/p&gt;
-
-&lt;h4 id=&quot;maximum-retries&quot;&gt;Maximum Retries&lt;/h4&gt;
-
-&lt;p&gt;This value indicates how many times a request can be retried before giving up (failing).&lt;/p&gt;
-
-&lt;h4 id=&quot;retry-filter&quot;&gt;Retry Filter&lt;/h4&gt;
-
-&lt;p&gt;This is a function that processes the returned error and decides if the request should be retried.&lt;/p&gt;
-
-&lt;h4 id=&quot;base-and-max-delay&quot;&gt;Base and Max Delay&lt;/h4&gt;
-
-&lt;p&gt;When we combine the concepts of &lt;strong&gt;backoff&lt;/strong&gt; and &lt;strong&gt;jitter&lt;/strong&gt;, we are left with these two settings.&lt;/p&gt;
-
-&lt;p&gt;The base delay is the &lt;strong&gt;minimum&lt;/strong&gt; backoff delay between attempts, while the max delay is the &lt;strong&gt;maximum&lt;/strong&gt; delay between attempts.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: The actual delay will always be between these the values for Base and Max Delays and will also be based on the attempt number (number of previous failures).&lt;/p&gt;
-
-&lt;h3 id=&quot;time-boxing-requests&quot;&gt;Time-boxing requests&lt;/h3&gt;
-
-&lt;p&gt;While the underlying goal of the retry mechanism is to do everything possible to fulfill our user’s request by retrying until we successfully complete the request, we cannot try forever.&lt;/p&gt;
-
-&lt;p&gt;At some point, we need to give up and allow the failure.&lt;/p&gt;
-
-&lt;p&gt;When configuring the retry mechanism, it is essential to tune the &lt;strong&gt;Maximum Retries&lt;/strong&gt;, &lt;strong&gt;Request Timeout&lt;/strong&gt;, and &lt;strong&gt;Maximum Delay&lt;/strong&gt; together. The target to keep in mind when tuning these values is the worst-case response time to our customer.&lt;/p&gt;
-
-&lt;p&gt;The worst-case response time can be calculated as: &lt;strong&gt;(maximum retries x request timeout) + (maximum retries x maximum delay)&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;For example:&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-&lt;thead&gt;
-  &lt;tr&gt;
-   &lt;th&gt;&lt;strong&gt;Max Retries&lt;/strong&gt;
-   &lt;/th&gt;
-   &lt;th&gt;&lt;strong&gt;Request Timeout (ms)&lt;/strong&gt;
-   &lt;/th&gt;
-   &lt;th&gt;&lt;strong&gt;Maximum Delay (ms)&lt;/strong&gt;
-   &lt;/th&gt;
-   &lt;th&gt;&lt;strong&gt;Total Time for first attempt and retries&lt;/strong&gt;
-   &lt;/th&gt;
-   &lt;th&gt;&lt;strong&gt;Total time for delays&lt;/strong&gt;
-   &lt;/th&gt;
-   &lt;th&gt;&lt;strong&gt;Total Time Overall (ms)&lt;/strong&gt;
-   &lt;/th&gt;
-  &lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-  &lt;tr&gt;
-   &lt;td&gt;2
-   &lt;/td&gt;
-   &lt;td&gt;100
-   &lt;/td&gt;
-   &lt;td&gt;200
-   &lt;/td&gt;
-   &lt;td&gt;3 x 100
-   &lt;/td&gt;
-   &lt;td&gt;2 x 200
-   &lt;/td&gt;
-   &lt;td&gt;
-800
-
-   &lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-   &lt;td&gt;5
-   &lt;/td&gt;
-   &lt;td&gt;100
-   &lt;/td&gt;
-   &lt;td&gt;200
-   &lt;/td&gt;
-   &lt;td&gt;6 x 100
-   &lt;/td&gt;
-   &lt;td&gt;5 x 200
-   &lt;/td&gt;
-   &lt;td&gt;
-1,600
-
-   &lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-   &lt;td&gt;3
-   &lt;/td&gt;
-   &lt;td&gt;500
-   &lt;/td&gt;
-   &lt;td&gt;200
-   &lt;/td&gt;
-   &lt;td&gt;4 x 500
-   &lt;/td&gt;
-   &lt;td&gt;3 x 200
-   &lt;/td&gt;
-   &lt;td&gt;
-2,600
-
-   &lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;You can see from this table how the total amount of time taken very quickly escalates.&lt;/p&gt;
-
-&lt;h2 id=&quot;circuit-breakers-vs-retries&quot;&gt;Circuit Breakers vs Retries&lt;/h2&gt;
-
-&lt;p&gt;Some of the original discussions that started this series was centered around one question “&lt;em&gt;why use a circuit-breaker when you can just retry?&lt;/em&gt;” Let’s dig into this a little deeper.&lt;/p&gt;
-
-&lt;h3 id=&quot;communication-with-retries-only&quot;&gt;Communication with Retries only&lt;/h3&gt;
-
-&lt;p&gt;Assuming we take sufficient time to plan, track and tune our retry settings, a system that only has retries will have an excellent chance of successfully achieving our goals by merely retrying.&lt;/p&gt;
-
-&lt;p&gt;Consider our earlier example:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/designing-resilient-systems-part-2/image4.png&quot; alt=&quot;alt_text&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;In this simple example, setting our retry count to 1 would ensure that we would achieve our goals. If the first attempt went to the broken host, we would merely retry and be load-balanced to the other working host.&lt;/p&gt;
-
-&lt;p&gt;Sounds good right? So where is the downside? Let’s consider a failure scenario where our broken host does not throw an error immediately but instead never responds. This means:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;When routed to the working host first then the response time would be fast, whatever the processing time of the working host is.&lt;/li&gt;
-  &lt;li&gt;When routed to the broken host first then the response time would be equal to our &lt;strong&gt;Request Timeout&lt;/strong&gt; setting plus the processing time of the working host.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;As you can imagine, if we had more hosts and in particular more broken hosts, then we would require a higher setting for &lt;strong&gt;Maximum Retries&lt;/strong&gt;, and this would result in higher potential response time (i.e. multiples of the &lt;strong&gt;Request Timeout&lt;/strong&gt; setting).&lt;/p&gt;
-
-&lt;p&gt;Now consider the worst-case scenario -  when all the upstream hosts are down. All of our requests will take at least &lt;strong&gt;Maximum Retries x Request Timeout&lt;/strong&gt; to complete. This situation is referred to as &lt;strong&gt;cascading failure&lt;/strong&gt; (&lt;a href=&quot;https://en.wikipedia.org/wiki/Cascading_failure&quot;&gt;more info&lt;/a&gt;).&lt;/p&gt;
-
-&lt;p&gt;Another form of cascading failure occurs when the load that should be handled by a broken host is added to a working host, causing the working host to become overloaded.&lt;/p&gt;
-
-&lt;p&gt;For example, if in our above example, we have 2 hosts that are capable of handling 10k requests/second each. If we currently have 15k requests/second, then our load balancer has spread the load, and we have 7.5k requests/second on each.&lt;/p&gt;
-
-&lt;p&gt;However, because all requests to the broken host are retried on the working host, our working host suddenly has to handle its original 7.5k requests plus 7.5k retries giving it 15k requests/second to handle, which it cannot.&lt;/p&gt;
-
-&lt;h3 id=&quot;communication-with-circuit-breaker-only&quot;&gt;Communication with Circuit Breaker only&lt;/h3&gt;
-
-&lt;p&gt;But what if you only implemented a circuit breaker and no retries? There are two factors to note in this scenario. Firstly, the error rate of our system is the error rate that is seen by our users. For example, if our system has a 10% error rate then 10% of our users would receive an error.&lt;/p&gt;
-
-&lt;p&gt;Secondly, should our error rate exceed the &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; then the circuit would open, and then 100% of our users would get an error even though there are hosts that could successfully process the request.&lt;/p&gt;
-
-&lt;h3 id=&quot;circuit-breaker-and-retries&quot;&gt;Circuit Breaker and Retries&lt;/h3&gt;
-
-&lt;p&gt;The third option is of course to adopt both circuit breaker and retry mechanisms.&lt;/p&gt;
-
-&lt;p&gt;Taking the same example we used in the previous section, if we were to retry the 10% of requests that failed once, 90% of those requests would pass on the second attempt. Our success rate would then go from the original &lt;strong&gt;90%&lt;/strong&gt; to &lt;strong&gt;90% + ( 90% x 10%) = 99%&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Perhaps another interesting side-effect of retrying and successfully completing the request is the effect that it has on the circuit itself. In our example, our error rate has moved from &lt;strong&gt;10%&lt;/strong&gt; to &lt;strong&gt;1%&lt;/strong&gt;. This significant reduction in our error rate means that our circuit is far less likely to open and prevent all requests.&lt;/p&gt;
-
-&lt;h3 id=&quot;circuit-breaker-inside-retries--retries-inside-circuit-breaker&quot;&gt;Circuit Breaker inside Retries / Retries inside Circuit Breaker&lt;/h3&gt;
-
-&lt;p&gt;It might seem strange but it is imperative that you spend some time considering the order in which you place the mechanisms.&lt;/p&gt;
-
-&lt;p&gt;For example, when you have the retry mechanism inside the circuit breaker, then when the circuit breaker sees a failure, this means that we have already attempted retries several times and still failed. An error in this situation should be rather unlikely. By extension then we should consider using a very low &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; as the trigger to open the circuit.&lt;/p&gt;
-
-&lt;p&gt;On the other hand, when we have a circuit breaker inside a retry mechanism, then when the retry mechanism sees a failure, this means either the circuit is open, or we have failed an individual request. In this configuration, the circuit breaker is monitoring all of the individual requests instead of the batch in the previous. As such, errors are going to be much more frequent. We, therefore, should consider a high &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; before opening the circuit. This configuration is also the only way to achieve &lt;em&gt;circuit breaker per host&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;The second configuration is by far my preferred option. I prefer it because:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The circuit breaker is monitoring all requests.&lt;/li&gt;
-  &lt;li&gt;The circuit is not unduly influenced by one bad request. For example, a request with a large payload might fail when sent to all hosts, but all other requests are fine. If we have a low &lt;strong&gt;Error Percent Threshold&lt;/strong&gt; setting, this might unduly influence the circuit.&lt;/li&gt;
-  &lt;li&gt;I like to ensure that bulwark inside our circuit breaker implementation also protects the upstream service from excessive requests, which it does more effectively when tracking individual requests&lt;/li&gt;
-  &lt;li&gt;If I set the &lt;strong&gt;Timeout&lt;/strong&gt; setting on my circuit to some huge number (e.g. 1 hour), then I can effectively ignore it and the calculation of my maximum possible time spent calling the upstream service is simplified to &lt;strong&gt;(maximum retries x request timeout) + (maximum retries x maximum delay)&lt;/strong&gt;.  Yes, this is not so simple, but it is one less setting to worry about.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;final-thoughts&quot;&gt;Final Thoughts&lt;/h2&gt;
-
-&lt;p&gt;In this two-part series, we have introduced two beneficial software mechanisms that can increase the reliability of our communications with external upstream services.&lt;/p&gt;
-
-&lt;p&gt;We have discussed how they work, how to configure them, and some of the less obvious issues that we must consider when using them.&lt;/p&gt;
-
-&lt;p&gt;While it is possible to use them separately, for me, it should never be a question of if you should have a circuit breaker or a retry mechanism. Where possible you should always have both. With the bulwark thrown in for free in our circuit breaker implementation, it gets even better.&lt;/p&gt;
-
-&lt;p&gt;The only thing that could make working with an upstream service even better for me, (e.g. more reliable and potentially faster) would be to add a cache in front of it all. But we’ll save that for another article.&lt;/p&gt;
-
-&lt;p&gt;I hope you have enjoyed this series and found it useful. Comments, corrections, and even considered disagreements are always welcome.&lt;/p&gt;
-
-&lt;p&gt;Happy Coding!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 08 Jan 2019 10:55:40 +0000</pubDate>
-        <link>https://engineering.grab.com/designing-resilient-systems-part-2</link>
-        <guid isPermaLink="true">https://engineering.grab.com/designing-resilient-systems-part-2</guid>
-        
-        <category>Resiliency</category>
-        
-        <category>Circuit Breakers</category>
         
         
         <category>Engineering</category>
