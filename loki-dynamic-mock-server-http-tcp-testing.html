@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Loki, a dynamic mock server for HTTP/TCP testing</title>
+    <meta name="description" content="Read our blog to know how Loki, a dynamic mock server, makes local box testing of mobile apps easy, repeatable, and exhaustive. It supports both HTTP and TCP protocols and can provide dynamic runtime responses.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing">
+    <meta property="og:title" content="Loki, a dynamic mock server for HTTP/TCP testing">
+    <meta property="og:description" content="Read our blog to know how Loki, a dynamic mock server, makes local box testing of mobile apps easy, repeatable, and exhaustive. It supports both HTTP and TCP protocols and can provide dynamic runtime responses.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/loki-dynamic-mock-server-http-tcp-testing/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/thuy-nguyent.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/mayank-gupta.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/vishal-prakash.jpg">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/vineet-nair.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Loki, a dynamic mock server for HTTP/TCP testing</h1>
+      <div class="post-meta">
+        10 Apr 2019
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#thuy-nguyent">Thuy Nguyen</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#mayank-gupta">Mayank Gupta</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#vishal-prakash">Vishal Prakash</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#vineet-nair">K.Vineet Nair</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#back-end" class="label tags-label">Back End</a>
+  
+    <a href="/tags#mobile" class="label tags-label">Mobile</a>
+  
+    <a href="/tags#service" class="label tags-label">Service</a>
+  
+    <a href="/tags#testing" class="label tags-label">Testing</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <h1 id="background">Background</h1>
+
+<p>In a previous article we introduced <a href="https://engineering.grab.com/mockers">Mockers - an innovative tool for local box testing at Grab</a>. Mockers used a <a href="https://en.wikipedia.org/wiki/Shift_left_testing">Shift Left testing strategy</a>, making testing more effective and cheaper for development teams. Mockers’ popularity and success motivated us to create Loki - a one-stop dynamic mock server for local box testing of mobile apps.</p>
+
+<p>There are some unique challenges in mobile apps testing at Grab. End-to-end testing of an app is difficult due to high dependency on backend services and other apps. Staging environment, which hosts a plethora of backend services, is tough to manage and maintain. Issues such as staging downtime, configuration mismatches, and data corruption can affect staging adding to the testing woes. Moreover, our apps are fairly complex, utilizing multiple transport protocols such as HTTP, HTTPS, TCP for various business flows.</p>
+
+<p>The business flows are also complex, requiring exhaustive set up such as credit card payments set up, location spoofing, etc resulting in high maintenance costs for automated testing. Loki simulates these flows and developers can easily test use cases that take longer to set up in a real backend staging.</p>
+
+<p>Loki is our attempt to address challenges in mobile app testing by turning every developer local box into a full fledged pseudo backend environment where all mobile workflows can be tested without any external dependencies. It mocks backend services on developer local boxes, decoupling the mobile apps from real backend services, which provides several advantages such as:</p>
+
+<p><strong>No need to deploy frequently to staging</strong></p>
+
+<p>Testing is blocked if the app receives a bad response from staging. In these cases, code changes have to be deployed on staging to fix issues before resuming tests. In contrast, using Loki lets developers continue testing without any immediate need to deploy code changes to staging.</p>
+
+<p><strong>Allows parallel frontend and backend development</strong></p>
+
+<p>Loki acts as a mock backend service when the real backend is still evolving. It lets the frontend development run in parallel with backend development.</p>
+
+<p><strong>Overcome time limitations</strong></p>
+
+<p>In a one week regression-and-release scenario, testing time is limited. However, the application UI rendering and functionality still needs reasonable testing. Loki lets developers concentrate on testing in the available time instead of fixing dependencies on backend services.</p>
+
+<h1 id="loki---grabs-solution-to-simplify-mobile-apps-testing">Loki - Grab’s solution to simplify mobile apps testing</h1>
+
+<p>At Grab, we have multiple mobile apps that are dependent on each other. For example, our Passenger and Driver apps are two sides of a coin; the driver gets a job card only when a passenger requests a booking. These apps are developed by different teams, each with its own release cycle. This can make it tricky to confidently and repeatedly test the whole business flow across apps. Apps also depend on multiple backend services to execute a booking or food order and communicate over different protocols.</p>
+
+<p>Here’s a look at how our mobile apps interact with backend services over different protocols:</p>
+
+<div class="post-image-section">
+  <img alt="Mobile app interaction with backend services" src="/img/loki-dynamic-mock-server-http-tcp-testing/image6.png" />
+</div>
+
+<p>Loki is a dynamic mock server, written in Golang, running in a Docker container on the local box or in CI. It is easy to set up and run through standard Docker commands. In the context of mobile app testing, it plays the role of backend services, so you no longer need to set up an extensive staging environment.</p>
+
+<p>The Loki architecture looks like this:</p>
+
+<div class="post-image-section">
+  <img alt="Loki architecture" src="/img/loki-dynamic-mock-server-http-tcp-testing/image3.png" />
+</div>
+
+<h1 id="the-technical-challenges-we-had-to-overcome">The technical challenges we had to overcome</h1>
+
+<p>We wanted a comprehensive mocking solution so that teams don’t need to integrate multiple tools to achieve independent testing. It turned out that mocking TCP was most challenging because:</p>
+
+<ul>
+  <li>It is a long running client-server connection, and it doesn’t follow an HTTP-like request/response pattern.</li>
+  <li>Messages can be sent to the app without an incoming request as well, hence we had to expose a way via Loki to set a mock expectation which can send messages to the app without any request triggering it.</li>
+  <li>As TCP is a long running connection, we needed a way to delimit incoming requests so we know when we can truncate and deserialize the incoming request into JSON.</li>
+</ul>
+
+<p>We engineered the Loki backend to support both HTTP and TCP protocols on different ports. Yet, the mock expectations are set up using RESTful APIs over HTTP for both protocols. A single point of entry for setting expectations made it more intuitive for our developers.</p>
+
+<p>An in-memory cron implementation pushes scheduled messages to the app over a TCP connection. This enabled testing of complex use cases such as drivers getting new job cards, driver and passenger chat workflows, etc. The delimiter for TCP protocol is configurable at start up, so each team can decide when to truncate the request.</p>
+
+<p>To enable Loki on our CI, we had to reduce its memory footprint. Hence, we built Loki with pluggable storages. MySQL is used when running on local and on CI we switch seamlessly to in-memory cache or Redis.</p>
+
+<p>For testing apps locally, developers must validate complex use cases such as:</p>
+
+<ul>
+  <li>
+    <p>Payment related flows, which require the response to include the same payment ID as sent in the request. This is a case of simple mapping of request fields in the response JSON.</p>
+  </li>
+  <li>
+    <p>Flows requiring runtime logic execution. For example, a job card sent to a driver must have a valid timestamp, requiring runtime computation on Loki.</p>
+  </li>
+</ul>
+
+<p>To support these cases and many more, we added JavaScript injection capability to Loki. So, when we set an expectation for an HTTP request/response pair or for TCP events, we can specify JavaScript for computing the dynamic response. This is executed in a sandbox by an in-house JS execution library.</p>
+
+<p>Grab follows a transactional workflow for bookings. Over the life of a ride, bookings go through different statuses. So, Loki had to address multiple HTTP requests to the same endpoint returning different responses. This feature is required for successfully mocking a whole ride end-to-end.</p>
+
+<p>Loki uses  an HTTP API <code class="highlighter-rouge">“httpTimesAndOrder”</code> for this feature. For example, using <code class="highlighter-rouge">“httpTimesAndOrder”</code>, you can configure the same status endpoint (<code class="highlighter-rouge">/ride/status</code>) to return different ride statuses such as <code class="highlighter-rouge">“PICKING”</code> for the first five requests, <code class="highlighter-rouge">“IN_RIDE”</code> for the next three requests, and so on.</p>
+
+<p>Now, let’s look at how to use Loki to mock HTTP requests and TCP events.</p>
+
+<h1 id="mocking-http-requests">Mocking HTTP requests</h1>
+
+<p>To mock HTTP requests, developers first point their app to send requests to the Loki mock server. Then, they set up expectations for all requests sent to the Loki mock server.</p>
+
+<div class="post-image-section">
+  <img alt="Loki mock server" src="/img/loki-dynamic-mock-server-http-tcp-testing/image4.png" />
+</div>
+
+<p>For example, the Passenger app calls an HTTP dependency <code class="highlighter-rouge">GET /closeby/drivers/</code> to get nearby drivers. To mock it with Loki, you set an expected response on the Loki mock server. When the <code class="highlighter-rouge">GET /closeby/drivers/</code> request is actually made from the Passenger app, Loki returns the set response.</p>
+
+<p>This snippet shows how to set an expected response for the <code class="highlighter-rouge">GET /closeby/drivers/request</code>:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Loki API: POST `/api/v1/expectations`
+
+Request Body :
+
+{
+  "uriToMock": "/closeby/drivers",
+  "method": "GET",
+  "response": {
+    "drivers": [
+      1001,
+      1002,
+      1010
+    ]
+  }
+}
+</code></pre></div></div>
+
+<h2 id="workflowfor-setting-expectations-and-receiving-responses">Workflow for setting expectations and receiving responses</h2>
+
+<div class="post-image-section">
+  <img alt="Workflow for setting expectations and receiving responses" src="/img/loki-dynamic-mock-server-http-tcp-testing/image5.png" />
+</div>
+
+<h1 id="mocking-tcp-events">Mocking TCP events</h1>
+
+<p>Developers point their app to Loki over a TCP connection and set up the TCP expectations. Loki then generates scheduled events such as sending push messages (job cards, notifications, etc) to the apps pointing at Loki.</p>
+
+<p>For example, if the Driver app, after it starts, wants to get a job card, you can set an expectation in Loki to push a job card over the TCP connection to the Driver app after a scheduled time interval.</p>
+
+<p>This snippet shows how to set the TCP expectation and schedule a push message:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Loki API: POST `/api/v1/tcp/expectations/pushmessage`
+
+Request Body :
+
+{
+  "name": "samplePushMsg",
+  "msgSequence": [
+    {
+      "messages": {
+        "body": {
+          "jobCardID": 1001
+        }
+      }
+    },
+    {
+      "messages": {
+        "body": {
+          "jobCardID": 1002
+        }
+      }
+    }
+  ],
+  "schedule": "@every 1m"
+}
+</code></pre></div></div>
+
+<h2 id="workflowfor-scheduling-a-push-message-over-tcp">Workflow for scheduling a push message over TCP</h2>
+
+<p><img src="images/image1.png" alt="" /></p>
+<div class="post-image-section">
+  <img alt="Workflow for scheduling a push message over TCP" src="/img/loki-dynamic-mock-server-http-tcp-testing/image1.png" />
+</div>
+
+<h1 id="some-example-use-cases">Some example use cases</h1>
+
+<p>Now that you know about Loki, let’s look at some example use cases.</p>
+
+<h2 id="generating-a-custom-response-at-runtime">Generating a custom response at runtime</h2>
+
+<p>Our first example is customizing a runtime response for both HTTP and TCP requests. This is helpful when developers need dynamic responses to requests. For example, you can add parameters from the request URL or request body to the runtime response.</p>
+
+<p>It’s simple to implement this with a JavaScript function. Assume you want to embed a message parameter in the request URL to the response. To do this, you first use a POST method to set up the expectation (in JSON format) for the request on Loki:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Loki API: POST `/api/v1/feature/expectations`
+
+Request Body :
+
+{
+  "expectations": [{
+    "name": "Sample call",
+    "desc": "v1/test/{name}",
+    "tags": "v1/test/{name}",
+    "resource": "/v1/test?name=user1",
+    "verb": "POST",
+    "response": {
+      "body": "{ \"msg\": \"Hi \"}",
+      "status": 200
+    },
+    "clientOptions": {
+"javascript": "function main(req, resp) { var url = req.RequestURI; var captured = /name=([^&amp;]+)/.exec(url)[1]; resp.msg =  captured ? resp.msg + captured : resp.msg + 'myDefaultValue'; return resp }"
+    },
+    "isActive": 1
+  }]
+}
+</code></pre></div></div>
+
+<p>When Loki receives the request, the JavaScript function used in the <code class="highlighter-rouge">clientOptionskey</code>, adds <code class="highlighter-rouge">name</code> to the response at runtime. For example, this is the request’s fixed response:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+    "msg": "Hi "
+}
+</code></pre></div></div>
+
+<p>But, after using the JavaScript function to add the URL parameter, the dynamic response is:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+    "msg": "Hi user1"
+}
+</code></pre></div></div>
+
+<p>Similarly, you can use JavaScript to add other dynamic responses such as modifying the response’s JSON array, adding parameters to push messages, etc.</p>
+
+<h2 id="defining-a-response-sequence-for-mocked-api-endpoints">Defining a response sequence for mocked API endpoints</h2>
+
+<p>Here’s another interesting example - defining the response sequence for API endpoints.</p>
+
+<p>A response sequence is useful when you need different responses from the same API endpoint. For example, a status endpoint should return different ride statuses such as ‘allocating’, ‘allocated’, ‘picking’, etc. depending on the stage of a ride.</p>
+
+<p>To do this, developers set up their HTTP expectations on Loki. Then, they easily define the response sequence for an API endpoint using a Loki POST method.</p>
+
+<p>In this example:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">times</code> - specifies the number of times the same response is returned.</li>
+  <li><code class="highlighter-rouge">after</code> - specifies one or more expectations that must match before a specified expectation is matched.</li>
+</ul>
+
+<p>Here, the expectations are matched in this sequence when a request is made to an endpoint - <code class="highlighter-rouge">Allocating</code> &gt; <code class="highlighter-rouge">Allocated</code> &gt; <code class="highlighter-rouge">Pickuser</code> &gt; <code class="highlighter-rouge">Completed</code>. Further, <code class="highlighter-rouge">Completed</code> is set to two times, so Loki returns this response two times.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Loki API: POST `/api/v1/feature/sequence`
+
+Request Body :
+  "httpTimesAndOrder": [
+      {
+          "name": "Allocating",
+          "times": 1
+      },
+      {
+          "name": "Allocated",
+          "times": 1,
+          "after": ["Allocating"]
+      },
+      {
+          "name": "Pickuser",
+          "times": 1,
+          "after": ["Allocated"]
+      },
+      {
+          "name": "Completed",
+          "times": 2,
+          "after": ["Pickuser"]
+      }
+  ]
+}
+</code></pre></div></div>
+
+<h1 id="in-conclusion">In conclusion</h1>
+
+<p>Since Loki’s inception, we have set up a full range CI with proper end-to-end app UI tests and, to a great extent, decoupled our app releases from the staging backend. This improved delivery cycles, and we did faster bug catching and more exhaustive testing. Moreover, both developers and QAs can easily play with apps to perform exploratory testing as well as manual functional validations. Teams are also using Loki to run automated scripts (Espresso and XCUItests) for validating the mobile app pages.</p>
+
+<p>Loki’s adoption is growing steadily at Grab. With our frequent release of new mobile app features, Loki helps teams meet our high quality bar and achieve huge productivity gains.</p>
+
+<p>If you have any feedback or questions on Loki, please leave a comment.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#back-end" class="label tags-label">Back End</a>
+  
+    <a href="/tags#mobile" class="label tags-label">Mobile</a>
+  
+    <a href="/tags#service" class="label tags-label">Service</a>
+  
+    <a href="/tags#testing" class="label tags-label">Testing</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Loki, a dynamic mock server for HTTP/TCP testing&url=https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing&title=Loki, a dynamic mock server for HTTP/TCP testing
+&summary=Read our blog to know how Loki, a dynamic mock server, makes local box testing of mobile apps easy, repeatable, and exhaustive. It supports both HTTP and TCP protocols and can provide dynamic runtime responses.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing';
+    this.page.identifier = '/loki-dynamic-mock-server-http-tcp-testing';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
