@@ -37,7 +37,7 @@ But there was still one common pain-point to be solved. Just because a passenger
 
 ## Let’s break it down! How does it work?
 
-Whether you are a local or a foreigner on holiday or business trip, fret not if you are not too familiar with the place that you in!
+Whether you are a local or a foreigner on holiday or business trip, fret not if you are not too familiar with the place that you are in!
 
 Let’s imagine that you are now at Singapore Changi Airport: your new booking experience will look something like this!
 
