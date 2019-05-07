@@ -6,9 +6,356 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 24 Apr 2019 02:29:41 +0000</pubDate>
-    <lastBuildDate>Wed, 24 Apr 2019 02:29:41 +0000</lastBuildDate>
+    <pubDate>Tue, 07 May 2019 04:04:11 +0000</pubDate>
+    <lastBuildDate>Tue, 07 May 2019 04:04:11 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Preventing Pipeline Calls from Crashing Redis Clusters</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;On Feb 15th, 2019, a slave node in Redis, an in-memory data structure storage, failed requiring a replacement. During this period, roughly only 1 in 21 calls to Apollo, a primary transport booking service, succeeded. This brought Grab rides down significantly for the one minute it took the Redis Cluster to self-recover. This behavior was totally unexpected and completely breached our intention of having multiple replicas.&lt;/p&gt;
+
+&lt;p&gt;This blog post describes Grab’s outage post-mortem findings.&lt;/p&gt;
+
+&lt;h1 id=&quot;understanding-the-infrastructure&quot;&gt;Understanding the infrastructure&lt;/h1&gt;
+
+&lt;p&gt;With Grab’s continuous growth, our services must handle large amounts of data traffic involving high processing power for reading and writing operations. To address this significant growth, reduce handler latency, and improve overall performance, many of our services use &lt;em&gt;Redis&lt;/em&gt; - a common in-memory data structure storage - as a cache, database, or message broker. Furthermore, we use a &lt;em&gt;Redis Cluster&lt;/em&gt;, a distributed implementation of Redis, for shorter latency and higher availability.&lt;/p&gt;
+
+&lt;p&gt;Apollo is our driver-side state machine. It is on almost all requests’ critical path and is a primary component for booking transport and providing great service for customer bookings. It stores individual driver availability in an AWS ElastiCache Redis Cluster, letting our booking service efficiently assign jobs to drivers. It’s critical to keep Apollo running and available 24/7.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Apollo's infrastructure&quot; src=&quot;/img/preventing-pipeline-calls-from-crashing-redis-clusters/image1.jpg&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Because of Apollo’s significance, its Redis Cluster has 3 shards each with 2 slaves. It hashes all keys and, according to the hash value, divides them into three partitions. Each partition has two replications to increase reliability.&lt;/p&gt;
+
+&lt;p&gt;We use the Go-Redis client, a popular Redis library, to direct all written queries to the master nodes (which then write to their slaves) to ensure consistency with the database.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Master and slave nodes in the Redis Cluster&quot; src=&quot;/img/preventing-pipeline-calls-from-crashing-redis-clusters/image2.jpg&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;For reading related queries, engineers usually turn on the &lt;code class=&quot;highlighter-rouge&quot;&gt;ReadOnly&lt;/code&gt; flag and turn off the &lt;code class=&quot;highlighter-rouge&quot;&gt;RouteByLatency&lt;/code&gt; flag. These effectively turn on &lt;code class=&quot;highlighter-rouge&quot;&gt;ReadOnlyFromSlaves&lt;/code&gt; in the Grab &lt;code class=&quot;highlighter-rouge&quot;&gt;gredis3&lt;/code&gt; library, so the client directs all reading queries to the slave nodes instead of the master nodes. This load distribution frees up master node CPU usage.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Client reading and writing from/to the Redis Cluster&quot; src=&quot;/img/preventing-pipeline-calls-from-crashing-redis-clusters/image3.jpg&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;When designing a system, we consider potential hardware outages and network issues. We also think of ways to ensure our Redis Cluster is highly efficient and available; setting the above-mentioned flags help us achieve these goals.&lt;/p&gt;
+
+&lt;p&gt;Ideally, this Redis Cluster configuration would not cause issues even if a master or slave node breaks. Apollo should still function smoothly. So, why did that February Apollo outage happen? Why did a single down slave node cause a 95+% call failure rate to the Redis Cluster during the dim-out time?&lt;/p&gt;
+
+&lt;p&gt;Let’s start by discussing how to construct a local Redis Cluster step by step, then try and replicate the outage. We’ll look at the reasons behind the outage and provide suggestions on how to use a Redis Cluster client in Go.&lt;/p&gt;
+
+&lt;h1 id=&quot;how-to-set-up-a-local-redis-cluster&quot;&gt;How to set up a local Redis Cluster&lt;/h1&gt;
+
+&lt;p&gt;1. Download and install Redis from &lt;a href=&quot;https://redis.io/download&amp;amp;sa=D&amp;amp;ust=1557136452324000&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;2. Set up configuration files for each node. For example, in Apollo, we have 9 nodes, so we need to create 9 files like this with different port numbers(x).&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;// file_name: node_x.conf (do not include this line in file)
+
+port 600x
+
+cluster-enabled yes
+
+cluster-config-file cluster-node-x.conf
+
+cluster-node-timeout 5000
+
+appendonly yes
+
+appendfilename node-x.aof
+
+dbfilename dump-x.rdb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;3. Initiate each node in an individual terminal tab with:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$PATH/redis-4.0.9/src/redis-server node_1.conf
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;4. Use this Ruby script to create a Redis Cluster. (Each master has two slaves.)&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$PATH/redis-4.0.9/src/redis-trib.rb create --replicas 2127.0.0.1:6001..... 127.0.0.1:6009
+
+&amp;gt;&amp;gt;&amp;gt; Performing Cluster Check (using node 127.0.0.1:6001)
+
+M: 7b4a5d9a421d45714e533618e4a2b3becc5f8913 127.0.0.1:6001
+
+   slots:0-5460 (5461 slots) master
+
+   2 additional replica(s)
+
+S: 07272db642467a07d515367c677e3e3428b7b998 127.0.0.1:6007
+
+   slots: (0 slots) slave
+
+   replicates 05363c0ad70a2993db893434b9f61983a6fc0bf8
+
+S: 65a9b839cd18dcae9b5c4f310b05af7627f2185b 127.0.0.1:6004
+
+   slots: (0 slots) slave
+
+   replicates 7b4a5d9a421d45714e533618e4a2b3becc5f8913
+
+M: 05363c0ad70a2993db893434b9f61983a6fc0bf8 127.0.0.1:6003
+
+   slots:10923-16383 (5461 slots) master
+
+   2 additional replica(s)
+
+S: a78586a7343be88393fe40498609734b787d3b01 127.0.0.1:6006
+
+   slots: (0 slots) slave
+
+   replicates 72306f44d3ffa773810c810cfdd53c856cfda893
+
+S: e94c150d910997e90ea6f1100034af7e8b3e0cdf 127.0.0.1:6005
+
+   slots: (0 slots) slave
+
+   replicates 05363c0ad70a2993db893434b9f61983a6fc0bf8
+
+M: 72306f44d3ffa773810c810cfdd53c856cfda893 127.0.0.1:6002
+
+   slots:5461-10922 (5462 slots) master
+
+   2 additional replica(s)
+
+S: ac6ffbf25f48b1726fe8d5c4ac7597d07987bcd7 127.0.0.1:6009
+
+   slots: (0 slots) slave
+
+   replicates 7b4a5d9a421d45714e533618e4a2b3becc5f8913
+
+S: bc56b2960018032d0707307725766ec81e7d43d9 127.0.0.1:6008
+
+   slots: (0 slots) slave
+
+   replicates 72306f44d3ffa773810c810cfdd53c856cfda893
+
+[OK] All nodes agree about slots configuration.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;5. Finally, we try to send queries to our Redis Cluster, e.g.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$PATH/redis-4.0.9/src/redis-cli -c -p 6001 hset driverID 100 state available updated_at 11111
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;what-happens-when-nodes-become-unreachable&quot;&gt;What happens when nodes become unreachable?&lt;/h1&gt;
+
+&lt;h2 id=&quot;redis-cluster-server&quot;&gt;Redis Cluster Server&lt;/h2&gt;
+
+&lt;p&gt;As long as the majority of a Redis Cluster’s masters and at least one slave node for each unreachable master are reachable, the cluster is accessible. It can survive even if a few nodes fail.&lt;/p&gt;
+
+&lt;p&gt;Let’s say we have N masters, each with K slaves, and random T nodes become unreachable. This algorithm calculates the Redis Cluster failure rate percentage:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;if T &amp;lt;= K:
+        availability = 100%
+else:
+        availability = 100% - (1/(N*K - T))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;If you successfully built your own Redis Cluster locally, try to kill any node with a simple &lt;code class=&quot;highlighter-rouge&quot;&gt;command-c&lt;/code&gt;. The Redis Cluster broadcasts to all nodes that the killed node is now unreachable, so other nodes no longer direct traffic to that port.&lt;/p&gt;
+
+&lt;p&gt;If you bring this node back up, all nodes know it’s reachable again. If you kill a master node, the Redis Cluster promotes a slave node to a temp master for writing queries.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$PATH/redis-4.0.9/src/redis-server node_x.conf
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;With this information, we can’t answer the big question of why a single slave node failure caused an over 95% failure rate in the Apollo outage. Per the above theory, the Redis Cluster should still be 100% available. So, the Redis Cluster server could properly handle an outage, and we concluded it wasn’t the failure rate’s cause. So we looked at the client side and Apollo’s queries.&lt;/p&gt;
+
+&lt;h2 id=&quot;golang-redis-cluster-client--apollo-queries&quot;&gt;Golang Redis Cluster Client &amp;amp; Apollo Queries&lt;/h2&gt;
+
+&lt;p&gt;Apollo’s client side is based on the &lt;a href=&quot;https://github.com/go-redis/redis/blob/master/cluster.go&quot;&gt;Go-Redis Library&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;During the Apollo outage, we found some code returned many errors during certain pipeline GET calls. When Apollo tried to send a pipeline of HMGET calls to its Redis Cluster, the pipeline returned errors.&lt;/p&gt;
+
+&lt;p&gt;First, we looked at the pipeline implementation code in the &lt;a href=&quot;https://github.com/go-redis/redis/blob/9ecae37814bc6623672ec8967e2b322b23fd4540/cluster.go%23L1205&quot;&gt;Go-Redis library&lt;/a&gt;. In the function &lt;code class=&quot;highlighter-rouge&quot;&gt;defaultProcessPipeline&lt;/code&gt;, the code assigns each command to a Redis node in this line &lt;code class=&quot;highlighter-rouge&quot;&gt;err:=c.mapCmdsByNode(cmds, cmdsMap)&lt;/code&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;func (c *ClusterClient) mapCmdsByNode(cmds []Cmder, cmdsMap *cmdsMap) error {
+state, err := c.state.Get()
+        if err != nil {
+                setCmdsErr(cmds, err)
+                returnerr
+        }
+
+        cmdsAreReadOnly := c.cmdsAreReadOnly(cmds)
+        for_, cmd := range cmds {
+                var node *clusterNode
+                var err error
+                if cmdsAreReadOnly {
+                        _, node, err = c.cmdSlotAndNode(cmd)
+                } else {
+                        slot := c.cmdSlot(cmd)
+                        node, err = state.slotMasterNode(slot)
+                }
+                if err != nil {
+                        returnerr
+                }
+                cmdsMap.mu.Lock()
+                cmdsMap.m[node] = append(cmdsMap.m[node], cmd)
+                cmdsMap.mu.Unlock()
+        }
+        return nil
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Next, since the &lt;code class=&quot;highlighter-rouge&quot;&gt;readOnly&lt;/code&gt; flag is on, we look at the &lt;code class=&quot;highlighter-rouge&quot;&gt;cmdSlotAndNode&lt;/code&gt; function. As mentioned earlier, you can get better performance by setting &lt;code class=&quot;highlighter-rouge&quot;&gt;readOnlyFromSlaves&lt;/code&gt; to true, which sets &lt;code class=&quot;highlighter-rouge&quot;&gt;RouteByLatency&lt;/code&gt; to false. By doing this, &lt;code class=&quot;highlighter-rouge&quot;&gt;RouteByLatency&lt;/code&gt; will not take priority and the master does not receive the read commands.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;func (c *ClusterClient) cmdSlotAndNode(cmd Cmder) (int, *clusterNode, error) {
+        state, err := c.state.Get()
+        if err != nil {
+                return 0, nil, err
+        }
+
+        cmdInfo := c.cmdInfo(cmd.Name())
+        slot := cmdSlot(cmd, cmdFirstKeyPos(cmd, cmdInfo))
+
+        if c.opt.ReadOnly &amp;amp;&amp;amp; cmdInfo != nil &amp;amp;&amp;amp; cmdInfo.ReadOnly {
+                if c.opt.RouteByLatency {
+                        node, err:= state.slotClosestNode(slot)
+                        return slot, node, err
+                }
+
+                if c.opt.RouteRandomly {
+                        node:= state.slotRandomNode(slot)
+                        return slot, node, nil
+                }
+
+                node, err:= state.slotSlaveNode(slot)
+                return slot, node, err
+        }
+
+        node, err:= state.slotMasterNode(slot)
+        return slot, node, err
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now, let’s try and better understand the outage.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;When a slave becomes unreachable, all commands assigned to that slave node fail.&lt;/li&gt;
+  &lt;li&gt;We found in Grab’s Redis library code that a single error in all cmds could cause the entire pipeline to fail.&lt;/li&gt;
+  &lt;li&gt;In addition, engineers return a failure in their code if &lt;code class=&quot;highlighter-rouge&quot;&gt;err != nil&lt;/code&gt;. This explains the high failure rate during the outage.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;func (w *goRedisWrapperImpl) getResultFromCommands(cmds []goredis.Cmder) ([]gredisapi.ReplyPair, error) {
+        results := make([]gredisapi.ReplyPair, len(cmds))
+        var err error
+        for idx, cmd := range cmds {
+                results[idx].Value, results[idx].Err = cmd.(*goredis.Cmd).Result()
+                if results[idx].Err == goredis.Nil {
+                        results[idx].Err = nil
+                        continue
+                }
+                if err == nil &amp;amp;&amp;amp; results[idx].Err != nil {
+                        err = results[idx].Err
+                }
+        }
+
+        return results, err
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Our next question was, “Why did it take almost one minute for Apollo to recover?”.  The Redis Cluster broadcasts instantly to its other nodes when one node is unreachable. So we looked at how the client assigns jobs.&lt;/p&gt;
+
+&lt;p&gt;When the Redis Cluster client loads the node states, it only refreshes the state once a minute. So there’s a maximum one minute delay of state changes between the client and server. Within that minute, the Redis client kept sending queries to that unreachable slave node.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;func (c *clusterStateHolder) Get() (*clusterState, error) {
+        v := c.state.Load()
+        if v != nil {
+                state := v.(*clusterState)
+                if time.Since(state.createdAt) &amp;gt; time.Minute {
+                        c.LazyReload()
+                }
+                return state, nil
+        }
+        return c.Reload()
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;What happened to the write queries? Did we lose new data during that one min gap? That’s a very good question! The answer is no since all write queries only went to the master nodes and the Redis Cluster client with a watcher for the master nodes. So, whenever any master node becomes unreachable, the client is not oblivious to the change in state and is well aware of the current state. See the &lt;a href=&quot;https://github.com/go-redis/redis/blob/9ecae37814bc6623672ec8967e2b322b23fd4540/cluster.go%23L825&quot;&gt;Watcher code&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h1 id=&quot;how-to-use-go-redis-safely&quot;&gt;How to use Go Redis safely?&lt;/h1&gt;
+
+&lt;h2 id=&quot;redis-cluster-client&quot;&gt;Redis Cluster Client&lt;/h2&gt;
+
+&lt;p&gt;One way to avoid a potential outage like our Apollo outage is to create another Redis Cluster client for pipelining only and with a true &lt;code class=&quot;highlighter-rouge&quot;&gt;RouteByLatency&lt;/code&gt; value. The Redis Cluster determines the latency according to ping calls to its server.&lt;/p&gt;
+
+&lt;p&gt;In this case, all pipelining queries would read through the master nodesif the latency is less than 1ms (&lt;a href=&quot;https://github.com/go-redis/redis/blob/master/cluster.go%23L541&quot;&gt;code&lt;/a&gt;), and as long as the majority side of partitions are alive, the client will get the expected results. More load would go to master with this setting, so be careful about CPU usage in the master nodes when you make the change.&lt;/p&gt;
+
+&lt;h2 id=&quot;pipeline-usage&quot;&gt;Pipeline Usage&lt;/h2&gt;
+
+&lt;p&gt;In some cases, the master nodes might not handle so much traffic. Another way to mitigate the impact of an outage is to check for  errors on individual queries when errors happen in a pipeline call.&lt;/p&gt;
+
+&lt;p&gt;In Grab’s Redis Cluster library, the function &lt;code class=&quot;highlighter-rouge&quot;&gt;Pipeline(PipelineReadOnly)&lt;/code&gt; returns a response with an error for individual reply.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;func (c *clientImpl) Pipeline(ctx context.Context, argsList [][]interface{}) ([]gredisapi.ReplyPair, error) {
+        defer c.stats.Duration(statsPkgName, metricElapsed, time.Now(), c.getTags(tagFunctionPipeline)...)
+        pipe := c.wrappedClient.Pipeline()
+        cmds := make([]goredis.Cmder, len(argsList))
+        for i, args := range argsList {
+                cmd := goredis.NewCmd(args...)
+                cmds[i] = cmd
+                _ = pipe.Process(cmd)
+        }
+        _, _ = pipe.Exec()
+        return c.wrappedClient.getResultFromCommands(cmds)
+}
+
+func (w *goRedisWrapperImpl) getResultFromCommands(cmds []goredis.Cmder) ([]gredisapi.ReplyPair, error) {
+        results := make([]gredisapi.ReplyPair, len(cmds))
+        var err error
+        for idx, cmd := range cmds {
+                results[idx].Value, results[idx].Err = cmd.(*goredis.Cmd).Result()
+                if results[idx].Err == goredis.Nil {
+                        results[idx].Err = nil
+                        continue
+                }
+                if err == nil &amp;amp;&amp;amp; results[idx].Err != nil {
+                        err = results[idx].Err
+                }
+        }
+
+        return results, err
+}
+
+type ReplyPair struct {
+        Value interface{}
+        Err   error
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;Instead of returning nil or an error message when &lt;code class=&quot;highlighter-rouge&quot;&gt;err != nil&lt;/code&gt;, we could check for errors for each result so successful queries are not affected. This might have minimized the outage’s business impact.&lt;/p&gt;
+
+&lt;h2 id=&quot;go-redis-cluster-library&quot;&gt;Go Redis Cluster Library&lt;/h2&gt;
+
+&lt;p&gt;One way to fix the Redis Cluster library is to reload nodes’ status when an error happens.In the go-redis library, &lt;code class=&quot;highlighter-rouge&quot;&gt;defaultProcessor&lt;/code&gt; &lt;a href=&quot;https://github.com/go-redis/redis/blob/9ecae37814bc6623672ec8967e2b322b23fd4540/cluster.go%23L941&quot;&gt;has this logic&lt;/a&gt;, which can be applied to &lt;code class=&quot;highlighter-rouge&quot;&gt;defaultProcessPipeline&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h1 id=&quot;in-conclusion&quot;&gt;In Conclusion&lt;/h1&gt;
+
+&lt;p&gt;We’ve shown how to build a local Redis Cluster server, explained how Redis Clusters work, and identified its potential risks and solutions. Redis Cluster is a great tool to optimize service performance, but there are potential risks when using it. Please carefully consider our points about how to best use it. If you have any questions, please ask them in the comments section.&lt;/p&gt;
+</description>
+        <pubDate>Sun, 05 May 2019 18:43:40 +0000</pubDate>
+        <link>https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters</link>
+        <guid isPermaLink="true">https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters</guid>
+        
+        <category>Grab</category>
+        
+        <category>Backend</category>
+        
+        <category>Redis</category>
+        
+        <category>Redis Cluster</category>
+        
+        <category>Go</category>
+        
+        
+        <category>grab-engineering</category>
+        
+      </item>
     
       <item>
         <title>Guiding you Door-to-Door via our Super App!</title>
@@ -1493,204 +1840,6 @@ Request Body :
         <guid isPermaLink="true">https://engineering.grab.com/structured-logging</guid>
         
         <category>Logging</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>How we simplified our Data Ingestion &amp; Transformation Process</title>
-        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
-
-&lt;p&gt;As Grab grew from a small startup to an organisation serving millions of customers and driver partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.&lt;/p&gt;
-
-&lt;p&gt;Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab scale it is a non-trivial task. We had to prepare for two key scenarios:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Business growth, including organic growth over time and expected &lt;a href=&quot;https://en.wikipedia.org/wiki/Seasonality&quot;&gt;seasonality&lt;/a&gt; effects.&lt;/li&gt;
-  &lt;li&gt;Any unexpected peaks due to unforeseen circumstances. Our systems have to be &lt;a href=&quot;https://en.wikipedia.org/wiki/Scalability&quot;&gt;horizontally scalable&lt;/a&gt;.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We could ingest data in batches, in real time, or a combination of the two. When you ingest data in batches, you can import it at regularly scheduled intervals or when it reaches a certain size. This is very useful when processes run on a schedule, such as reports that run daily at a specific time. Typically, batched data is useful for offline analytics and data science.&lt;/p&gt;
-
-&lt;p&gt;On the other hand, real-time ingestion has significant &lt;a href=&quot;https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/#459fc6d61220&quot;&gt;business value&lt;/a&gt;, such as with &lt;a href=&quot;https://www.reactivemanifesto.org/&quot;&gt;reactive systems&lt;/a&gt;. For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note when information is very time-sensitive, you must continuously monitor its data.&lt;/p&gt;
-
-&lt;p&gt;This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.&lt;/p&gt;
-
-&lt;h1 id=&quot;building-the-system-without-reinventing-the-wheel&quot;&gt;Building the system without reinventing the wheel&lt;/h1&gt;
-
-&lt;p&gt;The data ingestion system:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Collects raw data as app events.&lt;/li&gt;
-  &lt;li&gt;Transforms the data into a structured format.&lt;/li&gt;
-  &lt;li&gt;Stores the data for analysis and monitoring.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;In a &lt;a href=&quot;https://engineering.grab.com/experimentation-platform-data-pipeline&quot;&gt;previous blog post&lt;/a&gt;, we discussed dealing with batched data ETL with Spark. This post focuses on real-time ingestion.&lt;/p&gt;
-
-&lt;p&gt;We separated the data ingestion system into 3 layers: collection, transformation, and storage. This table and diagram highlights the tools used in each layer in our system’s first design.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;&lt;th&gt;Layer&lt;/th&gt;&lt;th&gt;Tools&lt;/th&gt;&lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Collection&lt;/td&gt;
-      &lt;td&gt;Gateway, &lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Transformation&lt;/td&gt;
-      &lt;td&gt;Go processing service, &lt;a href=&quot;https://spark.apache.org/streaming/&quot;&gt;Spark Streaming&lt;/a&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Storage&lt;/td&gt;
-      &lt;td&gt;&lt;a href=&quot;https://engineering.grab.com/big-data-real-time-presto-talariadb&quot;&gt;TalariaDB&lt;/a&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Our first design might seem complex, but we used battle-tested and common tools such as Apache &lt;a href=&quot;https://kafka.apache.org/uses&quot;&gt;Kafka&lt;/a&gt; and &lt;a href=&quot;https://spark.apache.org/streaming/&quot;&gt;Spark Streaming&lt;/a&gt;. This let us get an end-to-end solution up and running quickly.&lt;/p&gt;
-
-&lt;h3 id=&quot;collection-layer&quot;&gt;Collection layer&lt;/h3&gt;
-
-&lt;p&gt;Our collection layer had two sub-layers:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Our custom built API Gateway received HTTP requests from the mobile app. It simply decoded and authenticated HTTP requests, streaming the data to the Kafka queue.&lt;/li&gt;
-  &lt;li&gt;The Kafka queue decoupled the transformation layer (shown in the above figure as the processing service and Spark streaming) from the collection layer (shown above as the Gateway service). We needed to retain raw data in the Kafka queue for &lt;a href=&quot;https://en.wikipedia.org/wiki/Fault_tolerance&quot;&gt;fault tolerance&lt;/a&gt; of the entire system. Imagine an error where a data pipeline pollutes the data with flawed transformation code or just simply crashes. The Kafka queue saves us from data loss by data backfilling.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Since it’s robust and battle-tested, we chose Kafka as our queueing solution. It perfectly met our requirements, such as high throughput and low latency. Although Kafka takes some operational effort such as self-hosting and monitoring, Grab has a proficient and dedicated team managing our Kafka cluster.&lt;/p&gt;
-
-&lt;h3 id=&quot;transformation-layer&quot;&gt;Transformation layer&lt;/h3&gt;
-
-&lt;p&gt;There are many options for real-time data processing, including &lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-programming-guide.html&quot;&gt;Spark&lt;/a&gt;&lt;a href=&quot;https://spark.apache.org/docs/latest/streaming-programming-guide.html&quot;&gt; Streaming&lt;/a&gt;, &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt;, and &lt;a href=&quot;http://storm.apache.org/&quot;&gt;Storm&lt;/a&gt;. Since we use Spark for all our batch processing, we decided to use Spark Streaming.&lt;/p&gt;
-
-&lt;p&gt;We deployed a Golang processing service between Kafka and Spark Streaming. This service converts the data from &lt;a href=&quot;https://developers.google.com/protocol-buffers/&quot;&gt;Protobuf&lt;/a&gt; to &lt;a href=&quot;https://avro.apache.org/docs/current/&quot;&gt;Avro&lt;/a&gt;. Instead of pointing Spark Streaming directly to Kafka, we used this processing service as an intermediary. This was because our Spark Streaming job was written in Python and Spark doesn’t natively support &lt;a href=&quot;https://developers.google.com/protocol-buffers/&quot;&gt;protobuf&lt;/a&gt; decoding.  We used Avro format, since Grab historically used it for archiving streaming data. Each raw event was enriched and batched together with other events. Batches were then uploaded to S3.&lt;/p&gt;
-
-&lt;h3 id=&quot;storage-layer&quot;&gt;Storage layer&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://engineering.grab.com/big-data-real-time-presto-talariadb&quot;&gt;TalariaDB&lt;/a&gt; is a Grab-built time-series database. It ingests events as columnar ORC files, indexing them by event name and time. We use the same ORC format files for batch processing. TalariaDB also implements the Presto Thrift connector interface, so our users could query certain event types by time range. They did this by connecting a Presto to a TalariaDB hosting distributed cluster.&lt;/p&gt;
-
-&lt;h1 id=&quot;problems&quot;&gt;Problems&lt;/h1&gt;
-
-&lt;p&gt;Building and deploying our data pipeline’s &lt;a href=&quot;https://en.wikipedia.org/wiki/Minimum_viable_product&quot;&gt;MVP&lt;/a&gt; provided great value to our data analysts, engineers, and QA team. For example, our mobile app team could monitor any abnormal change in the real-time metrics, such as the screen load time for the latest released app version. The QA team could perform app side actions (book a ride, make payment, etc.) and check which events were triggered and received by the backend. The latency between the ingestion and the serving layer was only 4 minutes instead of the batch processing system’s 60 minutes. The streaming processing’s data showed good business value.&lt;/p&gt;
-
-&lt;p&gt;This prompted us to develop more features on top of our platform-collected real-time data. Very soon our QA engineers and the product analytics team used more and more of the real-time data processing system. They started &lt;a href=&quot;https://en.wikipedia.org/wiki/Instrumentation_(computer_programming)&quot;&gt;instrumenting&lt;/a&gt; various mobile applications so more data started flowing in. However, as our ingested data increased, so did our problems. These were mostly related to operational complexity and the increased latency.&lt;/p&gt;
-
-&lt;h3 id=&quot;operational-complexity&quot;&gt;Operational complexity&lt;/h3&gt;
-
-&lt;p&gt;Only a few team members could operate Spark Streaming and EMR. With more data and variable rates, our streaming jobs had scaling issues and failed occasionally. This was due to checkpoint issues when the cluster was under heavy load. Increasing the cluster size helped, but adding more nodes also increased the likelihood of losing more cluster nodes. When we lost nodes,our latency went up and added more work for our already busy on-call engineers.&lt;/p&gt;
-
-&lt;h3 id=&quot;supporting-native-protobuf&quot;&gt;Supporting native Protobuf&lt;/h3&gt;
-
-&lt;p&gt;To simplify the architecture, we initially planned to bypass our Golang-written processing service for the real-time data pipeline. Our plan was to let Spark directly talk to the Kafka queue and send the output to S3. This required packaging the decoders for our protobuf messages for Python Spark jobs, which was cumbersome. We thought about rewriting our job in Scala, but we didn’t have enough experience with it.&lt;/p&gt;
-
-&lt;p&gt;Also, we’d soon hit some streaming limits from S3. Our Spark streaming job was consuming objects from S3, but the process was not continuous due to S3’s &lt;a href=&quot;https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel&quot;&gt; eventual consistency&lt;/a&gt;. To avoid long pagination queries in the S3 API, we had to prefix the data with the hour in which it was ingested. This resulted in some data loss after processing by the Spark streaming. The loss happened because the new data would appear in S3 while Spark Streaming had already moved on to the next hour. We tried various tweaks, but it was just a bad design. As our data grew to over one terabyte per hour, our data loss grew with it.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;processing-lag&quot;&gt;Processing lag&lt;/h3&gt;
-
-&lt;p&gt;On average, the time from our system ingesting an event to when it was available on the Presto was 4 to 6 minutes. We call that processing lag, as it happened due to our data processing. It was substantially worse under heavy loads, increasing to 8 to 13 minutes. While that wasn’t bad at this scale (a few TBs of data), it made some use cases impossible, such as monitoring. We needed to do better.&lt;/p&gt;
-
-&lt;h2 id=&quot;simplifying-the-architecture-and-rewriting-in-golang&quot;&gt;Simplifying the architecture and rewriting in Golang&lt;/h2&gt;
-
-&lt;p&gt;After completing the MVP phase development, we noticed the Spark Streaming functionality we actually used was relatively trivial. In the Spark Streaming job, we only:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Partitioned the batch of events by event name.&lt;/li&gt;
-  &lt;li&gt;Encoded the data in ORC format.&lt;/li&gt;
-  &lt;li&gt;And uploaded to an S3 bucket.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To mitigate the problems mentioned above, we tried re-implementing the features in our existing Golang processing service. Besides consuming the data and publishing to an S3 bucket, the transformation service also needed to deal with event partitioning and ORC encoding.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;One key problem we addressed was implementing a robust event partitioner with a large write throughput and low read latency. Fortunately, Golang has a nice &lt;a href=&quot;https://golang.org/pkg/sync/#Map&quot;&gt;concurrent map&lt;/a&gt; package. To further reduce the lock contention, we added &lt;a href=&quot;https://www.openmymind.net/Shard-Your-Hash-table-to-reduce-write-locks/&quot;&gt;sharding&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;We made the changes, deployed the service to production,and discovered our service was now &lt;a href=&quot;https://en.wikipedia.org/wiki/Memory_bound_function&quot;&gt;memory-bound&lt;/a&gt; as we buffered data for 1 minute. We did thorough benchmarking and profiling on heap allocation to improve memory utilization. By iteratively reducing inefficiencies and contributing to a lower CPU consumption, we made our data transformation more efficient.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/data-ingestion-transformation-product-insights/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;performance&quot;&gt;Performance&lt;/h3&gt;
-
-&lt;p&gt;After revamping the system, the elapsed time for a single event to travel from the gateway to our dashboard is about 1 minute. We also fixed the data loss issue. Finally, we significantly reduced our on-call workload by removing Spark Streaming.&lt;/p&gt;
-
-&lt;h3 id=&quot;validation&quot;&gt;Validation&lt;/h3&gt;
-
-&lt;p&gt;At this point, we had both our old and new pipelines running in parallel. After drastically improving our performance, we needed to confirm we still got the same end results. This was done by running a query against each of the pipelines and comparing the results. Both systems were registered to the same Presto cluster.&lt;/p&gt;
-
-&lt;p&gt;We ran two SQL “excerpts” between the two pipelines in different order. Both queries returned the same events, validating our new pipeline’s correctness.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;select count(1) from ((
- select uuid, time from grab_x.realtime_new
- where event = 'app.metric1' and time between 1541734140 and 1541734200
-) except (
- select uuid, time from grab_x.realtime_old
- where event = 'app.metric1' and time between 1541734140 and 1541734200
-))
-
-/* output: 0 */
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h1 id=&quot;conclusions&quot;&gt;Conclusions&lt;/h1&gt;
-
-&lt;p&gt;Scaling a data ingestion system to handle hundreds of thousands of events per second was a non-trivial task. However, by iterating and constantly simplifying our overall architecture, we were able to efficiently ingest the data and drive down its lag to around one minute.&lt;/p&gt;
-
-&lt;p&gt;Spark Streaming was a great tool and gave us time to understand the problem. But, understanding what we actually needed to build and iteratively optimise the entire data pipeline led us to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Replacing Spark Streaming with our new Golang-implemented pipeline.&lt;/li&gt;
-  &lt;li&gt;Removing Avro encoding.&lt;/li&gt;
-  &lt;li&gt;Removing an intermediary S3 step.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Differences between the old and new pipelines are:&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;tr&gt;
-    &lt;th&gt;&lt;/th&gt;
-    &lt;th&gt;Old Pipeline&lt;/th&gt;
-    &lt;th&gt;New Pipeline&lt;/th&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;th&gt;Languages&lt;/th&gt;
-    &lt;td&gt;Python, Go&lt;/td&gt;
-    &lt;td&gt;Go&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;th&gt;Stages&lt;/th&gt;
-    &lt;td&gt;4 services&lt;/td&gt;
-    &lt;td&gt;3 services&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;th&gt;Conversions&lt;/th&gt;
-    &lt;td&gt;Protobuf → Avro → ORC&lt;/td&gt;
-    &lt;td&gt;Protobuf → ORC&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;th&gt;Lag&lt;/th&gt;
-    &lt;td&gt;4-13 min&lt;/td&gt;
-    &lt;td&gt;1 min&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/table&gt;
-
-&lt;p&gt;Systems usually become more and more complex over time, leading to tech debt and decreased performance. In our case, starting with more steps in the data pipeline was actually the simple solution, since we could re-use existing tools. But as we reduced processing stages, we’ve also seen fewer failures. By simplifying the problem, we improved performance and decreased operational complexity. At the end of the day, our data pipeline solves exactly our problem and does nothing else, keeping things fast.&lt;/p&gt;
-</description>
-        <pubDate>Sun, 03 Mar 2019 18:43:40 +0000</pubDate>
-        <link>https://engineering.grab.com/data-ingestion-transformation-product-insights</link>
-        <guid isPermaLink="true">https://engineering.grab.com/data-ingestion-transformation-product-insights</guid>
-        
-        <category>Big Data</category>
-        
-        <category>Data Pipeline</category>
         
         
         <category>Engineering</category>
