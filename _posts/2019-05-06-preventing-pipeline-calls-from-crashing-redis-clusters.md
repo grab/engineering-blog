@@ -4,7 +4,7 @@ id: preventing-pipeline-calls-from-crashing-redis-clusters
 title: Preventing Pipeline Calls from Crashing Redis Clusters
 date: 2019-05-05 18:43:40
 authors: [michael-cartmell, jiahao-huang, sandeep-kumar]
-categories: [grab-engineering]
+categories: [Engineering]
 tags: [Grab, Backend, Redis, Redis Cluster, Go]
 comments: true
 cover_photo: /img/preventing-pipeline-calls-from-crashing-redis-clusters/cover.jpg
