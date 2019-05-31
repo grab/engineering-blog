@@ -154,7 +154,7 @@ The above shows BillPay’s flow.
 3.  Next, the user confirms all the entered details before they pay the dues.
 4.  Finally, the user sees their bill payment receipt. It comes directly from the biller, and so it’s a valid proof of payment.
 
-Our React Native version has kept the same experience as our Native developed App and help users pay their bills seamlessly and hassle free.
+Our React Native version has kept the same experience as our Native developed App and helps users pay their bills seamlessly and hassle free.
 
 # Future
 
