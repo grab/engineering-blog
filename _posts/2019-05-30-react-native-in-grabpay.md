@@ -14,14 +14,14 @@ excerpt: "This blog post describes how we used React Native to optimize the Grab
 
 It wasn’t too long ago that Grab formed a new team, GrabPay, to improve the cashless experience in Southeast Asia and to venture into the promising mobile payments arena. To support the work, Grab also decided to open a new R&D center in Bangalore.
 
-It was an exciting journey for the team from the very beginning, as it gave us the opportunity to experiment with new cutting edge technologies. Our first release was the [GrabPay Merchant App](https://itunes.apple.com/sg/app/grabpay-merchant/id1343620481?mt%3D8), the first all React Native Grab App. Its success gave us the confidence to use React Native to optimize the Grab PAX app.
+It was an exciting journey for our team from the very beginning, as it gave us the opportunity to experiment with new cutting edge technologies. Our first release was the [GrabPay Merchant App](https://itunes.apple.com/sg/app/grabpay-merchant/id1343620481?mt%3D8), the first all React Native Grab app. Its success gave us the confidence to use React Native to optimize the Grab Passenger app.
 
 React Native is an open source mobile application framework. It lets developers use React (a JavaScript library for building user interfaces) with native platform capabilities. Its two big advantages are:
 
-*   We could make cross-platform mobile apps and components completely in JavaScript.
-*   Its [hot reloading](http://facebook.github.io/react-native/blog/2016/03/24/introducing-hot-reloading) feature significantly reduced development time.
+*   Ability to create cross-platform mobile apps and components completely in JavaScript.
+*   Its [hot reloading](http://facebook.github.io/react-native/blog/2016/03/24/introducing-hot-reloading&) feature that significantly reduces development time.
 
-This post describes our work on developing React Native components for Grab apps, the challenges faced during implementation, what we learned from other internal React Native projects, and our future roadmap.
+This post describes our work on developing React Native components for Grab apps (specifically the Grab Passenger app), the challenges faced during implementation, our learnings from other internal React Native projects, and our future roadmap.
 
 Before embarking on our work with React Native, these were the goals we set out. We wanted to:
 
@@ -32,19 +32,17 @@ Before embarking on our work with React Native, these were the goals we set out.
 
 # Challenges
 
-Many Grab teams located across Southeast Asia and in the United States support the App platform. It was hard to convince all of them to add React Native as a project dependency and write new feature code with React Native. In particular, having React Native dependency significantly increases a project’s binary’s size,
-
-But the initial cost was worth it. We now have only a few modules, all written in React Native:
+Many Grab teams located across Southeast Asia and in the United States support the app platform. It was hard to convince all of them to add React Native as a project dependency and write new feature code with React Native. In particular, having React Native dependency significantly increases a project’s binary’s size, but the initial cost was worth it. We now have only a few modules, all written in React Native:
 
 *   Express
 *   Transaction History
-*   Postpaid Billpay
+*   Postpaid BillPay
 
-As there is only one codebase instead of two, the modules take half the maintenance resources. Debugging is faster with React Native’s hot reloading. And it’s much easier and faster to implement one of our modules in another app, such as DAX.
+We have a single codebase for both iOS and Android apps, which means that the modules take half the maintenance resources. Debugging is faster with React Native’s hot reloading. And it’s much easier and faster to implement one of our modules in another app, such as the Grab Driver app.
 
 Another challenge was creating a universally acceptable format for a bridging library to communicate between existing code and React Native modules. We had to define fixed guidelines to create new bridges and define communication protocols between React Native modules and existing code.
 
-Invoking a module written in React Native from a Native Module (written in a standard computer language such as Swift or Kotlin) should follow certain guidelines. Once all Grab’s tech families reached consensus on solutions to these problems, we started making our bridges and doing the groundwork to use React Native.
+Invoking a module written in React Native from a native module (written in a standard computer language such as Swift or Kotlin) should follow certain guidelines. Once all Grab’s tech families reached a consensus on solutions to these problems, we started making our bridges and doing the groundwork to use React Native.
 
 # Foundation
 
@@ -83,25 +81,25 @@ publicfinalclassDeviceKitModule: NSObject, RCTBridgeModule {
 
 ## GrabPay Components and React Native
 
-The GrabPay Merchant App gave us a good foundation for React Native in terms of
+The GrabPay Merchant App gave us a good foundation for React Native in terms of:
 
 *   Component libraries
-*   Networking layer and api middleware
+*   Networking layer and API middleware
 *   Real world data for internal assessment of performance and stability
 
-We used this knowledge to build theTransaction History and GrabPay Digital Marketplace components inside the Grab Pax App with React Native.
+We used this knowledge to build the Transaction History and GrabPay Digital Marketplace components inside the Grab Passenger app with React Native.
 
 ### Component Library
 
-We selected particularly useful components from the Merchant App codebase such as `GPText`, `GPTextInput`, `GPErrorView`, and `GPActivityIndicator`. We expanded that selection to a common (internal) component library of approximately 20 stateless and stateful components.
+We selected particularly useful components from the Merchant app codebase such as `GPText`, `GPTextInput`, `GPErrorView`, and `GPActivityIndicator`. We expanded that selection to a common (internal) component library of approximately 20 stateless and stateful components.
 
 ### API Calls
 
-We used to make api calls using [axios](https://github.com/axios/axios) (now deprecated). We now make calls from the Native side using bridges that return a promise and make api calls using an existing framework. This helped us remove the dependency for getting an access token from  Native-Android or Native-iOS to make the calls. Also it helped us optimize the api requests, as suggested by [Parashuram](https://hasgeek.com/reactfoo/2019/proposals/building-react-native-8TGxsthFUN4CJi2B82zDxd) from Facebook’s React Native team.
+We used to make API calls using [axios](https://github.com/axios/axios) (now deprecated). We now make calls from the Native side using bridges that return a promise and make API calls using an existing framework. This helped us remove the dependency for getting an access token from Native-Android or Native-iOS to make the calls. Also it helped us optimize the API requests, as suggested by [Parashuram](https://hasgeek.com/reactfoo/2019/proposals/building-react-native-8TGxsthFUN4CJi2B82zDxd) from Facebook’s React Native team.
 
 ### Locale
 
-We use [React Localize Redux](https://www.npmjs.com/package/react-localize-redux) for all our translations and [moment](https://www.npmjs.com/package/moment) for our date time conversion as per the device’s current Locale. We currently support translation in five languages; English, Chinese Simplified, Bahasa Indonesia, Malay, and Vietnamese. This Swift code shows how we get the device’s current Locale from the native-react Native Bridge.
+We use [React Localize Redux](https://www.npmjs.com/package/react-localize-redux) for all our translations and [moment](https://www.npmjs.com/package/moment) for our date time conversion as per the device’s current Locale. We currently support translation in five languages: English, Chinese Simplified, Bahasa Indonesia, Malay, and Vietnamese. This Swift code shows how we get the device’s current Locale from the native-react Native Bridge.
 
 ```swift
 public func methodsToExport() -> [RCTBridgeMethod] {
@@ -120,22 +118,23 @@ Redux is an extremely lightweight predictable state container that behaves consi
 
 ### Navigation
 
-For in-app navigation we use [react-navigation](https://reactnavigation.org/docs/en/getting-started.html). It is very flexible in adapting to both the Android and iOS navigation and gesture recognition styles.
+For in-app navigation, we use [react-navigation](https://reactnavigation.org/docs/en/getting-started.html). It is very flexible in adapting to both the Android and iOS navigation and gesture recognition styles.
 
 # End Product
 
-After setting up our foundation bridges and porting skeleton boilerplate code from the GrabPay Merchant App, we wrote two payments modules using GrabPay Digital Marketplace (also known as BillPay), React Native, and Transaction History.
+After setting up our foundation bridges and porting the skeleton boilerplate code from the GrabPay Merchant app, we wrote two payments modules using GrabPay Digital Marketplace (also known as BillPay), React Native, and Transaction History.
 
+This is the Android version of the app.
 <div class="post-image-section">
-  <img alt="Grab app - Selecting a company" src="/img/react-native-in-grabpay/image4.jpg">
+  <img alt="Grab Passenger app - Android" src="/img/react-native-in-grabpay/image4.jpg">
 </div>
 
-
-The ios Version is on the left and the Android version is on the right. Not only do their UIs look identical, but also their code is identical. A single codebase lets us debug faster, deliver quicker, and maintain smaller (codebase; apologies but it was necessary for the joke).
-
+And this is the iOS version:
 <div class="post-image-section">
-  <img alt="Grab app - Company selected" src="/img/react-native-in-grabpay/image6.jpg">
+  <img alt="Grab Passenger app - iOS" src="/img/react-native-in-grabpay/image6.jpg">
 </div>
+
+The UIs for the iOS and Android versions are identical, the code are identical too. A single codebase lets us debug faster, deliver quicker, and maintain smaller.
 
 We launched BillPay first in Indonesia, then in Vietnam and Malaysia. So far, it’s been a very stable product with little to no downtime.
 
@@ -154,9 +153,8 @@ The above shows BillPay’s flow.
 3.  Next, the user confirms all the entered details before they pay the dues.
 4.  Finally, the user sees their bill payment receipt. It comes directly from the biller, and so it’s a valid proof of payment.
 
-Our React Native version has kept the same experience as our Native developed App and helps users pay their bills seamlessly and hassle free.
+Our React Native version has kept the same experience as our Native developed app and helps users pay their bills seamlessly and hassle free.
 
 # Future
 
-
-We are moving code to Typescript to reduce compile-time bugs and clean up our code. In addition to reducing native dependencies, we will refactor modules as needed. We will also have 100% unit test code coverage. But most importantly, we plan to open source our component library as soon as we feel it is stable.
+We are moving our code to Typescript to reduce compile-time bugs and clean up our code. In addition to reducing native dependencies, we will refactor modules as needed. We will also have 100% unit test code coverage. But most importantly, we plan to open source our component library as soon as we meet our milestones around improved stability.
