@@ -131,7 +131,7 @@ This is the Android version of the app.
 
 And this is the iOS version:
 <div class="post-image-section">
-  <img alt="Grab Passernger app - iOS" src="/img/react-native-in-grabpay/image6.jpg">
+  <img alt="Grab Passenger app - iOS" src="/img/react-native-in-grabpay/image6.jpg">
 </div>
 
 The UIs for the iOS and Android versions are identical, the code are identical too. A single codebase lets us debug faster, deliver quicker, and maintain smaller.
