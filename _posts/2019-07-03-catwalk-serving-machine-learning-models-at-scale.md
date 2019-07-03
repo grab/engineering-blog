@@ -5,7 +5,7 @@ title: "Catwalk: Serving Machine Learning Models at Scale"
 date: 2019-07-02 18:43:40
 authors: [nutdanai-phansooksai, juho-lee, pratyush-more, romain-basseville]
 categories: [Engineering, Data Science]
-tags: [Machine Learning, Models]
+tags: [Machine Learning, Models, Data Science, TensorFlow]
 comments: true
 cover_photo: /img/catwalk-serving-machine-learning-models-at-scale/cover.jpg
 excerpt: "This blog post explains why and how we came up with a machine learning model serving platform to accelerate the use of machine learning in Grab."
