@@ -6,9 +6,242 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 31 May 2019 15:37:48 +0000</pubDate>
-    <lastBuildDate>Fri, 31 May 2019 15:37:48 +0000</lastBuildDate>
+    <pubDate>Wed, 03 Jul 2019 06:58:17 +0000</pubDate>
+    <lastBuildDate>Wed, 03 Jul 2019 06:58:17 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Catwalk: Serving Machine Learning Models at Scale</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;Grab’s unwavering ambition is to be the best Super App in Southeast Asia that adds value to the everyday for our customers. In order to achieve that, the customer experience must be flawless for each and every Grab service. Let’s take our frequently used ride-hailing service as an example. We want fair pricing for both drivers and passengers, accurate estimation of ETAs, effective detection of fraudulent activities, and ensured ride safety for our customers. The key to perfecting these customer journeys is artificial intelligence (AI).&lt;/p&gt;
+
+&lt;p&gt;Grab has a tremendous amount of data that we can leverage to solve complex problems such as fraudulent user activity, and to provide our customers personalized experiences on our products. One of the tools we are using to make sense of this data is machine learning (ML).&lt;/p&gt;
+
+&lt;p&gt;As Grab made giant strides towards increasingly using machine learning across the organization, more and more teams were organically building model serving solutions for their own use cases. Unfortunately, these model serving solutions required data scientists to understand the infrastructure underlying them. Moreover, there was a lot of overlap in the effort it took to build these model serving solutions.&lt;/p&gt;
+
+&lt;p&gt;That’s why we came up with Catwalk: an easy-to-use, self-serve, machine learning model serving platform for everyone at Grab.&lt;/p&gt;
+
+&lt;h1 id=&quot;goals&quot;&gt;Goals&lt;/h1&gt;
+
+&lt;p&gt;To determine what we wanted Catwalk to do, we first looked at the typical workflow of our target audience - data scientists at Grab:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Build a trained model to solve a problem.&lt;/li&gt;
+  &lt;li&gt;Deploy the model to their project’s particular serving solution. If this involves writing to a database, then the data scientists need to programmatically obtain the outputs, and write them to the database. If this involves running the model on a server, the data scientists require a deep understanding of how the server scales and works internally to ensure that the model behaves as expected.&lt;/li&gt;
+  &lt;li&gt;Use the deployed model to serve users, and obtain feedback such as user interaction data. Retrain the model using this data to make it more accurate.&lt;/li&gt;
+  &lt;li&gt;Deploy the retrained model as a new version.&lt;/li&gt;
+  &lt;li&gt;Use monitoring and logging to check the performance of the new version. If the new version is misbehaving, revert back to the old version so that production traffic is not affected. Otherwise run an AB test between the new version and the previous one.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We discovered an obvious pain point - the process of deploying models requires additional effort and attention, which results in data scientists being distracted from their problem at hand. Apart from that, having many data scientists build and maintain their own serving solutions meant there was a lot of duplicated effort. With Grab increasingly adopting machine learning, this was a state of affairs that could not be allowed to continue.&lt;/p&gt;
+
+&lt;p&gt;To address the problems, we came up with Catwalk with goals to:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Abstract away the complexities and expose a minimal interface for data scientists&lt;/li&gt;
+  &lt;li&gt;Prevent duplication of effort by creating an ML model serving platform for everyone in Grab&lt;/li&gt;
+  &lt;li&gt;Create a highly performant, highly available, model versioning supported ML model serving platform and integrate it with existing monitoring systems at Grab&lt;/li&gt;
+  &lt;li&gt;Shorten time to market by making model deployment self-service&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;what-is-catwalk&quot;&gt;What is Catwalk?&lt;/h1&gt;
+
+&lt;p&gt;In a nutshell, Catwalk is a platform where we run Tensorflow Serving containers on a Kubernetes cluster integrated with the observability stack used at Grab.&lt;/p&gt;
+
+&lt;p&gt;In the next sections, we are going to explain the two main components in Catwalk - Tensorflow Serving and Kubernetes, and how they help us obtain our outlined goals.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-is-tensorflow-serving&quot;&gt;What is Tensorflow Serving?&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.tensorflow.org/tfx/guide/serving&quot;&gt;Tensorflow Serving&lt;/a&gt; is an open-source ML model serving project by Google. In Google’s own words, “Tensorflow Serving is a flexible, high-performance serving system for machine learning models, designed for production environments. It makes it easy to deploy new algorithms and experiments, while keeping the same server architecture and APIs. Tensorflow Serving provides out-of-the-box integration with &lt;a href=&quot;https://www.tensorflow.org/&quot;&gt;Tensorflow&lt;/a&gt; models, but can be easily extended to serve other types of models and data.”&lt;/p&gt;
+
+&lt;h2 id=&quot;why-tensorflow-serving&quot;&gt;Why Tensorflow Serving?&lt;/h2&gt;
+
+&lt;p&gt;There are a number of ML model serving platforms in the market right now. We chose Tensorflow Serving because of these three reasons, ordered by priority:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Highly performant. It has proven performance handling tens of millions of inferences per second at Google according to &lt;a href=&quot;https://www.tensorflow.org/tfx&quot;&gt;their website&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;Highly available. It has a model versioning system to make sure there is always a healthy version being served while loading a new version into its memory&lt;/li&gt;
+  &lt;li&gt;Actively maintained by the developer community and backed by Google&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Even though, by default, Tensorflow Serving only supports models built with Tensorflow, this is not a constraint, though, because Grab is actively moving toward using Tensorflow.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-are-we-using-tensorflow-serving&quot;&gt;How are we using Tensorflow Serving?&lt;/h2&gt;
+
+&lt;p&gt;In this section, we will explain how we are using Tensorflow Serving and how it helps abstract away complexities for data scientists.&lt;/p&gt;
+
+&lt;p&gt;Here are the steps showing how we are using Tensorflow Serving to serve a trained model:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Data scientists export the model using &lt;a href=&quot;https://www.tensorflow.org/api_docs/python/tf/saved_model&quot;&gt;tf.saved_model&lt;/a&gt; API and drop it to an S3 models bucket. The exported model is a folder containing model files that can be loaded to Tensorflow Serving.&lt;/li&gt;
+  &lt;li&gt;Data scientists are granted permission to manage their folder.&lt;/li&gt;
+  &lt;li&gt;We run Tensorflow Serving and point it to load the model files directly from the S3 models bucket. Tensorflow Serving supports loading models directly from S3 out of the box. The model is served!&lt;/li&gt;
+  &lt;li&gt;Data scientists come up with a retrained model. They export and upload it to their model folder.&lt;/li&gt;
+  &lt;li&gt;As Tensorflow Serving keeps watching the S3 models bucket for new models, it automatically loads the retrained model and serves. Depending on the model configuration, it can either gracefully replace the running model version with a newer version or serve multiple versions at the same time.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Tensorflow Serving Diagram&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image3.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The only interface to data scientists is a path to their model folder in the S3 models bucket. To update their model, they upload exported models to their folder and the models will automatically be served. The complexities are gone. We’ve achieved one of the goals!&lt;/p&gt;
+
+&lt;p&gt;Well, not really…&lt;/p&gt;
+
+&lt;p&gt;Imagine youare going to run Tensorflow Serving to serve one model in a cloud provider, which means you  need a compute resource from a cloud provider to run it. Running it on one box doesn’t provide high availability, so you need another box running the same model. Auto scaling is also needed in order to scale out based on the traffic. On top of these many boxes lies a load balancer. The load balancer evenly spreads incoming traffic to all the boxes, thus ensuring that there is a single point of entry for any clients, which can be abstracted away from the horizontal scaling. The load balancer also exposes an HTTP endpoint to external users. As a result, we form a Tensorflow Serving cluster that is ready to serve.&lt;/p&gt;
+
+&lt;p&gt;Next, imagine you have more models to deploy. You have three options&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Load the models into the existing cluster - having one cluster serve all models.&lt;/li&gt;
+  &lt;li&gt;Spin up a new cluster to serve each model - having multiple clusters, one cluster serves one model.&lt;/li&gt;
+  &lt;li&gt;Combination of 1 and 2 - having multiple clusters, one cluster serves a few models.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;The first option would not scale, because it’s just not possible to load all models into one cluster as the cluster has limited resources.&lt;/p&gt;
+
+&lt;p&gt;The second option will definitely work but it doesn’t sound like an effective process, as you need to create a set of resources every time you have a new model to deploy. Additionally, how do you optimize the usage of resources, e.g., there might be unutilized resources in your clusters that could potentially be shared by the rest.&lt;/p&gt;
+
+&lt;p&gt;The third option looks promising, you can manually choose the cluster to deploy each of your new models into so that all the clusters’ resource utilization is optimal. The problem is you have to manuallymanage it. Managing 100 models using 25 clusters can be a challenging task. Furthermore, running multiple models in a cluster can also cause a problem as different models usually have different resource utilization patterns and can interfere with each other. For example, one model might use up all the CPU and the other model won’t be able to serve anymore.&lt;/p&gt;
+
+&lt;p&gt;Wouldn’t it be better if we had a system that automatically orchestrates model deployments based on resource utilization patterns and prevents them from interfering with each other? Fortunately, that  is exactly what Kubernetes is meant to do!&lt;/p&gt;
+
+&lt;h2 id=&quot;so-what-is-kubernetes&quot;&gt;So what is Kubernetes?&lt;/h2&gt;
+
+&lt;p&gt;Kubernetes abstracts a cluster of physical/virtual hosts (such as EC2) into a cluster of logical hosts (pods in Kubernetes terms). It provides a container-centric management environment. It orchestrates computing, networking, and storage infrastructure on behalf of user workloads.&lt;/p&gt;
+
+&lt;p&gt;Let’s look at some of the definitions of Kubernetes resources&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Tensorflow Serving Diagram&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image2.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Cluster - a cluster of nodes running Kubernetes.&lt;/li&gt;
+  &lt;li&gt;Node - a node inside a cluster.&lt;/li&gt;
+  &lt;li&gt;Deployment - a configuration to instruct Kubernetes the desired state of an application. It also takes care of rolling out an update (canary, percentage rollout, etc), rolling back and horizontal scaling.&lt;/li&gt;
+  &lt;li&gt;Pod - a single processing unit. In our case, Tensorflow Serving will be running as a container in a pod. Pod can have CPU/memory limits defined.&lt;/li&gt;
+  &lt;li&gt;Service - an abstraction layer that abstracts out a group of pods and exposes the application to clients.&lt;/li&gt;
+  &lt;li&gt;Ingress - a collection of routing rules that govern how external users access services running in a cluster.&lt;/li&gt;
+  &lt;li&gt;Ingress Controller - a controller responsible for reading the ingress information and processing that data accordingly such as creating a cloud-provider load balancer or spinning up a new pod as a load balancer using the rules defined in the ingress resource.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Essentially, we deploy resources to instruct Kubernetes the desired state of our application and Kubernetes will make sure that it is always the case.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-are-we-using-kubernetes&quot;&gt;How are we using Kubernetes?&lt;/h2&gt;
+
+&lt;p&gt;In this section, we will walk you through how we deploy Tensorflow Serving in Kubernetes cluster and how it makes managing model deployments very convenient.&lt;/p&gt;
+
+&lt;p&gt;We used a managed Kubernetes service, to create a Kubernetes cluster and manually provisioned compute resources as nodes. As a result, we have a Kubernetes cluster with nodes that are ready to run applications.&lt;/p&gt;
+
+&lt;p&gt;An application to serve one model consists of&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Two or more Tensorflow Serving pods that serves a model with an autoscaler to scale pods based on resource consumption&lt;/li&gt;
+  &lt;li&gt;A load balancer to evenly spread incoming traffic to pods&lt;/li&gt;
+  &lt;li&gt;An exposed HTTP endpoint to external users&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;In order to deploy the application, we need to&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Deploy a deployment resource specifying&lt;/li&gt;
+  &lt;li&gt;Number of pods of Tensorflow Serving&lt;/li&gt;
+  &lt;li&gt;An S3 url for Tensorflow Serving to load model files&lt;/li&gt;
+  &lt;li&gt;Deploy a service resource to expose it&lt;/li&gt;
+  &lt;li&gt;Deploy an ingress resource to define an HTTP endpoint url&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Kubernetes then allocates Tensorflow Serving pods to the cluster with the number of pods according to the value defined in deployment resource. Pods can be allocated to any node inside the cluster, Kubernetes makes sure that the node it allocates a pod into has sufficient resources that the pod needs. In case there is no node that has sufficient resources, we can easily scale out the cluster by adding new nodes into it.&lt;/p&gt;
+
+&lt;p&gt;In order for the rules defined inthe ingressresource to work, the cluster must have an ingress controller running, which is what guided our choice of &lt;a href=&quot;https://kubernetes-sigs.github.io/aws-alb-ingress-controller/&quot;&gt;the load balancer&lt;/a&gt;. What an ingress controller does is simple: it keeps checking the ingressresource, creates a load balancer and defines rules based on rules in the ingressresource. Once the load balancer is configured, it will be able to redirect incoming requests to the Tensorflow Serving pods.&lt;/p&gt;
+
+&lt;p&gt;That’s it! We have a scalable Tensorflow Serving application that serves a model through a load balancer! In order to serve another model, all we need to do is to deploy the same set of resources but with the model’s S3 url and HTTP endpoint.&lt;/p&gt;
+
+&lt;p&gt;To illustrate what is running inside the cluster, let’s see how it looks like when we deploy two applications: one for serving pricing model another one for serving fraud-check model. Each application is configured to have two Tensorflow Serving pods and exposed at /v1/models/model&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Tensorflow Serving Diagram&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image1.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;There are two Tensorflow Serving pods that serve fraud-check model and exposed through a load balancer. Same for the pricing model, the only differences are the model it is serving and the exposed HTTP endpoint url. The load balancer rules for pricing and fraud-check model look like this&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;If&lt;/th&gt;
+      &lt;th&gt;Then forward to&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td rowspan=&quot;2&quot;&gt;Path is /v1/models/pricing&lt;/td&gt;
+      &lt;td&gt;pricing pod ip-1&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;pricing pod ip-2&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td rowspan=&quot;2&quot;&gt;Path is /v1/models/fraud-check&lt;/td&gt;
+      &lt;td&gt;fraud-check pod ip-1&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;fraud-check pod ip-2&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h3 id=&quot;stats-and-logs&quot;&gt;Stats and Logs&lt;/h3&gt;
+
+&lt;p&gt;The last piece is how stats and logs work. Before getting to that, we need to introduce &lt;a href=&quot;https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/&quot;&gt;DaemonSet&lt;/a&gt;. According to the document, DaemonSet ensures that all (or some) nodes run a copy of a pod. As nodes are added to the cluster, pods are added to them. As nodes are removed from the cluster, those pods are garbage collected. Deleting a DaemonSet will clean up the pods it created.&lt;/p&gt;
+
+&lt;p&gt;We deployed datadog-agent and filebeat as a DaemonSet. As a result, we always have one datadog-agent pod and one filebeat pod in all nodes and they are accessible from Tensorflow Serving pods in the same node. Tensorflow Serving pods emit a stats event for every request to datadog-agent pod in the node it is running in.&lt;/p&gt;
+
+&lt;p&gt;Here is a sample of DataDog stats:&lt;/p&gt;
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;DataDog stats&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image4.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;And logs that we put in place:&lt;/p&gt;
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Logs&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image5.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;h1 id=&quot;benefits-gained-from-catwalk&quot;&gt;Benefits Gained from Catwalk&lt;/h1&gt;
+
+&lt;p&gt;Catwalk has become the go-to, centralized system to serve machine learning models. Data scientists are not required to take care of the serving infrastructure hence they can focus on what matters the most: come up with models to solve customer problems. They are only required to provide exported model files and estimation of expected traffic in order to prepare sufficient resources to run their model. In return, they are presented with an endpoint to make inference calls to their model, along with all necessary tools for monitoring and debugging. Updating the model version is self-service, and the model improvement cycle is much shorter than before. We used to count in days, we now count in minutes.&lt;/p&gt;
+
+&lt;h1 id=&quot;future-plans&quot;&gt;Future Plans&lt;/h1&gt;
+
+&lt;h2 id=&quot;improvement-on-automation&quot;&gt;Improvement on Automation&lt;/h2&gt;
+
+&lt;p&gt;Currently, the first deployment of any model will still need some manual task from the platform team. We aim to automate this processentirely. We’ll work with our awesome CI/CD team who is making the best use of &lt;a href=&quot;https://www.spinnaker.io/&quot;&gt;Spinnaker&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;model-serving-on-mobile-devices&quot;&gt;Model serving on mobile devices&lt;/h2&gt;
+
+&lt;p&gt;As a platform, we are looking at setting standards for model serving across Grab. This includes model serving on mobile devices as well. Tensorflow Serving also provides a &lt;a href=&quot;https://www.tensorflow.org/lite&quot;&gt;Lite&lt;/a&gt; version to be used on mobile devices. It is a whole new paradigm with vastly different tradeoffs for machine learning practitioners. We are quite excited to set some best practices in this area.&lt;/p&gt;
+
+&lt;h2 id=&quot;grpc-support&quot;&gt;gRPC support&lt;/h2&gt;
+
+&lt;p&gt;Catwalk currently supports HTTP/1.1. We’ll hook Grab’s service discovery mechanism to open gRPC traffic, which TFS already supports.&lt;/p&gt;
+
+&lt;p&gt;If you are interested in building pipelines for machine learning related topics, and you share our vision of driving South East Asia forward, come join us!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 02 Jul 2019 18:43:40 +0000</pubDate>
+        <link>https://engineering.grab.com/catwalk-serving-machine-learning-models-at-scale</link>
+        <guid isPermaLink="true">https://engineering.grab.com/catwalk-serving-machine-learning-models-at-scale</guid>
+        
+        <category>Machine Learning</category>
+        
+        <category>Models</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>React Native in GrabPay</title>
@@ -1541,88 +1774,6 @@ Request Body :
         
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>Designing resilient systems beyond retries (Part 3): Architecture Patterns and Chaos Engineering</title>
-        <description>&lt;p&gt;&lt;em&gt;This post is the third of a three-part series on going beyond retries and circuit breakers to improve system resiliency. This whole series covers techniques and architectures that can be used as part of a strategy to improve resiliency. In this article, we will focus on architecture patterns and chaos engineering to reduce, prevent, and test resiliency.&lt;/em&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;reducing-failure-through-architecture-patterns&quot;&gt;Reducing failure through architecture patterns&lt;/h2&gt;
-
-&lt;p&gt;Resiliency is all about preparing for and handling failure. So the most effective way to improve resiliency is undoubtedly to reduce the possible ways in which failure can occur, and several architectural patterns have emerged with this aim in mind. Unfortunately these are easier to apply when designing new systems and less relevant to existing ones, but if resiliency is still an issue and no other techniques are helping, then refactoring the system is a good approach to consider.&lt;/p&gt;
-
-&lt;h3 id=&quot;idempotency&quot;&gt;Idempotency&lt;/h3&gt;
-
-&lt;p&gt;One popular pattern for improving resiliency is the concept of &lt;em&gt;idempotency&lt;/em&gt;. Strictly speaking, an idempotent endpoint is one which always returns the same result given the same parameters, no matter how many times it is called. However, the definition is usually extended to mean it returns the results and has no side-effects, or any side-effects are &lt;em&gt;only executed&lt;/em&gt; once. The main benefit of making endpoints idempotent is that they are always safe to retry, so it complements the retry technique to make it more effective. It also means there is less chance of the system getting into an inconsistent or worse state after experiencing failure.&lt;/p&gt;
-
-&lt;p&gt;If an operation has side-effects but cannot distinguish unique calls with its current parameters, it can be made to be idempotent by adding an &lt;em&gt;idempotency key&lt;/em&gt; parameter. The classic example is money: a ‘transfer money to X’ operation may legitimately occur multiple times with the same parameters, but making the same call twice would be a mistake, so it is not idempotent. A client would not be able to retry a call that timed out, because it does not know whether or not the server processed the request. However, if the client generates and sends a unique ID as an &lt;em&gt;idempotency key&lt;/em&gt; parameter, then it can safely retry. The server can then use this information to determine whether to process the request (if it sees the request for the first time) or return the result of the previous operation.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Using idempotency keys can guarantee idempotency for endpoints with side-effects&quot; src=&quot;/img/beyond-retries-part-3/image1.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Using idempotency keys can guarantee idempotency for endpoints with side-effects&lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;h3 id=&quot;asynchronous-responses&quot;&gt;Asynchronous responses&lt;/h3&gt;
-
-&lt;p&gt;A second pattern is making use of asynchronous responses. Rather than relying on a successful call to a dependency which may fail, a service may complete its own work and return a successful or partial response to the client. The client would then have to receive the response in an alternate way, either by polling (‘pull’) until the result is ready or the response being ‘pushed’ from the server when it completes.&lt;/p&gt;
-
-&lt;p&gt;From a resiliency perspective, this guarantees that the downstream errors do not affect the endpoint. Furthermore, the risk of the dependency causing latency or consuming resources goes away, and it can be retried in the background until it succeeds. The disadvantage is that this works against the ‘fail fast’ principle, since the call might be retried indefinitely without ever failing. It might not be clear to the client what to do in this case.&lt;/p&gt;
-
-&lt;p&gt;Not all endpoints have to be made asynchronous, and the decision to be synchronous or not could be made by the endpoint dynamically, depending on the service health. Work that can be made asynchronous is known as &lt;em&gt;deferrable work&lt;/em&gt;, and utilizing this information can save resources and allow the more critical endpoints to complete. For example, a fraud system may decide whether or not a newly registered user should be allowed to use the application, but such decisions are often complex and costly. Rather than slow down the registration process for every user and create a poor first impression, the decision can be made asynchronously. When the fraud-decision system is available, it picks up the task and processes it. If the user is then found to be fraudulent, their account can be deactivated at that point.&lt;/p&gt;
-
-&lt;h2 id=&quot;preventing-disaster-through-chaos-engineering&quot;&gt;Preventing disaster through chaos engineering&lt;/h2&gt;
-
-&lt;p&gt;It is famously understood that disaster recovery is worthless unless it’s tested regularly. There are dozens of stories of employees diligently performing backups every day only to find that when they actually needed to restore from it, the backups were empty. The same thing applies to resiliency, albeit with less spectacular consequences.&lt;/p&gt;
-
-&lt;p&gt;The emerging best practice for testing resiliency is &lt;em&gt;chaos engineering&lt;/em&gt;. This practice, made famous by Netflix’s &lt;a href=&quot;https://medium.com/netflix-techblog/the-netflix-simian-army-16e57fbab116&quot;&gt;Chaos Monkey&lt;/a&gt;, is the idea of deliberately causing parts of a system to fail in order to test (and subsequently improve) its resiliency. There are many different kinds of chaos engineering that vary in scope, from simulating an outage in an entire AWS region to injecting latency into a single endpoint. A chaos engineering strategy may include multiple types of failure, to build confidence in the ability of various parts of the system to withstand failure.&lt;/p&gt;
-
-&lt;p&gt;Chaos engineering has evolved since its inception, ironically becoming less ‘chaotic’, despite the name. Shutting off parts of a system without a clear plan is unlikely to provide much value, but is practically guaranteed to frustrate your customers - and upper management! Since it is recommended to experiment on production, minimizing the &lt;em&gt;blast radius&lt;/em&gt; of chaos experiments, at least at the beginning, is crucial to avoid unnecessary impact to the system.&lt;/p&gt;
-
-&lt;h3 id=&quot;chaos-experiment-process&quot;&gt;Chaos experiment process&lt;/h3&gt;
-
-&lt;p&gt;The basic process for conducting a chaos experiment is as follows:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Define how to measure a ‘steady state’, in order to confirm that the system is currently working as expected.&lt;/li&gt;
-  &lt;li&gt;Decide on a ‘control group’ (which does not change) and an ‘experiment group’ from the pool of backend servers.&lt;/li&gt;
-  &lt;li&gt;Hypothesize that the steady state will not change during the experiment.&lt;/li&gt;
-  &lt;li&gt;Introduce a failure in one component or aspect of the system in the control group, such as the network connection to the database.&lt;/li&gt;
-  &lt;li&gt;Attempt to disprove the hypothesis by analyzing the difference in metrics between the control and experiment groups.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;If the hypothesis is disproved, then the parts of the system which failed are candidates for improvement. After making changes, the experiments are run again, and gradually confidence in the system should improve.&lt;/p&gt;
-
-&lt;p&gt;Chaos experiments should ideally mimic real-world scenarios that could actually happen, such as a server shutting down or a network connection being disconnected. These events do not necessarily have to be directly related to failure - ordinary events such as auto-scaling or a change in server hardware or VM type can be experimented with, as they could still potentially affect the steady state.&lt;/p&gt;
-
-&lt;p&gt;Finally, it is important to automate as much of the chaos experiment process as possible. From setting up the control group to starting the experiment and measuring the results, to automatically disabling the experiment if the impact to production has exceeded the blast radius, the investment in automating them will save valuable engineering time and allow for experiments to eventually be run continuously.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Retries are a useful and important part of building resilient software systems. However, they only solve one part of the resiliency problem, namely recovery. Recovery via retries is only possible under certain conditions and could potentially exacerbate a system failure if other safeguards aren’t also in place. Some of these safeguards and other resiliency patterns have been discussed in this article.&lt;/p&gt;
-
-&lt;p&gt;The excellent Hystrix library combines multiple resiliency techniques, such as circuit-breaking, timeouts and bulkheading, in a single place. But even Hystrix cannot claim to solve all resiliency issues, and it would not be wise to rely on a single library completely. However, just as it can’t be recommended to only use Hystrix, suddenly introducing all of the above patterns isn’t advisable either. There is a point of diminishing returns with adding more; more techniques means more complexity, and more possible things that could go wrong.&lt;/p&gt;
-
-&lt;p&gt;Rather than implement all of the resiliency patterns described above, it is recommended to selectively apply patterns that complement each other and cover existing gaps that have previously been identified. For example, an existing retry strategy can be enhanced by gradually switching to idempotent endpoints, improving the coverage of API calls that can be retried.&lt;/p&gt;
-
-&lt;p&gt;A microservice architecture is a good foundation for building a resilient system, but it requires careful planning and implementation to achieve. By identifying the possible ways in which a system can fail, then evaluating and applying the tried-and-tested patterns to withstand them, a reliable system can become one that is truly resilient.&lt;/p&gt;
-
-&lt;p&gt;I hope you found this series useful. Comments are always welcome.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 27 Mar 2019 17:17:35 +0000</pubDate>
-        <link>https://engineering.grab.com/beyond-retries-part-3</link>
-        <guid isPermaLink="true">https://engineering.grab.com/beyond-retries-part-3</guid>
-        
-        <category>Resiliency</category>
-        
-        <category>Microservice</category>
-        
-        <category>Chaos Engineering</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
