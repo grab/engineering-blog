@@ -5,7 +5,7 @@ title: Making Grab’s everyday app super
 date: 2019-07-03 18:43:40
 authors: [justin-bolilia, romain-basseville, karen-kue]
 categories: [Data Science, Product]
-tags: [Super App, Feed, Recommendations]
+tags: [Super App, Feed, Recommendations, Data Science, Machine Learning]
 comments: true
 cover_photo: /img/grab-everyday-super-app/cover.gif
 excerpt: "To excel in a heavily diversified market like Southeast Asia, we leverage on the depth of our data to understand what sorts of information users want to see on our Feed and when they should see them. In this article we will discuss Grab Feed’s recommendation logic and strategies, as well as its future roadmap."
