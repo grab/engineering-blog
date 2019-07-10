@@ -42,8 +42,7 @@ The problem we’re trying to solve here is known as the [recommendations](https
 
 To solve this, we have built a recommendation engine, which is a system that suggests the type of content a user should consider consuming. In order to make a recommendation, we need to understand three factors:
 
-1.  **Users**. There’s a lot we can infer about our users based on how they've used the Grab app, such as the number of rides they’ve taken, the type of food they like to order, the movie voucher deals they’ve purchased, the games they’ve played, and so on.
-    This information gives us the opportunity to understand our users’ preferences better, enabling us to match their profiles with relevant and suitable content.
+1.  **Users**. There’s a lot we can infer about our users based on how they've used the Grab app, such as the number of rides they’ve taken, the type of food they like to order, the movie voucher deals they’ve purchased, the games they’ve played, and so on. <br />This information gives us the opportunity to understand our users’ preferences better, enabling us to match their profiles with relevant and suitable content.
 2.  **Items**. These are the characteristics of the content. We consider the type of the content (e.g. video, games, rewards) and consumability (e.g. purchase, view, redeem). We also consider other metadata such as store hours for merchants, points to burn for rewards, and GPS coordinates for points of interest.
 3.  **Context**. This pertains to the setting in which a user is consuming our content. It could be the time of day, the user's location, or the current feed category.
 
@@ -59,9 +58,7 @@ Understanding our User
 
 Interpreting user preference from the signals mentioned above is a whole challenge in itself. It's important here to note that we are in a constant state of experimentation. Slowly but surely, we are continuing to fine tune how to measure content preferences. That being said, we look at two areas:
 
-1.  **Action**. We firmly believe that not all interactions are made equal. Does liking a card actually mean you like it? Do you like things at the same rate as your friends? What about transactions, are those more preferred? The feed introduces a lot of ways for the users to give feedback to the platform. These events include likes, clicks, swipes, views, transactions, and call-to-actions.
-
-Depending on the model, we can take slightly different approaches. We can learn the importance of each event and aggregate them to have an expected rating, or we can predict the probability of each event and rank accordingly.
+1.  **Action**. We firmly believe that not all interactions are made equal. Does liking a card actually mean you like it? Do you like things at the same rate as your friends? What about transactions, are those more preferred? The feed introduces a lot of ways for the users to give feedback to the platform. These events include likes, clicks, swipes, views, transactions, and call-to-actions. <br />Depending on the model, we can take slightly different approaches. We can learn the importance of each event and aggregate them to have an expected rating, or we can predict the probability of each event and rank accordingly.
 
 2.  **Recency**. Old interactions are probably not as useful as new ones. The feed is a product that is constantly evolving, and so are the preferences of our users. Failing to decay the weight of older interactions will give us recommendations that are no longer meaningful to our users.
 
