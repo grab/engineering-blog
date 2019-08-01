@@ -6,9 +6,175 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 10 Jul 2019 09:39:07 +0000</pubDate>
-    <lastBuildDate>Wed, 10 Jul 2019 09:39:07 +0000</lastBuildDate>
+    <pubDate>Thu, 01 Aug 2019 09:53:28 +0000</pubDate>
+    <lastBuildDate>Thu, 01 Aug 2019 09:53:28 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>How We Built A Logging Stack at Grab</title>
+        <description>&lt;p&gt;&lt;em&gt;And Solved Our Inhouse Logging Problem&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;problem&quot;&gt;Problem:&lt;/h2&gt;
+
+&lt;p&gt;Let me take you back a year ago at Grab. When we lacked any visualizations or metrics for our service logs. When performing a query for a string from the last three days was something only run before you went for a beverage.&lt;/p&gt;
+
+&lt;p&gt;When a service stops responding, Grab’s core problems were and are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We need to know it happened before the customer does.&lt;/li&gt;
+  &lt;li&gt;We need to know why it happened.&lt;/li&gt;
+  &lt;li&gt;We need to solve our customers’ problems fast.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We had a hodgepodge of log-based solutions for developers when they needed to figure out the above, or why a driver never showed up, or a customer wasn’t receiving our promised promotions. These included logs in a cloud based storage service (which could take hours to retrieve). Or a SAS provider constantly timing out on our queries. Or even asking our SREs to fetch logs from the potential machines for the service engineer, a rather laborious process.&lt;/p&gt;
+
+&lt;p&gt;Here’s what we did with our logs to solve these problems.&lt;/p&gt;
+
+&lt;h2 id=&quot;issues&quot;&gt;Issues:&lt;/h2&gt;
+
+&lt;p&gt;Our current size and growth rate ruled out several available logging systems. By size, we mean a LOT of data and a LOT of users who search through hundreds of billions of logs to generate reports. Or who track down that one user who managed to find that pesky corner case in our code.&lt;/p&gt;
+
+&lt;p&gt;When we started this project, we generated 25TB of logging data a day. Our first thought was “Do we really need all of these logs?”. To this day our feeling is “probably not”.&lt;/p&gt;
+
+&lt;p&gt;However, we can’t always define what another developer can and cannot do. Besides, this gave us an amazing opportunity to build something to allow for all that data!&lt;/p&gt;
+
+&lt;p&gt;Some of our SREs had used the ELK Stack (Elasticsearch / Logstash / Kibana). They thought it could handle our data and access loads, so it was our starting point.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-we-built-a-multi-petabyte-cluster&quot;&gt;How We Built a Multi-Petabyte Cluster:&lt;/h2&gt;
+
+&lt;h3 id=&quot;information-gathering&quot;&gt;Information Gathering:&lt;/h3&gt;
+
+&lt;p&gt;It started with gathering numbers. How much data did we produce each day? How many days were retained? What’s a reasonable response time to wait for?&lt;/p&gt;
+
+&lt;p&gt;Before starting a project, understand your parameters. This helps you spec out your cluster, get buy-in from higher ups, and increase your success rate when rolling out a product used by the entire engineering organization. Remember, if it’s not better than what they have now, why will they switch?&lt;/p&gt;
+
+&lt;p&gt;A good starting point was opening the floor to our users. What features did they want? If we offered a visualization suite so they can see ERROR event spikes, would they use it? How about alerting them about SEGFAULTs? Hands down the most requested feature was speed; &lt;strong&gt;“I want an easy webUI that shows me the user ID when I search for it, and get all the results in &amp;lt;5 seconds!”&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;getting-our-feet-wet&quot;&gt;Getting Our Feet Wet:&lt;/h3&gt;
+
+&lt;p&gt;New concerns always pop up during a project. We’re sure someone has correlated the time spent in R&amp;amp;D to the number of problems. We had an always moving target, since as our proof of concept began, our daily logger volume kept increasing.&lt;/p&gt;
+
+&lt;p&gt;Thankfully, using &lt;a href=&quot;https://www.elastic.co/&quot;&gt;Elasticsearch&lt;/a&gt; as our data store meant we could fully utilize horizontal scaling. This let us start with a simple 5 node cluster as we built out our proof-of-concept (POC). Once we were ready to onboard more services, we could move into a larger footprint.&lt;/p&gt;
+
+&lt;p&gt;The specs at the time called for about 80 nodes to handle all our data. But if we designed our system correctly, we’d only need to increase the number of Elasticsearch nodes as we enrolled more customers. Our key operating metrics were CPU utilization, heap memory needed for the JVM, and total disk space.&lt;/p&gt;
+
+&lt;h3 id=&quot;initial-design&quot;&gt;Initial Design:&lt;/h3&gt;
+
+&lt;p&gt;First, we set up tooling to use &lt;a href=&quot;https://www.ansible.com/&quot;&gt;Ansible&lt;/a&gt; both to launch a machine and to install and configure Elasticsearch. Then we were ready to scale.&lt;/p&gt;
+
+&lt;p&gt;Our initial goal was to keep the design as simple as possible. Opting to allow each node in our cluster to perform all responsibilities. In this setup each node would behave as all of the four available types:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Ingest: Used for transforming and enriching documents before sending them to data nodes for indexing.&lt;/li&gt;
+  &lt;li&gt;Coordinator: Proxy node for directing search and indexing requests.&lt;/li&gt;
+  &lt;li&gt;Master: Used to control cluster operations and determine a quorum on indexed documents.&lt;/li&gt;
+  &lt;li&gt;Data: Nodes that hold the indexed data.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;These were all design decisions made to move our proof of concept along, but in hindsight they might have created more headaches down the road with troubleshooting, indexing speed, and general stability. Remember to do your homework when spec’ing out your cluster.&lt;/p&gt;
+
+&lt;p&gt;It’s challenging to figure out why you are losing master nodes because someone filled up the field data cache performing a search. Separating your nodes can be a huge help in tracking down your problem.&lt;/p&gt;
+
+&lt;p&gt;We also decided to further reduce complexity by going with ingest nodes over Logstash. But at the time, the documentation wasn’t great so we had a lot of trial and error in figuring out how they work. Particularly as compared to something more battle tested like Logstash.&lt;/p&gt;
+
+&lt;p&gt;If you’re unfamiliar with ingest node design, they are lightweight proxies to your data nodes that accept a bulk payload, perform post-processing on documents,and then send the documents to be indexed by your data nodes. In theory, this helps keep your entire pipeline simple. And in Elasticsearch’s defense, ingest nodes have made massive improvements since we began.&lt;/p&gt;
+
+&lt;p&gt;But adding more ingest nodes means ADDING MORE NODES! This can create a lot of chatter in your cluster and cause more complexity when  troubleshooting problems. We’ve seen when an ingest node failing in an odd way caused larger cluster concerns than just a failed bulk send request.&lt;/p&gt;
+
+&lt;h3 id=&quot;monitoring&quot;&gt;Monitoring:&lt;/h3&gt;
+
+&lt;p&gt;This isn’t anything new, but we can’t overstate the usefulness of monitoring. Thankfully, we already had a robust tool called Datadog with an additional integration for Elasticsearch. Seeing your heap utilization over time, then breaking it into smaller graphs to display the field data cache or segment memory, has been a lifesaver. There’s nothing worse than a node falling over due to an OOM with no explanation and just hoping it doesn’t happen again.&lt;/p&gt;
+
+&lt;p&gt;At this point, we’ve built out several dashboards which visualize a wide range of metrics from query rates to index latency. They tell us if we sharply drop on log ingestion or if circuit breakers are tripping. And yes, Kibana has some nice monitoring pages for some cluster stats. But to know each node’s JVM memory utilization on a 400+ node cluster, you need a robust metric system.&lt;/p&gt;
+
+&lt;h2 id=&quot;pitfalls&quot;&gt;Pitfalls:&lt;/h2&gt;
+
+&lt;h3 id=&quot;common-problems&quot;&gt;Common Problems:&lt;/h3&gt;
+
+&lt;p&gt;There are many blogs about the common problems encountered when creating an Elasticsearch cluster and Elastic does a good job of keeping &lt;a href=&quot;https://elastic.co/blog&quot;&gt;blog posts&lt;/a&gt; up to date. We strongly encourage you to read them. Of course, we ran into classic problems like ensuring our Java objects were compressed (Hints: Don’t exceed 31GB of heap for your JVM and always confirm you’ve enabled compression).&lt;/p&gt;
+
+&lt;p&gt;But we also ran into some interesting problems that were less common. Let’s look at some major concerns you have to deal with at this scale.&lt;/p&gt;
+
+&lt;h3 id=&quot;grabs-problems&quot;&gt;Grab’s Problems:&lt;/h3&gt;
+
+&lt;h4 id=&quot;field-data-cache&quot;&gt;Field Data Cache:&lt;/h4&gt;
+
+&lt;p&gt;So, things are going well, all your logs are indexing smoothly, and suddenly you’re getting Out Of Memory (OOMs) events on your data nodes. You rush to find out what’s happening, as more nodes crash.&lt;/p&gt;
+
+&lt;p&gt;A visual representation of your JVM heap’s memory usage is very helpful here. You can always hit the Elasticsearch API, but after adding more then 5 nodes to your cluster this kind of breaks down. Also, you don’t want to know what’s going on while a node is down, but what happened before it died.&lt;/p&gt;
+
+&lt;p&gt;Using our graphs, we determined the field data cache went from virtually zero memory used in the heap to 20GB! This forced us to read up on how this value is set, and, as of this writing, the default value is still 100% of the parent heap memory. Basically, this breaks down to allowing 70% of your total heap being allocated to a single search in the form of field data.&lt;/p&gt;
+
+&lt;p&gt;Now, this should be a rare case and it’s very helpful to keep the field names and values in memory for quick lookup. But, if, like us, you have several trillion documents, you might want to watch out.&lt;/p&gt;
+
+&lt;p&gt;From our logs, we tracked down a user who was sorting by the _id field. We believe this is a design decision in how Kibana interacts with Elasticsearch. A good counter argument would be a user wants a quick memory lookup if they search for a document using the _id. But for us, this meant a user could load into memory every ID in the indices over a 14 day period.&lt;/p&gt;
+
+&lt;p&gt;The consequences? 20+GB of data loaded into the heap before the circuit breaker tripped. It then only took 2 queries at a time to knock a node over.&lt;/p&gt;
+
+&lt;p&gt;You can’t disable indexing that field, and you probably don’t want to. But you can prevent users from stumbling into this and disable the _id field in the Kibana advanced settings. And make sure you re-evaluate your circuit breakers. We drastically lowered the available field cache and removed any further issues.&lt;/p&gt;
+
+&lt;h4 id=&quot;translog-compression&quot;&gt;Translog Compression:&lt;/h4&gt;
+
+&lt;p&gt;At first glance, compression seems an obvious choice for shipping shards between nodes. Especially if you have the free clock cycles, why not minimize the bandwidth between nodes?&lt;/p&gt;
+
+&lt;p&gt;However, we found compression between nodes can drastically slow down shard transfers. By disabling compression, shipping time for a 50GB shard went from 1h to 20m. This was because Lucenesegments are already compressed, a new issue we ran into full force and are actively working with the community to fix. But it’s also a configuration to watch out for in your setup, especially if you want a fast recovery of a shard.&lt;/p&gt;
+
+&lt;h4 id=&quot;segment-memory&quot;&gt;Segment Memory:&lt;/h4&gt;
+
+&lt;p&gt;Most of our issues involved the heap memory being exhausted. We can’t stress enough the importance of having visualizations around how the JVM is used. We learned this lesson the hard way around segment memory.&lt;/p&gt;
+
+&lt;p&gt;This is a prime example of why you need to understand your data when building a cluster. We were hitting a lot of OOMs and couldn’t figure out why. We had fixed the field cache issue, but what was using all our RAM?&lt;/p&gt;
+
+&lt;p&gt;There is a reason why having a 16TB data node might be a poorly spec’d machine. Digging into it, we realized we simply allocated too many shards to our nodes. Looking up the total segment memory used per index should give a good idea of how many shards you can put on a node before you start running out of heap space. We calculated on average our 2TB indices used about 5GB of segment memory spread over 30 nodes.&lt;/p&gt;
+
+&lt;p&gt;The numbers have since changed and our layout was tweaked, but we came up with calculations showing we could allocate about 8TB of shards to a node with 32GB heap memory before we running into issues. That’s if you really want to push it, but it’s also a metric used to keep your segment memory per node around 50%. This allows enough memory to run queries without knocking out your data nodes. Naturally this led us to ask “What is using all this segment memory per node?”&lt;/p&gt;
+
+&lt;h4 id=&quot;index-mapping-and-field-types&quot;&gt;Index Mapping and Field Types:&lt;/h4&gt;
+
+&lt;p&gt;Could we lower how much segment memory our indices used to cut our cluster operation costs? Using the segments data found in the ES cluster and some simple Python loops, we tracked down the total memory used per field in our index.&lt;/p&gt;
+
+&lt;p&gt;We used a lot of segment memory for the &lt;strong&gt;_id&lt;/strong&gt; field (but can’t do much about that). It also gave us a good breakdown of our other fields. And we realized we indexed fields in completely unnecessary ways. A few fields should have been integers but were keyword fields. We had fields no one would ever search against and which could be dropped from index memory.&lt;/p&gt;
+
+&lt;p&gt;Most importantly, this began our learning process of how tokens and analyzers work in Elasticsearch/Lucene.&lt;/p&gt;
+
+&lt;h4 id=&quot;picking-the-wrong-analyzer&quot;&gt;Picking the Wrong Analyzer:&lt;/h4&gt;
+
+&lt;p&gt;By default, we use Elasticsearch’s Standard Analyzer on all analyzed fields. It’s great, offering a very close approximation to how users search and it doesn’t explode your index memory like an N-gram tokenizer would.&lt;/p&gt;
+
+&lt;p&gt;But it does a few things we thought unnecessary, so we thought we could save a significant amount of heap memory. For starters, it keeps the original tokens: the Standard Analyzer would break &lt;strong&gt;IDXVB56KLM&lt;/strong&gt; into tokens &lt;strong&gt;IDXVB&lt;/strong&gt;, &lt;strong&gt;56&lt;/strong&gt;,  and &lt;strong&gt;KLM&lt;/strong&gt;. This usually works well, but it really hurts you if you have a lot of alphanumeric strings.&lt;/p&gt;
+
+&lt;p&gt;We never have a user search for a user ID as a partial value. It would be more useful to only return the entire match of an alphanumeric string. This has the added benefit of only storing the single token in our index memory. This modification alone stripped a whole 1GB off our index memory, or at our scale meant we could eliminate 8 nodes.&lt;/p&gt;
+
+&lt;p&gt;We can’t stress enough how cautious you need to be when changing analyzers on a production system. Throughout this process, end users were confused why search results were no longer returning or returning weird results. There is a nice &lt;a href=&quot;https://github.com/johtani/analyze-api-ui-plugin&quot;&gt;kibana plugin&lt;/a&gt;that gives you a representation of how your tokens look with a different analyzer, or use the build in &lt;a href=&quot;https://www.elastic.co/guide/en/elasticsearch/reference/master/_testing_analyzers.html&quot;&gt;ES tools&lt;/a&gt; to get the same understanding.&lt;/p&gt;
+
+&lt;h4 id=&quot;be-careful-with-cloud-maintainers&quot;&gt;Be Careful with Cloud Maintainers:&lt;/h4&gt;
+
+&lt;p&gt;We realized that running a cluster at this scale is expensive. The hardware alone sets you back a lot, but our hidden bigger cost was cross traffic between availability zones.&lt;/p&gt;
+
+&lt;p&gt;Most cloud providers offer different “zones” for your machines to entice you to achieve a High-Availability environment. That’s a very useful thing to have, but you need to do a cost/risk analysis. If you migrate shards from HOT to WARM to COLD nodes constantly, you can really rack up a bill. This alone was about 30% of our total cluster cost, which wasn’t cheap at our scale.&lt;/p&gt;
+
+&lt;p&gt;We re-worked how our indices sat in the cluster. This let us create a different index for each zone and pin logging data so it never left the zone it was generated in. One small tweak to how we stored data cut our costs dramatically. Plus, it was a smaller scope for troubleshooting. We’d know a zone was misbehaving and could focus there vs. looking at everything.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion:&lt;/h2&gt;
+
+&lt;p&gt;Running our own logging stack started as a challenge. We roughly knew the scale we were aiming for; it wasn’t going to be trivial or easy. A year later, we’ve gone from pipe-dream to production and immensely grown the team’s ELK stack knowledge.&lt;/p&gt;
+
+&lt;p&gt;We could probably fill 30 more pages with odd things we ran into, hacks we implemented, or times we wanted to pull our hair out. But we made it through and provide a superior logging platform to our engineers at a significant price reduction while maintaining a stable platform.&lt;/p&gt;
+
+&lt;p&gt;There are many different ways we could have started knowing what we do now. For example, using Logstash over Ingest nodes, changing default circuit breakers, and properly using heap space to prevent node failures. But hindsight is 20/20 and it’s rare for projects to not change.&lt;/p&gt;
+
+&lt;p&gt;We suggest anyone wanting to revamp their centralized logging system look at the ELK solutions. There is a learning curve, but the scalability is outstanding and having subsecond lookup time for assisting a customer is phenomenal. But, before you begin, do your homework to save yourself weeks of troubleshooting down the road. In the end though, we’ve received nothing but praise from Grab engineers about their experiences with our new logging system.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 31 Jul 2019 11:43:40 +0000</pubDate>
+        <link>https://engineering.grab.com/how-built-logging-stack</link>
+        <guid isPermaLink="true">https://engineering.grab.com/how-built-logging-stack</guid>
+        
+        <category>Logging</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Making Grab’s everyday app super</title>
@@ -1486,277 +1652,6 @@ type ReplyPair struct {
         
         
         <category>Product</category>
-        
-      </item>
-    
-      <item>
-        <title>Loki, a dynamic mock server for HTTP/TCP testing</title>
-        <description>&lt;h1 id=&quot;background&quot;&gt;Background&lt;/h1&gt;
-
-&lt;p&gt;In a previous article we introduced &lt;a href=&quot;https://engineering.grab.com/mockers&quot;&gt;Mockers - an innovative tool for local box testing at Grab&lt;/a&gt;. Mockers used a &lt;a href=&quot;https://en.wikipedia.org/wiki/Shift_left_testing&quot;&gt;Shift Left testing strategy&lt;/a&gt;, making testing more effective and cheaper for development teams. Mockers’ popularity and success motivated us to create Loki - a one-stop dynamic mock server for local box testing of mobile apps.&lt;/p&gt;
-
-&lt;p&gt;There are some unique challenges in mobile apps testing at Grab. End-to-end testing of an app is difficult due to high dependency on backend services and other apps. Staging environment, which hosts a plethora of backend services, is tough to manage and maintain. Issues such as staging downtime, configuration mismatches, and data corruption can affect staging adding to the testing woes. Moreover, our apps are fairly complex, utilizing multiple transport protocols such as HTTP, HTTPS, TCP for various business flows.&lt;/p&gt;
-
-&lt;p&gt;The business flows are also complex, requiring exhaustive set up such as credit card payments set up, location spoofing, etc resulting in high maintenance costs for automated testing. Loki simulates these flows and developers can easily test use cases that take longer to set up in a real backend staging.&lt;/p&gt;
-
-&lt;p&gt;Loki is our attempt to address challenges in mobile app testing by turning every developer local box into a full fledged pseudo backend environment where all mobile workflows can be tested without any external dependencies. It mocks backend services on developer local boxes, decoupling the mobile apps from real backend services, which provides several advantages such as:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;No need to deploy frequently to staging&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Testing is blocked if the app receives a bad response from staging. In these cases, code changes have to be deployed on staging to fix issues before resuming tests. In contrast, using Loki lets developers continue testing without any immediate need to deploy code changes to staging.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Allows parallel frontend and backend development&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Loki acts as a mock backend service when the real backend is still evolving. It lets the frontend development run in parallel with backend development.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Overcome time limitations&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;In a one week regression-and-release scenario, testing time is limited. However, the application UI rendering and functionality still needs reasonable testing. Loki lets developers concentrate on testing in the available time instead of fixing dependencies on backend services.&lt;/p&gt;
-
-&lt;h1 id=&quot;loki---grabs-solution-to-simplify-mobile-apps-testing&quot;&gt;Loki - Grab’s solution to simplify mobile apps testing&lt;/h1&gt;
-
-&lt;p&gt;At Grab, we have multiple mobile apps that are dependent on each other. For example, our Passenger and Driver apps are two sides of a coin; the driver gets a job card only when a passenger requests a booking. These apps are developed by different teams, each with its own release cycle. This can make it tricky to confidently and repeatedly test the whole business flow across apps. Apps also depend on multiple backend services to execute a booking or food order and communicate over different protocols.&lt;/p&gt;
-
-&lt;p&gt;Here’s a look at how our mobile apps interact with backend services over different protocols:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Mobile app interaction with backend services&quot; src=&quot;/img/loki-dynamic-mock-server-http-tcp-testing/image6.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Loki is a dynamic mock server, written in Golang, running in a Docker container on the local box or in CI. It is easy to set up and run through standard Docker commands. In the context of mobile app testing, it plays the role of backend services, so you no longer need to set up an extensive staging environment.&lt;/p&gt;
-
-&lt;p&gt;The Loki architecture looks like this:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Loki architecture&quot; src=&quot;/img/loki-dynamic-mock-server-http-tcp-testing/image3.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h1 id=&quot;the-technical-challenges-we-had-to-overcome&quot;&gt;The technical challenges we had to overcome&lt;/h1&gt;
-
-&lt;p&gt;We wanted a comprehensive mocking solution so that teams don’t need to integrate multiple tools to achieve independent testing. It turned out that mocking TCP was most challenging because:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;It is a long running client-server connection, and it doesn’t follow an HTTP-like request/response pattern.&lt;/li&gt;
-  &lt;li&gt;Messages can be sent to the app without an incoming request as well, hence we had to expose a way via Loki to set a mock expectation which can send messages to the app without any request triggering it.&lt;/li&gt;
-  &lt;li&gt;As TCP is a long running connection, we needed a way to delimit incoming requests so we know when we can truncate and deserialize the incoming request into JSON.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We engineered the Loki backend to support both HTTP and TCP protocols on different ports. Yet, the mock expectations are set up using RESTful APIs over HTTP for both protocols. A single point of entry for setting expectations made it more intuitive for our developers.&lt;/p&gt;
-
-&lt;p&gt;An in-memory cron implementation pushes scheduled messages to the app over a TCP connection. This enabled testing of complex use cases such as drivers getting new job cards, driver and passenger chat workflows, etc. The delimiter for TCP protocol is configurable at start up, so each team can decide when to truncate the request.&lt;/p&gt;
-
-&lt;p&gt;To enable Loki on our CI, we had to reduce its memory footprint. Hence, we built Loki with pluggable storages. MySQL is used when running on local and on CI we switch seamlessly to in-memory cache or Redis.&lt;/p&gt;
-
-&lt;p&gt;For testing apps locally, developers must validate complex use cases such as:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Payment related flows, which require the response to include the same payment ID as sent in the request. This is a case of simple mapping of request fields in the response JSON.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Flows requiring runtime logic execution. For example, a job card sent to a driver must have a valid timestamp, requiring runtime computation on Loki.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To support these cases and many more, we added JavaScript injection capability to Loki. So, when we set an expectation for an HTTP request/response pair or for TCP events, we can specify JavaScript for computing the dynamic response. This is executed in a sandbox by an in-house JS execution library.&lt;/p&gt;
-
-&lt;p&gt;Grab follows a transactional workflow for bookings. Over the life of a ride, bookings go through different statuses. So, Loki had to address multiple HTTP requests to the same endpoint returning different responses. This feature is required for successfully mocking a whole ride end-to-end.&lt;/p&gt;
-
-&lt;p&gt;Loki uses  an HTTP API &lt;code class=&quot;highlighter-rouge&quot;&gt;“httpTimesAndOrder”&lt;/code&gt; for this feature. For example, using &lt;code class=&quot;highlighter-rouge&quot;&gt;“httpTimesAndOrder”&lt;/code&gt;, you can configure the same status endpoint (&lt;code class=&quot;highlighter-rouge&quot;&gt;/ride/status&lt;/code&gt;) to return different ride statuses such as &lt;code class=&quot;highlighter-rouge&quot;&gt;“PICKING”&lt;/code&gt; for the first five requests, &lt;code class=&quot;highlighter-rouge&quot;&gt;“IN_RIDE”&lt;/code&gt; for the next three requests, and so on.&lt;/p&gt;
-
-&lt;p&gt;Now, let’s look at how to use Loki to mock HTTP requests and TCP events.&lt;/p&gt;
-
-&lt;h1 id=&quot;mocking-http-requests&quot;&gt;Mocking HTTP requests&lt;/h1&gt;
-
-&lt;p&gt;To mock HTTP requests, developers first point their app to send requests to the Loki mock server. Then, they set up expectations for all requests sent to the Loki mock server.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Loki mock server&quot; src=&quot;/img/loki-dynamic-mock-server-http-tcp-testing/image4.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;For example, the Passenger app calls an HTTP dependency &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /closeby/drivers/&lt;/code&gt; to get nearby drivers. To mock it with Loki, you set an expected response on the Loki mock server. When the &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /closeby/drivers/&lt;/code&gt; request is actually made from the Passenger app, Loki returns the set response.&lt;/p&gt;
-
-&lt;p&gt;This snippet shows how to set an expected response for the &lt;code class=&quot;highlighter-rouge&quot;&gt;GET /closeby/drivers/request&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Loki API: POST `/api/v1/expectations`
-
-Request Body :
-
-{
-  &quot;uriToMock&quot;: &quot;/closeby/drivers&quot;,
-  &quot;method&quot;: &quot;GET&quot;,
-  &quot;response&quot;: {
-    &quot;drivers&quot;: [
-      1001,
-      1002,
-      1010
-    ]
-  }
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;workflowfor-setting-expectations-and-receiving-responses&quot;&gt;Workflow for setting expectations and receiving responses&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Workflow for setting expectations and receiving responses&quot; src=&quot;/img/loki-dynamic-mock-server-http-tcp-testing/image5.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h1 id=&quot;mocking-tcp-events&quot;&gt;Mocking TCP events&lt;/h1&gt;
-
-&lt;p&gt;Developers point their app to Loki over a TCP connection and set up the TCP expectations. Loki then generates scheduled events such as sending push messages (job cards, notifications, etc) to the apps pointing at Loki.&lt;/p&gt;
-
-&lt;p&gt;For example, if the Driver app, after it starts, wants to get a job card, you can set an expectation in Loki to push a job card over the TCP connection to the Driver app after a scheduled time interval.&lt;/p&gt;
-
-&lt;p&gt;This snippet shows how to set the TCP expectation and schedule a push message:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Loki API: POST `/api/v1/tcp/expectations/pushmessage`
-
-Request Body :
-
-{
-  &quot;name&quot;: &quot;samplePushMsg&quot;,
-  &quot;msgSequence&quot;: [
-    {
-      &quot;messages&quot;: {
-        &quot;body&quot;: {
-          &quot;jobCardID&quot;: 1001
-        }
-      }
-    },
-    {
-      &quot;messages&quot;: {
-        &quot;body&quot;: {
-          &quot;jobCardID&quot;: 1002
-        }
-      }
-    }
-  ],
-  &quot;schedule&quot;: &quot;@every 1m&quot;
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;workflowfor-scheduling-a-push-message-over-tcp&quot;&gt;Workflow for scheduling a push message over TCP&lt;/h2&gt;
-
-&lt;p&gt;&lt;img src=&quot;images/image1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Workflow for scheduling a push message over TCP&quot; src=&quot;/img/loki-dynamic-mock-server-http-tcp-testing/image1.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h1 id=&quot;some-example-use-cases&quot;&gt;Some example use cases&lt;/h1&gt;
-
-&lt;p&gt;Now that you know about Loki, let’s look at some example use cases.&lt;/p&gt;
-
-&lt;h2 id=&quot;generating-a-custom-response-at-runtime&quot;&gt;Generating a custom response at runtime&lt;/h2&gt;
-
-&lt;p&gt;Our first example is customizing a runtime response for both HTTP and TCP requests. This is helpful when developers need dynamic responses to requests. For example, you can add parameters from the request URL or request body to the runtime response.&lt;/p&gt;
-
-&lt;p&gt;It’s simple to implement this with a JavaScript function. Assume you want to embed a message parameter in the request URL to the response. To do this, you first use a POST method to set up the expectation (in JSON format) for the request on Loki:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Loki API: POST `/api/v1/feature/expectations`
-
-Request Body :
-
-{
-  &quot;expectations&quot;: [{
-    &quot;name&quot;: &quot;Sample call&quot;,
-    &quot;desc&quot;: &quot;v1/test/{name}&quot;,
-    &quot;tags&quot;: &quot;v1/test/{name}&quot;,
-    &quot;resource&quot;: &quot;/v1/test?name=user1&quot;,
-    &quot;verb&quot;: &quot;POST&quot;,
-    &quot;response&quot;: {
-      &quot;body&quot;: &quot;{ \&quot;msg\&quot;: \&quot;Hi \&quot;}&quot;,
-      &quot;status&quot;: 200
-    },
-    &quot;clientOptions&quot;: {
-&quot;javascript&quot;: &quot;function main(req, resp) { var url = req.RequestURI; var captured = /name=([^&amp;amp;]+)/.exec(url)[1]; resp.msg =  captured ? resp.msg + captured : resp.msg + 'myDefaultValue'; return resp }&quot;
-    },
-    &quot;isActive&quot;: 1
-  }]
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;When Loki receives the request, the JavaScript function used in the &lt;code class=&quot;highlighter-rouge&quot;&gt;clientOptionskey&lt;/code&gt;, adds &lt;code class=&quot;highlighter-rouge&quot;&gt;name&lt;/code&gt; to the response at runtime. For example, this is the request’s fixed response:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{
-    &quot;msg&quot;: &quot;Hi &quot;
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;But, after using the JavaScript function to add the URL parameter, the dynamic response is:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{
-    &quot;msg&quot;: &quot;Hi user1&quot;
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Similarly, you can use JavaScript to add other dynamic responses such as modifying the response’s JSON array, adding parameters to push messages, etc.&lt;/p&gt;
-
-&lt;h2 id=&quot;defining-a-response-sequence-for-mocked-api-endpoints&quot;&gt;Defining a response sequence for mocked API endpoints&lt;/h2&gt;
-
-&lt;p&gt;Here’s another interesting example - defining the response sequence for API endpoints.&lt;/p&gt;
-
-&lt;p&gt;A response sequence is useful when you need different responses from the same API endpoint. For example, a status endpoint should return different ride statuses such as ‘allocating’, ‘allocated’, ‘picking’, etc. depending on the stage of a ride.&lt;/p&gt;
-
-&lt;p&gt;To do this, developers set up their HTTP expectations on Loki. Then, they easily define the response sequence for an API endpoint using a Loki POST method.&lt;/p&gt;
-
-&lt;p&gt;In this example:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;times&lt;/code&gt; - specifies the number of times the same response is returned.&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;after&lt;/code&gt; - specifies one or more expectations that must match before a specified expectation is matched.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Here, the expectations are matched in this sequence when a request is made to an endpoint - &lt;code class=&quot;highlighter-rouge&quot;&gt;Allocating&lt;/code&gt; &amp;gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;Allocated&lt;/code&gt; &amp;gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;Pickuser&lt;/code&gt; &amp;gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;Completed&lt;/code&gt;. Further, &lt;code class=&quot;highlighter-rouge&quot;&gt;Completed&lt;/code&gt; is set to two times, so Loki returns this response two times.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Loki API: POST `/api/v1/feature/sequence`
-
-Request Body :
-  &quot;httpTimesAndOrder&quot;: [
-      {
-          &quot;name&quot;: &quot;Allocating&quot;,
-          &quot;times&quot;: 1
-      },
-      {
-          &quot;name&quot;: &quot;Allocated&quot;,
-          &quot;times&quot;: 1,
-          &quot;after&quot;: [&quot;Allocating&quot;]
-      },
-      {
-          &quot;name&quot;: &quot;Pickuser&quot;,
-          &quot;times&quot;: 1,
-          &quot;after&quot;: [&quot;Allocated&quot;]
-      },
-      {
-          &quot;name&quot;: &quot;Completed&quot;,
-          &quot;times&quot;: 2,
-          &quot;after&quot;: [&quot;Pickuser&quot;]
-      }
-  ]
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h1 id=&quot;in-conclusion&quot;&gt;In conclusion&lt;/h1&gt;
-
-&lt;p&gt;Since Loki’s inception, we have set up a full range CI with proper end-to-end app UI tests and, to a great extent, decoupled our app releases from the staging backend. This improved delivery cycles, and we did faster bug catching and more exhaustive testing. Moreover, both developers and QAs can easily play with apps to perform exploratory testing as well as manual functional validations. Teams are also using Loki to run automated scripts (Espresso and XCUItests) for validating the mobile app pages.&lt;/p&gt;
-
-&lt;p&gt;Loki’s adoption is growing steadily at Grab. With our frequent release of new mobile app features, Loki helps teams meet our high quality bar and achieve huge productivity gains.&lt;/p&gt;
-
-&lt;p&gt;If you have any feedback or questions on Loki, please leave a comment.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 10 Apr 2019 02:41:42 +0000</pubDate>
-        <link>https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing</link>
-        <guid isPermaLink="true">https://engineering.grab.com/loki-dynamic-mock-server-http-tcp-testing</guid>
-        
-        <category>Back End</category>
-        
-        <category>Service</category>
-        
-        <category>Mobile</category>
-        
-        <category>Testing</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
