@@ -8,12 +8,10 @@ categories: [Engineering]
 tags: [Logging]
 comments: true
 cover_photo: /img/how-built-logging-stack/cover.jpeg
-excerpt: "Some string here that must be in quotes if you want it to span across multiple lines."
+excerpt: "This blog post explains what we did to solve our inhouse logging problem around the lack of visualizations and metrics for our service logs."
 ---
 
-_And Solved Our Inhouse Logging Problem_
-
-## Problem:
+## Problem
 
 Let me take you back a year ago at Grab. When we lacked any visualizations or metrics for our service logs. When performing a query for a string from the last three days was something only run before you went for a beverage.
 
@@ -27,27 +25,27 @@ We had a hodgepodge of log-based solutions for developers when they needed to f
 
 Here’s what we did with our logs to solve these problems.
 
-## Issues:
+## Issues
 
 Our current size and growth rate ruled out several available logging systems. By size, we mean a LOT of data and a LOT of users who search through hundreds of billions of logs to generate reports. Or who track down that one user who managed to find that pesky corner case in our code.
 
-When we started this project, we generated 25TB of logging data a day. Our first thought was “Do we really need all of these logs?”. To this day our feeling is “probably not”.
+When we started this project, we generated 25TB of logging data a day. Our first thought was _“Do we really need all of these logs?”_. To this day our feeling is _“probably not”_.
 
 However, we can’t always define what another developer can and cannot do. Besides, this gave us an amazing opportunity to build something to allow for all that data!
 
 Some of our SREs had used the ELK Stack (Elasticsearch / Logstash / Kibana). They thought it could handle our data and access loads, so it was our starting point.
 
-## How We Built a Multi-Petabyte Cluster:
+## How We Built a Multi-Petabyte Cluster
 
-### Information Gathering:
+### Information Gathering
 
 It started with gathering numbers. How much data did we produce each day? How many days were retained? What’s a reasonable response time to wait for?
 
 Before starting a project, understand your parameters. This helps you spec out your cluster, get buy-in from higher ups, and increase your success rate when rolling out a product used by the entire engineering organization. Remember, if it’s not better than what they have now, why will they switch?
 
-A good starting point was opening the floor to our users. What features did they want? If we offered a visualization suite so they can see ERROR event spikes, would they use it? How about alerting them about SEGFAULTs? Hands down the most requested feature was speed; **“I want an easy webUI that shows me the user ID when I search for it, and get all the results in <5 seconds!”**
+A good starting point was opening the floor to our users. What features did they want? If we offered a visualization suite so they can see ERROR event spikes, would they use it? How about alerting them about SEGFAULTs? Hands down the most requested feature was speed; _“I want an easy webUI that shows me the user ID when I search for it, and get all the results in <5 seconds!”_
 
-### Getting Our Feet Wet:
+### Getting Our Feet Wet
 
 New concerns always pop up during a project. We’re sure someone has correlated the time spent in R&D to the number of problems. We had an always moving target, since as our proof of concept began, our daily logger volume kept increasing.
 
@@ -55,7 +53,7 @@ Thankfully, using [Elasticsearch](https://www.elastic.co/) as our data store me
 
 The specs at the time called for about 80 nodes to handle all our data. But if we designed our system correctly, we’d only need to increase the number of Elasticsearch nodes as we enrolled more customers. Our key operating metrics were CPU utilization, heap memory needed for the JVM, and total disk space.
 
-### Initial Design:
+### Initial Design
 
 First, we set up tooling to use [Ansible](https://www.ansible.com/) both to launch a machine and to install and configure Elasticsearch. Then we were ready to scale.
 
@@ -76,23 +74,23 @@ If you’re unfamiliar with ingest node design, they are lightweight proxies to 
 
 But adding more ingest nodes means ADDING MORE NODES! This can create a lot of chatter in your cluster and cause more complexity when  troubleshooting problems. We’ve seen when an ingest node failing in an odd way caused larger cluster concerns than just a failed bulk send request.
 
-### Monitoring:
+### Monitoring
 
 This isn’t anything new, but we can’t overstate the usefulness of monitoring. Thankfully, we already had a robust tool called Datadog with an additional integration for Elasticsearch. Seeing your heap utilization over time, then breaking it into smaller graphs to display the field data cache or segment memory, has been a lifesaver. There’s nothing worse than a node falling over due to an OOM with no explanation and just hoping it doesn’t happen again.
 
 At this point, we’ve built out several dashboards which visualize a wide range of metrics from query rates to index latency. They tell us if we sharply drop on log ingestion or if circuit breakers are tripping. And yes, Kibana has some nice monitoring pages for some cluster stats. But to know each node’s JVM memory utilization on a 400+ node cluster, you need a robust metric system.
 
-## Pitfalls:
+## Pitfalls
 
-### Common Problems:
+### Common Problems
 
 There are many blogs about the common problems encountered when creating an Elasticsearch cluster and Elastic does a good job of keeping [blog posts](https://elastic.co/blog) up to date. We strongly encourage you to read them. Of course, we ran into classic problems like ensuring our Java objects were compressed (Hints: Don’t exceed 31GB of heap for your JVM and always confirm you’ve enabled compression).
 
 But we also ran into some interesting problems that were less common. Let’s look at some major concerns you have to deal with at this scale.
 
-### Grab’s Problems:
+### Grab’s Problems
 
-#### Field Data Cache:
+#### Field Data Cache
 
 So, things are going well, all your logs are indexing smoothly, and suddenly you’re getting Out Of Memory (OOMs) events on your data nodes. You rush to find out what's happening, as more nodes crash.
 
@@ -102,19 +100,19 @@ Using our graphs, we determined the field data cache went from virtually zero me
 
 Now, this should be a rare case and it’s very helpful to keep the field names and values in memory for quick lookup. But, if, like us, you have several trillion documents, you might want to watch out.
 
-From our logs, we tracked down a user who was sorting by the _id field. We believe this is a design decision in how Kibana interacts with Elasticsearch. A good counter argument would be a user wants a quick memory lookup if they search for a document using the _id. But for us, this meant a user could load into memory every ID in the indices over a 14 day period.
+From our logs, we tracked down a user who was sorting by the _id_ field. We believe this is a design decision in how Kibana interacts with Elasticsearch. A good counter argument would be a user wants a quick memory lookup if they search for a document using the _id_. But for us, this meant a user could load into memory every ID in the indices over a 14 day period.
 
 The consequences? 20+GB of data loaded into the heap before the circuit breaker tripped. It then only took 2 queries at a time to knock a node over.
 
-You can’t disable indexing that field, and you probably don’t want to. But you can prevent users from stumbling into this and disable the _id field in the Kibana advanced settings. And make sure you re-evaluate your circuit breakers. We drastically lowered the available field cache and removed any further issues.
+You can’t disable indexing that field, and you probably don’t want to. But you can prevent users from stumbling into this and disable the _id_ field in the Kibana advanced settings. And make sure you re-evaluate your circuit breakers. We drastically lowered the available field cache and removed any further issues.
 
-#### Translog Compression:
+#### Translog Compression
 
 At first glance, compression seems an obvious choice for shipping shards between nodes. Especially if you have the free clock cycles, why not minimize the bandwidth between nodes?
 
-However, we found compression between nodes can drastically slow down shard transfers. By disabling compression, shipping time for a 50GB shard went from 1h to 20m. This was because Lucenesegments are already compressed, a new issue we ran into full force and are actively working with the community to fix. But it's also a configuration to watch out for in your setup, especially if you want a fast recovery of a shard.
+However, we found compression between nodes can drastically slow down shard transfers. By disabling compression, shipping time for a 50GB shard went from 1h to 20m. This was because Lucene segments are already compressed, a new issue we ran into full force and are actively working with the community to fix. But it's also a configuration to watch out for in your setup, especially if you want a fast recovery of a shard.
 
-#### Segment Memory:
+#### Segment Memory
 
 Most of our issues involved the heap memory being exhausted. We can’t stress enough the importance of having visualizations around how the JVM is used. We learned this lesson the hard way around segment memory.
 
@@ -124,15 +122,15 @@ There is a reason why having a 16TB data node might be a poorly spec’d machin
 
 The numbers have since changed and our layout was tweaked, but we came up with calculations showing we could allocate about 8TB of shards to a node with 32GB heap memory before we running into issues. That’s if you really want to push it, but it’s also a metric used to keep your segment memory per node around 50%. This allows enough memory to run queries without knocking out your data nodes. Naturally this led us to ask “What is using all this segment memory per node?”
 
-#### Index Mapping and Field Types:
+#### Index Mapping and Field Types
 
 Could we lower how much segment memory our indices used to cut our cluster operation costs? Using the segments data found in the ES cluster and some simple Python loops, we tracked down the total memory used per field in our index.
 
-We used a lot of segment memory for the **_id** field (but can’t do much about that). It also gave us a good breakdown of our other fields. And we realized we indexed fields in completely unnecessary ways. A few fields should have been integers but were keyword fields. We had fields no one would ever search against and which could be dropped from index memory.
+We used a lot of segment memory for the _id_ field (but can’t do much about that). It also gave us a good breakdown of our other fields. And we realized we indexed fields in completely unnecessary ways. A few fields should have been integers but were keyword fields. We had fields no one would ever search against and which could be dropped from index memory.
 
 Most importantly, this began our learning process of how tokens and analyzers work in Elasticsearch/Lucene.
 
-#### Picking the Wrong Analyzer:
+#### Picking the Wrong Analyzer
 
 By default, we use Elasticsearch’s Standard Analyzer on all analyzed fields. It’s great, offering a very close approximation to how users search and it doesn’t explode your index memory like an N-gram tokenizer would.
 
@@ -140,9 +138,9 @@ But it does a few things we thought unnecessary, so we thought we could save a s
 
 We never have a user search for a user ID as a partial value. It would be more useful to only return the entire match of an alphanumeric string. This has the added benefit of only storing the single token in our index memory. This modification alone stripped a whole 1GB off our index memory, or at our scale meant we could eliminate 8 nodes.
 
-We can’t stress enough how cautious you need to be when changing analyzers on a production system. Throughout this process, end users were confused why search results were no longer returning or returning weird results. There is a nice [kibana plugin](https://github.com/johtani/analyze-api-ui-plugin)that gives you a representation of how your tokens look with a different analyzer, or use the build in [ES tools](https://www.elastic.co/guide/en/elasticsearch/reference/master/_testing_analyzers.html) to get the same understanding.
+We can’t stress enough how cautious you need to be when changing analyzers on a production system. Throughout this process, end users were confused why search results were no longer returning or returning weird results. There is a nice [kibana plugin](https://github.com/johtani/analyze-api-ui-plugin) that gives you a representation of how your tokens look with a different analyzer, or use the build in [ES tools](https://www.elastic.co/guide/en/elasticsearch/reference/master/_testing_analyzers.html) to get the same understanding.
 
-#### Be Careful with Cloud Maintainers:
+#### Be Careful with Cloud Maintainers
 
 We realized that running a cluster at this scale is expensive. The hardware alone sets you back a lot, but our hidden bigger cost was cross traffic between availability zones.
 
@@ -150,7 +148,7 @@ Most cloud providers offer different “zones” for your machines to entice you
 
 We re-worked how our indices sat in the cluster. This let us create a different index for each zone and pin logging data so it never left the zone it was generated in. One small tweak to how we stored data cut our costs dramatically. Plus, it was a smaller scope for troubleshooting. We’d know a zone was misbehaving and could focus there vs. looking at everything.
 
-## Conclusion:
+## Conclusion
 
 Running our own logging stack started as a challenge. We roughly knew the scale we were aiming for; it wasn’t going to be trivial or easy. A year later, we’ve gone from pipe-dream to production and immensely grown the team’s ELK stack knowledge.
 
