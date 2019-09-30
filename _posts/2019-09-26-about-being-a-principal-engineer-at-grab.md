@@ -30,7 +30,7 @@ Principal engineer level is akin to a senior manager where instead of indirectly
 
 ## Challenging Projects
 
-<div style="font-style:italic"><font color="A9A9A9">“You take engineering ownership of projects that may require the work of several teams to implement; you divide responsibilities so that each team can work independently and have the system come together into an integrated whole. Your projects often cross team, tech family, platform, and even R&D center boundaries. You solicit differing views and keep an open mind. You are adept at building consensus.” - Grab’s Engineering Career Ladder</font></div>
+<div align="center" style="font-style:italic"><font color="A9A9A9">“You take engineering ownership of projects that may require the work of several teams to implement; you divide responsibilities so that each team can work independently and have the system come together into an integrated whole. Your projects often cross team, tech family, platform, and even R&D center boundaries. You solicit differing views and keep an open mind. You are adept at building consensus.” - Grab’s Engineering Career Ladder</font></div>
 <p>&nbsp;</p>
 
 As a principal engineer, your job is to solve larger problems and translate somewhat vague problems into a set of actionable items. You might be faced with a large problem such as “improve efficiency and interoperability of Grab’s transportation system.” You will need to understand the problem, the business impact and see how can it be improved. It might require you to design new systems, change existing systems, understand the costs involved and get the right people together to make it happen.
@@ -43,7 +43,7 @@ A Tech Family can easily have 20 or more micro-services. You need to have a good
 
 ## Technical Ownership
 
-<div style="font-style:italic"><font color="A9A9A9">“You are the origin of significant technical contributions to our architecture and infrastructure.  You take technical ownership of the design and quality of the security, performance, availability, and operational aspects of the software built by one or more teams. You identify where your time is needed, transitioning between coding, design, and architecture based on project and team needs. You deliver software in ways that empower teams to self-service, providing clear adoption/migration paths.” - Grab’s Engineering Career Ladder</font></div>
+<div align="center" style="font-style:italic"><font color="A9A9A9">“You are the origin of significant technical contributions to our architecture and infrastructure.  You take technical ownership of the design and quality of the security, performance, availability, and operational aspects of the software built by one or more teams. You identify where your time is needed, transitioning between coding, design, and architecture based on project and team needs. You deliver software in ways that empower teams to self-service, providing clear adoption/migration paths.” - Grab’s Engineering Career Ladder</font></div>
 <p>&nbsp;</p>
 
 As a principal engineer you work together with the Head of Engineering and managers within the Tech Family and improve the quality of systems across the board. Typically, no-one tells you what needs to be done. You need to identify gaps, raise them and keep improving the systems.
@@ -56,7 +56,7 @@ More often than not, you will have to drive migrations, this is akin to code ref
 
 ## Technical Leadership
 
-<div style="font-style:italic"><font color="A9A9A9">“You amplify your impact by leading design reviews for complex software and/or critical features. You probe assumptions, illuminate pitfalls, and foster shared understanding. You align teams toward coherent architectural strategies.” - Grab’s Engineering Career Ladder</font></div>
+<div align="center" style="font-style:italic"><font color="A9A9A9">“You amplify your impact by leading design reviews for complex software and/or critical features. You probe assumptions, illuminate pitfalls, and foster shared understanding. You align teams toward coherent architectural strategies.” - Grab’s Engineering Career Ladder</font></div>
 <p>&nbsp;</p>
 
 In Grab we have a process known as RFC (Request For Comments) which allows engineers to submit designs and ideas for a larger audience to debate. This is especially important given that our organisation is spread across several continents with research and development offices in Southeast Asia, the US, India and China. While any engineer is welcome to comment on these RFCs, it is a duty of lead and principal engineers’ to review them on a regular basis. This will help you to expand your knowledge of existing systems and help others with improving their designs.
@@ -71,7 +71,7 @@ You also need to be able to drive meetings and discussions without wasting anyo
 
 ## Teaching and Learning
 
-<div style="font-style:italic"><font color="A9A9A9">“You educate other engineers, both at an individual level and at scale: keeping the engineering community up to date on advanced technical issues, technologies, and trends. Examples include onboarding bootcamps for new hires, interns, specific skill-gap training development, and sharing specialized knowledge to raise the technical bar for other engineers/teams/dev centers.”</font></div>
+<div align="center" style="font-style:italic"><font color="A9A9A9">“You educate other engineers, both at an individual level and at scale: keeping the engineering community up to date on advanced technical issues, technologies, and trends. Examples include onboarding bootcamps for new hires, interns, specific skill-gap training development, and sharing specialized knowledge to raise the technical bar for other engineers/teams/dev centers.”</font></div>
 <p>&nbsp;</p>
 
 A principal engineer is a technical leader and as a leader you have the responsibility to mentor, coach fellow engineers, regardless of their level. In addition to code-reviews, you can organise office hours in your team and knowledge sharing sessions where everyone could present something. You could also help with bootcamps and help new hires in getting up-to-speed.
