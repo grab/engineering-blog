@@ -147,6 +147,6 @@ As mentioned above, we plan to send the resource payload of the Counter service 
 
 There are more automation steps we plan to do, such as adding a replay button on the web portal, and hooking up with the offline big data engine to trigger the analytics jobs. The performance metrics will be collected and displayed on the web portal. A single platform would be able to manage both the online and offline data.
 
-### Integration to Griffin
+### Integration with Griffin
 
-Griffin is our rule engine. Counters are sometimes an input to a particular rule, and one rule usually needs many counters to work together. We need to provide a better integration to Griffin on backend. We plan to minimize the current engineering effort when using counters on Griffin. A counter then becomes an automated input variable on Griffin, which can be configured on the web portal by any users.
+Griffin is our rule engine. Counters are sometimes an input to a particular rule, and one rule usually needs many counters to work together. We need to provide a better integration with Griffin on backend. We plan to minimize the current engineering effort when using counters on Griffin. A counter then becomes an automated input variable on Griffin, which can be configured on the web portal by any users.
