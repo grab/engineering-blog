@@ -394,11 +394,11 @@ THEN we would still not allow this booking
   <li>The key idea is to make all computations in CPU and memory only (in other words, no extra I/O).</li>
   <li>We do not fetch the rules from database for each prediction. Instead, we keep a record called <code class="highlighter-rouge">dirty_key</code>, which keeps the latest rule update timestamp. The rule engine would actively check this timestamp and trigger a rule reload only when the <code class="highlighter-rouge">dirty_key</code> timestamp in the DB is newer than the latest rule reload time.</li>
   <li>Rule engine would not fetch any additional new data, instead, all data should be from Data Orchestrator.</li>
-  <li>So the whole prediction flow is only between CPU &amp; memory (and if the data size is small, it could be on <a href="https://www.prowesscorp.com/computer-latency-at-a-human-scale/&amp;sa=D&amp;ust=1572350981999000">CPU cache</a> only).</li>
-  <li><a href="https://wiki.python.org/moin/GlobalInterpreterLock&amp;sa=D&amp;ust=1572350981999000">Python GIL</a> essentially enforces a process to have up to one active thread running at a time, no matter how many cores a CPU has. We have <a href="https://gunicorn.org/&amp;sa=D&amp;ust=1572350982000000">Gunicorn</a> to wrap our service, so on the Production machine, we have <code class="highlighter-rouge">(2x$num_cores) + 1 processes</code> (see <a href="http://docs.gunicorn.org/en/latest/design.html%23how-many-workers&amp;sa=D&amp;ust=1572350982000000">http://docs.gunicorn.org/en/latest/design.html#how-many-workers</a>). The formula is based on the assumption that for a given core, one worker will be reading or writing from the socket while the other worker is processing a request.</li>
+  <li>So the whole prediction flow is only between CPU &amp; memory (and if the data size is small, it could be on <a href="https://www.prowesscorp.com/computer-latency-at-a-human-scale">CPU cache</a> only).</li>
+  <li><a href="https://wiki.python.org/moin/GlobalInterpreterLock">Python GIL</a> essentially enforces a process to have up to one active thread running at a time, no matter how many cores a CPU has. We have <a href="https://gunicorn.org">Gunicorn</a> to wrap our service, so on the Production machine, we have <code class="highlighter-rouge">(2x$num_cores) + 1 processes</code> (see <a href="http://docs.gunicorn.org/en/latest/design.html%23how-many-workers">http://docs.gunicorn.org/en/latest/design.html#how-many-workers</a>). The formula is based on the assumption that for a given core, one worker will be reading or writing from the socket while the other worker is processing a request.</li>
 </ul>
 
-<p>The below screenshot is the process snapshot on <a href="https://aws.amazon.com/ec2/instance-types/c5/&amp;sa=D&amp;ust=1572350982001000">C5.large machine</a> with 2 vCPU. Note only green processes are active.</p>
+<p>The below screenshot is the process snapshot on <a href="https://aws.amazon.com/ec2/instance-types/c5">C5.large machine</a> with 2 vCPU. Note only green processes are active.</p>
 
 <div class="post-image-section">
   <img alt="Process snapshot on C5.large machine" src="/img/griffin/image5.png" />
@@ -406,8 +406,8 @@ THEN we would still not allow this booking
 
 <p>A lot of trial and error performance tuning:</p>
 <ul>
-  <li>We used to have <a href="https://github.com/kennknowles/python-jsonpath-rw&amp;sa=D&amp;ust=1572350982002000">python-jsonpath-rw</a> for JSONPath query, but the performance was not strong enough. We switched to <a href="https://github.com/jmespath/jmespath.py&amp;sa=D&amp;ust=1572350982003000">jmespath</a> and observed about 10ms latency reduction.</li>
-  <li>We use <a href="https://www.sqlalchemy.org&amp;sa=D&amp;ust=1572350982003000">sqlalchemy</a> for DB Query and ORM. We enabled cache for some use cases, but turned out it was over-optimized with stale data. We ended up turning off some caching points to ensure the data consistency.</li>
+  <li>We used to have <a href="https://github.com/kennknowles/python-jsonpath-rw">python-jsonpath-rw</a> for JSONPath query, but the performance was not strong enough. We switched to <a href="https://github.com/jmespath/jmespath.py">jmespath</a> and observed about 10ms latency reduction.</li>
+  <li>We use <a href="https://www.sqlalchemy.org">sqlalchemy</a> for DB Query and ORM. We enabled cache for some use cases, but turned out it was over-optimized with stale data. We ended up turning off some caching points to ensure the data consistency.</li>
   <li>For new dict/list creation, we prefer native call (e.g. <code class="highlighter-rouge">{}</code>/<code class="highlighter-rouge">[]</code>) instead of function call (see the comparison below).</li>
 </ul>
 
@@ -416,7 +416,7 @@ THEN we would still not allow this booking
 </div>
 
 <ul>
-  <li>Use built-in functions <a href="https://docs.python.org/3/library/functions.html&amp;sa=D&amp;ust=1572350982004000">https://docs.python.org/3/library/functions.html</a>. It is written in C, no one can beat it.</li>
+  <li>Use built-in functions <a href="https://docs.python.org/3/library/functions.html">https://docs.python.org/3/library/functions.html</a>. It is written in C, no one can beat it.</li>
   <li>Add randomness to rule reload so that not all machines run at the same time causing latency spikes.</li>
   <li>Caching atomic feature units as they are used so that we don’t have to requery for them each time a checkpoint uses it.</li>
 </ul>
@@ -439,7 +439,7 @@ THEN we would still not allow this booking
   <img alt="Rollback button" src="/img/griffin/image7.png" />
 </div>
 
-<p>We also built <a href="https://en.wikipedia.org/wiki/Role-based_access_control&amp;sa=D&amp;ust=1572350982007000">RBAC-based</a> permission system, along with Change Approval flow to make sure any prod change needs at least two people(and approver role has higher permission)</p>
+<p>We also built <a href="https://en.wikipedia.org/wiki/Role-based_access_control">RBAC-based</a> permission system, along with Change Approval flow to make sure any prod change needs at least two people(and approver role has higher permission)</p>
 
 <h2 id="closing-thoughts">Closing thoughts</h2>
 
