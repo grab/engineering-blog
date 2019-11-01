@@ -13,7 +13,7 @@ excerpt: "This blog introduces Grab’s Trust Counter service for detecting frau
 
 ## Background
 
-Fraud is not a new phenomenon, but with the rise of the digital economy it has taken different and aggressive forms. Over the last decade, novel ways to exploit technology have appeared, and as a result, millions of people have been impacted and millions of dollars in revenue have been lost. According to [ACFE survey](https://www.acfe.com/press-release.aspx?id%3D4294973129&sa=D&ust=1571738247092000), companies lost USD6.3 billion due to fraud. Organizations lose 5% of its revenue annually due to fraud.
+Fraud is not a new phenomenon, but with the rise of the digital economy it has taken different and aggressive forms. Over the last decade, novel ways to exploit technology have appeared, and as a result, millions of people have been impacted and millions of dollars in revenue have been lost. According to [ACFE survey](https://www.acfe.com/press-release.aspx?id%3D4294973129), companies lost USD6.3 billion due to fraud. Organizations lose 5% of its revenue annually due to fraud.
 
 In this blog, we take a closer look at how we developed an anti-fraud solution using the Counter service, which can be an indispensable tool in the highly complex world of fraud detection.
 
@@ -115,7 +115,7 @@ We allowed data analysts and data scientists to onboard counters by themselves, 
 
 ### Backend integration
 
-We provide SDK for quicker and better integration. The engineers only need to provide the counter identifier ID (which is shown in the UI) and the time duration in the query. Under the hood we provide a GRPC protocol to communicate across services. We divide the query time window to smaller granularities, fetching from different time series tables and then conquering the result. We are also providing a short [TTL](https://en.wikipedia.org/wiki/Time_to_live&sa=D&ust=1571738247117000) cache layer to take the uncommon traffic from client such as network retry or traffic throttle. Our [QPS](https://en.wikipedia.org/wiki/Queries_per_second&sa=D&ust=1571738247118000) are designed to target 100K.
+We provide SDK for quicker and better integration. The engineers only need to provide the counter identifier ID (which is shown in the UI) and the time duration in the query. Under the hood we provide a GRPC protocol to communicate across services. We divide the query time window to smaller granularities, fetching from different time series tables and then conquering the result. We are also providing a short [TTL](https://en.wikipedia.org/wiki/Time_to_live) cache layer to take the uncommon traffic from client such as network retry or traffic throttle. Our [QPS](https://en.wikipedia.org/wiki/Queries_per_second) are designed to target 100K.
 
 ### Monitoring the Counter service
 
