@@ -3,7 +3,7 @@ layout: post
 id: grabs-front-end-study-guide
 title: Grab's Front End Study Guide
 date: 2017-06-03 18:43:40
-authors: [tay-yang-shun]
+authors: [yangshun-tay]
 categories: [Engineering]
 tags: [Front End, JavaScript, Web]
 comments: true
@@ -21,7 +21,7 @@ To keep up with Grab’s phenomenal growth, our web team and web platforms have 
 
 <br>
 
-*The original post can be found on [Github](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟*
+_The original post can be found on [GitHub](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟_
 
 [Grab](https://www.grab.com) is Southeast Asia (SEA)'s leading transportation platform and our mission is to drive SEA forward, leveraging on the latest technology and the talented people we have in the company. As of May 2017, we handle [2.3 million rides daily](https://www.bloomberg.com/news/videos/2017-05-11/tans-says-company-has-more-than-850-000-drivers-video) and we are growing and hiring at a rapid scale.
 
@@ -33,7 +33,7 @@ This study guide is inspired by ["A Study Plan to Cure JavaScript Fatigue"](http
 
 If your company is exploring a modern JavaScript stack as well, you may find this study guide useful to your company too! Feel free to adapt it to your needs. We will update this study guide periodically, according to our latest work and choices.
 
-*- Grab Web Team*
+_- Grab Web Team_
 
 **Pre-requisites**
 
@@ -400,9 +400,9 @@ We made our technical decisions based on what was important to a rapidly growing
 
 As the front end ecosystem grows, we are actively exploring, experimenting and evaluating how new technologies can make us a more efficient team and improve our productivity. We hope that this post has given you insights into the front end technologies we use at Grab. If what we are doing interests you, [we are hiring](https://grab.careers)!
 
-*Many thanks to [Joel Low](https://github.com/lowjoel), [Li Kai](https://github.com/li-kai) and [Tan Wei Seng](https://github.com/xming13) who reviewed drafts of this article.*
+_Many thanks to [Joel Low](https://github.com/lowjoel), [Li Kai](https://github.com/li-kai) and [Tan Wei Seng](https://github.com/xming13) who reviewed drafts of this article._
 
-*The original post can be found on [GitHub](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟*
+_The original post can be found on [GitHub](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟_
 
 <div class="text-center">
   <iframe src="https://ghbtns.com/github-btn.html?user=grab&repo=front-end-guide&type=star&count=true&size=large" frameborder="0" scrolling="0" width="151px" height="30px"></iframe>
