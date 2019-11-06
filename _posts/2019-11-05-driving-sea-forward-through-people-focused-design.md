@@ -6,7 +6,7 @@ date: 2019-11-04 10:00:00
 authors: [philip-madeley]
 categories: [Design]
 tags: [Design, User Research]
-comments: false
+comments: true
 cover_photo: /img/driving-sea-forward-through-people-focused-design/cover.png
 excerpt: "How do you design for a heavily diversified market like Southeast Asia? In this article, I’ll share key customer insights that have guided my decisions and informed my design thinking over the last year whilst working as a product designer for Grab in Singapore."
 ---
