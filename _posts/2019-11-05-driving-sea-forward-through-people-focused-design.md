@@ -1,8 +1,8 @@
 ---
 layout: post
 id: driving-sea-forward-through-people-focused-design
-title: Driving Southeast Asia forwards through people-focused design
-date: 2019-11-04 10:00:00
+title: Driving Southeast Asia forward through people-focused design
+date: 2019-11-05 10:00:00
 authors: [philip-madeley]
 categories: [Design]
 tags: [Design, User Research]
