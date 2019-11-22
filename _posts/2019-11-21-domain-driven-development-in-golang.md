@@ -93,7 +93,7 @@ type ProductProjectDAO struct {
 }
 ~~~
 
-All the objects shown above have _ID_ as a field and can be identifiable, hence they are identified as **entities** and not as **value objects**. But if we apply domain knowledge, _DeveloperProjectDAO_ and _ProductProjectDAO_ are actually not independent entities. Project object is the aggregate root since it must exist before the child fields, _DevProjectDAO_ and _ProdcutProjectDAO_, can exist.
+All the objects shown above have `ID` as a field and can be identifiable, hence they are identified as **entities** and not as **value objects**. But if we apply domain knowledge, `DeveloperProjectDAO` and `ProductProjectDAO` are actually not independent entities. Project object is the aggregate root since it must exist before the child fields, `DevProjectDAO` and `ProdcutProjectDAO`, can exist.
 
 #### Step 4: Create the repositories
 As stated above, we created an interface to abstract the working logic of a particular domain (i.e. Repository). Here is an example of how we designed the repositories:
@@ -206,7 +206,7 @@ func (e *EventHandler) Handle(event interface{}) interface{} {
 *   Not engaging with domain experts. Not interacting with domain experts is a common mistake when using DDD. Talking to domain experts to get an understanding of the problem domain from their perspective is at the core of DDD. Starting with schemas or data modelling instead of talking to domain experts may create code based on a relational model instead of it built around a domain model.
 *   Ignoring the language of the domain experts. Creating a ubiquitous language shared with domain experts is also a core DDD practice. This common language must be used in all discussions as well as in the code, e.g. in class and method names.
 *   Not identifying bounded contexts. A common approach to solving a complex problem is breaking it down into smaller parts. Creating [bounded contexts](http://martinfowler.com/bliki/BoundedContext.html) is breaking down a large domain into smaller ones, each handling one cohesive part of the domain.
-*   Using an anaemic domain model. This is a common sign that a team is not doing DDD and often a symptom of a failure in the modelling process. At first, an [anaemic domain model](http://www.martinfowler.com/bliki/AnemicDomainModel.html) often looks like a real domain model with correct names, but the classes lack functionalities. They contain only the _Get_ and _Set_ methods.
+*   Using an anaemic domain model. This is a common sign that a team is not doing DDD and often a symptom of a failure in the modelling process. At first, an [anaemic domain model](http://www.martinfowler.com/bliki/AnemicDomainModel.html) often looks like a real domain model with correct names, but the classes lack functionalities. They contain only the `Get` and `Set` methods.
 
 ## How the DDD model improved our software development
 
