@@ -93,11 +93,9 @@ type ProductProjectDAO struct {
 }
 ~~~
 
-As all the objects shown above have _ID_ as a field and can be identifiable, all the above are **entities** and none are **value objects**.
+All the objects shown above have _ID_ as a field and can be identifiable, hence they are identified as **entities** and not as **value objects**. But if we apply domain knowledge, _DeveloperProjectDAO_ and _ProductProjectDAO_ are actually not independent entities. Project object is the aggregate root since it must exist before the child fields, _DevProjectDAO_ and _ProdcutProjectDAO_, can exist.
 
-If we apply domain knowledge, _DeveloperProjectDAO_ and _ProductProjectDAO_ are not independent entities. Project object is the aggregate root since it must exist before the child fields, _DevProjectDAO_ and _ProdcutProjectDAO_, can exist.
-
-Step 4: Create the repositories
+#### Step 4: Create the repositories
 As stated above, we created an interface to abstract the working logic of a particular domain (i.e. Repository). Here is an example of how we designed the repositories:
 
 ~~~go
