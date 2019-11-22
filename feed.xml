@@ -6,9 +6,247 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 14 Nov 2019 02:34:58 +0000</pubDate>
-    <lastBuildDate>Thu, 14 Nov 2019 02:34:58 +0000</lastBuildDate>
+    <pubDate>Fri, 22 Nov 2019 12:01:36 +0000</pubDate>
+    <lastBuildDate>Fri, 22 Nov 2019 12:01:36 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>How we implemented domain-driven development in Golang</title>
+        <description>&lt;p&gt;Partnerships have always been core to Grab’s super app strategy. We believe in collaborating with partners who are the best in what they do - combining their expertise with what we’re good at so that we can bring high-quality new services to our customers, at the same time create new opportunities for the merchant and driver-partners in our ecosystem.&lt;/p&gt;
+
+&lt;p&gt;That’s why we launched GrabPlatform last year. To make it easier for partners to either integrate Grab into their services, or integrate their services into Grab.&lt;/p&gt;
+
+&lt;p&gt;In view of that, part of the GrabPlatform’s team mission is to make it easy for partners to integrate with Grab services. These partners are external companies that would like to offer Grab’s services such as ride-booking through their own websites or applications. To do that, we decided to build a website that will serve as a one-stop-shop that would allow them to self-service these integrations.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-challenges-we-faced-with-the-conventional-approach&quot;&gt;The challenges we faced with the conventional approach&lt;/h3&gt;
+
+&lt;p&gt;In the process of building this website, our team noticed that the majority of the functions and responsibilities were added to files without proper segregation. A single file would contain more than 500 lines of code. Each of these files were  imported from different collections of source codes, resulting in an unstructured codebase. Any changes to the existing functions risked breaking existing functionality; we realized then that we needed to proactively plan for the future. Hence, we decided to use the principles of &lt;a href=&quot;https://airbrake.io/blog/software-design/domain-driven-design&quot;&gt;Domain-Driven Design (DDD)&lt;/a&gt; and &lt;a href=&quot;https://golang.org/doc/effective_go.html&quot;&gt;idiomatic Go&lt;/a&gt;. This blog aims to demonstrate the process of how we leveraged those concepts to design a modern application.&lt;/p&gt;
+
+&lt;h3 id=&quot;how-we-implemented-dddin-our-codebase&quot;&gt;How we implemented DDD in our codebase&lt;/h3&gt;
+
+&lt;p&gt;Here’s how we went about solving our unstructured codebase using DDD principles.&lt;/p&gt;
+
+&lt;h4 id=&quot;step-1-gather-domain-business-knowledge&quot;&gt;Step 1: Gather domain (business) knowledge&lt;/h4&gt;
+&lt;p&gt;We collaborated closely with our domain experts (in our case, this was our product team) to identify functionality and flow. From them, we discovered the following key points:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;After creating a project, developers are added to the project.&lt;/li&gt;
+  &lt;li&gt;The domain experts wanted an ability to add other products (e.g. Pricing service, ETA service, GrabPay service) to their projects.&lt;/li&gt;
+  &lt;li&gt;They wanted the ability to create multiple authentication clients to access the above products.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;step-2-break-down-domain-knowledge-into-bounded-context&quot;&gt;Step 2: Break down domain knowledge into bounded context&lt;/h4&gt;
+&lt;p&gt;Now that we had gathered the required domain knowledge (i.e. what our code needed to reflect to our partners), it was time to use the DDD strategic tool &lt;em&gt;Bounded Context&lt;/em&gt; to break down problems into subcontexts. Here is a graphical representation of how we converted the problem into smaller units.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Bounded Context&quot; src=&quot;/img/domain-driven-development-in-golang/image2.jpg&quot; /&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We identified several dependencies on each of the units involved in the project. Take some of these examples:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The project domain overlapped with the product and developer domains.&lt;/li&gt;
+  &lt;li&gt;Our RideBooking project can only exist if it has some products like Ridebooking APIs and not the other way around.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;What this means is a product can exist independent of the project, but a project will have no significance without any product. In the same way, a project is dependent on the developers, but developers can exist whether or not they belong to a project.&lt;/p&gt;
+
+&lt;h4 id=&quot;step-3-identify-value-objects-or-entity-lowest-layer&quot;&gt;Step 3: Identify value objects or entity (lowest layer)&lt;/h4&gt;
+&lt;p&gt;Looking at the above bounded contexts, we figured out the building blocks (i.e. value objects or entity) to break down the above functionality and flow.&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;// ProjectDAO ...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UUID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;          &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectStatus&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CreatedAt&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;time&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// DeveloperDAO ...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UUID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;          &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PhoneHash&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CreatedAt&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;time&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// ProductDAO ...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProductDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UUID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;          &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Name&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;          &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Description&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;   &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProductStatus&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CreatedAt&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;time&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// DeveloperProjectDAO to map developer's to a project&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperProjectDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;   &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperProjectStatus&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// ProductProjectDAO to map product's to a project&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProductProjectDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;            &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProductID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;     &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectProductStatus&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;All the objects shown above have &lt;code class=&quot;highlighter-rouge&quot;&gt;ID&lt;/code&gt; as a field and can be identifiable, hence they are identified as &lt;strong&gt;entities&lt;/strong&gt; and not as &lt;strong&gt;value objects&lt;/strong&gt;. But if we apply domain knowledge, &lt;code class=&quot;highlighter-rouge&quot;&gt;DeveloperProjectDAO&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;ProductProjectDAO&lt;/code&gt; are actually not independent entities. Project object is the aggregate root since it must exist before the child fields, &lt;code class=&quot;highlighter-rouge&quot;&gt;DevProjectDAO&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;ProdcutProjectDAO&lt;/code&gt;, can exist.&lt;/p&gt;
+
+&lt;h4 id=&quot;step-4-create-the-repositories&quot;&gt;Step 4: Create the repositories&lt;/h4&gt;
+&lt;p&gt;As stated above, we created an interface to abstract the working logic of a particular domain (i.e. Repository). Here is an example of how we designed the repositories:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;// ProductRepositoryImpl responsible for product functionality&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProductRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;productDao&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;storage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IProductDao&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProductRepository&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProductsByIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ids&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IProduct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// DeveloperRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;storage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IDeveloperDao&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperRepository&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FindActiveAllowedByDeveloperIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerIDs&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Developer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetDeveloperDetailByProfile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerProfile&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;appdto&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperProfile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IDeveloper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Here is a look at how we designed our repository for aggregate root project:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;// Unexported Struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;productProjectRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;productProjectDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;storage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IProjectProductDao&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProductProjectRepository&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetAllProjectProductByProjectID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;projectID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectProduct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Unexported Struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerProjectRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerProjectDAO&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;storage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IDeveloperProjectDao&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperProjectRepository&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetDevelopersByProjectIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;projectIDs&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperProject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UpdateMappingWithRole&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developer&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IDeveloper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IProject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;role&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperProject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Unexported Struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;projectRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;projectDao&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;storage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IProjectDao&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectRepository&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProjectsByIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;projectIDs&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Project&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetActiveProjectByUUID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;uuid&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IProject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProjectByUUID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;uuid&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Project&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectAggregatorImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;projectRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;           &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerProjectRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;  &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;productProjectRepositoryImpl&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;    &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// private field&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectAggregator&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProjects&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dto&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Project&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddDeveloper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;request&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;appdto&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddDeveloperRequest&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;appdto&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddDeveloperResponse&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProjectWithProducts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;uuid&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IProject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;step-5-identify-domain-events&quot;&gt;Step 5: Identify Domain Events&lt;/h4&gt;
+
+&lt;p&gt;The functions described in &lt;em&gt;Step 4&lt;/em&gt; only returns the ID of the developer and product, which conveys no information to the users. In order to provide developer and product information, we use the domain-event technique to return the actual product and developer attributes.&lt;/p&gt;
+
+&lt;p&gt;A domain event is something that happened in a bounded context that you want another context of a domain to be aware of. For example, if there are new updates to the developer domain, it’s important to convey these updates to the project domain. This propagation technique is termed as &lt;em&gt;domain event&lt;/em&gt;. Domain events enable independence between different classes.&lt;/p&gt;
+
+&lt;p&gt;One way to implement it is seen here:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;// file: project\_aggregator.go&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ProjectAggregatorImpl&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProjects&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dto&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Project&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developers&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EventHandler&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DomainEvent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FindDeveloperByDeveloperIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DeveloperIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// file: event\_type.go&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FindDeveloperByDeveloperIDs&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerID&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// file: event\_handler.go&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EventHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;switch&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;event&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FindDeveloperByDeveloperIDs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+            &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerRepository&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FindDeveloperByDeveloperIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developerIDs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+            &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;developers&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;case&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Domain Event&quot; src=&quot;/img/domain-driven-development-in-golang/image1.jpg&quot; style=&quot;width:50%&quot; /&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;some-common-mistakes-to-avoid-when-implementing-ddd-in-your-codebase&quot;&gt;Some common mistakes to avoid when implementing DDD in your codebase:&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Not engaging with domain experts. Not interacting with domain experts is a common mistake when using DDD. Talking to domain experts to get an understanding of the problem domain from their perspective is at the core of DDD. Starting with schemas or data modelling instead of talking to domain experts may create code based on a relational model instead of it built around a domain model.&lt;/li&gt;
+  &lt;li&gt;Ignoring the language of the domain experts. Creating a ubiquitous language shared with domain experts is also a core DDD practice. This common language must be used in all discussions as well as in the code, e.g. in class and method names.&lt;/li&gt;
+  &lt;li&gt;Not identifying bounded contexts. A common approach to solving a complex problem is breaking it down into smaller parts. Creating &lt;a href=&quot;http://martinfowler.com/bliki/BoundedContext.html&quot;&gt;bounded contexts&lt;/a&gt; is breaking down a large domain into smaller ones, each handling one cohesive part of the domain.&lt;/li&gt;
+  &lt;li&gt;Using an anaemic domain model. This is a common sign that a team is not doing DDD and often a symptom of a failure in the modelling process. At first, an &lt;a href=&quot;http://www.martinfowler.com/bliki/AnemicDomainModel.html&quot;&gt;anaemic domain model&lt;/a&gt; often looks like a real domain model with correct names, but the classes lack functionalities. They contain only the &lt;code class=&quot;highlighter-rouge&quot;&gt;Get&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;Set&lt;/code&gt; methods.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;how-the-ddd-model-improved-our-software-development&quot;&gt;How the DDD model improved our software development&lt;/h2&gt;
+
+&lt;p&gt;Thanks to this brand new clean up, we achieved the following:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Core functionalities are evenly distributed to the overall codebase and not limited to just a few files.&lt;/li&gt;
+  &lt;li&gt;The developers are aware of what each folder is responsible for by simply looking at the file naming and folder structure.&lt;/li&gt;
+  &lt;li&gt;The risk of breaking major functionalities by merely making small changes is greatly reduced. Changing a feature is now more efficient.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The team now finds the code well structured and we require less hand-holding for onboarders, thanks to the simplicity of the structure.&lt;/p&gt;
+
+&lt;p&gt;Finally, the most important thing, we now have a system oriented towards our business necessities. Everyone ends up using the same language and terms. Developers communicate better with the business team. The work is more efficient when it comes to establishing solutions for the models that reflect how the business operates, instead of how the software operates.&lt;/p&gt;
+
+&lt;h2 id=&quot;lessons-learnt&quot;&gt;Lessons Learnt&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Use DDD to collaborate among all project disciplines (product, business, partner, and so on) and clearly understand the business requirements.&lt;/li&gt;
+  &lt;li&gt;Establish a ubiquitous language to discuss domain-related concepts.&lt;/li&gt;
+  &lt;li&gt;Use bounded contexts to break down complex domains into manageable parts.&lt;/li&gt;
+  &lt;li&gt;Implement a layered architecture (i.e. DDD building blocks) to focus on particular aspects of the application.&lt;/li&gt;
+  &lt;li&gt;To simplify your dependency, use domain event to communicate with sub-bounded context.&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Thu, 21 Nov 2019 11:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/domain-driven-development-in-golang</link>
+        <guid isPermaLink="true">https://engineering.grab.com/domain-driven-development-in-golang</guid>
+        
+        <category>Backend</category>
+        
+        <category>Go</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Driving Southeast Asia forward through people-focused design</title>
@@ -1434,243 +1672,6 @@ Value
         <category>Data Science</category>
         
         <category>Product</category>
-        
-      </item>
-    
-      <item>
-        <title>Catwalk: Serving Machine Learning Models at Scale</title>
-        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
-
-&lt;p&gt;Grab’s unwavering ambition is to be the best Super App in Southeast Asia that adds value to the everyday for our customers. In order to achieve that, the customer experience must be flawless for each and every Grab service. Let’s take our frequently used ride-hailing service as an example. We want fair pricing for both drivers and passengers, accurate estimation of ETAs, effective detection of fraudulent activities, and ensured ride safety for our customers. The key to perfecting these customer journeys is artificial intelligence (AI).&lt;/p&gt;
-
-&lt;p&gt;Grab has a tremendous amount of data that we can leverage to solve complex problems such as fraudulent user activity, and to provide our customers personalized experiences on our products. One of the tools we are using to make sense of this data is machine learning (ML).&lt;/p&gt;
-
-&lt;p&gt;As Grab made giant strides towards increasingly using machine learning across the organization, more and more teams were organically building model serving solutions for their own use cases. Unfortunately, these model serving solutions required data scientists to understand the infrastructure underlying them. Moreover, there was a lot of overlap in the effort it took to build these model serving solutions.&lt;/p&gt;
-
-&lt;p&gt;That’s why we came up with Catwalk: an easy-to-use, self-serve, machine learning model serving platform for everyone at Grab.&lt;/p&gt;
-
-&lt;h1 id=&quot;goals&quot;&gt;Goals&lt;/h1&gt;
-
-&lt;p&gt;To determine what we wanted Catwalk to do, we first looked at the typical workflow of our target audience - data scientists at Grab:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Build a trained model to solve a problem.&lt;/li&gt;
-  &lt;li&gt;Deploy the model to their project’s particular serving solution. If this involves writing to a database, then the data scientists need to programmatically obtain the outputs, and write them to the database. If this involves running the model on a server, the data scientists require a deep understanding of how the server scales and works internally to ensure that the model behaves as expected.&lt;/li&gt;
-  &lt;li&gt;Use the deployed model to serve users, and obtain feedback such as user interaction data. Retrain the model using this data to make it more accurate.&lt;/li&gt;
-  &lt;li&gt;Deploy the retrained model as a new version.&lt;/li&gt;
-  &lt;li&gt;Use monitoring and logging to check the performance of the new version. If the new version is misbehaving, revert back to the old version so that production traffic is not affected. Otherwise run an AB test between the new version and the previous one.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We discovered an obvious pain point - the process of deploying models requires additional effort and attention, which results in data scientists being distracted from their problem at hand. Apart from that, having many data scientists build and maintain their own serving solutions meant there was a lot of duplicated effort. With Grab increasingly adopting machine learning, this was a state of affairs that could not be allowed to continue.&lt;/p&gt;
-
-&lt;p&gt;To address the problems, we came up with Catwalk with goals to:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Abstract away the complexities and expose a minimal interface for data scientists&lt;/li&gt;
-  &lt;li&gt;Prevent duplication of effort by creating an ML model serving platform for everyone in Grab&lt;/li&gt;
-  &lt;li&gt;Create a highly performant, highly available, model versioning supported ML model serving platform and integrate it with existing monitoring systems at Grab&lt;/li&gt;
-  &lt;li&gt;Shorten time to market by making model deployment self-service&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h1 id=&quot;what-is-catwalk&quot;&gt;What is Catwalk?&lt;/h1&gt;
-
-&lt;p&gt;In a nutshell, Catwalk is a platform where we run Tensorflow Serving containers on a Kubernetes cluster integrated with the observability stack used at Grab.&lt;/p&gt;
-
-&lt;p&gt;In the next sections, we are going to explain the two main components in Catwalk - Tensorflow Serving and Kubernetes, and how they help us obtain our outlined goals.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-is-tensorflow-serving&quot;&gt;What is Tensorflow Serving?&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://www.tensorflow.org/tfx/guide/serving&quot;&gt;Tensorflow Serving&lt;/a&gt; is an open-source ML model serving project by Google. In Google’s own words, “Tensorflow Serving is a flexible, high-performance serving system for machine learning models, designed for production environments. It makes it easy to deploy new algorithms and experiments, while keeping the same server architecture and APIs. Tensorflow Serving provides out-of-the-box integration with &lt;a href=&quot;https://www.tensorflow.org/&quot;&gt;Tensorflow&lt;/a&gt; models, but can be easily extended to serve other types of models and data.”&lt;/p&gt;
-
-&lt;h2 id=&quot;why-tensorflow-serving&quot;&gt;Why Tensorflow Serving?&lt;/h2&gt;
-
-&lt;p&gt;There are a number of ML model serving platforms in the market right now. We chose Tensorflow Serving because of these three reasons, ordered by priority:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Highly performant. It has proven performance handling tens of millions of inferences per second at Google according to &lt;a href=&quot;https://www.tensorflow.org/tfx&quot;&gt;their website&lt;/a&gt;.&lt;/li&gt;
-  &lt;li&gt;Highly available. It has a model versioning system to make sure there is always a healthy version being served while loading a new version into its memory&lt;/li&gt;
-  &lt;li&gt;Actively maintained by the developer community and backed by Google&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Even though, by default, Tensorflow Serving only supports models built with Tensorflow, this is not a constraint, though, because Grab is actively moving toward using Tensorflow.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-are-we-using-tensorflow-serving&quot;&gt;How are we using Tensorflow Serving?&lt;/h2&gt;
-
-&lt;p&gt;In this section, we will explain how we are using Tensorflow Serving and how it helps abstract away complexities for data scientists.&lt;/p&gt;
-
-&lt;p&gt;Here are the steps showing how we are using Tensorflow Serving to serve a trained model:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Data scientists export the model using &lt;a href=&quot;https://www.tensorflow.org/api_docs/python/tf/saved_model&quot;&gt;tf.saved_model&lt;/a&gt; API and drop it to an S3 models bucket. The exported model is a folder containing model files that can be loaded to Tensorflow Serving.&lt;/li&gt;
-  &lt;li&gt;Data scientists are granted permission to manage their folder.&lt;/li&gt;
-  &lt;li&gt;We run Tensorflow Serving and point it to load the model files directly from the S3 models bucket. Tensorflow Serving supports loading models directly from S3 out of the box. The model is served!&lt;/li&gt;
-  &lt;li&gt;Data scientists come up with a retrained model. They export and upload it to their model folder.&lt;/li&gt;
-  &lt;li&gt;As Tensorflow Serving keeps watching the S3 models bucket for new models, it automatically loads the retrained model and serves. Depending on the model configuration, it can either gracefully replace the running model version with a newer version or serve multiple versions at the same time.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Tensorflow Serving Diagram&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image3.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The only interface to data scientists is a path to their model folder in the S3 models bucket. To update their model, they upload exported models to their folder and the models will automatically be served. The complexities are gone. We’ve achieved one of the goals!&lt;/p&gt;
-
-&lt;p&gt;Well, not really…&lt;/p&gt;
-
-&lt;p&gt;Imagine youare going to run Tensorflow Serving to serve one model in a cloud provider, which means you  need a compute resource from a cloud provider to run it. Running it on one box doesn’t provide high availability, so you need another box running the same model. Auto scaling is also needed in order to scale out based on the traffic. On top of these many boxes lies a load balancer. The load balancer evenly spreads incoming traffic to all the boxes, thus ensuring that there is a single point of entry for any clients, which can be abstracted away from the horizontal scaling. The load balancer also exposes an HTTP endpoint to external users. As a result, we form a Tensorflow Serving cluster that is ready to serve.&lt;/p&gt;
-
-&lt;p&gt;Next, imagine you have more models to deploy. You have three options&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Load the models into the existing cluster - having one cluster serve all models.&lt;/li&gt;
-  &lt;li&gt;Spin up a new cluster to serve each model - having multiple clusters, one cluster serves one model.&lt;/li&gt;
-  &lt;li&gt;Combination of 1 and 2 - having multiple clusters, one cluster serves a few models.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;The first option would not scale, because it’s just not possible to load all models into one cluster as the cluster has limited resources.&lt;/p&gt;
-
-&lt;p&gt;The second option will definitely work but it doesn’t sound like an effective process, as you need to create a set of resources every time you have a new model to deploy. Additionally, how do you optimize the usage of resources, e.g., there might be unutilized resources in your clusters that could potentially be shared by the rest.&lt;/p&gt;
-
-&lt;p&gt;The third option looks promising, you can manually choose the cluster to deploy each of your new models into so that all the clusters’ resource utilization is optimal. The problem is you have to manuallymanage it. Managing 100 models using 25 clusters can be a challenging task. Furthermore, running multiple models in a cluster can also cause a problem as different models usually have different resource utilization patterns and can interfere with each other. For example, one model might use up all the CPU and the other model won’t be able to serve anymore.&lt;/p&gt;
-
-&lt;p&gt;Wouldn’t it be better if we had a system that automatically orchestrates model deployments based on resource utilization patterns and prevents them from interfering with each other? Fortunately, that  is exactly what Kubernetes is meant to do!&lt;/p&gt;
-
-&lt;h2 id=&quot;so-what-is-kubernetes&quot;&gt;So what is Kubernetes?&lt;/h2&gt;
-
-&lt;p&gt;Kubernetes abstracts a cluster of physical/virtual hosts (such as EC2) into a cluster of logical hosts (pods in Kubernetes terms). It provides a container-centric management environment. It orchestrates computing, networking, and storage infrastructure on behalf of user workloads.&lt;/p&gt;
-
-&lt;p&gt;Let’s look at some of the definitions of Kubernetes resources&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Tensorflow Serving Diagram&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image2.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Cluster - a cluster of nodes running Kubernetes.&lt;/li&gt;
-  &lt;li&gt;Node - a node inside a cluster.&lt;/li&gt;
-  &lt;li&gt;Deployment - a configuration to instruct Kubernetes the desired state of an application. It also takes care of rolling out an update (canary, percentage rollout, etc), rolling back and horizontal scaling.&lt;/li&gt;
-  &lt;li&gt;Pod - a single processing unit. In our case, Tensorflow Serving will be running as a container in a pod. Pod can have CPU/memory limits defined.&lt;/li&gt;
-  &lt;li&gt;Service - an abstraction layer that abstracts out a group of pods and exposes the application to clients.&lt;/li&gt;
-  &lt;li&gt;Ingress - a collection of routing rules that govern how external users access services running in a cluster.&lt;/li&gt;
-  &lt;li&gt;Ingress Controller - a controller responsible for reading the ingress information and processing that data accordingly such as creating a cloud-provider load balancer or spinning up a new pod as a load balancer using the rules defined in the ingress resource.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Essentially, we deploy resources to instruct Kubernetes the desired state of our application and Kubernetes will make sure that it is always the case.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-are-we-using-kubernetes&quot;&gt;How are we using Kubernetes?&lt;/h2&gt;
-
-&lt;p&gt;In this section, we will walk you through how we deploy Tensorflow Serving in Kubernetes cluster and how it makes managing model deployments very convenient.&lt;/p&gt;
-
-&lt;p&gt;We used a managed Kubernetes service, to create a Kubernetes cluster and manually provisioned compute resources as nodes. As a result, we have a Kubernetes cluster with nodes that are ready to run applications.&lt;/p&gt;
-
-&lt;p&gt;An application to serve one model consists of&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Two or more Tensorflow Serving pods that serves a model with an autoscaler to scale pods based on resource consumption&lt;/li&gt;
-  &lt;li&gt;A load balancer to evenly spread incoming traffic to pods&lt;/li&gt;
-  &lt;li&gt;An exposed HTTP endpoint to external users&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;In order to deploy the application, we need to&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Deploy a deployment resource specifying&lt;/li&gt;
-  &lt;li&gt;Number of pods of Tensorflow Serving&lt;/li&gt;
-  &lt;li&gt;An S3 url for Tensorflow Serving to load model files&lt;/li&gt;
-  &lt;li&gt;Deploy a service resource to expose it&lt;/li&gt;
-  &lt;li&gt;Deploy an ingress resource to define an HTTP endpoint url&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Kubernetes then allocates Tensorflow Serving pods to the cluster with the number of pods according to the value defined in deployment resource. Pods can be allocated to any node inside the cluster, Kubernetes makes sure that the node it allocates a pod into has sufficient resources that the pod needs. In case there is no node that has sufficient resources, we can easily scale out the cluster by adding new nodes into it.&lt;/p&gt;
-
-&lt;p&gt;In order for the rules defined inthe ingressresource to work, the cluster must have an ingress controller running, which is what guided our choice of &lt;a href=&quot;https://kubernetes-sigs.github.io/aws-alb-ingress-controller/&quot;&gt;the load balancer&lt;/a&gt;. What an ingress controller does is simple: it keeps checking the ingressresource, creates a load balancer and defines rules based on rules in the ingressresource. Once the load balancer is configured, it will be able to redirect incoming requests to the Tensorflow Serving pods.&lt;/p&gt;
-
-&lt;p&gt;That’s it! We have a scalable Tensorflow Serving application that serves a model through a load balancer! In order to serve another model, all we need to do is to deploy the same set of resources but with the model’s S3 url and HTTP endpoint.&lt;/p&gt;
-
-&lt;p&gt;To illustrate what is running inside the cluster, let’s see how it looks like when we deploy two applications: one for serving pricing model another one for serving fraud-check model. Each application is configured to have two Tensorflow Serving pods and exposed at /v1/models/model&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Tensorflow Serving Diagram&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image1.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;There are two Tensorflow Serving pods that serve fraud-check model and exposed through a load balancer. Same for the pricing model, the only differences are the model it is serving and the exposed HTTP endpoint url. The load balancer rules for pricing and fraud-check model look like this&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;If&lt;/th&gt;
-      &lt;th&gt;Then forward to&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td rowspan=&quot;2&quot;&gt;Path is /v1/models/pricing&lt;/td&gt;
-      &lt;td&gt;pricing pod ip-1&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;pricing pod ip-2&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td rowspan=&quot;2&quot;&gt;Path is /v1/models/fraud-check&lt;/td&gt;
-      &lt;td&gt;fraud-check pod ip-1&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;fraud-check pod ip-2&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h3 id=&quot;stats-and-logs&quot;&gt;Stats and Logs&lt;/h3&gt;
-
-&lt;p&gt;The last piece is how stats and logs work. Before getting to that, we need to introduce &lt;a href=&quot;https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/&quot;&gt;DaemonSet&lt;/a&gt;. According to the document, DaemonSet ensures that all (or some) nodes run a copy of a pod. As nodes are added to the cluster, pods are added to them. As nodes are removed from the cluster, those pods are garbage collected. Deleting a DaemonSet will clean up the pods it created.&lt;/p&gt;
-
-&lt;p&gt;We deployed datadog-agent and filebeat as a DaemonSet. As a result, we always have one datadog-agent pod and one filebeat pod in all nodes and they are accessible from Tensorflow Serving pods in the same node. Tensorflow Serving pods emit a stats event for every request to datadog-agent pod in the node it is running in.&lt;/p&gt;
-
-&lt;p&gt;Here is a sample of DataDog stats:&lt;/p&gt;
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;DataDog stats&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image4.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;And logs that we put in place:&lt;/p&gt;
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Logs&quot; src=&quot;/img/catwalk-serving-machine-learning-models-at-scale/image5.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h1 id=&quot;benefits-gained-from-catwalk&quot;&gt;Benefits Gained from Catwalk&lt;/h1&gt;
-
-&lt;p&gt;Catwalk has become the go-to, centralized system to serve machine learning models. Data scientists are not required to take care of the serving infrastructure hence they can focus on what matters the most: come up with models to solve customer problems. They are only required to provide exported model files and estimation of expected traffic in order to prepare sufficient resources to run their model. In return, they are presented with an endpoint to make inference calls to their model, along with all necessary tools for monitoring and debugging. Updating the model version is self-service, and the model improvement cycle is much shorter than before. We used to count in days, we now count in minutes.&lt;/p&gt;
-
-&lt;h1 id=&quot;future-plans&quot;&gt;Future Plans&lt;/h1&gt;
-
-&lt;h2 id=&quot;improvement-on-automation&quot;&gt;Improvement on Automation&lt;/h2&gt;
-
-&lt;p&gt;Currently, the first deployment of any model will still need some manual task from the platform team. We aim to automate this processentirely. We’ll work with our awesome CI/CD team who is making the best use of &lt;a href=&quot;https://www.spinnaker.io/&quot;&gt;Spinnaker&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;model-serving-on-mobile-devices&quot;&gt;Model serving on mobile devices&lt;/h2&gt;
-
-&lt;p&gt;As a platform, we are looking at setting standards for model serving across Grab. This includes model serving on mobile devices as well. Tensorflow Serving also provides a &lt;a href=&quot;https://www.tensorflow.org/lite&quot;&gt;Lite&lt;/a&gt; version to be used on mobile devices. It is a whole new paradigm with vastly different tradeoffs for machine learning practitioners. We are quite excited to set some best practices in this area.&lt;/p&gt;
-
-&lt;h2 id=&quot;grpc-support&quot;&gt;gRPC support&lt;/h2&gt;
-
-&lt;p&gt;Catwalk currently supports HTTP/1.1. We’ll hook Grab’s service discovery mechanism to open gRPC traffic, which TFS already supports.&lt;/p&gt;
-
-&lt;p&gt;If you are interested in building pipelines for machine learning related topics, and you share our vision of driving South East Asia forward, come join us!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 02 Jul 2019 18:43:40 +0000</pubDate>
-        <link>https://engineering.grab.com/catwalk-serving-machine-learning-models-at-scale</link>
-        <guid isPermaLink="true">https://engineering.grab.com/catwalk-serving-machine-learning-models-at-scale</guid>
-        
-        <category>Machine Learning</category>
-        
-        <category>Models</category>
-        
-        <category>Data Science</category>
-        
-        <category>TensorFlow</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
         
       </item>
     
