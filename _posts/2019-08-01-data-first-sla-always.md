@@ -1,7 +1,7 @@
 ---
 layout: post
 id: data-first-sla-always
-title: Data first, SLA always
+title: Data First, SLA Always
 date: 2019-08-01 19:43:40
 authors: [johan-kok, pramiti-goel, feng-cheng, irfan-hanif, deepak-barr]
 categories: [Data Science, Engineering]

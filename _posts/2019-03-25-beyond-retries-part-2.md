@@ -1,7 +1,7 @@
 ---
 layout: post
 id: beyond-retries-part-2
-title: "Designing resilient systems beyond retries (Part 2): Bulkheading, Load Balancing, and Fallbacks"
+title: "Designing Resilient Systems Beyond Retries (Part 2): Bulkheading, Load Balancing, and Fallbacks"
 date: 2019-03-25 15:24:33
 authors: [michael-cartmell]
 categories: [Engineering]

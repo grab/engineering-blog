@@ -1,7 +1,7 @@
 ---
 layout: post
 id: beyond-retries-part-1
-title: "Designing resilient systems beyond retries (Part 1): Rate-Limiting"
+title: "Designing Resilient Systems Beyond Retries (Part 1): Rate-Limiting"
 date: 2019-03-20 14:39:33
 authors: [michael-cartmell]
 categories: [Engineering]

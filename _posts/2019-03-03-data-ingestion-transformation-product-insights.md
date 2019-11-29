@@ -1,7 +1,7 @@
 ---
 layout: post
 id: data-ingestion-transformation-product-insights
-title: How we simplified our Data Ingestion & Transformation Process
+title: How We Simplified Our Data Ingestion & Transformation Process
 date: 2019-03-03 18:43:40
 authors: [yichao-wang, roman-atachiants, oscar-cassetti, corey-scott]
 categories: [Engineering]

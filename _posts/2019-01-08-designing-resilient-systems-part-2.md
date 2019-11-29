@@ -1,7 +1,7 @@
 ---
 layout: post
 id: designing-resilient-systems-part-2
-title: "Designing resilient systems: Circuit Breakers or Retries? (Part 2)"
+title: "Designing Resilient Systems: Circuit Breakers or Retries? (Part 2)"
 date: 2019-01-08 10:55:40
 authors: [corey-scott]
 categories: [Engineering]

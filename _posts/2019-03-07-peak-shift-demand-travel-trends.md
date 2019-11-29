@@ -1,7 +1,7 @@
 ---
 layout: post
 id: peak-shift-demand-travel-trends
-title: "Recipe for building a widget: How we helped to “peak-shift” demand by helping passengers understand travel trends"
+title: "Recipe for Building a Widget: How We Helped to “Peak-Shift” Demand by Helping Passengers Understand Travel Trends"
 date: 2019-03-07 11:55:33
 authors: [lara-pureum-yim, prashant-kumar, raghav-garg, preeti-kotamarthi, ajmal-afif, calvin-ng-tjioe, renrong-weng]
 categories: [Data Science, Engineering, Product, Design]
@@ -185,4 +185,3 @@ And if you have feedback for us, we are here to listen! While we cannot be happi
 ## Epilogue
 
 We just released an upgrade to this widget which allows users to set reminders and be notified about availability of good fares in a time period of their choosing. We will keep a watch and come knocking! Go ahead, find the widget on your Grab feed, set a reminder and save on fares on your next ride!
-
