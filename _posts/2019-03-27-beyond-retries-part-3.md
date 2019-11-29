@@ -1,7 +1,7 @@
 ---
 layout: post
 id: beyond-retries-part-3
-title: "Designing resilient systems beyond retries (Part 3): Architecture Patterns and Chaos Engineering"
+title: "Designing Resilient Systems Beyond Retries (Part 3): Architecture Patterns and Chaos Engineering"
 date: 2019-03-27 17:17:35
 authors: [michael-cartmell]
 categories: [Engineering]

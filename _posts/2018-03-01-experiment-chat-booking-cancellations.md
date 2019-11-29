@@ -1,7 +1,7 @@
 ---
 layout: post
 id: experiment-chat-booking-cancellations
-title: How Grab experimented with chat to drive down booking cancellations
+title: How Grab Experimented with Chat to Drive Down Booking Cancellations
 date: 2018-03-01 00:43:40
 authors: [ishita-parbat, kaisen-wang, joseph-khan, mike-tee]
 categories: [Product]
@@ -100,7 +100,7 @@ Another key observation was that while the *average number of messages per booki
 
 Through these experiments and product enhancements, Grab is dedicated to making the experience on our platform more human-centric and context-specific. This is why we build hyper-local products like GrabChat which not only helps our Indonesian Driver-Partners save hundreds in call and SMS costs but also allows our chat-loving Filipino Passengers to talk carefree!
 
-The process is scientific, iterative and often born out of the simplest of ideas - in this case, making people talk more to improve the booking experience. 
+The process is scientific, iterative and often born out of the simplest of ideas - in this case, making people talk more to improve the booking experience.
 
 **Learn more about Grab**
 

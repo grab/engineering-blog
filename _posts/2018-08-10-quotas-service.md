@@ -1,7 +1,7 @@
 ---
 layout: post
 id: quotas-service
-title: How we designed the Quotas microservice to prevent resource abuse
+title: How We Designed the Quotas Microservice to Prevent Resource Abuse
 date: 2018-08-10 02:00:00
 authors: [jim-zhan, gao-chao]
 categories: [Engineering]
@@ -128,7 +128,7 @@ Quotas current production settings are:
 
 3. Shared Kafka cluster with other application topics
 
-Figures 4 & 5 show a typical day's CPU usage for the Quotas application server and Redis Cache respectively. With 200k peak TPS, Quotas handles the load with peak application server CPU usage at about 20% and Redis CPU usage of 15%. Due to the nature of Quotas data usage, most of the data stored in Redis cache is time sensitive and stored with time-to-live (TTL) values. 
+Figures 4 & 5 show a typical day's CPU usage for the Quotas application server and Redis Cache respectively. With 200k peak TPS, Quotas handles the load with peak application server CPU usage at about 20% and Redis CPU usage of 15%. Due to the nature of Quotas data usage, most of the data stored in Redis cache is time sensitive and stored with time-to-live (TTL) values.
 
 However, because of how Redis expires keys ([https://redis.io/commands/expire](https://redis.io/commands/expire)) and the amount of time-sensitive data Quotas stores in Redis, we have implemented a proprietary cron job to actively garbage collect expired Redis keys. By running the cron job every 15 minutes, Quotas keeps the Redis memory usage at a low level.
 
@@ -157,4 +157,3 @@ With the above design and implementations, all the critical Quotas components ca
 Quotas is currently used by more than a dozen internal Grab services, and soon all Grab internal services will use it.
 
 Quotas is part of the company-wide ServiceMesh effort to handle service discovery, load balancing, circuit breaker, retry, health monitoring, rate-limiting, security, etc. consistently across all Grab services.
-

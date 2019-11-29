@@ -1,7 +1,7 @@
 ---
 layout: post
 id: domain-driven-development-in-golang
-title: How we implemented domain-driven development in Golang
+title: How We Implemented Domain-Driven Development in Golang
 date: 2019-11-21 11:00:00
 authors: [kapil-chaurasia, preeti-karkera]
 categories: [Engineering]

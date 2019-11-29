@@ -1,7 +1,7 @@
 ---
 layout: post
 id: correcting-restaurant-locations-harnessing-wisdom-of-the-crowd
-title: How we harnessed the wisdom of crowds to improve restaurant location accuracy
+title: How We Harnessed the Wisdom of Crowds to Improve Restaurant Location Accuracy
 date: 2019-04-02 07:43:40
 authors: [pravin-kakar]
 categories: [Data Science]
