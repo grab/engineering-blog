@@ -38,7 +38,7 @@ In Southeast Asia, it’s not too hard to find public WiFi. However, the main ch
 
 To genuinely design for customers’ needs, designers at Grab regularly get out the office to understand what people are doing in the real world. But how do we integrate empathy and compassion into the design process? Throughout this article, I'll explain how the insights we gathered from around Southeast Asia can inform your decision making process.  
 
-For simulating a loss of connectivity, switch to airplane mode to observe current UI states and limitations. If you have the resources, create a 2G network to compare how bandwidth constraints page loading speeds.[Network Link Conditioner](https://nshipster.com/network-link-conditioner) for Mac and iOS or [Lighthouse](https://developers.google.com/web/tools/lighthouse) by Chrome DevTools can replicate a slower network.
+For simulating a loss of connectivity, switch to airplane mode to observe current UI states and limitations. If you have the resources, create a 2G network to compare how bandwidth constraints page loading speeds. [Network Link Conditioner](https://nshipster.com/network-link-conditioner) for Mac and iOS or [Lighthouse](https://developers.google.com/web/tools/lighthouse) by Chrome DevTools can replicate a slower network.
 
 #### Design implications
 
