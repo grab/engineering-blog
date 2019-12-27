@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Journey to a Faster Everyday Super App Where Every Millisecond Counts</title>
+    <meta name="description" content="This post narrates the journey of our performance improvement efforts on the Grab passenger app. It highlights how we were able to reduce the time spent starting the app by more than 60%, while preventing regressions introduced by new features.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/journey-to-a-faster-everyday-super-app">
+    <meta property="og:title" content="Journey to a Faster Everyday Super App Where Every Millisecond Counts">
+    <meta property="og:description" content="This post narrates the journey of our performance improvement efforts on the Grab passenger app. It highlights how we were able to reduce the time spent starting the app by more than 60%, while preventing regressions introduced by new features.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/journey-to-a-faster-everyday-super-app/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/journey-to-a-faster-everyday-super-app">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/renu-yadav.png">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Journey to a Faster Everyday Super App Where Every Millisecond Counts</h1>
+      <div class="post-meta">
+        26 Dec 2019
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#renu-yadav">Renu Yadav</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#mobile" class="label tags-label">Mobile</a>
+  
+    <a href="/tags#performance" class="label tags-label">Performance</a>
+  
+    <a href="/tags#superapp" class="label tags-label">Superapp</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <h2 id="introduction">Introduction</h2>
+
+<p>At <a href="https://www.grab.com">Grab</a>, we are moving faster than ever. In 2019 alone, we released dozens of new features in the Grab passenger app. With our goal to delight users in Southeast Asia with a powerful everyday super app, the app’s performance became one of the most critical components in delivering that experience to our users.</p>
+
+<p>This post narrates the journey of our performance improvement efforts on the Grab passenger app. It highlights how we were able to reduce the time spent starting the app by more than 60%, while preventing regressions introduced by new features. We use the <a href="https://en.wikipedia.org/wiki/Percentile">p95</a> scale when referring to these improvements.</p>
+
+<p>Here’s a quick look at the improvements and timeline:</p>
+
+<div class="post-image-section">
+  <img alt="Improvements Timeline" src="/img/journey-to-a-faster-everyday-super-app/image8.png" />
+</div>
+<p></p>
+
+<h2 id="improving-app-performance">Improving App Performance</h2>
+
+<p>While app performance consists of different aspects - such as battery consumption rate, network performance, app responsiveness, etc. - the first thing users notice is the time it takes for an app to start. Apps that take too long to load frustrate users, leading to bad reviews and uninstalls.</p>
+
+<p>We focused our efforts on the app’s <a href="https://developers.google.com/web/tools/lighthouse/audits/time-to-interactive">time to interactive</a>(TTI), which consists of two main operations:</p>
+
+<ul>
+  <li>Starting the app</li>
+  <li>Displaying interactive <em>service tiles</em> (these are the icons for the services offered on the app such as Transport, Food, Delivery, and so on)</li>
+</ul>
+
+<p>There are many other operations that occur in the background, which we won’t cover in this article.</p>
+
+<p>We prioritised on optimising the app’s ability to load the service tiles (highlighted in the image below) and render them as interactive upon startup (cold start). This allowed users to use the app as soon as they launch it.</p>
+
+<div class="post-image-section">
+  <img alt="Service Tiles" src="/img/journey-to-a-faster-everyday-super-app/image1.png" />
+</div>
+<p></p>
+
+<h2 id="instrumentation-and-benchmarking">Instrumentation and Benchmarking</h2>
+
+<p>Before we could start improving the app’s performance, we needed to know where we stood and set measurable goals.</p>
+
+<p>We couldn’t get a baseline from local performance testing as it did not simulate the real environment condition, where network variability and device performance are contributing factors. Thus, we needed to use real production data to get an accurate reflection of our current performance at a scale. In production, we measured the performance of <em>~8-9 millions users per day</em> - a small subset of our overall active user base.</p>
+
+<p>As a start, we measured the different components contributing to TTI, such as binary loading, library initialisations, and tiles loading. For example, if we had to measure the time taken by function A, this is how it looked like in the code:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>functionA (){
+// start the timer
+....
+....
+...
+//Stop the timer, calculate the time difference and send it as an analytic event
+}
+</code></pre></div></div>
+
+<p>With all the numbers from the contributing components, we took the sum to calculate the full TTI (as shown in the following image).</p>
+
+<div class="post-image-section">
+  <img alt="Full TTI" src="/img/journey-to-a-faster-everyday-super-app/image9.png" />
+</div>
+<p></p>
+
+<p>When the numbers started rolling in from production, we needed specific measurements to interpret those numbers, so we started looking at TTI’s  50th, 90th, and 95th percentile. A 90th percentile (p90) of x seconds means that 90% of the users have an interactive screen in at most x seconds.</p>
+
+<p>We chose to only focus on p50 and p95 as these cover the majority of our users who deal with performance issues. Improving performance for &lt;p50 (who already have high-end devices) would not bring too much of a value, and improving for &gt;p95 would be very difficult as the app performance improvements will be limited by device performance.</p>
+
+<p>By the end of January, we got the p50, p90, and p95 numbers for the contributing components that summed up to TTI numbers for tiles, which allowed us to start identifying areas with potential improvements.</p>
+
+<h2 id="caching-and-animation-removal">Caching and Animation Removal</h2>
+
+<p>While reviewing the TTI numbers, we were drawn to contributors with high time consumption rates such as tile loading and app start animation. Other evident improvement we worked on was caching data between app launches instead of waiting for a network response for loading tiles at every single app launch.</p>
+
+<h3 id="tile-caching">Tile Caching</h3>
+
+<p>Based on the gathered data, the service tiles only change when a user travels between cities. This is because the available services vary in each city. Since users do not frequently change cities, the service tiles do not change very frequently either, and so caching the tiles made sense. However, we also needed to sync the fresh tiles, in case of any change. So, we updated the logic based on these findings. as illustrated in the following image:</p>
+
+<div class="post-image-section">
+  <img alt="Tile Caching Logic" src="/img/journey-to-a-faster-everyday-super-app/image6.jpg" />
+</div>
+<p></p>
+
+<p>Caching tiles brought us a huge improvement of <em>~3s</em> on each platform.</p>
+
+<h3 id="animation-removal">Animation Removal</h3>
+
+<p>We came across a beautifully created animation at appstart that didn’t provide any additional value in terms of information or practicality.</p>
+
+<p>With detailed discussions and trade-offs with designers, we removed the animation and improved our TTI further by <em>1s</em>.</p>
+
+<p>In conclusion, with the caching and animation removal alone, we improved the TTI by <em>4s</em>.</p>
+
+<h2 id="welcome-static-linking-and-coroutines">Welcome Static Linking and Coroutines</h2>
+
+<p>At this point, our users gained 4 seconds of their time back, but we didn’t want to stop with that number. So, we dug through the data to see what further enhancements we could do. When we could not find anything else that was similar to caching and animation removal, we shifted to architecture fundamentals.</p>
+
+<p>We knew that this was not an easy route to take and that it would come with a cost; if we decided to choose a component related to architecture fundamentals, all the other teams working on the Grab app would be impacted. We had to evaluate our options and make decisions with trade-offs for overall improvements. And this eventually led to static linking on iOS and <a href="https://developer.android.com/kotlin/coroutines">coroutines</a> on Android.</p>
+
+<h3 id="binaryloading">Binary Loading</h3>
+
+<p>Binary loading is one of the first steps in both mobile platforms when an app is launched. It primarily contributes to pre-main and dex-loading, on iOS and Android respectively.</p>
+
+<p>The pre-main time on iOS was about 7.9s. It is known in the iOS development world that each framework (binary) can either be <a href="https://www.runtastic.com/blog/en/frameworks-ios/">dynamically or statically</a> linked. While <em>static</em> helps in a faster app start, it brings complexity in building frameworks that are elaborate or contain resources bundles.Building a lot of libraries statically also impact build times negatively.With proper evaluations, we decided to take the route to enable more static linking due to the trade-offs.</p>
+
+<p>Apple recommends<a href="https://developer.apple.com/videos/play/wwdc2016/406/?time%3D78"> a maximum of half a dozen dynamic frameworks</a> for an optimal performance. Guess what? Our passenger app had 107 dynamically linked frameworks, a lot of them were internal.</p>
+
+<p>The task looked daunting at first, since it affected all parts of the app, but we were ready to tackle the challenge head on. Deciding to take this on was the easy part, the actual work entailed lots of tricky coordination and collaboration with multiple teams.</p>
+
+<p>We created an <a href="https://en.wikipedia.org/wiki/Request_for_Comments">RFC (Request For Comments)</a> doc to propose the static linking of frameworks, wherever applicable, and co-ordinated with teams with the agreed timelines to execute this change.</p>
+
+<p>While collaborating with teams, we learned that we could remove 12 frameworks entirely that were no longer required. This exercise highlighted the importance of regular cleanup and deprecation in our codebase, and was added into our standard process.</p>
+
+<p>And so, we were left with 95 frameworks; 75 of which were statically linked successfully, resulting in our <em>p90</em> pre-main dropping by <em>41%</em>.</p>
+
+<p>As Grabbers, it’s in our DNA to push ourselves a little more. With the remaining 20 frameworks, our pre-main was still considerably high. Out of the 20 frameworks, 10 could not be statically linked without issues. As a workaround, we merged multiple dynamic frameworks into one. One of our outstanding engineers even created a plug-in for this, which is called the Cocoapod Merge. With this plug-in, we were able to merge 10 dynamically linked frameworks into 2. <em>We’ve made this plug-in open source: <a href="https://github.com/grab/cocoapods-pod-merge">https://github.com/grab/cocoapods-pod-merge</a></em>.</p>
+
+<p>With all of the above steps, we were finally left with 12 dynamic frameworks - a huge <em>88%</em> reduction.</p>
+
+<p>The following image illustrates the complex numbers mentioned above:</p>
+
+<div class="post-image-section">
+  <img alt="Static Linking" src="/img/journey-to-a-faster-everyday-super-app/image5.jpg" />
+</div>
+<p></p>
+
+<p>Using cocoapod merge further helped us with <em>~0.8s</em> of improvement.</p>
+
+<h3 id="coroutines">Coroutines</h3>
+
+<p>While we were executing the static linking initiative on iOS, we also started refactoring the application initialisation for a modular and clean code on Android. This resulted in creating an <em>ApplicationInitialiser</em> class, which handles the entire application initialisation process with maximum parallelism using coroutines.</p>
+
+<p>Now all the libraries are being initialised in parallel via coroutines and thus enabling better utilisations of computing resources and a faster TTI.</p>
+
+<p>This refactoring and background initialisation for libraries on Android helped in gaining <em>~0.4s</em> of improvements.</p>
+
+<h2 id="changing-the-basics---visualisation-setup">Changing the Basics - Visualisation Setup</h2>
+
+<p>By the end of H1 2019, we observed a 50% improvement in TTI, and now it was time to set new goals for H2 2019. Until this point, we would query our database for all metric numbers, copy the numbers into a spreadsheet, and compare them against weeks and app versions.</p>
+
+<p>Despite the high loads of manual work and other challenges, this method still worked at the beginning due to the improvements we had to focus on.</p>
+
+<p>However, in H2 2019 it became apparent that we had to reassess our methodology of reading numbers. So, we started thinking about other ways to present and visualise these numbers better. With help from our Product Analyst, we took advantage of <a href="https://www.metabase.com">metabase’s</a> advanced capabilities and presented our goals and metrics in a clear and easy to understand format.</p>
+
+<p>For example, here is a graph that shows the top contributing metrics for Android:</p>
+
+<div class="post-image-section">
+  <img alt="Android Metrics" src="/img/journey-to-a-faster-everyday-super-app/image4.png" />
+</div>
+<p></p>
+
+<p>Looking at it, we could clearly tell which metric needed to be prioritised for improvements.</p>
+
+<p>We did this not only for our metrics, but also for our main goals, which allowed us to easily see our progress and track our improvements on a daily basis.</p>
+
+<div class="post-image-section">
+  <img alt="Visualisation" src="/img/journey-to-a-faster-everyday-super-app/image3.png" />
+</div>
+<p></p>
+
+<p>The color bars in the above image depicts the status of our numbers against our goals and also shows the actual numbers at p50, p90, and p95.</p>
+
+<p>As our tracking progressed, we started including more granular and precise measurements, to help guide the team and achieve more impactful improvements of around <em>~0.3-0.4s</em>.</p>
+
+<p>Fortunately, we were deprecating a third-party library for analytics and experimentation, which happened to be one of the highest contributing metrics for both platforms due to a high number of operations on the main thread. We started using our own in-house experimentation platform where we had better control over performance. We removed this third-party dependency, and it helped us with huge improvements of <em>~2.5s</em> on Android and <em>~0.5-0.7s</em> on iOS.</p>
+
+<p>You might be wondering as to why there is such a big difference on the iOS and Android improvement numbers for this dependency. This was due to the setting user attributes operations that ran only in the Android codebase, which was performed on the main thread and took a huge amount of time. These were the times that made us realise that we should focus more on the consistency for both platforms, as well as to identify the third-party library APIs that are used, and to assess whether they are absolutely necessary.</p>
+
+<p><em>*Tip*: So, it is time for you as well to eliminate such inconsistencies, if there are any.</em></p>
+
+<p>Ok, there goes our third quarter with <em>~3s</em> of improvement on Android and <em>~1.3s</em> on iOS.</p>
+
+<h2 id="performance-regression-detection">Performance Regression Detection</h2>
+
+<p>Entering into Q4 brought us many challenges as we were running out of improvements to make. Even finding an improvement worth <em>~0.05s</em> was really difficult! We were also strongly challenged by regressions (increase in TTI numbers) because of continuous feature releases and code additions to the app start process.</p>
+
+<p>So, maintaining the TTI numbers became our primary task for this period. We started looking into setting up processes to block regressions from being merged to the master, or at least get notified before they hit production.</p>
+
+<p>To begin with, we identified the main sources of regressions: static linking breakage on iOS and library initialisation in the app startup process on Android.</p>
+
+<p>We took the following measures to cover these cases:</p>
+
+<h3 id="linters">Linters</h3>
+
+<p>We built <a href="https://en.wikipedia.org/wiki/Lint_(software)">linters</a> on the Continuous Integration (CI) pipeline to detect potential changes in <em>static linking</em> on iOS and the <em>ApplicationInitialiser</em> class on Android. The linters block the changelist and enforce a special review process for such changes.</p>
+
+<h3 id="library-integration-process">Library Integration Process</h3>
+
+<p>The team also focused on setting up a process for library integrations, where each library (internal or third party) will first be evaluated for performance impact before it is integrated into the codebase.</p>
+
+<p>While regression guarding was in process, we were simultaneously trying to bring in more improvements for TTI. We enabled the <a href="https://llvm.org/docs/LinkTimeOptimization.html">Link Time Optimisations</a> (LTO) flag on iOS to improve the overall app performance. We also experimented on <a href="https://medium.com/@michael.eisel/improving-app-performance-with-order-files-c7fff549907f">order files</a> on iOS and <a href="https://github.com/Kotlin/anko">anko layout</a> on Android, but  were ruled out due to known issues.</p>
+
+<p>On Android, we hit the bottom hard as there were minimal improvements. Fortunately, it was a different story for iOS. We managed to get improvements worth <em>~0.6s</em> by opting for lazy loading, optimising I/O operations, and deferring more operations to post app start (if applicable).</p>
+
+<h2 id="next-steps">Next Steps</h2>
+
+<p>We will be looking at the different aspects of performance such as network, battery, and storage, while maintaining our current numbers for TTI.</p>
+
+<ul>
+  <li>Network performance - Track the turnaround time for network requests then move on to optimisations.</li>
+  <li>Battery performance - Focus on profiling the app for CPU and energy intensive operations, which drains the battery, and then move to optimisations.</li>
+  <li>Storage performance - Review our caching and storage mechanisms, and then look for ways to optimise them.</li>
+</ul>
+
+<p>In addition to these, we are also focusing on bringing performance initiatives for all the teams at Grab. We believe that performance is a collaborative approach, and we would like to improve the app performance in all aspects.</p>
+
+<p>We defined different metrics to track performance e.g. Time to Interactive, Time to feedback (the time taken to get the feedback for a user action), UI smoothness indicators, storage, and network metrics.</p>
+
+<p>We are enabling all teams to benchmark their performance numbers based on defined metrics and move on to a path of improvement.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Overall, we improved by 60%, and this calls for a big celebration! <em>Woohoo!</em> The bigger celebration came from knowing that we’ve improved our customers’ experience in using our app.</p>
+
+<p>This graph represents our performance improvement journey for the entire 2019, in terms of TTI.</p>
+
+<div class="post-image-section">
+  <img alt="Performance Graph" src="/img/journey-to-a-faster-everyday-super-app/image2.png" />
+</div>
+<p></p>
+
+<p>Based on the graph, looking at our p95 improvements and converting them to number of hours saved per day gives us <em>~21,388 hours on iOS and ~38,194 hours saved per day on Android</em>.</p>
+
+<p>Hey, did you know that it takes approximately <em>80-85</em> hours to watch all the episodes of <em>Friends</em>? Just saying. :)</p>
+
+<p>We will continue to serve our customers for a better and faster experience in the upcoming years.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#mobile" class="label tags-label">Mobile</a>
+  
+    <a href="/tags#performance" class="label tags-label">Performance</a>
+  
+    <a href="/tags#superapp" class="label tags-label">Superapp</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Journey to a Faster Everyday Super App Where Every Millisecond Counts&url=https://engineering.grab.com/journey-to-a-faster-everyday-super-app&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/journey-to-a-faster-everyday-super-app" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/journey-to-a-faster-everyday-super-app&title=Journey to a Faster Everyday Super App Where Every Millisecond Counts
+&summary=This post narrates the journey of our performance improvement efforts on the Grab passenger app. It highlights how we were able to reduce the time spent starting the app by more than 60%, while preventing regressions introduced by new features.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/journey-to-a-faster-everyday-super-app';
+    this.page.identifier = '/journey-to-a-faster-everyday-super-app';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
