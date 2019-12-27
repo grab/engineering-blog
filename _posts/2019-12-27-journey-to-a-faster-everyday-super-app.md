@@ -83,7 +83,7 @@ While reviewing the TTI numbers, we were drawn to contributors with high time co
 Based on the gathered data, the service tiles only change when a user travels between cities. This is because the available services vary in each city. Since users do not frequently change cities, the service tiles do not change very frequently either, and so caching the tiles made sense. However, we also needed to sync the fresh tiles, in case of any change. So, we updated the logic based on these findings. as illustrated in the following image:
 
 <div class="post-image-section">
-  <img alt="Tile Caching Logic" src="/img/journey-to-a-faster-everyday-super-app/image6.png">
+  <img alt="Tile Caching Logic" src="/img/journey-to-a-faster-everyday-super-app/image6.jpg">
 </div>
 <p></p>
 
@@ -126,7 +126,7 @@ With all of the above steps, we were finally left with 12 dynamic frameworks - a
 The following image illustrates the complex numbers mentioned above:
 
 <div class="post-image-section">
-  <img alt="Static Linking" src="/img/journey-to-a-faster-everyday-super-app/image5.png">
+  <img alt="Static Linking" src="/img/journey-to-a-faster-everyday-super-app/image5.jpg">
 </div>
 <p></p>
 
