@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Preventing App Performance Degradation Due to Sudden Ride Demand Spikes</title>
+    <meta name="description" content="This blog addresses how engineers overcame the challenges Grab faced during the initial days due to sudden spike in ride demand.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes">
+    <meta property="og:title" content="Preventing App Performance Degradation Due to Sudden Ride Demand Spikes">
+    <meta property="og:description" content="This blog addresses how engineers overcame the challenges Grab faced during the initial days due to sudden spike in ride demand.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/corey-scott.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Preventing App Performance Degradation Due to Sudden Ride Demand Spikes</h1>
+      
+      <div class="post-meta">
+        8 Jan 2020
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#corey-scott">Corey Scott</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#circuit-breakers" class="label tags-label">Circuit Breakers</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p>In Southeast Asia, when it rains, it pours. It’s a major mood dampener especially if you are stuck outside when the rain starts, you are about to have an awful day.</p>
+
+<p>In the early days of Grab, if the rains came at the wrong time, like during morning rush hour, then we engineers were also in for a terrible day.</p>
+
+<p>In those days, demand for Grab’s ride services grew much faster than our ability to scale our tech system and this often meant clocking late nights just to ensure our system could handle the ever-growing demand. When there’s a massive, sudden spike in ride bookings, our system often struggled to manage the load.</p>
+
+<p>There were also other contributors to demand spikes, for example when public transport services broke down or when a major event such as an international concert ends and event-goers all need a ride at the same time.</p>
+
+<p>Upon reflection, we realized there were two integral aspects to these incidents.</p>
+
+<p>Firstly, they were localized events. The increase in demand came from a particular geographical location; in some cases a very small area. These localized events had the potential to cause so much load on our system that it impacted the experience of other users outside the geolocation.</p>
+
+<p>Secondly, the underlying problem was a lack of drivers (supply) in that particular geographical area.</p>
+
+<p>At Grab, our goal has always been to get everyone a ride when and where they needed it, but in this situation, it was just not possible. We needed to find a way to ensure this localized demand spike did not affect our ability to meet the needs of other users.</p>
+
+<h2 id="enter-the-spampede-filter">Enter the Spampede Filter</h2>
+
+<p>The <strong>Spampede</strong> (a play of the words spam and stampede) filter was inspired by another concept you may have read on this blog, <a href="https://engineering.grab.com/designing-resilient-systems-part-1">circuit breakers</a>.</p>
+
+<p>In software, as in electronics, circuit breakers are designed to protect a system by short-circuiting in the face of adverse conditions.</p>
+
+<p>Let’s break this down.</p>
+
+<p>There are two key concepts here: <em>short-circuiting</em> and <em>adverse conditions</em>.</p>
+
+<p>Firstly, <em>short-circuiting</em>, in this context means performing minimal processing on a particular booking, and by doing so, reducing the overall load on the system. Secondly, <em>adverse conditions</em>, in this, we refer to a large number of unfulfilled requests for a particular service, from a small geographical area, within a short time window. With these two concepts in mind, we devised the following process.</p>
+
+<h2 id="spampede-design">Spampede Design</h2>
+
+<p>First, we needed to track unallocated requests in a location-aware manner. To do this, we convert the requested pickup location of an unallocated request using the <a href="https://github.com/corsc/go-geohash">Geohash Integer</a> algorithm.  </p>
+
+<p>After the conversion, the resulting value is an exact location. We can convert this location into a “bucket” or area by reducing the precision.</p>
+
+<p>This method is by no means smart or aware of the local geography, but it is incredibly CPU efficient and requires no external resources like network API calls.</p>
+
+<p>Now that we can track unallocated requests, we needed a way for the tracking to be time-aware. After all, traffic conditions, driver locations, and passenger demand are continually changing. We could have implemented something precise like a sliding window sum, but that would have introduced a lot of complexity and a significantly higher CPU and memory cost.</p>
+
+<p>By using the Unix timestamp, we converted the current time to a “bucket” of time by using the straightforward formula:</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Event Sourcing" src="/img/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes/image1.png" />
+      </figure>
+</div>
+
+<p>where <em>bs</em> is the size of the time buckets in seconds</p>
+
+<p>With location and time buckets calculated, we can track the unallocated bookings using Redis. We could have used any data store, but Redis was familiar and battle-proven to us.</p>
+
+<p>To do this, we first constructed the Redis key by combining the service type, the geographic location, and the time bucket. With this key, we call the <a href="https://redis.io/commands/incr">INCR</a> command, which increments the value stored in that location and returns the new value.</p>
+
+<p>If the value returned is 1, this indicates that this is the first value stored for this bucket combination, and we would then make a second call, this time to <a href="https://redis.io/commands/expire">EXPIRE</a>. With this second call, we would set a time to live (TTL) on the Redis item, allowing the data to be self-cleaning.</p>
+
+<p>You will notice that we are blindly calling increment and only making a second call if needed. This pattern is more efficient and resource-friendly than using a more traditional, load-check-store pattern.</p>
+
+<p>The next step was the configuration. Specifically, setting how many unallocated bookings could happen in a particular location and time bucket before the circuit opened. For this, we decided on Redis again. Again, we could have used anything, but we were already using Redis and, as mentioned previously, quite familiar with it.</p>
+
+<p>Finally, the last piece. We introduced code at the beginning of our booking processing, most importantly, before any calls to any other services and before any significant processing was done. This code compared the location, time, and requested service to the currently configured Spampede setting, along with the previously unallocated bookings. If the maximum had already been reached, then we immediately stopped processing the booking.</p>
+
+<p>This might sound harsh- to immediately refuse a booking request without even trying to fulfill it. But the goal of the Spampede filter is to prevent excessive, localized demand from impacting all of the users of the system.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Reading about this as a programmer, it probably feels strange, intentionally dropping bookings and impacting the business this way.</p>
+
+<p>After all, we want nothing more than to help people get to where they need to be. This process is a system safety mechanism to ensure that the system stays alive and able to do just that.</p>
+
+<p>I would be remiss if I didn’t highlight the critical software-engineering takeaway here is a combination of the <a href="https://en.wikipedia.org/wiki/Observer_effect_(physics)">Observer effect</a> and the underlying goals of the <a href="https://en.wikipedia.org/wiki/CAP_theorem">CAP theorem</a>. Observing a system will influence the system due to the cost of instrumentation and monitoring.</p>
+
+<p>Generally, the higher the accuracy or consistency of the monitoring and limits, the higher the resource cost.</p>
+
+<p>In this case, we have intentionally chosen the most resource-efficient options and traded accuracy for more throughput.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#circuit-breakers" class="label tags-label">Circuit Breakers</a>
+  
+    <a href="/tags#resiliency" class="label tags-label">Resiliency</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Preventing App Performance Degradation Due to Sudden Ride Demand Spikes&url=https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes&title=Preventing App Performance Degradation Due to Sudden Ride Demand Spikes
+&summary=This blog addresses how engineers overcame the challenges Grab faced during the initial days due to sudden spike in ride demand.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes';
+    this.page.identifier = '/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>

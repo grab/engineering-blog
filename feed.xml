@@ -6,9 +6,98 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 07 Jan 2020 11:56:23 +0000</pubDate>
-    <lastBuildDate>Tue, 07 Jan 2020 11:56:23 +0000</lastBuildDate>
+    <pubDate>Thu, 09 Jan 2020 10:42:26 +0000</pubDate>
+    <lastBuildDate>Thu, 09 Jan 2020 10:42:26 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Preventing App Performance Degradation Due to Sudden Ride Demand Spikes</title>
+        <description>&lt;p&gt;In Southeast Asia, when it rains, it pours. It’s a major mood dampener especially if you are stuck outside when the rain starts, you are about to have an awful day.&lt;/p&gt;
+
+&lt;p&gt;In the early days of Grab, if the rains came at the wrong time, like during morning rush hour, then we engineers were also in for a terrible day.&lt;/p&gt;
+
+&lt;p&gt;In those days, demand for Grab’s ride services grew much faster than our ability to scale our tech system and this often meant clocking late nights just to ensure our system could handle the ever-growing demand. When there’s a massive, sudden spike in ride bookings, our system often struggled to manage the load.&lt;/p&gt;
+
+&lt;p&gt;There were also other contributors to demand spikes, for example when public transport services broke down or when a major event such as an international concert ends and event-goers all need a ride at the same time.&lt;/p&gt;
+
+&lt;p&gt;Upon reflection, we realized there were two integral aspects to these incidents.&lt;/p&gt;
+
+&lt;p&gt;Firstly, they were localized events. The increase in demand came from a particular geographical location; in some cases a very small area. These localized events had the potential to cause so much load on our system that it impacted the experience of other users outside the geolocation.&lt;/p&gt;
+
+&lt;p&gt;Secondly, the underlying problem was a lack of drivers (supply) in that particular geographical area.&lt;/p&gt;
+
+&lt;p&gt;At Grab, our goal has always been to get everyone a ride when and where they needed it, but in this situation, it was just not possible. We needed to find a way to ensure this localized demand spike did not affect our ability to meet the needs of other users.&lt;/p&gt;
+
+&lt;h2 id=&quot;enter-the-spampede-filter&quot;&gt;Enter the Spampede Filter&lt;/h2&gt;
+
+&lt;p&gt;The &lt;strong&gt;Spampede&lt;/strong&gt; (a play of the words spam and stampede) filter was inspired by another concept you may have read on this blog, &lt;a href=&quot;https://engineering.grab.com/designing-resilient-systems-part-1&quot;&gt;circuit breakers&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;In software, as in electronics, circuit breakers are designed to protect a system by short-circuiting in the face of adverse conditions.&lt;/p&gt;
+
+&lt;p&gt;Let’s break this down.&lt;/p&gt;
+
+&lt;p&gt;There are two key concepts here: &lt;em&gt;short-circuiting&lt;/em&gt; and &lt;em&gt;adverse conditions&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;Firstly, &lt;em&gt;short-circuiting&lt;/em&gt;, in this context means performing minimal processing on a particular booking, and by doing so, reducing the overall load on the system. Secondly, &lt;em&gt;adverse conditions&lt;/em&gt;, in this, we refer to a large number of unfulfilled requests for a particular service, from a small geographical area, within a short time window. With these two concepts in mind, we devised the following process.&lt;/p&gt;
+
+&lt;h2 id=&quot;spampede-design&quot;&gt;Spampede Design&lt;/h2&gt;
+
+&lt;p&gt;First, we needed to track unallocated requests in a location-aware manner. To do this, we convert the requested pickup location of an unallocated request using the &lt;a href=&quot;https://github.com/corsc/go-geohash&quot;&gt;Geohash Integer&lt;/a&gt; algorithm.  &lt;/p&gt;
+
+&lt;p&gt;After the conversion, the resulting value is an exact location. We can convert this location into a “bucket” or area by reducing the precision.&lt;/p&gt;
+
+&lt;p&gt;This method is by no means smart or aware of the local geography, but it is incredibly CPU efficient and requires no external resources like network API calls.&lt;/p&gt;
+
+&lt;p&gt;Now that we can track unallocated requests, we needed a way for the tracking to be time-aware. After all, traffic conditions, driver locations, and passenger demand are continually changing. We could have implemented something precise like a sliding window sum, but that would have introduced a lot of complexity and a significantly higher CPU and memory cost.&lt;/p&gt;
+
+&lt;p&gt;By using the Unix timestamp, we converted the current time to a “bucket” of time by using the straightforward formula:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;figure&gt;
+    &lt;img alt=&quot;Event Sourcing&quot; src=&quot;/img/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes/image1.png&quot; /&gt;
+      &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;where &lt;em&gt;bs&lt;/em&gt; is the size of the time buckets in seconds&lt;/p&gt;
+
+&lt;p&gt;With location and time buckets calculated, we can track the unallocated bookings using Redis. We could have used any data store, but Redis was familiar and battle-proven to us.&lt;/p&gt;
+
+&lt;p&gt;To do this, we first constructed the Redis key by combining the service type, the geographic location, and the time bucket. With this key, we call the &lt;a href=&quot;https://redis.io/commands/incr&quot;&gt;INCR&lt;/a&gt; command, which increments the value stored in that location and returns the new value.&lt;/p&gt;
+
+&lt;p&gt;If the value returned is 1, this indicates that this is the first value stored for this bucket combination, and we would then make a second call, this time to &lt;a href=&quot;https://redis.io/commands/expire&quot;&gt;EXPIRE&lt;/a&gt;. With this second call, we would set a time to live (TTL) on the Redis item, allowing the data to be self-cleaning.&lt;/p&gt;
+
+&lt;p&gt;You will notice that we are blindly calling increment and only making a second call if needed. This pattern is more efficient and resource-friendly than using a more traditional, load-check-store pattern.&lt;/p&gt;
+
+&lt;p&gt;The next step was the configuration. Specifically, setting how many unallocated bookings could happen in a particular location and time bucket before the circuit opened. For this, we decided on Redis again. Again, we could have used anything, but we were already using Redis and, as mentioned previously, quite familiar with it.&lt;/p&gt;
+
+&lt;p&gt;Finally, the last piece. We introduced code at the beginning of our booking processing, most importantly, before any calls to any other services and before any significant processing was done. This code compared the location, time, and requested service to the currently configured Spampede setting, along with the previously unallocated bookings. If the maximum had already been reached, then we immediately stopped processing the booking.&lt;/p&gt;
+
+&lt;p&gt;This might sound harsh- to immediately refuse a booking request without even trying to fulfill it. But the goal of the Spampede filter is to prevent excessive, localized demand from impacting all of the users of the system.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Reading about this as a programmer, it probably feels strange, intentionally dropping bookings and impacting the business this way.&lt;/p&gt;
+
+&lt;p&gt;After all, we want nothing more than to help people get to where they need to be. This process is a system safety mechanism to ensure that the system stays alive and able to do just that.&lt;/p&gt;
+
+&lt;p&gt;I would be remiss if I didn’t highlight the critical software-engineering takeaway here is a combination of the &lt;a href=&quot;https://en.wikipedia.org/wiki/Observer_effect_(physics)&quot;&gt;Observer effect&lt;/a&gt; and the underlying goals of the &lt;a href=&quot;https://en.wikipedia.org/wiki/CAP_theorem&quot;&gt;CAP theorem&lt;/a&gt;. Observing a system will influence the system due to the cost of instrumentation and monitoring.&lt;/p&gt;
+
+&lt;p&gt;Generally, the higher the accuracy or consistency of the monitoring and limits, the higher the resource cost.&lt;/p&gt;
+
+&lt;p&gt;In this case, we have intentionally chosen the most resource-efficient options and traded accuracy for more throughput.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 08 Jan 2020 15:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes</link>
+        <guid isPermaLink="true">https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes</guid>
+        
+        <category>Resiliency</category>
+        
+        <category>Circuit Breakers</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Plumbing At Scale</title>
@@ -1870,81 +1959,6 @@ Value
         <category>Data Science</category>
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Save Your Place with Grab!</title>
-        <description>&lt;p&gt;Do you find it tedious to type and search for your destination or have a hard time remembering that address of the friend you are going to meet? It can be really confusing when it comes to keeping track of so many addresses that you frequent on a regular basis. To solve this pain point, Grab rolled out a new feature called Saved Places in January’19 across SouthEast Asia.&lt;/p&gt;
-
-&lt;p&gt;With Saved Places, you can save an address and also add a label like “Home”, “Work”, “Gym”, etc which makes finding and selecting an address for booking a ride or ordering your favourite food a breeze!&lt;/p&gt;
-
-&lt;h2 id=&quot;never-forget-your-addresses-again&quot;&gt;Never forget your addresses again!&lt;/h2&gt;
-
-&lt;p&gt;To use the feature, fire up your Grab app, head to the “Saved Places” section on the app navigation bar and start adding all your favourite destinations such as your home, your office, your favourite mall or the airport and you are done with the hassle of typing them again.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Save your place with Grab!&quot; src=&quot;/img/save-your-place-with-grab/image6.gif&quot; /&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;Hola! your saved addresses are just a click away to order a ride or your favourite meal.&lt;/p&gt;
-
-&lt;h2 id=&quot;inspiration-behind-the-work&quot;&gt;Inspiration behind the work&lt;/h2&gt;
-
-&lt;p&gt;We at Grab continuously engage with our customers to understand how we can outserve them better. Difficulty in choosing the correct address was one of the key feedback shared by our customers. Our drivers shared funny stories about places that have similar names but outrightly different locations e.g. Sime Road is in Bukit Timah but Simei Road is in Simei almost 20 km away, Nicoll Highway is in Kallang but Nicoll Drive is in Changi almost 20 km away. In this case, even though the users use the address frequently, there remains scope for misselection.&lt;/p&gt;
-
-&lt;h3 id=&quot;data-driven-decisions&quot;&gt;Data-Driven Decisions&lt;/h3&gt;
-
-&lt;p&gt;Our vast repository of data and insights has helped us identify and solve some challenging problems. Our analysis of millions of transport bookings and food orders revealed that customers usually visit five to seven unique locations and order food at one or two addresses.&lt;/p&gt;
-
-&lt;p&gt;One intriguing yet intuitive insight that came out was a set pattern in user’s booking behaviour during weekdays. A set of passengers mostly commute between two addresses, probably going to the office in the morning and coming back home in the evening. These identifiable clusters of pick-up and drop-off locations during peak hours signified our hypothesis of users using a small set of locations for their Grab bookings. The pictures below show such clusters in Singapore and Jakarta where passengers generally commute to and fro in morning and in evening respectively.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Save your place with Grab!&quot; src=&quot;/img/save-your-place-with-grab/image2.png&quot; /&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;This insight also motivated us to test out the concept of user created labels which allows the users to mark their saved places with their own labels like “Home”, “Changi Airport”, “Sis’s House” etc. Initial experiment results were extremely encouraging and we got significantly higher usage and repeat rates from users.&lt;/p&gt;
-
-&lt;p&gt;A group of cross functional teams - Analytics, Product, Design, Engineering etc came together, worked backwards from the customer, brainstormed multiple ideas, and finalised a product approach. We then went on to conduct in depth user research and usability testing to ensure that the final product met user expectations and was easy to understand and use.&lt;/p&gt;
-
-&lt;h2 id=&quot;and-users-love-it&quot;&gt;And users love it!&lt;/h2&gt;
-
-&lt;p&gt;Since the launch, we have seen significant user adoption for the feature. More than 14 Million users have saved close to 45 Million saved places. That’s ~3 places per user!&lt;/p&gt;
-
-&lt;p&gt;Customers from Singapore and Myanmar tend to save around 3 addresses each whereas customers from Indonesia, Malaysia, Philippines, Thailand, Vietnam and Cambodia save 2 addresses each. A customer from Indonesia has saved a whopping 1,191 addresses!&lt;/p&gt;
-
-&lt;p&gt;Users across South East Asia have adopted the feature and as of today, a significant portion of our bookings are made using a saved place for either pickup or drop off. If you were curious, here are the most frequently used labels for saving addresses in Singapore (left) and Indonesia (right):&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Save your place with Grab!&quot; src=&quot;/img/save-your-place-with-grab/image3.png&quot; /&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;Apart from saving home and office addresses our customers are also saving their child’s school address and places of worship. Some of them are also saving their favourite shopping destinations.&lt;/p&gt;
-
-&lt;p&gt;Another observation, as someone may have guessed, is regarding cluster of home addresses. Home addresses in Singapore are evenly scattered across the island (map on upper left) but the same are concentrated in specific pockets of the city in Jakarta (map on lower left). However office addresses are concentrated in specific areas in both cities - CBD and Changi area in Singapore (map on upper right) and along central Jakarta in Jakarta (map on lower right).&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Save your place with Grab!&quot; src=&quot;/img/save-your-place-with-grab/image1.png&quot; /&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;h2 id=&quot;this-is-only-the-beginning&quot;&gt;This is only the beginning&lt;/h2&gt;
-
-&lt;p&gt;We’re constantly striving to improve the user experience with Grab and make it as seamless as possible. We have only taken the first steps with Saved Places and the path forward involves deeper understanding of user behaviour with the help of saved places data to create a more personalised experience. This is just the beginning and we’re planning to launch some very innovative features in the coming months.&lt;/p&gt;
-</description>
-        <pubDate>Thu, 01 Aug 2019 18:43:40 +0000</pubDate>
-        <link>https://engineering.grab.com/save-your-place-with-grab</link>
-        <guid isPermaLink="true">https://engineering.grab.com/save-your-place-with-grab</guid>
-        
-        <category>Maps</category>
-        
-        <category>Data</category>
-        
-        
-        <category>Product</category>
         
       </item>
     
