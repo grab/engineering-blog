@@ -1,7 +1,7 @@
 ---
 layout: post
 id: preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes
-title: Preventing App Performance Degradation Due to Sudden Ride Demand Spikes
+title: How We Prevented App Performance Degradation From Sudden Ride Demand Spikes
 date: 2020-01-08 15:00:00
 authors: [corey-scott]
 categories: [Engineering]
