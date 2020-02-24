@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-02-20-grab-posisi
-title: Grab-Posisi - SouthEast Asia’s first comprehensive GPS trajectory dataset
+title: Grab-Posisi - Southeast Asia’s first comprehensive GPS trajectory dataset
 date: 2020-02-20 18:43:40
 authors: [zhengmin-xu, poornima-badrinath, xiaocheng-huang, abeesh-thomas]
 categories: [Engineering]
@@ -18,7 +18,7 @@ At Grab, thousands of bookings happen daily via the Grab app. The driver phones 
 
 Apart from the time and location of the object, GPS trajectories are also characterised by other parameters such as speed, the headed direction, the area and distance covered during its travel, and the travelled time. Thus, the trajectory patterns from users GPS data are a valuable source of information for a wide range of urban applications, such as solving transportation problems, traffic prediction, and developing reasonable urban planning.
 
-Currently, it’s a herculean task to create and maintain the GPS datasets since it’s costly and laborious. As a result, most of the GPS datasets available today in the market have poor coverage or contain outdated information. They cover only a small area of a city, have low sampling rates and contain less contextual information of the GPS pings such as no accuracy level, bearing, and speed.Despite over a dozen mapping communities engaged in collecting GPS trajectory datasets, a significant amount of effort would be required for data cleaning and data pre-processing in order to utilize them.
+Currently, it’s a herculean task to create and maintain the GPS datasets since it’s costly and laborious. As a result, most of the GPS datasets available today in the market have poor coverage or contain outdated information. They cover only a small area of a city, have low sampling rates and contain less contextual information of the GPS pings such as no accuracy level, bearing, and speed. Despite over a dozen mapping communities engaged in collecting GPS trajectory datasets, a significant amount of effort would be required for data cleaning and data pre-processing in order to utilize them.
 
 To overcome the shortfalls in the existing datasets, we built Grab-Posisi, the first GPS trajectory dataset of Southeast Asia. The term Posisi refers to a position in Bahasa. The data was collected from Grab drivers’ phones while in transit. By tackling the addition of major arterial roads in regions where existing maps have poor coverage, and the incremental improvement of coverage in regions where major roads are already mapped, Posisi substantially improves mapping productivity.
 
