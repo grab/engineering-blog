@@ -6,9 +6,117 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 24 Feb 2020 10:16:33 +0000</pubDate>
-    <lastBuildDate>Mon, 24 Feb 2020 10:16:33 +0000</lastBuildDate>
+    <pubDate>Wed, 26 Feb 2020 09:18:20 +0000</pubDate>
+    <lastBuildDate>Wed, 26 Feb 2020 09:18:20 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Returning 575 Terabytes of storage space back to our users</title>
+        <description>&lt;p&gt;Have you ever run out of storage on your phone? Mobile phones come with limited storage and with the multiplication of apps and large video files, many of you are running out of space.&lt;/p&gt;
+
+&lt;p&gt;In this article, we explain how we measure and reduce the storage footprint of the Grab App on a user’s device to help you overcome this issue.&lt;/p&gt;
+
+&lt;h1 id=&quot;the-wakeup-call&quot;&gt;The wakeup call&lt;/h1&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://developer.android.com/topic/performance/vitals&quot;&gt;Android vitals&lt;/a&gt; (information provided by Google play Console about our app performance) gives us two main pieces of information about storage footprint.&lt;/p&gt;
+
+&lt;p&gt;15.7% of users have less than 1GB of free storage and they tend to uninstall more than other users (1.2x).&lt;/p&gt;
+
+&lt;p&gt;The proportion of 30 day active devices which reported less than 1GB free storage. Calculated as a 30 days rolling average.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image2.png&quot; alt=&quot;Active devices with &amp;lt;1GB free space&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Active devices with &amp;lt;1GB free space&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;This is the ratio of uninstalls on active devices with less than 1GB free storage to uninstalls on all active devices. Calculated as a 30 days rolling average.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image5.png&quot; alt=&quot;Ratio of uninstalls on active devices with less than 1GB&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Ratio of uninstalls on active devices with less than 1GB&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;instrumentation-to-know-where-we-stand&quot;&gt;Instrumentation to know where we stand&lt;/h1&gt;
+
+&lt;p&gt;First things first, we needed to know how much space the Grab App occupies on user device. So we started using our personal devices. We can find this information by opening the phone settings and selecting Grab App.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image3.jpg&quot; alt=&quot;App Settings&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;App Settings&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;For this device (screenshot), the application itself (Installed binary) was 186 MB and the total footprint was 322 MB. Since this information varies a lot based on the usage of the app, we needed this information directly from our users in production.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Disclaimer: We are only measuring files that are inside the internal Grab app folder (Cache/Database). We do NOT measure any file that is not inside the private Grab folder.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;We decided to leverage on our current implementation using &lt;a href=&quot;https://developer.android.com/reference/android/os/storage/StorageManager&quot;&gt;StorageManager&lt;/a&gt; API to gather the following information during each session launch:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Application Size (Installed binary size)&lt;/li&gt;
+  &lt;li&gt;Cache folder size&lt;/li&gt;
+  &lt;li&gt;Total footprint&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image1.png&quot; alt=&quot;Sample code to retrieve storage information on Android&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Sample code to retrieve storage information on Android&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;data-analysis&quot;&gt;Data analysis&lt;/h2&gt;
+
+&lt;p&gt;We began analysing this data one month after our users’ updated their app and found that the cache size was anomaly huge (&amp;gt; 1GB) for a lot of users. Intrigued, we dug deeper.&lt;/p&gt;
+
+&lt;p&gt;We added code to log the top largest files inside the cache folder, and we found that most of the files were inside a sub cache folder that was no longer in use. This was due to a usage of a 3rd party library that was removed from our app. We added a specific metric to track the size of this folder.&lt;/p&gt;
+
+&lt;p&gt;In the end, a lot of users still had this old cache data and for some users the amount of data can be up to 1GB.&lt;/p&gt;
+
+&lt;h2 id=&quot;root-cause-analysis&quot;&gt;Root cause analysis&lt;/h2&gt;
+
+&lt;p&gt;The Grab app relies a lot on 3rd party libraries. For example, &lt;a href=&quot;https://github.com/square/picasso&quot;&gt;Picasso&lt;/a&gt; was a library we used in the past for image display which is now replaced by &lt;a href=&quot;https://developer.android.com/topic/performance/graphics/load-bitmap&quot;&gt;Glide&lt;/a&gt;. Picasso uses a cache to store images and avoid making network calls again and again. After removing Picasso from the app, we didn’t delete this cache folder on the user device. We knew there would likely be more third-party libraries that had been discontinued so we expanded our analysis to look at how other 3rd party libraries cached their data.&lt;/p&gt;
+
+&lt;h1 id=&quot;freeing-up-space-on-users-phone&quot;&gt;Freeing up space on user’s phone&lt;/h1&gt;
+
+&lt;p&gt;Here comes the fun part. We implemented a cleanup mechanism to remove old cache folders. When users update the GrabApp, any old cache folders which were there before would automatically be removed. Through this, we released up to 1GB of data in a second back to our users. In total, we removed 575 terabytes of old cache data across more than 13 million devices (approximately 40MB per user on average).&lt;/p&gt;
+
+&lt;h1 id=&quot;data-summary&quot;&gt;Data summary&lt;/h1&gt;
+
+&lt;p&gt;The following graph shows the total size of junk data (in Terabytes) that we can potentially remove each day, calculated by summing up the maximum size of cache when a user opens the Grab app each day.&lt;/p&gt;
+
+&lt;p&gt;The first half of the graph reflects the amount of junk data in relation to the latest app version before auto-clean up was activated. The second half of the graph shows a dramatic dip in junk data after auto-clean up was activated. We were deleting up to 33 Terabytes of data per day on the user’s device when we first started!&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image4.png&quot; alt=&quot;Sum of all junk data on user’s device reported per day in Terabytes&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Sum of all junk data on user’s device reported per day in Terabytes&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;next-step&quot;&gt;Next step&lt;/h1&gt;
+
+&lt;p&gt;This is the first phase of our journey in reducing the storage footprint of our app on Android devices. We specifically focused on making improvements at scale i.e. deliver huge storage gains to the most number of users in the shortest time. In the next phase, we will look at more targeted improvements for specific groups of users that still have a high storage footprint. In addition, we are also reviewing iOS data to see if a round of clean up is necessary.&lt;/p&gt;
+
+&lt;p&gt;Concurrently, we are also reducing the maximum size of cache created by some libraries. For example, Glide by default creates a cache of 250MB but this can be configured and optimised.&lt;/p&gt;
+
+&lt;p&gt;We hope you found this piece insightful and please remember to update your app regularly to benefit from the improvements we’re making every day. If you find that your app is still taking a lot of space on your phone, be assured that we’re looking into it.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 25 Feb 2020 20:13:00 +0000</pubDate>
+        <link>https://engineering.grab.com/returning-storage-space-back-to-our-users</link>
+        <guid isPermaLink="true">https://engineering.grab.com/returning-storage-space-back-to-our-users</guid>
+        
+        <category>Mobile</category>
+        
+        <category>Android</category>
+        
+        <category>Performance</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Grab-Posisi - Southeast Asia’s first comprehensive GPS trajectory dataset</title>
@@ -1823,88 +1931,6 @@ When a rule is hit, more than just treatments, users also want some dynamic valu
         <category>Fraud Detection</category>
         
         <category>Data</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Being a Principal Engineer at Grab</title>
-        <description>&lt;p&gt;Over the past few years Grab has grown from a small startup to one of the largest technology companies in South-East Asia. Along with the company’s growth, the number of microservices, features and teams also grew substantially. At the time of writing this blog, we have around 350 microservices powering our super-app.&lt;/p&gt;
-
-&lt;p&gt;A great engineering team is a critical component of our success. As an engineer you have two career paths in front of you: an individual contributor role, or a management role. While a management role is generally better understood, this article clarifies what it means to be a principal engineer at Grab, which is one of the highest levels of our engineering career ladder.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Engineering Career Ladder&quot; src=&quot;/img/about-being-a-principal-engineer-at-grab/image1.jpg&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;improving-the-quality&quot;&gt;Improving the Quality&lt;/h2&gt;
-&lt;div align=&quot;center&quot; style=&quot;font-style:italic&quot;&gt;&lt;font color=&quot;A9A9A9&quot;&gt;“You set the standard for engineering excellence in your technical family. Your architectures are exemplary in terms of efficiency, stability, extensibility, testability and the ability to evolve over time. Your software is robust in the presence of failures, scalable, and cost-effective. Your coding practices are exemplary in terms of code organization, clarity, simplicity, error handling, and documentation. You tackle intrinsically hard problems, acquiring expertise as needed. You decompose complex problems into straightforward solutions.” - Grab’s Engineering Career Ladder&lt;/font&gt;&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-&lt;p&gt;So, what does a principal engineer do? As your career progresses from junior to senior to lead engineer we have more and more responsibilities; you manage larger and larger systems. For example, junior engineer might manage a specific component of a micro-service. A senior engineer would be tasked with designing and operating an entire micro-service or product. While a lead engineer would typically be concerned with the architecture at a team level.&lt;/p&gt;
-
-&lt;p&gt;Principal engineer level is akin to a senior manager where instead of indirectly managing people (manager of managers) you take care of the architecture of an entire sub-organisation, known as Tech Family/Platform. These Tech Families usually have more than 50 engineers spread across multiple teams and function as a tiny company with their own business owners, designers, product managers, etc.&lt;/p&gt;
-
-&lt;h2 id=&quot;challenging-projects&quot;&gt;Challenging Projects&lt;/h2&gt;
-
-&lt;div align=&quot;center&quot; style=&quot;font-style:italic&quot;&gt;&lt;font color=&quot;A9A9A9&quot;&gt;“You take engineering ownership of projects that may require the work of several teams to implement; you divide responsibilities so that each team can work independently and have the system come together into an integrated whole. Your projects often cross team, tech family, platform, and even R&amp;amp;D center boundaries. You solicit differing views and keep an open mind. You are adept at building consensus.” - Grab’s Engineering Career Ladder&lt;/font&gt;&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;As a principal engineer, your job is to solve larger problems and &lt;strong&gt;translate somewhat vague problems&lt;/strong&gt; into a set of actionable items. You might be faced with a large problem such as “improve efficiency and interoperability of Grab’s transportation system.” You will need to understand the problem, the business impact and see how can it be improved. It might require you to design new systems, change existing systems, understand the costs involved and get the right people together to make it happen.&lt;/p&gt;
-
-&lt;p&gt;Solving such a problem all by yourself is pretty much impossible. You have to work with other managers and other engineers together &lt;strong&gt;as a team&lt;/strong&gt; to make it happen. Help your lead/senior engineers to design the right system by giving them a clear objective but let them take care of the system-level architecture.  &lt;/p&gt;
-
-&lt;p&gt;You will also need to work with managers, advise them to get things done, and get the right things prioritised by the team. While you don’t need to be well-versed in project management and agile methodologies, you do need to be able to plan ahead with your teams and have an understanding of how much time a project or migration will take.&lt;/p&gt;
-
-&lt;p&gt;A Tech Family can easily have 20 or more micro-services. You need to have a good understanding of their &lt;strong&gt;functional requirements and interactions&lt;/strong&gt;. This is challenging as learning new things is always “uncomfortable” and takes time. You must reach out to engineers, product managers, and data scientists, ideally face-to-face to build empathy. Keep asking questions and try to understand how things work. You will also need to read the existing documentation and their code.&lt;/p&gt;
-
-&lt;h2 id=&quot;technical-ownership&quot;&gt;Technical Ownership&lt;/h2&gt;
-
-&lt;div align=&quot;center&quot; style=&quot;font-style:italic&quot;&gt;&lt;font color=&quot;A9A9A9&quot;&gt;“You are the origin of significant technical contributions to our architecture and infrastructure. You take technical ownership of the design and quality of the security, performance, availability, and operational aspects of the software built by one or more teams. You identify where your time is needed, transitioning between coding, design, and architecture based on project and team needs. You deliver software in ways that empower teams to self-service, providing clear adoption/migration paths.” - Grab’s Engineering Career Ladder&lt;/font&gt;&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;As a principal engineer you work together with the Head of Engineering and managers within the Tech Family and &lt;strong&gt;improve the quality&lt;/strong&gt; of systems across the board. Typically, no-one tells you what needs to be done. You need to identify gaps, raise them and keep improving the systems.&lt;/p&gt;
-
-&lt;p&gt;You also need to learn how to manage your own time better so you can &lt;strong&gt;prioritise effectively&lt;/strong&gt;. This boils down to knowing your strengths, your weaknesses. For example, if you are really good in building distributed systems but have no clue about the latest-and-greatest design in information security, get the right InfoSec engineers in this meeting and consider skipping it yourself. Avoid trying to do everything at once and be in every single meeting you get invited - you still have to review code, design and focus, so plan accordingly.&lt;/p&gt;
-
-&lt;p&gt;You will also need to understand the &lt;strong&gt;business impact&lt;/strong&gt; of your decisions. For example, if you contribute to product features, know how impactful this feature is going to be to the organisation. If you don’t know it - ask the Product Manager responsible for it. If you work on a platform feature, for example improving the build system, know how it will help: saving 30 minutes of build time for every engineer each day is a huge achievement.&lt;/p&gt;
-
-&lt;p&gt;More often than not, you will have to &lt;strong&gt;drive migrations&lt;/strong&gt;, this is akin to code refactoring but on a system-level and will involve a lot of collaboration with the people. Understand what a technical debt is and how it can be mitigated - a good architecture minimises technical debt and in turn accelerates time-to-market and helps business flourish.&lt;/p&gt;
-
-&lt;h2 id=&quot;technical-leadership&quot;&gt;Technical Leadership&lt;/h2&gt;
-
-&lt;div align=&quot;center&quot; style=&quot;font-style:italic&quot;&gt;&lt;font color=&quot;A9A9A9&quot;&gt;“You amplify your impact by leading design reviews for complex software and/or critical features. You probe assumptions, illuminate pitfalls, and foster shared understanding. You align teams toward coherent architectural strategies.” - Grab’s Engineering Career Ladder&lt;/font&gt;&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;In Grab we have a process known as RFC (Request For Comments) which allows engineers to submit &lt;strong&gt;designs and ideas&lt;/strong&gt; for a larger audience to debate. This is especially important given that our organisation is spread across several continents with research and development offices in Southeast Asia, the US, India and China. While any engineer is welcome to comment on these RFCs, it is a duty of lead and principal engineers’ to review them on a regular basis. This will help you to expand your knowledge of existing systems and help others with improving their designs.&lt;/p&gt;
-
-&lt;p&gt;Communication is a key skill that you need to keep improving and it is often the Achilles’ heel of many engineers who would rather be doing work in their corner without talking to anyone else. This is perfectly fine for a junior (or even some senior engineers) but it is critical for a principal engineer to communicate. Let’s break this down to a set of specific skills that you’d need to sharpen.&lt;/p&gt;
-
-&lt;p&gt;You need to be able to &lt;strong&gt;write effectively&lt;/strong&gt; in order to convey your ideas to others. This includes knowing your audience and wording it in such a way that readers can understand. A technical design document whose audience are engineers is not written the same way as a design proposal whose audience are product and business managers.&lt;/p&gt;
-
-&lt;p&gt;You need to be able to &lt;strong&gt;publicly present and talk&lt;/strong&gt; about various projects that you are working on. This includes creation of slide decks with good visuals and distilling down months of work to just a couple of slides. The best way of learning this is to get out there and keep presenting your work - you will get better over time.&lt;/p&gt;
-
-&lt;p&gt;You also need to be able to &lt;strong&gt;drive meetings and discussions&lt;/strong&gt; without wasting anyone’s time. As a technical leader, one of your key responsibilities is to get people moving in the same direction and driving consensus during meetings.&lt;/p&gt;
-
-&lt;h2 id=&quot;teaching-and-learning&quot;&gt;Teaching and Learning&lt;/h2&gt;
-
-&lt;div align=&quot;center&quot; style=&quot;font-style:italic&quot;&gt;&lt;font color=&quot;A9A9A9&quot;&gt;“You educate other engineers, both at an individual level and at scale: keeping the engineering community up to date on advanced technical issues, technologies, and trends. Examples include onboarding bootcamps for new hires, interns, specific skill-gap training development, and sharing specialized knowledge to raise the technical bar for other engineers/teams/dev centers.”&lt;/font&gt;&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;A principal engineer is a technical leader and as a leader you have the responsibility to &lt;strong&gt;mentor&lt;/strong&gt;, coach fellow engineers, regardless of their level. In addition to code-reviews, you can organise office hours in your team and knowledge sharing sessions where everyone could present something. You could also help with bootcamps and help new hires in getting up-to-speed.&lt;/p&gt;
-
-&lt;p&gt;Most importantly, &lt;strong&gt;you will also need to keep learning&lt;/strong&gt; whichever way works for you - reading journals and papers, blog posts, watching video-recorded talks, attending conferences and browsing through a variety of open-source projects. You will also learn from other Grabbers as even a junior engineer can teach you something, we all have our strengths and weaknesses. Keep improving and working on yourself!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 25 Sep 2019 18:14:40 +0000</pubDate>
-        <link>https://engineering.grab.com/about-being-a-principal-engineer-at-grab</link>
-        <guid isPermaLink="true">https://engineering.grab.com/about-being-a-principal-engineer-at-grab</guid>
-        
-        <category>Career</category>
-        
-        <category>Engineering</category>
-        
-        <category>Microservices</category>
         
         
         <category>Engineering</category>
