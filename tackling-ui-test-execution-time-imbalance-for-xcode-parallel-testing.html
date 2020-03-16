@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Tackling UI test execution time imbalance for Xcode parallel testing</title>
+    <meta name="description" content="This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we overcame a challenge that prevented us from running the tests efficiently.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing">
+    <meta property="og:title" content="Tackling UI test execution time imbalance for Xcode parallel testing">
+    <meta property="og:description" content="This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we overcame a challenge that prevented us from running the tests efficiently.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/ngoc-thuyen-trinh.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Tackling UI test execution time imbalance for Xcode parallel testing</h1>
+      
+      <div class="post-meta">
+        16 Mar 2020
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#ngoc-thuyen-trinh">Ngoc Thuyen Trinh</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#ci" class="label tags-label">CI</a>
+  
+    <a href="/tags#ios" class="label tags-label">iOS</a>
+  
+    <a href="/tags#mobile" class="label tags-label">mobile</a>
+  
+    <a href="/tags#parallelism" class="label tags-label">parallelism</a>
+  
+    <a href="/tags#testing" class="label tags-label">testing</a>
+  
+    <a href="/tags#ui-tests" class="label tags-label">UI tests</a>
+  
+    <a href="/tags#xcode" class="label tags-label">xcode</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <h1 id="introduction">Introduction</h1>
+
+<p>Testing is a common practice to ensure that code logic is not easily broken during development and refactoring. Having tests running as part of Continuous Integration (CI) infrastructure is essential, especially with a large codebase contributed by many engineers. However, the more tests we add, the longer it takes to execute. In the context of iOS development, the execution time of the whole test suite might be significantly affected by the increasing number of tests written. Running <a href="https://about.gitlab.com/blog/2019/07/12/guide-to-ci-cd-pipelines/">CI pre-merge pipelines</a> against a change, would cost us more time. Therefore, reducing test execution time is a long term epic we have to tackle in order to build a good CI infrastructure.</p>
+
+<p>Apart from splitting tests into subsets and running each of them in a CI job, we can also make use of the <a href="https://www.zachsim.one/blog/2018/6/15/parallel-testing-in-xcode-10">Xcode parallel testing</a> feature to achieve parallelism within one single CI job. However, due to platform-specific implementations, there are some constraints that prevent parallel testing from working efficiently. One constraint we found is that tests of the same <a href="https://swift.org/about/">Swift</a> class run on the same simulator. In this post, we will discuss this constraint in detail and introduce a tip to overcome it.</p>
+
+<h1 id="background">Background</h1>
+
+<h2 id="xcode-parallel-testing">Xcode parallel testing</h2>
+
+<p>The parallel testing feature was shipped as part of the <a href="https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes">Xcode 10 release</a>. This support enables us to easily configure test setup:</p>
+
+<ul>
+  <li>There is no need to care about how to split a given test suite.</li>
+  <li>The number of workers (i.e. parallel runners/instances) is configurable. We can pass this value in the <code class="highlighter-rouge">xcodebuild</code> CLI via the <code class="highlighter-rouge">-parallel-testing-worker-count</code> option.</li>
+  <li>Xcode takes care of cloning and starts simulators accordingly.</li>
+</ul>
+
+<p>However, <em>the distribution logic under the hood is a black-box</em>. We do not really know how <em>tests are assigned to each worker or simulator, and in which order</em>.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image6.png" alt="Three simulators running tests in parallel" />
+  <figcaption align="middle"><i>Three simulators running tests in parallel</i></figcaption>
+</figure></div>
+
+<p>It is worth mentioning that even without the Xcode parallel testing support, we can still achieve similar improvements by running subsets of tests in different child processes. But it takes more effort to dispatch tests to each child process in an efficient way, and to handle the output from each test process appropriately.</p>
+
+<h2 id="test-time-imbalance">Test time imbalance</h2>
+
+<p>Generally, a <em>parallel execution system</em> is at its best efficiency if each parallel task executes in roughly the same duration and ends at roughly the same time.</p>
+
+<p>If the time spent on each parallel task is significantly different, it will take more time than expected to execute all tasks. For example, in the following image, it takes the system on the left 13 mins to finish 3 tasks. Whereas, the one on the right takes only 10.5 mins to finish those 3 tasks.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image3.png" alt="Bad parallelism vs. good parallelism" />
+  <figcaption align="middle"><i>Bad parallelism vs. good parallelism</i></figcaption>
+</figure></div>
+
+<p>Assume there are N workers. The i<sup>th</sup> worker executes its tasks in t<sub>i</sub> seconds/minutes. In the left plot, t<sub>1</sub> = 10 mins, t<sub>2</sub> = 7 mins, t<sub>3</sub> = 13 mins.</p>
+
+<p>We define the test time imbalance metric as the difference between the min and max end time:</p>
+
+<p><code class="highlighter-rouge">max(t&lt;sub&gt;i&lt;/sub&gt;) - min(t&lt;sub&gt;i&lt;/sub&gt;)</code></p>
+
+<p>For the example above, the test time imbalance is 13 mins - 7 mins = 6 mins.</p>
+
+<h2 id="contributing-factors-in-test-time-imbalance">Contributing factors in test time imbalance</h2>
+
+<p>There are several factors causing test time imbalance. The top two prominent factors are:</p>
+
+<ol>
+  <li>Tests vary in execution time.</li>
+  <li>Tests of the same class run on the same simulator.</li>
+</ol>
+
+<p>An example of the first factor is that in our project, around 50% of tests execute in a range of 20-40 secs. Some tests take under 15 secs to run while several take up to 2 minutes. Sometimes tests taking longer execution time is inevitable since those tests usually touch many flows, which cannot be split. If such tests run last, the test time imbalance may increase.</p>
+
+<p>However, this issue, in general, does not matter that much because long-time-execution tests do not always run last.</p>
+
+<p>Regarding the second factor, there is no official Apple documentation that explicitly states this constraint. When <a href="https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes">Apple first introduced parallel testing support in Xcode 10</a>, they only mentioned that test classes are distributed across runner processes:</p>
+
+<blockquote>
+  <p>“Test parallelization occurs by <strong>distributing the test classes in a target across multiple runner processes</strong>. Use the test log to see how your test classes were parallelized. You will see an entry in the log for each runner process that was launched, and below each runner you will see the list of classes that it executed.”</p>
+</blockquote>
+
+<p>For example, we have a test class <code class="highlighter-rouge">JobFlowTests</code> that includes five tests and another test class <code class="highlighter-rouge">TutorialTests</code> that has only one single test.</p>
+
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">final</span> <span class="kd">class</span> <span class="kt">JobFlowTests</span><span class="p">:</span> <span class="kt">BaseXCTestCase</span> <span class="p">{</span>
+<span class="kd">func</span> <span class="nf">testHappyFlow</span><span class="p">()</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+  <span class="kd">func</span> <span class="nf">testRecoverFlow</span><span class="p">()</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+  <span class="kd">func</span> <span class="nf">testJobIgnoreByDax</span><span class="p">()</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+  <span class="kd">func</span> <span class="nf">testJobIgnoreByTimer</span><span class="p">()</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+  <span class="kd">func</span> <span class="nf">testForceClearBooking</span><span class="p">()</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+<span class="p">}</span>
+<span class="o">...</span>
+<span class="kd">final</span> <span class="kd">class</span> <span class="kt">TutorialTests</span><span class="p">:</span> <span class="kt">BaseXCTestCase</span> <span class="p">{</span>
+  <span class="kd">func</span> <span class="nf">testOnboardingFlow</span><span class="p">()</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>When executing the two tests with two simulators running in parallel, the actual run is like the one shown on the left side of the following image, but ideally it should work like the one on the right side.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image1.png" alt="Tests of the same class are supposed to run on the same simulator but they should be able to run on different simulators." />
+  <figcaption align="middle"><i>Tests of the same class are supposed to run on the same simulator but they should be able to run on different simulators.</i></figcaption>
+</figure></div>
+
+<h1 id="diving-deep-into-xcode-parallel-testing">Diving deep into Xcode parallel testing</h1>
+
+<h2 id="demystifying-xcode-scheduling-log">Demystifying Xcode scheduling log</h2>
+
+<p>As mentioned above, Xcode distributes tests to simulators/workers in a black-box manner. However, by looking at the scheduling log generated when running tests, we can understand how Xcode parallel testing works.</p>
+
+<p>When running UI tests via the <code class="highlighter-rouge">xcodebuild</code> command:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>xcodebuild <span class="nt">-workspace</span> Driver/Driver.xcworkspace <span class="se">\</span>
+    <span class="nt">-scheme</span> Driver <span class="se">\</span>
+    <span class="nt">-configuration</span> Debug <span class="se">\</span>
+    <span class="nt">-sdk</span> <span class="s1">'iphonesimulator'</span> <span class="se">\</span>
+    <span class="nt">-destination</span> <span class="s1">'platform=iOS Simulator,id=EEE06943-7D7B-4E76-A3E0-B9A5C1470DBE'</span> <span class="se">\</span>
+    <span class="nt">-derivedDataPath</span> <span class="s1">'./DerivedData'</span> <span class="se">\</span>
+    <span class="nt">-parallel-testing-enabled</span> YES <span class="se">\</span>
+    <span class="nt">-parallel-testing-worker-count</span> 2 <span class="se">\</span>
+    <span class="nt">-only-testing</span>:DriverUITests/JobFlowTests <span class="se">\ </span>   <span class="c"># 👈👈👈👈👈</span>
+    <span class="nt">-only-testing</span>:DriverUITests/TutorialTests <span class="se">\</span>
+    test-without-building
+</code></pre></div></div>
+
+<p>The log can be found inside the <code class="highlighter-rouge">*.xcresult</code> folder under <code class="highlighter-rouge">DerivedData/Logs/Test</code>. For example: <code class="highlighter-rouge">DerivedData/Logs/Test/Test-Driver-2019.11.04\_23-31-34-+0800.xcresult/1\_Test/Diagnostics/DriverUITests-144D9549-FD53-437B-BE97-8A288855E259/scheduling.log</code></p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image5.png" alt="Scheduling log under xcresult folder." />
+  <figcaption align="middle"><i>Scheduling log under xcresult folder</i></figcaption>
+</figure></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2019-11-05 03:55:00 +0000: Received worker from worker provider: 0x7fe6a684c4e0 [0: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+2019-11-05 03:55:13 +0000: Worker 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)] finished bootstrapping
+2019-11-05 03:55:13 +0000: Parallelization enabled; test execution driven by the IDE
+2019-11-05 03:55:13 +0000: Skipping test class discovery
+2019-11-05 03:55:13 +0000: Executing tests {(	# 👈👈👈👈👈
+    DriverUITests/JobFlowTests,
+    DriverUITests/TutorialTests
+)}; skipping tests {(
+)}
+2019-11-05 03:55:13 +0000: Load balancer requested an additional worker
+2019-11-05 03:55:13 +0000: Dispatching tests {(  # 👈👈👈👈👈
+    DriverUITests/JobFlowTests
+)} to worker: 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+2019-11-05 03:55:13 +0000: Received worker from worker provider: 0x7fe6a1582e40 [0: Clone 2 of DaxIOS-XC10-1-iP7-1 (F640C2F1-59A7-4448-B700-7381949B5D00)]
+2019-11-05 03:55:39 +0000: Dispatching tests {(  # 👈👈👈👈👈
+    DriverUITests/TutorialTests
+)} to worker: 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+...
+</code></pre></div></div>
+
+<p>Looking at the log below, we know that once a test class is dispatched or distributed to a worker/simulator, all tests of that class will be executed in that simulator.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2019-11-05 03:55:39 +0000: Dispatching tests {(
+    DriverUITests/TutorialTests
+)} to worker: 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+</code></pre></div></div>
+
+<p>Even when we customize a test suite (by swizzling some <code class="highlighter-rouge">XCTestSuite</code> class methods or variables), to split a test suite into multiple suites, it does not work because the made-up test suite is only initialized after tests are dispatched to a given worker.</p>
+
+<p>Therefore, <strong><em>any hook to bypass this constraint must be done early on</em></strong>.</p>
+
+<h2 id="passing-the--only-testing-argument-to-xcodebuild-command">Passing the -only-testing argument to xcodebuild command</h2>
+
+<p>Now we pass tests (instead of test classes) to the <code class="highlighter-rouge">-only-testing</code> argument.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ xcodebuild -workspace Driver/Driver.xcworkspace \
+    # ...
+    -only-testing:DriverUITests/JobFlowTests/testJobIgnoreByTimer \
+    -only-testing:DriverUITests/JobFlowTests/testRecoverFlow \
+    -only-testing:DriverUITests/JobFlowTests/testJobIgnoreByDax \
+    -only-testing:DriverUITests/JobFlowTests/testHappyFlow \
+    -only-testing:DriverUITests/JobFlowTests/testForceClearBooking \
+    -only-testing:DriverUITests/TutorialTests/testOnboardingFlow \
+    test-without-building
+</code></pre></div></div>
+
+<p>But still, the scheduling log shows that <strong><em>tests are grouped by test class before being dispatched to workers</em></strong> (see the following log for reference). This grouping is automatically done by Xcode (which it should not).</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2019-11-05 04:21:42 +0000: Executing tests {(	# 👈
+    DriverUITests/JobFlowTests/testJobIgnoreByTimer,
+    DriverUITests/JobFlowTests/testRecoverFlow,
+    DriverUITests/JobFlowTests/testJobIgnoreByDax,
+    DriverUITests/TutorialTests/testOnboardingFlow,
+    DriverUITests/JobFlowTests/testHappyFlow,
+    DriverUITests/JobFlowTests/testForceClearBooking
+)}; skipping tests {(
+)}
+2019-11-05 04:21:42 +0000: Load balancer requested an additional worker
+2019-11-05 04:21:42 +0000: Dispatching tests {(  # 👈 ❌
+    DriverUITests/JobFlowTests/testJobIgnoreByTimer,
+    DriverUITests/JobFlowTests/testForceClearBooking,
+    DriverUITests/JobFlowTests/testJobIgnoreByDax,
+    DriverUITests/JobFlowTests/testHappyFlow,
+    DriverUITests/JobFlowTests/testRecoverFlow
+)} to worker: 0x7fd781261940 [6300: Clone 1 of DaxIOS-XC10-1-iP7-1 (93F0FCB6-C83F-4419-9A75-C11765F4B1CA)]
+......
+</code></pre></div></div>
+
+<h1 id="overcoming-grouping-logic-in-xcode-parallel-testing">Overcoming grouping logic in Xcode parallel testing</h1>
+
+<h2 id="tweaking-the--only-testing-argument-values">Tweaking the -only-testing argument values</h2>
+
+<p>Based on our observation, we can imagine how Xcode runs tests in parallel. See below.</p>
+
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Step</span> <span class="mf">1.</span>   <span class="n">tests</span> <span class="o">=</span> <span class="n">detect_tests_to_run</span><span class="p">()</span> <span class="c1"># parse -only-testing arguments
+</span><span class="n">Step</span> <span class="mf">2.</span>   <span class="n">groups_of_tests</span> <span class="o">=</span> <span class="n">group_tests_by_test_class</span><span class="p">(</span><span class="n">tests</span><span class="p">)</span>
+<span class="n">Step</span> <span class="mf">3.</span>   <span class="k">while</span> <span class="n">groups_of_tests</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">empty</span><span class="p">:</span>
+<span class="n">Step</span> <span class="mf">3.1</span><span class="o">.</span> 	<span class="n">worker</span> <span class="o">=</span> <span class="n">find_free_worker</span><span class="p">()</span>
+<span class="n">Step</span> <span class="mf">3.2</span><span class="o">.</span>     <span class="k">if</span> <span class="n">worker</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                  <span class="n">dispatch_tests_to_workers</span><span class="p">(</span><span class="n">groups_of_tests</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+
+</code></pre></div></div>
+
+<p>In the pseudo-code above, we do not have much control to change step 2 since that grouping logic is implemented by Xcode. But we have a good guess that Xcode groups tests, by the first two components (class name) only (For example,  <code class="highlighter-rouge">DriverUITests/JobFlowTests</code>). In other words, tests having the same class name run together on one simulator.</p>
+
+<p>The trick to break this constraint is simple. We can tweak the input (test names) so that each group contains only one test. By inserting a random token in the class name, all class names in the tests that are passed via <code class="highlighter-rouge">-only-testing</code> argument are different.</p>
+
+<p>For example, instead of passing:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">-only-testing</span>:DriverUITests/JobFlowTests/testJobIgnoreByTimer <span class="se">\</span>
+<span class="nt">-only-testing</span>:DriverUITests/JobFlowTests/testRecoverFlow <span class="se">\</span>
+</code></pre></div></div>
+
+<p>We rather use:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">-only-testing</span>:DriverUITests/JobFlowTests_AxY132z8/testJobIgnoreByTimer <span class="se">\</span>
+<span class="nt">-only-testing</span>:DriverUITests/JobFlowTests_By8MTk7l/testRecoverFlow <span class="se">\</span>
+</code></pre></div></div>
+
+<p>Or we can use the test name itself as the token:</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">-only-testing</span>:DriverUITests/JobFlowTests_testJobIgnoreByTimer/testJobIgnoreByTimer <span class="se">\</span>
+<span class="nt">-only-testing</span>:DriverUITests/JobFlowTests_testRecoverFlow/testRecoverFlow <span class="se">\</span>
+</code></pre></div></div>
+
+<p>After that, looking at the scheduling log, we will see that the trick can bypass the grouping logic. Now, only one test is dispatched to a worker once ready.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2019-11-05 06:06:56 +0000: Dispatching tests {(	# 👈 ✅
+    DriverUITests/JobFlowTests_testJobIgnoreByDax/testJobIgnoreByDax
+)} to worker: 0x7fef7952d0e0 [13857: Clone 2 of DaxIOS-XC10-1-iP7-1 (9BA030CD-C90F-4B7A-B9A7-D12F368A5A64)]
+2019-11-05 06:06:58 +0000: Dispatching tests {(	# 👈 ✅
+    DriverUITests/TutorialTests_testOnboardingFlow/testOnboardingFlow
+)} to worker: 0x7fef7e85fd70 [13719: Clone 1 of DaxIOS-XC10-1-iP7-1 (584F99FE-49C2-4536-B6AC-90B8A10F361B)]
+2019-11-05 06:07:07 +0000: Dispatching tests {(	# 👈 ✅
+    DriverUITests/JobFlowTests_testRecoverFlow/testRecoverFlow
+)} to worker: 0x7fef7952d0e0 [13857: Clone 2 of DaxIOS-XC10-1-iP7-1 (9BA030CD-C90F-4B7A-B9A7-D12F368A5A64)]
+
+</code></pre></div></div>
+
+<h2 id="handling-tweaked-test-names">Handling tweaked test names</h2>
+
+<p>When a worker/simulator receives a request to run a test, the app (could be the runner app or the hosting app) initializes an <code class="highlighter-rouge">XCTestSuite</code> corresponding to the test name. In order for the test suite to be properly made up, we need to remove the inserted token.</p>
+
+<p>This could be done easily by swizzling the <a href="https://developer.apple.com/documentation/xctest/xctestsuite/1500897-init"><code class="highlighter-rouge">XCTestSuite.init(forTestCaseWithName:)</code></a>. Inside that swizzled function, we remove the token and then call the original init function.</p>
+
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">extension</span> <span class="kt">XCTestSuite</span> <span class="p">{</span>
+  <span class="c1">/// For 'Selected tests' suite</span>
+  <span class="kd">@objc</span> <span class="kd">dynamic</span> <span class="kd">class</span> <span class="kd">func</span> <span class="nf">swizzled_init</span><span class="p">(</span><span class="n">forTestCaseWithName</span> <span class="nv">maskedName</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">XCTestSuite</span> <span class="p">{</span>
+    <span class="c1">/// Recover the original test name</span>
+    <span class="c1">/// - masked: UITestCaseA_testA1/testA1      	--&gt; recovered: UITestCaseA/testA1</span>
+    <span class="c1">/// - masked: Driver/UITestCaseA_testA1/testA1   --&gt; recovered: Driver/UITestCaseA/testA1</span>
+    <span class="k">guard</span> <span class="k">let</span> <span class="nv">testBaseName</span> <span class="o">=</span> <span class="n">maskedName</span><span class="o">.</span><span class="nf">split</span><span class="p">(</span><span class="nv">separator</span><span class="p">:</span> <span class="s">"/"</span><span class="p">)</span><span class="o">.</span><span class="n">last</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nf">swizzled_init</span><span class="p">(</span><span class="nv">forTestCaseWithName</span><span class="p">:</span> <span class="n">maskedName</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">let</span> <span class="nv">recoveredName</span> <span class="o">=</span> <span class="n">maskedName</span><span class="o">.</span><span class="nf">replacingOccurrences</span><span class="p">(</span><span class="nv">of</span><span class="p">:</span> <span class="s">"_</span><span class="se">\(</span><span class="n">testBaseName</span><span class="se">)</span><span class="s">/"</span><span class="p">,</span> <span class="nv">with</span><span class="p">:</span> <span class="s">"/"</span><span class="p">)</span> <span class="err">#</span> <span class="n">👈</span> <span class="n">remove</span> <span class="n">the</span> <span class="n">token</span>
+    <span class="k">return</span> <span class="nf">swizzled_init</span><span class="p">(</span><span class="nv">forTestCaseWithName</span><span class="p">:</span> <span class="n">recoveredName</span><span class="p">)</span> <span class="err">#</span> <span class="n">👈</span> <span class="n">call</span> <span class="n">the</span> <span class="n">original</span> <span class="kd">init</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<div class="post-image-section"><figure>
+  <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image2.png" alt="Swizzle function to run tests properly" />
+  <figcaption align="middle"><i>Swizzle function to run tests properly</i></figcaption>
+</figure></div>
+
+<h2 id="test-class-discovery">Test class discovery</h2>
+
+<p>In order to adopt this tip, we need to know which test classes we need to run in advance. Although Apple does not provide an API to obtain the list before running tests, this can be done in several ways. One approach we can use is to generate test classes using <a href="https://github.com/krzysztofzablocki/Sourcery">Sourcery</a>. Another alternative is to parse the binaries inside <code class="highlighter-rouge">.xctest</code> bundles (in build products) to look for symbols related to tests.</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>In this article, we identified some factors causing test execution time imbalance in Xcode parallel testing (particularly for UI tests).</p>
+
+<p>We also looked into how Xcode distributes tests in parallel testing. We also try to mitigate a constraint in which tests within the same class run on the same simulator. The trick not only reduces the imbalance but also gives us more confidence in adding more tests to a class without caring about whether it affects our CI infrastructure.</p>
+
+<p>Below is the metric about test time imbalance recorded when running UI tests. After adopting the trick, we saw a decrease in the metric (which is a good sign). As of now, the metric stabilizes at around 0.4 mins.</p>
+
+<p><img src="images/image4.png" alt="" /></p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image4.png" alt="Tracking data of UI test time imbalance (in minutes) in our project, collected by multiple runs" />
+  <figcaption align="middle"><i>Tracking data of UI test time imbalance (in minutes) in our project, collected by multiple runs</i></figcaption>
+</figure></div>
+
+<h1 id="join-us">Join us</h1>
+<p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
+
+<p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#ci" class="label tags-label">CI</a>
+  
+    <a href="/tags#ios" class="label tags-label">iOS</a>
+  
+    <a href="/tags#mobile" class="label tags-label">mobile</a>
+  
+    <a href="/tags#parallelism" class="label tags-label">parallelism</a>
+  
+    <a href="/tags#testing" class="label tags-label">testing</a>
+  
+    <a href="/tags#ui-tests" class="label tags-label">UI tests</a>
+  
+    <a href="/tags#xcode" class="label tags-label">xcode</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Tackling UI test execution time imbalance for Xcode parallel testing&url=https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing&title=Tackling UI test execution time imbalance for Xcode parallel testing
+&summary=This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we overcame a challenge that prevented us from running the tests efficiently.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing';
+    this.page.identifier = '/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company-beta/5382086" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>

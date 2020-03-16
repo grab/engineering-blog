@@ -6,9 +6,314 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 26 Feb 2020 09:18:20 +0000</pubDate>
-    <lastBuildDate>Wed, 26 Feb 2020 09:18:20 +0000</lastBuildDate>
+    <pubDate>Mon, 16 Mar 2020 10:22:44 +0000</pubDate>
+    <lastBuildDate>Mon, 16 Mar 2020 10:22:44 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Tackling UI test execution time imbalance for Xcode parallel testing</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;Testing is a common practice to ensure that code logic is not easily broken during development and refactoring. Having tests running as part of Continuous Integration (CI) infrastructure is essential, especially with a large codebase contributed by many engineers. However, the more tests we add, the longer it takes to execute. In the context of iOS development, the execution time of the whole test suite might be significantly affected by the increasing number of tests written. Running &lt;a href=&quot;https://about.gitlab.com/blog/2019/07/12/guide-to-ci-cd-pipelines/&quot;&gt;CI pre-merge pipelines&lt;/a&gt; against a change, would cost us more time. Therefore, reducing test execution time is a long term epic we have to tackle in order to build a good CI infrastructure.&lt;/p&gt;
+
+&lt;p&gt;Apart from splitting tests into subsets and running each of them in a CI job, we can also make use of the &lt;a href=&quot;https://www.zachsim.one/blog/2018/6/15/parallel-testing-in-xcode-10&quot;&gt;Xcode parallel testing&lt;/a&gt; feature to achieve parallelism within one single CI job. However, due to platform-specific implementations, there are some constraints that prevent parallel testing from working efficiently. One constraint we found is that tests of the same &lt;a href=&quot;https://swift.org/about/&quot;&gt;Swift&lt;/a&gt; class run on the same simulator. In this post, we will discuss this constraint in detail and introduce a tip to overcome it.&lt;/p&gt;
+
+&lt;h1 id=&quot;background&quot;&gt;Background&lt;/h1&gt;
+
+&lt;h2 id=&quot;xcode-parallel-testing&quot;&gt;Xcode parallel testing&lt;/h2&gt;
+
+&lt;p&gt;The parallel testing feature was shipped as part of the &lt;a href=&quot;https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes&quot;&gt;Xcode 10 release&lt;/a&gt;. This support enables us to easily configure test setup:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;There is no need to care about how to split a given test suite.&lt;/li&gt;
+  &lt;li&gt;The number of workers (i.e. parallel runners/instances) is configurable. We can pass this value in the &lt;code class=&quot;highlighter-rouge&quot;&gt;xcodebuild&lt;/code&gt; CLI via the &lt;code class=&quot;highlighter-rouge&quot;&gt;-parallel-testing-worker-count&lt;/code&gt; option.&lt;/li&gt;
+  &lt;li&gt;Xcode takes care of cloning and starts simulators accordingly.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;However, &lt;em&gt;the distribution logic under the hood is a black-box&lt;/em&gt;. We do not really know how &lt;em&gt;tests are assigned to each worker or simulator, and in which order&lt;/em&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image6.png&quot; alt=&quot;Three simulators running tests in parallel&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Three simulators running tests in parallel&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;It is worth mentioning that even without the Xcode parallel testing support, we can still achieve similar improvements by running subsets of tests in different child processes. But it takes more effort to dispatch tests to each child process in an efficient way, and to handle the output from each test process appropriately.&lt;/p&gt;
+
+&lt;h2 id=&quot;test-time-imbalance&quot;&gt;Test time imbalance&lt;/h2&gt;
+
+&lt;p&gt;Generally, a &lt;em&gt;parallel execution system&lt;/em&gt; is at its best efficiency if each parallel task executes in roughly the same duration and ends at roughly the same time.&lt;/p&gt;
+
+&lt;p&gt;If the time spent on each parallel task is significantly different, it will take more time than expected to execute all tasks. For example, in the following image, it takes the system on the left 13 mins to finish 3 tasks. Whereas, the one on the right takes only 10.5 mins to finish those 3 tasks.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image3.png&quot; alt=&quot;Bad parallelism vs. good parallelism&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Bad parallelism vs. good parallelism&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Assume there are N workers. The i&lt;sup&gt;th&lt;/sup&gt; worker executes its tasks in t&lt;sub&gt;i&lt;/sub&gt; seconds/minutes. In the left plot, t&lt;sub&gt;1&lt;/sub&gt; = 10 mins, t&lt;sub&gt;2&lt;/sub&gt; = 7 mins, t&lt;sub&gt;3&lt;/sub&gt; = 13 mins.&lt;/p&gt;
+
+&lt;p&gt;We define the test time imbalance metric as the difference between the min and max end time:&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;max(t&amp;lt;sub&amp;gt;i&amp;lt;/sub&amp;gt;) - min(t&amp;lt;sub&amp;gt;i&amp;lt;/sub&amp;gt;)&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;For the example above, the test time imbalance is 13 mins - 7 mins = 6 mins.&lt;/p&gt;
+
+&lt;h2 id=&quot;contributing-factors-in-test-time-imbalance&quot;&gt;Contributing factors in test time imbalance&lt;/h2&gt;
+
+&lt;p&gt;There are several factors causing test time imbalance. The top two prominent factors are:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Tests vary in execution time.&lt;/li&gt;
+  &lt;li&gt;Tests of the same class run on the same simulator.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;An example of the first factor is that in our project, around 50% of tests execute in a range of 20-40 secs. Some tests take under 15 secs to run while several take up to 2 minutes. Sometimes tests taking longer execution time is inevitable since those tests usually touch many flows, which cannot be split. If such tests run last, the test time imbalance may increase.&lt;/p&gt;
+
+&lt;p&gt;However, this issue, in general, does not matter that much because long-time-execution tests do not always run last.&lt;/p&gt;
+
+&lt;p&gt;Regarding the second factor, there is no official Apple documentation that explicitly states this constraint. When &lt;a href=&quot;https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes&quot;&gt;Apple first introduced parallel testing support in Xcode 10&lt;/a&gt;, they only mentioned that test classes are distributed across runner processes:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;“Test parallelization occurs by &lt;strong&gt;distributing the test classes in a target across multiple runner processes&lt;/strong&gt;. Use the test log to see how your test classes were parallelized. You will see an entry in the log for each runner process that was launched, and below each runner you will see the list of classes that it executed.”&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;For example, we have a test class &lt;code class=&quot;highlighter-rouge&quot;&gt;JobFlowTests&lt;/code&gt; that includes five tests and another test class &lt;code class=&quot;highlighter-rouge&quot;&gt;TutorialTests&lt;/code&gt; that has only one single test.&lt;/p&gt;
+
+&lt;div class=&quot;language-swift highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;JobFlowTests&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;BaseXCTestCase&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testHappyFlow&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testRecoverFlow&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testJobIgnoreByDax&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testJobIgnoreByTimer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testForceClearBooking&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;TutorialTests&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;BaseXCTestCase&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;testOnboardingFlow&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;When executing the two tests with two simulators running in parallel, the actual run is like the one shown on the left side of the following image, but ideally it should work like the one on the right side.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image1.png&quot; alt=&quot;Tests of the same class are supposed to run on the same simulator but they should be able to run on different simulators.&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Tests of the same class are supposed to run on the same simulator but they should be able to run on different simulators.&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;diving-deep-into-xcode-parallel-testing&quot;&gt;Diving deep into Xcode parallel testing&lt;/h1&gt;
+
+&lt;h2 id=&quot;demystifying-xcode-scheduling-log&quot;&gt;Demystifying Xcode scheduling log&lt;/h2&gt;
+
+&lt;p&gt;As mentioned above, Xcode distributes tests to simulators/workers in a black-box manner. However, by looking at the scheduling log generated when running tests, we can understand how Xcode parallel testing works.&lt;/p&gt;
+
+&lt;p&gt;When running UI tests via the &lt;code class=&quot;highlighter-rouge&quot;&gt;xcodebuild&lt;/code&gt; command:&lt;/p&gt;
+
+&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;xcodebuild &lt;span class=&quot;nt&quot;&gt;-workspace&lt;/span&gt; Driver/Driver.xcworkspace &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-scheme&lt;/span&gt; Driver &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-configuration&lt;/span&gt; Debug &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-sdk&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'iphonesimulator'&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-destination&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'platform=iOS Simulator,id=EEE06943-7D7B-4E76-A3E0-B9A5C1470DBE'&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-derivedDataPath&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'./DerivedData'&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-parallel-testing-enabled&lt;/span&gt; YES &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-parallel-testing-worker-count&lt;/span&gt; 2 &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/JobFlowTests &lt;span class=&quot;se&quot;&gt;\ &lt;/span&gt;   &lt;span class=&quot;c&quot;&gt;# 👈👈👈👈👈&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/TutorialTests &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    test-without-building
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The log can be found inside the &lt;code class=&quot;highlighter-rouge&quot;&gt;*.xcresult&lt;/code&gt; folder under &lt;code class=&quot;highlighter-rouge&quot;&gt;DerivedData/Logs/Test&lt;/code&gt;. For example: &lt;code class=&quot;highlighter-rouge&quot;&gt;DerivedData/Logs/Test/Test-Driver-2019.11.04\_23-31-34-+0800.xcresult/1\_Test/Diagnostics/DriverUITests-144D9549-FD53-437B-BE97-8A288855E259/scheduling.log&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image5.png&quot; alt=&quot;Scheduling log under xcresult folder.&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Scheduling log under xcresult folder&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;2019-11-05 03:55:00 +0000: Received worker from worker provider: 0x7fe6a684c4e0 [0: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+2019-11-05 03:55:13 +0000: Worker 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)] finished bootstrapping
+2019-11-05 03:55:13 +0000: Parallelization enabled; test execution driven by the IDE
+2019-11-05 03:55:13 +0000: Skipping test class discovery
+2019-11-05 03:55:13 +0000: Executing tests {(	# 👈👈👈👈👈
+    DriverUITests/JobFlowTests,
+    DriverUITests/TutorialTests
+)}; skipping tests {(
+)}
+2019-11-05 03:55:13 +0000: Load balancer requested an additional worker
+2019-11-05 03:55:13 +0000: Dispatching tests {(  # 👈👈👈👈👈
+    DriverUITests/JobFlowTests
+)} to worker: 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+2019-11-05 03:55:13 +0000: Received worker from worker provider: 0x7fe6a1582e40 [0: Clone 2 of DaxIOS-XC10-1-iP7-1 (F640C2F1-59A7-4448-B700-7381949B5D00)]
+2019-11-05 03:55:39 +0000: Dispatching tests {(  # 👈👈👈👈👈
+    DriverUITests/TutorialTests
+)} to worker: 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Looking at the log below, we know that once a test class is dispatched or distributed to a worker/simulator, all tests of that class will be executed in that simulator.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;2019-11-05 03:55:39 +0000: Dispatching tests {(
+    DriverUITests/TutorialTests
+)} to worker: 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Even when we customize a test suite (by swizzling some &lt;code class=&quot;highlighter-rouge&quot;&gt;XCTestSuite&lt;/code&gt; class methods or variables), to split a test suite into multiple suites, it does not work because the made-up test suite is only initialized after tests are dispatched to a given worker.&lt;/p&gt;
+
+&lt;p&gt;Therefore, &lt;strong&gt;&lt;em&gt;any hook to bypass this constraint must be done early on&lt;/em&gt;&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;passing-the--only-testing-argument-to-xcodebuild-command&quot;&gt;Passing the -only-testing argument to xcodebuild command&lt;/h2&gt;
+
+&lt;p&gt;Now we pass tests (instead of test classes) to the &lt;code class=&quot;highlighter-rouge&quot;&gt;-only-testing&lt;/code&gt; argument.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ xcodebuild -workspace Driver/Driver.xcworkspace \
+    # ...
+    -only-testing:DriverUITests/JobFlowTests/testJobIgnoreByTimer \
+    -only-testing:DriverUITests/JobFlowTests/testRecoverFlow \
+    -only-testing:DriverUITests/JobFlowTests/testJobIgnoreByDax \
+    -only-testing:DriverUITests/JobFlowTests/testHappyFlow \
+    -only-testing:DriverUITests/JobFlowTests/testForceClearBooking \
+    -only-testing:DriverUITests/TutorialTests/testOnboardingFlow \
+    test-without-building
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;But still, the scheduling log shows that &lt;strong&gt;&lt;em&gt;tests are grouped by test class before being dispatched to workers&lt;/em&gt;&lt;/strong&gt; (see the following log for reference). This grouping is automatically done by Xcode (which it should not).&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;2019-11-05 04:21:42 +0000: Executing tests {(	# 👈
+    DriverUITests/JobFlowTests/testJobIgnoreByTimer,
+    DriverUITests/JobFlowTests/testRecoverFlow,
+    DriverUITests/JobFlowTests/testJobIgnoreByDax,
+    DriverUITests/TutorialTests/testOnboardingFlow,
+    DriverUITests/JobFlowTests/testHappyFlow,
+    DriverUITests/JobFlowTests/testForceClearBooking
+)}; skipping tests {(
+)}
+2019-11-05 04:21:42 +0000: Load balancer requested an additional worker
+2019-11-05 04:21:42 +0000: Dispatching tests {(  # 👈 ❌
+    DriverUITests/JobFlowTests/testJobIgnoreByTimer,
+    DriverUITests/JobFlowTests/testForceClearBooking,
+    DriverUITests/JobFlowTests/testJobIgnoreByDax,
+    DriverUITests/JobFlowTests/testHappyFlow,
+    DriverUITests/JobFlowTests/testRecoverFlow
+)} to worker: 0x7fd781261940 [6300: Clone 1 of DaxIOS-XC10-1-iP7-1 (93F0FCB6-C83F-4419-9A75-C11765F4B1CA)]
+......
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;overcoming-grouping-logic-in-xcode-parallel-testing&quot;&gt;Overcoming grouping logic in Xcode parallel testing&lt;/h1&gt;
+
+&lt;h2 id=&quot;tweaking-the--only-testing-argument-values&quot;&gt;Tweaking the -only-testing argument values&lt;/h2&gt;
+
+&lt;p&gt;Based on our observation, we can imagine how Xcode runs tests in parallel. See below.&lt;/p&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;Step&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;1.&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;tests&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;detect_tests_to_run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# parse -only-testing arguments
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Step&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;2.&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;groups_of_tests&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;group_tests_by_test_class&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tests&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;Step&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;3.&lt;/span&gt;   &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;groups_of_tests&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;empty&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;Step&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;3.1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt; 	&lt;span class=&quot;n&quot;&gt;worker&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;find_free_worker&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;Step&lt;/span&gt; &lt;span class=&quot;mf&quot;&gt;3.2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;     &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;worker&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                  &lt;span class=&quot;n&quot;&gt;dispatch_tests_to_workers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;groups_of_tests&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In the pseudo-code above, we do not have much control to change step 2 since that grouping logic is implemented by Xcode. But we have a good guess that Xcode groups tests, by the first two components (class name) only (For example,  &lt;code class=&quot;highlighter-rouge&quot;&gt;DriverUITests/JobFlowTests&lt;/code&gt;). In other words, tests having the same class name run together on one simulator.&lt;/p&gt;
+
+&lt;p&gt;The trick to break this constraint is simple. We can tweak the input (test names) so that each group contains only one test. By inserting a random token in the class name, all class names in the tests that are passed via &lt;code class=&quot;highlighter-rouge&quot;&gt;-only-testing&lt;/code&gt; argument are different.&lt;/p&gt;
+
+&lt;p&gt;For example, instead of passing:&lt;/p&gt;
+&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/JobFlowTests/testJobIgnoreByTimer &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/JobFlowTests/testRecoverFlow &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We rather use:&lt;/p&gt;
+&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/JobFlowTests_AxY132z8/testJobIgnoreByTimer &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/JobFlowTests_By8MTk7l/testRecoverFlow &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Or we can use the test name itself as the token:&lt;/p&gt;
+&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/JobFlowTests_testJobIgnoreByTimer/testJobIgnoreByTimer &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;-only-testing&lt;/span&gt;:DriverUITests/JobFlowTests_testRecoverFlow/testRecoverFlow &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;After that, looking at the scheduling log, we will see that the trick can bypass the grouping logic. Now, only one test is dispatched to a worker once ready.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;2019-11-05 06:06:56 +0000: Dispatching tests {(	# 👈 ✅
+    DriverUITests/JobFlowTests_testJobIgnoreByDax/testJobIgnoreByDax
+)} to worker: 0x7fef7952d0e0 [13857: Clone 2 of DaxIOS-XC10-1-iP7-1 (9BA030CD-C90F-4B7A-B9A7-D12F368A5A64)]
+2019-11-05 06:06:58 +0000: Dispatching tests {(	# 👈 ✅
+    DriverUITests/TutorialTests_testOnboardingFlow/testOnboardingFlow
+)} to worker: 0x7fef7e85fd70 [13719: Clone 1 of DaxIOS-XC10-1-iP7-1 (584F99FE-49C2-4536-B6AC-90B8A10F361B)]
+2019-11-05 06:07:07 +0000: Dispatching tests {(	# 👈 ✅
+    DriverUITests/JobFlowTests_testRecoverFlow/testRecoverFlow
+)} to worker: 0x7fef7952d0e0 [13857: Clone 2 of DaxIOS-XC10-1-iP7-1 (9BA030CD-C90F-4B7A-B9A7-D12F368A5A64)]
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;handling-tweaked-test-names&quot;&gt;Handling tweaked test names&lt;/h2&gt;
+
+&lt;p&gt;When a worker/simulator receives a request to run a test, the app (could be the runner app or the hosting app) initializes an &lt;code class=&quot;highlighter-rouge&quot;&gt;XCTestSuite&lt;/code&gt; corresponding to the test name. In order for the test suite to be properly made up, we need to remove the inserted token.&lt;/p&gt;
+
+&lt;p&gt;This could be done easily by swizzling the &lt;a href=&quot;https://developer.apple.com/documentation/xctest/xctestsuite/1500897-init&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;XCTestSuite.init(forTestCaseWithName:)&lt;/code&gt;&lt;/a&gt;. Inside that swizzled function, we remove the token and then call the original init function.&lt;/p&gt;
+
+&lt;div class=&quot;language-swift highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;extension&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;XCTestSuite&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;/// For 'Selected tests' suite&lt;/span&gt;
+  &lt;span class=&quot;kd&quot;&gt;@objc&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;dynamic&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;swizzled_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;forTestCaseWithName&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;maskedName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;XCTestSuite&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;/// Recover the original test name&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;/// - masked: UITestCaseA_testA1/testA1      	--&amp;gt; recovered: UITestCaseA/testA1&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;/// - masked: Driver/UITestCaseA_testA1/testA1   --&amp;gt; recovered: Driver/UITestCaseA/testA1&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;guard&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;testBaseName&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;maskedName&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;separator&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;/&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;last&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;swizzled_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;forTestCaseWithName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;maskedName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;let&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;recoveredName&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;maskedName&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;replacingOccurrences&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;_&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;testBaseName&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;/&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;with&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;/&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;#&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;👈&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;remove&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;token&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;swizzled_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;forTestCaseWithName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;recoveredName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;#&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;👈&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;call&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;the&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;original&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;init&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image2.png&quot; alt=&quot;Swizzle function to run tests properly&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Swizzle function to run tests properly&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;test-class-discovery&quot;&gt;Test class discovery&lt;/h2&gt;
+
+&lt;p&gt;In order to adopt this tip, we need to know which test classes we need to run in advance. Although Apple does not provide an API to obtain the list before running tests, this can be done in several ways. One approach we can use is to generate test classes using &lt;a href=&quot;https://github.com/krzysztofzablocki/Sourcery&quot;&gt;Sourcery&lt;/a&gt;. Another alternative is to parse the binaries inside &lt;code class=&quot;highlighter-rouge&quot;&gt;.xctest&lt;/code&gt; bundles (in build products) to look for symbols related to tests.&lt;/p&gt;
+
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
+
+&lt;p&gt;In this article, we identified some factors causing test execution time imbalance in Xcode parallel testing (particularly for UI tests).&lt;/p&gt;
+
+&lt;p&gt;We also looked into how Xcode distributes tests in parallel testing. We also try to mitigate a constraint in which tests within the same class run on the same simulator. The trick not only reduces the imbalance but also gives us more confidence in adding more tests to a class without caring about whether it affects our CI infrastructure.&lt;/p&gt;
+
+&lt;p&gt;Below is the metric about test time imbalance recorded when running UI tests. After adopting the trick, we saw a decrease in the metric (which is a good sign). As of now, the metric stabilizes at around 0.4 mins.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;images/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image4.png&quot; alt=&quot;Tracking data of UI test time imbalance (in minutes) in our project, collected by multiple runs&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Tracking data of UI test time imbalance (in minutes) in our project, collected by multiple runs&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 16 Mar 2020 08:13:20 +0000</pubDate>
+        <link>https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing</link>
+        <guid isPermaLink="true">https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing</guid>
+        
+        <category>xcode</category>
+        
+        <category>testing</category>
+        
+        <category>mobile</category>
+        
+        <category>parallelism</category>
+        
+        <category>UI tests</category>
+        
+        <category>CI</category>
+        
+        <category>iOS</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Returning 575 Terabytes of storage space back to our users</title>
@@ -1756,171 +2061,6 @@ When a rule is hit, more than just treatments, users also want some dynamic valu
         <pubDate>Mon, 28 Oct 2019 17:10:32 +0000</pubDate>
         <link>https://engineering.grab.com/griffin</link>
         <guid isPermaLink="true">https://engineering.grab.com/griffin</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Anti-Fraud</category>
-        
-        <category>Security</category>
-        
-        <category>Fraud Detection</category>
-        
-        <category>Data</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Using Grab’s Trust Counter Service to Detect Fraud Successfully</title>
-        <description>&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Fraud is not a new phenomenon, but with the rise of the digital economy it has taken different and aggressive forms. Over the last decade, novel ways to exploit technology have appeared, and as a result, millions of people have been impacted and millions of dollars in revenue have been lost. According to &lt;a href=&quot;https://www.acfe.com/press-release.aspx?id%3D4294973129&quot;&gt;ACFE survey&lt;/a&gt;, companies lost USD6.3 billion due to fraud. Organizations lose 5% of its revenue annually due to fraud.&lt;/p&gt;
-
-&lt;p&gt;In this blog, we take a closer look at how we developed an anti-fraud solution using the Counter service, which can be an indispensable tool in the highly complex world of fraud detection.&lt;/p&gt;
-
-&lt;h2 id=&quot;anti-fraud-solution-using-counters&quot;&gt;Anti-fraud solution using counters&lt;/h2&gt;
-
-&lt;p&gt;At Grab, we detect fraud by deploying data science, analytics, and engineering tools to search for anomalous and suspicious transactions, or to identify high-risk individuals who are likely to commit fraud. Grab’s Trust Platform team provides a common anti-fraud solution across a variety of business verticals, such as transportation, payment, food, and safety. The team builds tools for managing data feeds, creates SDK for engineering integration, and builds rules engines and consoles for fraud detection.&lt;/p&gt;
-
-&lt;p&gt;One example of fraudulent behavior could be that of an individual who masquerades as both driver and passenger, and makes cashless payments to get promotions, for example, earn a one dollar rebate in the next transaction.In our system, we analyze real time booking and payment signals, compare it with the historical data of the driver and passenger pair, and create rules using the rule engine. We count the number of driver and passenger pairs at a given time frame. This counter is provided as an input to the rule.If the counter value exceeds a predefined threshold value, the rule evaluates it as a fraud transaction. We send this verdict back to the booking service.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-conventional-method&quot;&gt;The conventional method&lt;/h2&gt;
-
-&lt;p&gt;Fraud detection is a job that requires cross-functional teams like data scientists, data analysts, data engineers, and backend engineers to work together. Usually data scientists or data analysts come up with an offline idea and apply it to real-time traffic. For example, a rule gets invented after brainstorming sessions by data scientists and data analysts. In the conventional method, the rule needs to be communicated to engineers.&lt;/p&gt;
-
-&lt;h2 id=&quot;automated-solution-using-the-counter-service&quot;&gt;Automated solution using the Counter service&lt;/h2&gt;
-
-&lt;p&gt;To overcome the challenges in the conventional method, the Trust platform team decided to come out with the Counter service, a self-service platform, which provides management tools for users, and a computing engine for integrating with the backend services. This service provides an interface, such as a UI based rule editor and data feed, so that analysts can experiment and create rules without interacting with engineers. The platform team also decided to provide different data contracts, APIs, and SDKs to engineers so that the business verticals can use it quickly and easily.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-major-engineering-challenges-faced-in-designing-the-counter-service&quot;&gt;The major engineering challenges faced in designing the Counter service&lt;/h2&gt;
-
-&lt;p&gt;There are millions of transactions happening at Grab every day, which implies we needed to perform billions of fraud and safety detections. As seen from the example shared earlier, most predictions require a group of counters. In the above use case, we need to know how many counts of the cashless payment happened for a driver and passenger pair. Due to the scale of Grab’s business, the potential combinations of drivers and passengers could be exponential. However, this is only one use case. So imagine that there could be hundreds of counters for different use cases. Hence it’s important that we provide a platform for stakeholders to manage counters.&lt;/p&gt;
-
-&lt;p&gt;Read on to learn about some of the common challenges we faced.&lt;/p&gt;
-
-&lt;h3 id=&quot;scalability&quot;&gt;Scalability&lt;/h3&gt;
-
-&lt;p&gt;As mentioned above, we could potentially have an exponential number of passengers and drivers in a single counter. So it’s a great challenge to store the counters in the database, read, and query them in real-time. When there are billions of counter keys across a long period of time, the Trust team had to find a scalable way to write and fetch keys effectively and meet the client’s SLA.&lt;/p&gt;
-
-&lt;h3 id=&quot;self-serving&quot;&gt;Self-serving&lt;/h3&gt;
-
-&lt;p&gt;A counter is usually invented by data scientists or analysts and used by engineers. For example, every time a new type of counter is needed from data scientists, developers need to manually make code changes, such as adding a new stream, capturing related data sets for the counter, and storing it on the fraud service, then doing a deployment to make the counters ready. It usually takes two or more weeks for the whole iteration, and if there are any changes from the data analysts’ side, which happens often, the situation loops again. The team had to come up with a solution to prevent the long loop of manual tasks by coming out with a self-serving interface.&lt;/p&gt;
-
-&lt;h3 id=&quot;manageable-and-extendable&quot;&gt;Manageable and extendable&lt;/h3&gt;
-
-&lt;p&gt;Due to a lack of connection between real-time and offline data, data analysts and data scientists did not have a clear picture of what is written in the counters. That’s because the conventional counter data were stored in Redis database to satisfy the query SLA. They could not track the correctness of counter value, or its history. With the new solution, the stakeholders can get a real-time picture of what is stored in the counters using the data engineering tools.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-machine-learningchallenges-solved-by-the-counter-service&quot;&gt;The Machine Learning challenges solved by the Counter service&lt;/h2&gt;
-
-&lt;p&gt;The Counter service plays an important role in our Machine Learning (ML) workflow.&lt;/p&gt;
-&lt;h3 id=&quot;data-consistency-challengeissue&quot;&gt;Data Consistency Challenge/Issue&lt;/h3&gt;
-
-&lt;p&gt;Most of the machine learning workflows need dedicated input data. However, when there is an anti-fraud model that is trained using offline data from the data lake, it is difficult to use the same model in real-time. This is because the model lacks the data contract and the consistency with the data source. In this case, the Counter service becomes a type of data source by providing the value of counters to file system.&lt;/p&gt;
-
-&lt;h3 id=&quot;ml-featuring&quot;&gt;ML featuring&lt;/h3&gt;
-
-&lt;p&gt;Counters are important features for the ML models. Imagine there is a new invention of counters, which data scientists need to evaluate. We need to provide a historical data set for counters to work. The Counter service provides a counter replay feature, which allows data scientists to simulate the counters via historical payload.&lt;/p&gt;
-
-&lt;p&gt;In general, the Counter service is a bridge between online and offline datasets, data scientists, and engineers. There was technical debt with regards to data consistency and automation on the ML pipeline, and the Counter service closed this loop.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-we-designed-the-counter-service&quot;&gt;How we designed the Counter service&lt;/h2&gt;
-
-&lt;p&gt;We followed the principle of asynchronized data ingestion, and synchronized transaction for designing the Counter service.&lt;/p&gt;
-
-&lt;p&gt;The diagram shows how the counters are generated and saved to database.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;How the counters are generated and saved to the database&quot; src=&quot;/img/using-grabs-trust-counter-service-to-detect-fraud-successfully/image1.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Counter creation workflow&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;User opens the Counter Creation UI and creates a new key &lt;em&gt;“fraud:counter:counter_name”&lt;/em&gt;.&lt;/li&gt;
-  &lt;li&gt;Configures required fields.&lt;/li&gt;
-  &lt;li&gt;The Counter service monitors the new counter-creation, puts a new counter into load script storage, and starts processing new counter events (see Counter Write below).&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Counter write workflow&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;The Counter service monitors multiple streams, assembles extra data from online data services (i.e. Common Data Service (CDS), passenger service, hydra service, etc), so that rich dataset would also be available for editors on each stream resource.&lt;/li&gt;
-  &lt;li&gt;The Counter Processor evaluates the user-configured expression and writes the evaluated values to the dedicated Grab-Stats stream using the GrabPlugin tool.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Counter read workflow&lt;/strong&gt;&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Counter read workflow&quot; src=&quot;/img/using-grabs-trust-counter-service-to-detect-fraud-successfully/image2.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We use Grab-Stats as our storage service. Basically Grab-Stats runs above ScyllaDB, which is a distributed NoSQL data store. We use ScyllaDB because of its good performance on aggregation in memory to deal with the time series dataset. In comparison with in-memory storage like AWS elasticCache, it is 10 times cheaper and as reliable as AWS in terms of stability. The p99 of reading from ScyllaDB is less than 150ms which satisfies our SLA.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-we-improved-the-counter-service-performance&quot;&gt;How we improved the Counter service performance&lt;/h2&gt;
-
-&lt;p&gt;We used the multi-buckets strategy to improve the Counter service performance.&lt;/p&gt;
-
-&lt;h3 id=&quot;background-1&quot;&gt;Background&lt;/h3&gt;
-
-&lt;p&gt;There are different time windows when you perform a query. Some counters are time sensitive so that it needs to know what happened in the last 30 or 60 minutes. Some other counters focus on the long term and need to know the events in the last 30 or 90 days.&lt;/p&gt;
-
-&lt;p&gt;From a transactional database perspective, it’s not possible to serve small range as well as long term events at the same time. This is because the more the need for the accuracy of the data and the longer the time range, the more aggregations need to happen on database. Which means we would not be able to satisfy the SLA. Otherwise we will need to block other process which leads to the service downgrade.&lt;/p&gt;
-
-&lt;h3 id=&quot;solution-for-improving-the-query&quot;&gt;Solution for improving the query&lt;/h3&gt;
-
-&lt;p&gt;We resolved this problem by using different granularities of the tables. We pre-aggregated the signals into different time buckets, such as 15min, 1 hour, and 1 day.&lt;/p&gt;
-
-&lt;p&gt;When a request comes in, the time-range of the request will be divided by the buckets, and the results are conquered. For example, if there is a request for 9/10 23:15:20 to 9/12 17:20:18, the handler will query 15min buckets within the hour.  It will query for hourly buckets for the same day. And it will query the daily buckets for the rest of 2 days. This way, we avoid doing heavy aggregations, but still keep the accuracy in 15 minutes level in a scalable response time.&lt;/p&gt;
-
-&lt;h3 id=&quot;counter-service-ui&quot;&gt;Counter service UI&lt;/h3&gt;
-
-&lt;p&gt;We allowed data analysts and data scientists to onboard counters by themselves, from a dedicated web portal. After the counter is submitted, the Counter service takes care of the integration and parsing the logic at runtime.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Counter service UI&quot; src=&quot;/img/using-grabs-trust-counter-service-to-detect-fraud-successfully/image3.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;backendintegration&quot;&gt;Backend integration&lt;/h3&gt;
-
-&lt;p&gt;We provide SDK for quicker and better integration. The engineers only need to provide the counter identifier ID (which is shown in the UI) and the time duration in the query. Under the hood we provide a GRPC protocol to communicate across services. We divide the query time window to smaller granularities, fetching from different time series tables and then conquering the result. We are also providing a short &lt;a href=&quot;https://en.wikipedia.org/wiki/Time_to_live&quot;&gt;TTL&lt;/a&gt; cache layer to take the uncommon traffic from client such as network retry or traffic throttle. Our &lt;a href=&quot;https://en.wikipedia.org/wiki/Queries_per_second&quot;&gt;QPS&lt;/a&gt; are designed to target 100K.&lt;/p&gt;
-
-&lt;h3 id=&quot;monitoring-the-counter-service&quot;&gt;Monitoring the Counter service&lt;/h3&gt;
-
-&lt;p&gt;The Counter service dashboard helps to track the human errors while editing the counters in real-time. The Counter service sends alerts to slack channel to notify users if there is any error.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Counter service dashboard&quot; src=&quot;/img/using-grabs-trust-counter-service-to-detect-fraud-successfully/image4.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We setup Datadog for monitoring multiple system metrics. The figure below shows a portion of stream processing and counter writing. In the example below, the total stream QPS would reach 5k at peak hour, and the total counter saved to storage tier is about 4k. It will keep climbing without an upper limit, when more counters are onboarded.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Counter service dashboard with multiple metrics&quot; src=&quot;/img/using-grabs-trust-counter-service-to-detect-fraud-successfully/image5.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The Counter service UI portal also helps users to fetch real-time counter results for verification purposes.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Counter service UI&quot; src=&quot;/img/using-grabs-trust-counter-service-to-detect-fraud-successfully/image6.png&quot; /&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;future-plans&quot;&gt;Future plans&lt;/h2&gt;
-
-&lt;p&gt;Here’s what we plan to do in the near future to improve the Counter service.&lt;/p&gt;
-
-&lt;h3 id=&quot;close-the-ml-workflow-loop&quot;&gt;Close the ML workflow loop&lt;/h3&gt;
-
-&lt;p&gt;As mentioned above, we plan to send the resource payload of the Counter service to the offline data lake, in order to complete the counter replay function for data scientists. We are working on the project called “time traveler”. As the name indicates, it is used not only for serving the online transactional data, but also supports historical data analytics, and provides more flexibility on counter inventions and experiments.&lt;/p&gt;
-
-&lt;p&gt;There are more automation steps we plan to do, such as adding a replay button on the web portal, and hooking up with the offline big data engine to trigger the analytics jobs. The performance metrics will be collected and displayed on the web portal. A single platform would be able to manage both the online and offline data.&lt;/p&gt;
-
-&lt;h3 id=&quot;integration-with-griffin&quot;&gt;Integration with Griffin&lt;/h3&gt;
-
-&lt;p&gt;Griffin is our rule engine. Counters are sometimes an input to a particular rule, and one rule usually needs many counters to work together. We need to provide a better integration with Griffin on backend. We plan to minimize the current engineering effort when using counters on Griffin. A counter then becomes an automated input variable on Griffin, which can be configured on the web portal by any users.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 21 Oct 2019 14:30:12 +0000</pubDate>
-        <link>https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully</link>
-        <guid isPermaLink="true">https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully</guid>
         
         <category>Engineering</category>
         
