@@ -52,7 +52,7 @@ Assume there are N workers. The i<sup>th</sup> worker executes its tasks in t<su
 
 We define the test time imbalance metric as the difference between the min and max end time:
 
-`max(t<sub>i</sub>) - min(t<sub>i</sub>)`
+max(t<sub>i</sub>) - min(t<sub>i</sub>)
 
 For the example above, the test time imbalance is 13 mins - 7 mins = 6 mins.
 
@@ -286,8 +286,6 @@ In this article, we identified some factors causing test execution time imbalanc
 We also looked into how Xcode distributes tests in parallel testing. We also try to mitigate a constraint in which tests within the same class run on the same simulator. The trick not only reduces the imbalance but also gives us more confidence in adding more tests to a class without caring about whether it affects our CI infrastructure.
 
 Below is the metric about test time imbalance recorded when running UI tests. After adopting the trick, we saw a decrease in the metric (which is a good sign). As of now, the metric stabilizes at around 0.4 mins.
-
-![](images/image4.png)
 
 <div class="post-image-section"><figure>
   <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image4.png" alt="Tracking data of UI test time imbalance (in minutes) in our project, collected by multiple runs">
