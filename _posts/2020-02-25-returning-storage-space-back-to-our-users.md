@@ -15,7 +15,7 @@ Have you ever run out of storage on your phone? Mobile phones come with limited 
 
 In this article, we explain how we measure and reduce the storage footprint of the Grab App on a user's device to help you overcome this issue.
 
-# The wakeup call
+## The wakeup call
 
 [Android vitals](https://developer.android.com/topic/performance/vitals) (information provided by Google play Console about our app performance) gives us two main pieces of information about storage footprint.
 
@@ -36,7 +36,7 @@ This is the ratio of uninstalls on active devices with less than 1GB free storag
   <figcaption align="middle"><i>Ratio of uninstalls on active devices with less than 1GB</i></figcaption>
 </figure></div>
 
-# Instrumentation to know where we stand
+## Instrumentation to know where we stand
 
 First things first, we needed to know how much space the Grab App occupies on user device. So we started using our personal devices. We can find this information by opening the phone settings and selecting Grab App.
 
@@ -61,7 +61,7 @@ We decided to leverage on our current implementation using [StorageManager](http
 </figure></div>
 
 
-## Data analysis
+### Data analysis
 
 We began analysing this data one month after our users’ updated their app and found that the cache size was anomaly huge (> 1GB) for a lot of users. Intrigued, we dug deeper.
 
@@ -69,15 +69,15 @@ We added code to log the top largest files inside the cache folder, and we found
 
 In the end, a lot of users still had this old cache data and for some users the amount of data can be up to 1GB.
 
-## Root cause analysis
+### Root cause analysis
 
 The Grab app relies a lot on 3rd party libraries. For example, [Picasso](https://github.com/square/picasso) was a library we used in the past for image display which is now replaced by [Glide](https://developer.android.com/topic/performance/graphics/load-bitmap). Picasso uses a cache to store images and avoid making network calls again and again. After removing Picasso from the app, we didn’t delete this cache folder on the user device. We knew there would likely be more third-party libraries that had been discontinued so we expanded our analysis to look at how other 3rd party libraries cached their data.
 
-# Freeing up space on user’s phone
+## Freeing up space on user’s phone
 
 Here comes the fun part. We implemented a cleanup mechanism to remove old cache folders. When users update the GrabApp, any old cache folders which were there before would automatically be removed. Through this, we released up to 1GB of data in a second back to our users. In total, we removed 575 terabytes of old cache data across more than 13 million devices (approximately 40MB per user on average).
 
-# Data summary
+## Data summary
 
 The following graph shows the total size of junk data (in Terabytes) that we can potentially remove each day, calculated by summing up the maximum size of cache when a user opens the Grab app each day.
 
@@ -89,7 +89,7 @@ The first half of the graph reflects the amount of junk data in relation to the 
 </figure></div>
 
 
-# Next step
+## Next step
 
 This is the first phase of our journey in reducing the storage footprint of our app on Android devices. We specifically focused on making improvements at scale i.e. deliver huge storage gains to the most number of users in the shortest time. In the next phase, we will look at more targeted improvements for specific groups of users that still have a high storage footprint. In addition, we are also reviewing iOS data to see if a round of clean up is necessary.
 
@@ -97,7 +97,7 @@ Concurrently, we are also reducing the maximum size of cache created by some lib
 
 We hope you found this piece insightful and please remember to update your app regularly to benefit from the improvements we’re making every day. If you find that your app is still taking a lot of space on your phone, be assured that we’re looking into it.
 
-# Join us
+## Join us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

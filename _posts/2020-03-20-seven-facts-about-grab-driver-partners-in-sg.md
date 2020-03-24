@@ -82,7 +82,7 @@ How our driver-partners utilize the Grab platform to make a living (and break a 
 
 Interested to know more about the winning strategies among our driver-partners? Look out for the next data story!
 
-# Join us
+## Join us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.

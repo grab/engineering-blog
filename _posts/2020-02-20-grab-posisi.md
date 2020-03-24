@@ -12,7 +12,7 @@ excerpt: "This blog highlights Grab's latest GPS trajectory dataset - its conten
 ---
 
 
-# Introduction        
+## Introduction        
 
 At Grab, thousands of bookings happen daily via the Grab app. The driver phones and GPS devices enable us to collect large-scale GPS trajectories.
 
@@ -22,7 +22,7 @@ Currently, it’s a herculean task to create and maintain the GPS datasets since
 
 To overcome the shortfalls in the existing datasets, we built Grab-Posisi, the first GPS trajectory dataset of Southeast Asia. The term Posisi refers to a position in Bahasa. The data was collected from Grab drivers’ phones while in transit. By tackling the addition of major arterial roads in regions where existing maps have poor coverage, and the incremental improvement of coverage in regions where major roads are already mapped, Posisi substantially improves mapping productivity.
 
-# What’s inside the dataset
+## What’s inside the dataset
 
 The whole Grab-Posisi dataset contains in total 84K trajectories that consist of more than 80 million GPS pings and cover over 1 million km. The average trajectory length is 11.94 km and the average duration per trip is 21.50 minutes.
 
@@ -32,7 +32,7 @@ As the GPS trajectories were collected from Grab drivers’ phones while in tran
 
 All drivers’ personal information is encrypted and the real start/end locations are removed within the dataset.
 
-## Data format
+### Data format
 
 Each trajectory is serialised in a file in Apache Parquet format. The whole dataset size is around 2 GB. Each GPS ping is associated with values for a trajectory ID, latitude, longitude, timestamp (UTC), accuracy level, bearing and speed. The GPS sampling rate is 1 second, which is the highest among all the existing open source datasets. Table 1 shows a sample of the dataset.
 
@@ -41,7 +41,7 @@ Each trajectory is serialised in a file in Apache Parquet format. The whole data
   <figcaption align="middle"><i>Table 1: Sample dataset</i></figcaption>
 </figure></div>
 
-## Coverage
+### Coverage
 
 Figure 1a shows the spatial coverage of the dataset in Singapore. Compared with the GPS datasets available in the market that only cover a specific area of a city, the Grab-Posisi dataset encompasses almost the whole island of Singapore. Figure 1b depicts the GPS density in Singapore. Red represents high density while green represents low density. Expressways in Singapore are clearly visible because of their dense GPS pings.
 
@@ -69,11 +69,11 @@ Figure 2a illustrates that the Grab-Posisi dataset encloses not only central Jak
 </figure></div>
 
 
-### Applications of Grab-Posisi
+#### Applications of Grab-Posisi
 
 The following are some of the applications of Grab-Posisi dataset.
 
-#### On Map Inference
+##### On Map Inference
 
 The traditional method used in updating road networks in maps is time-consuming and labour-intensive. That’s why maps might have important roads missing and real-time traffic conditions might be unavailable. To address this problem, we can use GPS trajectories in reconstructing road networks automatically.
 
@@ -95,23 +95,23 @@ A bunch of map generation algorithms can be applied to infer both map topology a
 
 
 
-#### On Map Matching                                         
+##### On Map Matching                                         
 
 The map matching refers to the task of automatically determining the correct route where the driver has travelled on a digital map, given a sequence of raw and noisy GPS points. The correction of the raw GPS data has been important for many location-based applications such as navigation, tracking, and road attribute detection as aforementioned. The accuracy levels provided in the Grab-Posisi dataset can be of great use to address this issue.
 
-#### On Traffic Detection and Forecast                         
+##### On Traffic Detection and Forecast                         
 
 In addition to the inference of a static digital map, the Grab-Posisi GPS dataset can also be used to perform real-time traffic forecasting, which is very important for congestion detection, flow control, route planning, and navigation. Some examples of the fundamental indicators that are mostly used to monitor the current status of traffic conditions include the average speed, volume, and density in each road segment. These variables can be computed based on drivers’ GPS trajectories and can be used to predict the future traffic conditions.
 
-#### On Mode Detection                         
+##### On Mode Detection                         
 
 Transportation mode detection refers to the task of identifying the travel mode of a user (some examples of transportation mode include walk, bike, car, bus, etc.). The GPS trajectories in our dataset are associated with rich attributes including GPS accuracy, bearing, and speed in addition to the latitude and longitude of geo-coordinates, which can be used to develop mode detection models. Our dataset also provides labels for each trajectory to be collected from a car or motorcycle, which can be used to verify performance of those models.
 
-#### Economics Perspective                                         
+##### Economics Perspective                                         
 
 The real-world GPS trajectories of people reveal realistic travel patterns and demands, which can be of great help for city planning. As there are some realistic constraints faced by governments such as budget limitations and construction inconvenience, it is important to incorporate both the planning authorities’ requirements and the realistic travel demands mined from trajectories for intelligent city planning. For example, the trajectories of cars can provide suggestions on how to schedule highway constructions. The trajectories of motorcycles can help the government to choose the optimal locations to construct motorcycle lanes for safety concerns.
 
-# Want to access our dataset?
+## Want to access our dataset?
 
 Grab-Posisi dataset offers a great value and is a significant resource to the community for benchmarking and revisiting existing technologies.         
 
@@ -131,7 +131,7 @@ _Huang, X., Yin, Y., Lim, S., Wang, G., Hu, B., Varadarajan, J., ... & Zimmerman
 
 **Note: You cannot use Grab-Posisi dataset for commercial purposes.**
 
-# Join us
+## Join us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
