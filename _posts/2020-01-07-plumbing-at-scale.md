@@ -171,6 +171,12 @@ Zezhou Yu, Ryan Ooi, Hui Yang, Yuguang Xiao, Ling Zhang, Roy Kim, Matt Hino, Jum
 
 ---
 
+## Join us
+
+Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+
+If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+
 #### Footnotes
 [^1]: https://martinfowler.com/eaaDev/EventSourcing.html
 [^2]: https://medium.com/netflix-techblog/keystone-real-time-stream-processing-platform-a3ee651812a
@@ -185,8 +191,7 @@ Zezhou Yu, Ryan Ooi, Hui Yang, Yuguang Xiao, Ling Zhang, Roy Kim, Matt Hino, Jum
 
 [^bignote]:
 
-*Coban Sewu Waterfall Photo by Dwinanda Nurhanif Mujito on Unsplash* 
+*Coban Sewu Waterfall Photo by Dwinanda Nurhanif Mujito on Unsplash*
 
 
 *Cover Photo by tian kuan on Unsplash*
-

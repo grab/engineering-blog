@@ -84,3 +84,9 @@ I would be remiss if I didn’t highlight the critical software-engineering take
 Generally, the higher the accuracy or consistency of the monitoring and limits, the higher the resource cost.
 
 In this case, we have intentionally chosen the most resource-efficient options and traded accuracy for more throughput.
+
+## Join us
+
+Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+
+If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.

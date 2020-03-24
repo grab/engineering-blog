@@ -11,15 +11,15 @@ cover_photo: /img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-t
 excerpt: "This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we overcame a challenge that prevented us from running the tests efficiently."
 ---
 
-# Introduction
+## Introduction
 
 Testing is a common practice to ensure that code logic is not easily broken during development and refactoring. Having tests running as part of Continuous Integration (CI) infrastructure is essential, especially with a large codebase contributed by many engineers. However, the more tests we add, the longer it takes to execute. In the context of iOS development, the execution time of the whole test suite might be significantly affected by the increasing number of tests written. Running [CI pre-merge pipelines](https://about.gitlab.com/blog/2019/07/12/guide-to-ci-cd-pipelines/) against a change, would cost us more time. Therefore, reducing test execution time is a long term epic we have to tackle in order to build a good CI infrastructure.
 
 Apart from splitting tests into subsets and running each of them in a CI job, we can also make use of the [Xcode parallel testing](https://www.zachsim.one/blog/2018/6/15/parallel-testing-in-xcode-10) feature to achieve parallelism within one single CI job. However, due to platform-specific implementations, there are some constraints that prevent parallel testing from working efficiently. One constraint we found is that tests of the same [Swift](https://swift.org/about/) class run on the same simulator. In this post, we will discuss this constraint in detail and introduce a tip to overcome it.
 
-# Background
+## Background
 
-## Xcode parallel testing
+### Xcode parallel testing
 
 The parallel testing feature was shipped as part of the [Xcode 10 release](https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes). This support enables us to easily configure test setup:
 
@@ -37,7 +37,7 @@ However, *the distribution logic under the hood is a black-box*. We do not reall
 
 It is worth mentioning that even without the Xcode parallel testing support, we can still achieve similar improvements by running subsets of tests in different child processes. But it takes more effort to dispatch tests to each child process in an efficient way, and to handle the output from each test process appropriately.
 
-## Test time imbalance
+### Test time imbalance
 
 Generally, a *parallel execution system* is at its best efficiency if each parallel task executes in roughly the same duration and ends at roughly the same time.
 
@@ -56,7 +56,7 @@ max(t<sub>i</sub>) - min(t<sub>i</sub>)
 
 For the example above, the test time imbalance is 13 mins - 7 mins = 6 mins.
 
-## Contributing factors in test time imbalance
+### Contributing factors in test time imbalance
 
 There are several factors causing test time imbalance. The top two prominent factors are:
 
@@ -95,9 +95,9 @@ When executing the two tests with two simulators running in parallel, the actual
 </figure></div>
 
 
-# Diving deep into Xcode parallel testing
+## Diving deep into Xcode parallel testing
 
-## Demystifying Xcode scheduling log
+### Demystifying Xcode scheduling log
 
 As mentioned above, Xcode distributes tests to simulators/workers in a black-box manner. However, by looking at the scheduling log generated when running tests, we can understand how Xcode parallel testing works.
 
@@ -157,7 +157,7 @@ Even when we customize a test suite (by swizzling some `XCTestSuite` class metho
 
 Therefore, ***any hook to bypass this constraint must be done early on***.
 
-## Passing the -only-testing argument to xcodebuild command
+### Passing the -only-testing argument to xcodebuild command
 
 Now we pass tests (instead of test classes) to the `-only-testing` argument.
 
@@ -196,9 +196,9 @@ But still, the scheduling log shows that ***tests are grouped by test class befo
 ......
 ```
 
-# Overcoming grouping logic in Xcode parallel testing
+## Overcoming grouping logic in Xcode parallel testing
 
-## Tweaking the -only-testing argument values
+### Tweaking the -only-testing argument values
 
 Based on our observation, we can imagine how Xcode runs tests in parallel. See below.
 
@@ -249,7 +249,7 @@ After that, looking at the scheduling log, we will see that the trick can bypass
 
 ```
 
-## Handling tweaked test names
+### Handling tweaked test names
 
 When a worker/simulator receives a request to run a test, the app (could be the runner app or the hosting app) initializes an `XCTestSuite` corresponding to the test name. In order for the test suite to be properly made up, we need to remove the inserted token.
 
@@ -275,11 +275,11 @@ extension XCTestSuite {
   <figcaption align="middle"><i>Swizzle function to run tests properly</i></figcaption>
 </figure></div>
 
-## Test class discovery
+### Test class discovery
 
 In order to adopt this tip, we need to know which test classes we need to run in advance. Although Apple does not provide an API to obtain the list before running tests, this can be done in several ways. One approach we can use is to generate test classes using [Sourcery](https://github.com/krzysztofzablocki/Sourcery). Another alternative is to parse the binaries inside `.xctest` bundles (in build products) to look for symbols related to tests.
 
-# Conclusion
+## Conclusion
 
 In this article, we identified some factors causing test execution time imbalance in Xcode parallel testing (particularly for UI tests).
 
@@ -293,7 +293,7 @@ Below is the metric about test time imbalance recorded when running UI tests. Af
 </figure></div>
 
 
-# Join us
+## Join us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
