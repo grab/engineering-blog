@@ -142,15 +142,15 @@
       </div>
     </header>
     <article class="post-content">
-      <h1 id="introduction">Introduction</h1>
+      <h2 id="introduction">Introduction</h2>
 
 <p>Testing is a common practice to ensure that code logic is not easily broken during development and refactoring. Having tests running as part of Continuous Integration (CI) infrastructure is essential, especially with a large codebase contributed by many engineers. However, the more tests we add, the longer it takes to execute. In the context of iOS development, the execution time of the whole test suite might be significantly affected by the increasing number of tests written. Running <a href="https://about.gitlab.com/blog/2019/07/12/guide-to-ci-cd-pipelines/">CI pre-merge pipelines</a> against a change, would cost us more time. Therefore, reducing test execution time is a long term epic we have to tackle in order to build a good CI infrastructure.</p>
 
 <p>Apart from splitting tests into subsets and running each of them in a CI job, we can also make use of the <a href="https://www.zachsim.one/blog/2018/6/15/parallel-testing-in-xcode-10">Xcode parallel testing</a> feature to achieve parallelism within one single CI job. However, due to platform-specific implementations, there are some constraints that prevent parallel testing from working efficiently. One constraint we found is that tests of the same <a href="https://swift.org/about/">Swift</a> class run on the same simulator. In this post, we will discuss this constraint in detail and introduce a tip to overcome it.</p>
 
-<h1 id="background">Background</h1>
+<h2 id="background">Background</h2>
 
-<h2 id="xcode-parallel-testing">Xcode parallel testing</h2>
+<h3 id="xcode-parallel-testing">Xcode parallel testing</h3>
 
 <p>The parallel testing feature was shipped as part of the <a href="https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes">Xcode 10 release</a>. This support enables us to easily configure test setup:</p>
 
@@ -169,7 +169,7 @@
 
 <p>It is worth mentioning that even without the Xcode parallel testing support, we can still achieve similar improvements by running subsets of tests in different child processes. But it takes more effort to dispatch tests to each child process in an efficient way, and to handle the output from each test process appropriately.</p>
 
-<h2 id="test-time-imbalance">Test time imbalance</h2>
+<h3 id="test-time-imbalance">Test time imbalance</h3>
 
 <p>Generally, a <em>parallel execution system</em> is at its best efficiency if each parallel task executes in roughly the same duration and ends at roughly the same time.</p>
 
@@ -188,7 +188,7 @@
 
 <p>For the example above, the test time imbalance is 13 mins - 7 mins = 6 mins.</p>
 
-<h2 id="contributing-factors-in-test-time-imbalance">Contributing factors in test time imbalance</h2>
+<h3 id="contributing-factors-in-test-time-imbalance">Contributing factors in test time imbalance</h3>
 
 <p>There are several factors causing test time imbalance. The top two prominent factors are:</p>
 
@@ -229,9 +229,9 @@
   <figcaption align="middle"><i>Tests of the same class are supposed to run on the same simulator but they should be able to run on different simulators.</i></figcaption>
 </figure></div>
 
-<h1 id="diving-deep-into-xcode-parallel-testing">Diving deep into Xcode parallel testing</h1>
+<h2 id="diving-deep-into-xcode-parallel-testing">Diving deep into Xcode parallel testing</h2>
 
-<h2 id="demystifying-xcode-scheduling-log">Demystifying Xcode scheduling log</h2>
+<h3 id="demystifying-xcode-scheduling-log">Demystifying Xcode scheduling log</h3>
 
 <p>As mentioned above, Xcode distributes tests to simulators/workers in a black-box manner. However, by looking at the scheduling log generated when running tests, we can understand how Xcode parallel testing works.</p>
 
@@ -288,7 +288,7 @@
 
 <p>Therefore, <strong><em>any hook to bypass this constraint must be done early on</em></strong>.</p>
 
-<h2 id="passing-the--only-testing-argument-to-xcodebuild-command">Passing the -only-testing argument to xcodebuild command</h2>
+<h3 id="passing-the--only-testing-argument-to-xcodebuild-command">Passing the -only-testing argument to xcodebuild command</h3>
 
 <p>Now we pass tests (instead of test classes) to the <code class="highlighter-rouge">-only-testing</code> argument.</p>
 
@@ -325,9 +325,9 @@
 ......
 </code></pre></div></div>
 
-<h1 id="overcoming-grouping-logic-in-xcode-parallel-testing">Overcoming grouping logic in Xcode parallel testing</h1>
+<h2 id="overcoming-grouping-logic-in-xcode-parallel-testing">Overcoming grouping logic in Xcode parallel testing</h2>
 
-<h2 id="tweaking-the--only-testing-argument-values">Tweaking the -only-testing argument values</h2>
+<h3 id="tweaking-the--only-testing-argument-values">Tweaking the -only-testing argument values</h3>
 
 <p>Based on our observation, we can imagine how Xcode runs tests in parallel. See below.</p>
 
@@ -373,7 +373,7 @@
 
 </code></pre></div></div>
 
-<h2 id="handling-tweaked-test-names">Handling tweaked test names</h2>
+<h3 id="handling-tweaked-test-names">Handling tweaked test names</h3>
 
 <p>When a worker/simulator receives a request to run a test, the app (could be the runner app or the hosting app) initializes an <code class="highlighter-rouge">XCTestSuite</code> corresponding to the test name. In order for the test suite to be properly made up, we need to remove the inserted token.</p>
 
@@ -398,11 +398,11 @@
   <figcaption align="middle"><i>Swizzle function to run tests properly</i></figcaption>
 </figure></div>
 
-<h2 id="test-class-discovery">Test class discovery</h2>
+<h3 id="test-class-discovery">Test class discovery</h3>
 
 <p>In order to adopt this tip, we need to know which test classes we need to run in advance. Although Apple does not provide an API to obtain the list before running tests, this can be done in several ways. One approach we can use is to generate test classes using <a href="https://github.com/krzysztofzablocki/Sourcery">Sourcery</a>. Another alternative is to parse the binaries inside <code class="highlighter-rouge">.xctest</code> bundles (in build products) to look for symbols related to tests.</p>
 
-<h1 id="conclusion">Conclusion</h1>
+<h2 id="conclusion">Conclusion</h2>
 
 <p>In this article, we identified some factors causing test execution time imbalance in Xcode parallel testing (particularly for UI tests).</p>
 
@@ -415,7 +415,7 @@
   <figcaption align="middle"><i>Tracking data of UI test time imbalance (in minutes) in our project, collected by multiple runs</i></figcaption>
 </figure></div>
 
-<h1 id="join-us">Join us</h1>
+<h2 id="join-us">Join us</h2>
 <p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
 
 <p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
