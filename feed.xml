@@ -6,160 +6,9 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 29 May 2020 15:23:32 +0000</pubDate>
-    <lastBuildDate>Fri, 29 May 2020 15:23:32 +0000</lastBuildDate>
+    <pubDate>Fri, 29 May 2020 15:38:05 +0000</pubDate>
+    <lastBuildDate>Fri, 29 May 2020 15:38:05 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
-    
-      <item>
-        <title>Grab's journey in using Go Modules</title>
-        <description>&lt;p&gt;&lt;a href=&quot;https://github.com/golang/go/wiki/Modules%23quick-start&quot;&gt;Go modules&lt;/a&gt; are a new feature in Go for versioning packages and managing dependencies. It has been almost 2 years in the making, and it’s finally production-ready in the Go 1.14 release early this year. Go recommends using single-module repositories by default, and warns that multi-module repositories require great care.&lt;/p&gt;
-
-&lt;p&gt;At Grab, we have a large monorepo and changing from our existing monorepo structure has been an interesting and humbling adventure. We faced serious obstacles to fully adopting Go modules. This series of articles describes Grab’s experience working with Go modules in a multi-module monorepo, the challenges we faced along the way, and the solutions we came up with.&lt;/p&gt;
-
-&lt;p&gt;To fully appreciate Grab’s journey in using Go Modules, it’s important to learn about the beginning of our vendoring process.&lt;/p&gt;
-
-&lt;h2 id=&quot;native-support-for-vendoring-using-the-vendor-folder&quot;&gt;Native support for vendoring using the vendor folder&lt;/h2&gt;
-
-&lt;p&gt;With Go 1.5 came the concept of the &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt; folder, a new package discovery method, providing native support for vendoring in Go for the first time.&lt;/p&gt;
-
-&lt;p&gt;With the &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt; folder, projects influenced the lookup path simply by copying packages into a &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt; folder nested at the project root. Go uses these packages before traversing the &lt;code class=&quot;highlighter-rouge&quot;&gt;GOPATH&lt;/code&gt; root, which allows a monorepo structure to vendor packages within the same repo as if they were 3rd-party libraries. This enabled &lt;code class=&quot;highlighter-rouge&quot;&gt;go build&lt;/code&gt; to work consistently without any need for extra scripts or env var modifications.&lt;/p&gt;
-
-&lt;h3 id=&quot;initial-obstacles&quot;&gt;Initial obstacles&lt;/h3&gt;
-
-&lt;p&gt;There was no official command for managing the &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt; folder, and even copying the files in the &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt; folder manually was common.&lt;/p&gt;
-
-&lt;p&gt;At Grab, different teams took different approaches. This meant that we had multiple version manifests and lock files for our monorepo’s vendor folder. It worked fine as long as there were no conflicts. At this time very few 3rd-party libraries were using proper tagging and semantic versioning, so it was worse because the lock files were largely a jumble of commit hashes and timestamps.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/go-module-a-guide-for-monorepos-part-1/image2.png&quot; alt=&quot;Jumbled commit hashes and timestamps&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Jumbled commit hashes and timestamps&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;As a result of the multiple versions and lock files, the vendor directory was not reproducible, and we couldn’t be sure what versions we had in there.&lt;/p&gt;
-
-&lt;h3 id=&quot;temporary-relief&quot;&gt;Temporary relief&lt;/h3&gt;
-
-&lt;p&gt;We eventually settled on using &lt;a href=&quot;https://github.com/Masterminds/glide&quot;&gt;Glide&lt;/a&gt;, and standardized our vendoring process. Glide gave us a reproducible, verifiable &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt; folder for our dependencies, which worked up until we switched to Go modules.&lt;/p&gt;
-
-&lt;h2 id=&quot;vendoring-using-go-modules&quot;&gt;Vendoring using Go modules&lt;/h2&gt;
-
-&lt;p&gt;I first heard about Go modules from Russ Cox’s talk at &lt;a href=&quot;https://2018.gophercon.sg&quot;&gt;GopherCon Singapore&lt;/a&gt; in 2018, and soon after started working on adopting modules at Grab, which was to manage our existing &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt; folder.&lt;/p&gt;
-
-&lt;p&gt;This allowed us to align with the official Go toolchain and familiarise ourselves with Go modules while the feature matured.&lt;/p&gt;
-
-&lt;h3 id=&quot;switching-to-go-mod&quot;&gt;Switching to go mod&lt;/h3&gt;
-
-&lt;p&gt;Go modules introduced a &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod vendor&lt;/code&gt; command for exporting all dependencies from &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; into &lt;code class=&quot;highlighter-rouge&quot;&gt;vendor&lt;/code&gt;. We didn’t plan to enable Go modules for builds at this point, so our builds continued to run exactly as before, indifferent to the fact that the vendor directory was created using &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;The initial task to switch to &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod vendor&lt;/code&gt; was relatively straightforward as listed here:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Generated a &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file from our &lt;code class=&quot;highlighter-rouge&quot;&gt;glide.yaml&lt;/code&gt; dependencies. This was scripted so it could be kept up to date without manual effort.&lt;/li&gt;
-  &lt;li&gt;Replaced the vendor directory.&lt;/li&gt;
-  &lt;li&gt;Committed the changes.&lt;/li&gt;
-  &lt;li&gt;Used &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod&lt;/code&gt; instead of glide to manage the vendor folder.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;The change was extremely large (due to differences in how glide and &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod&lt;/code&gt; handled the pruning of unused code), but equivalent in terms of Go code. However, there were some additional changes needed besides porting the version file.&lt;/p&gt;
-
-&lt;h3 id=&quot;addressing-incompatible-dependencies&quot;&gt;Addressing incompatible dependencies&lt;/h3&gt;
-
-&lt;p&gt;Some of our dependencies were not yet compatible with Go modules, so we had to use Go module’s replace directive to substitute them with a working version.&lt;/p&gt;
-
-&lt;p&gt;A more complex issue was that parts of our codebase relied on nested vendor directories, and had dependencies that were incompatible with the top level. The &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod vendor&lt;/code&gt; command attempts to include all code nested under the root path, whether or not they have used a sub-vendor directory, so this led to conflicts.&lt;/p&gt;
-
-&lt;h4 id=&quot;problematic-paths&quot;&gt;Problematic paths&lt;/h4&gt;
-
-&lt;p&gt;Rather than resolving all the incompatibilities, which would’ve been a major undertaking in the monorepo, we decided to exclude these paths from Go modules instead. This was accomplished by &lt;a href=&quot;https://github.com/golang/go/wiki/Modules%23can-an-additional-gomod-exclude-unnecessary-content-do-modules-have-the-equivalent-of-a-gitignore-file&quot;&gt;placing an empty go.mod file&lt;/a&gt; in the problematic paths.&lt;/p&gt;
-
-&lt;h4 id=&quot;nested-modules&quot;&gt;Nested modules&lt;/h4&gt;
-
-&lt;p&gt;The empty &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file worked. This brought us to an important rule of Go modules, which is central to understanding many of the issues we encountered:&lt;/p&gt;
-
-&lt;div&gt;
- &lt;p align=&quot;middle&quot;&gt;&lt;b&gt;&lt;i&gt;A module cannot contain other modules&lt;/i&gt;&lt;/b&gt;
-&lt;/p&gt;&lt;/div&gt;
-
-&lt;p&gt;This means that although the modules are within the same repository, Go modules treat them as though they are completely independent. When running &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod&lt;/code&gt; commands in the root of the monorepo, Go doesn’t even ‘see’ the other modules nested within.&lt;/p&gt;
-
-&lt;h3 id=&quot;tackling-maintenance-issues&quot;&gt;Tackling maintenance issues&lt;/h3&gt;
-
-&lt;p&gt;After completing the initial migration of our vendor directory to go mod vendor however, it opened up a different set of problems related to maintenance.&lt;/p&gt;
-
-&lt;p&gt;With Glide, we could guarantee that the Glide files and vendor directory would not change unless we deliberately changed them. This was not the case after switching to Go modules; we found that the &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file frequently required unexpected changes to keep our vendor directory reproducible.&lt;/p&gt;
-
-&lt;p&gt;There are two frequent cases that cause the &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file to need updates: &lt;em&gt;dependency inheritance&lt;/em&gt; and &lt;em&gt;implicit updates&lt;/em&gt;.&lt;/p&gt;
-
-&lt;h4 id=&quot;dependency-inheritance&quot;&gt;Dependency inheritance&lt;/h4&gt;
-
-&lt;p&gt;Dependency inheritance is a consequence of Go modules &lt;a href=&quot;https://github.com/golang/go/wiki/Modules%23is-gosum-a-lock-file-why-does-gosum-include-information-for-module-versions-i-am-no-longer-using&quot;&gt;version selection&lt;/a&gt;. If one of the monorepo’s dependencies uses Go modules, then the monorepo inherits those version requirements as well.&lt;/p&gt;
-
-&lt;p&gt;When starting a new module, the default is to use the latest version of dependencies. This was an issue for us as some of our monorepo dependencies had not been updated for some time. As engineers wanted to import their module from the monorepo, it caused &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod vendor&lt;/code&gt; to pull in a huge amount of updates.&lt;/p&gt;
-
-&lt;p&gt;To solve this issue, we wrote a quick script to copy the dependency versions from one module to another.&lt;/p&gt;
-
-&lt;p&gt;One key learning here is to have other modules use the monorepo’s versions, and if any updates are needed then the monorepo should be updated first.&lt;/p&gt;
-
-&lt;h4 id=&quot;implicit-updates&quot;&gt;Implicit updates&lt;/h4&gt;
-
-&lt;p&gt;Implicit updates are a more subtle problem. The typical Go modules &lt;a href=&quot;https://github.com/golang/go/wiki/Modules%23daily-workflow&quot;&gt;workflow&lt;/a&gt; is to use standard Go commands: &lt;code class=&quot;highlighter-rouge&quot;&gt;go build&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;go test&lt;/code&gt;, and so on, and they will automatically update the &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file as needed. However, this was sometimes surprising, and it wasn’t always clear why the &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file was being updated. Some of the reasons we found were:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;A new import was added by mistake, causing the dependency to be added to the &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file&lt;/li&gt;
-  &lt;li&gt;There is a &lt;a href=&quot;https://github.com/golang/go/wiki/Modules%23when-should-i-use-the-replace-directive&quot;&gt;local replace&lt;/a&gt; for some module B, and B changes its own &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt;. When there’s a local replace, it bypasses versioning, so the changes to B’s go.mod are immediately inherited.&lt;/li&gt;
-  &lt;li&gt;The build imports a package from a dependency that can’t be satisfied with the current version, so Go attempts to update it.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;This means that simply &lt;em&gt;creating&lt;/em&gt; a tag in an external repository is sometimes enough to affect the &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file, if you already have a broken import in the codebase.&lt;/p&gt;
-
-&lt;h3 id=&quot;resolving-unexpected-dependencies-using-graphs&quot;&gt;Resolving unexpected dependencies using graphs&lt;/h3&gt;
-
-&lt;p&gt;To investigate the unexpected dependencies, the command &lt;code class=&quot;highlighter-rouge&quot;&gt;go mod graph&lt;/code&gt; proved the most useful.&lt;/p&gt;
-
-&lt;p&gt;Running &lt;code class=&quot;highlighter-rouge&quot;&gt;graph&lt;/code&gt; with good old grep was good enough, but its output is also compatible with the &lt;a href=&quot;https://godoc.org/golang.org/x/tools/cmd/digraph&quot;&gt;digraph tool&lt;/a&gt; for more sophisticated queries. For example, we could use the following command to trace the source of a dependency on &lt;code class=&quot;highlighter-rouge&quot;&gt;cloud.google.com/go&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ go mod graph | digraph somepath grab.com/example cloud.google.com/go@v0.26.0
-
-github.com/hashicorp/vault/api@v1.0.4 github.com/hashicorp/vault/sdk@v0.1.13
-
-github.com/hashicorp/vault/sdk@v0.1.13 google.golang.org/genproto@v0.0.0-20190404172233-64821d5d2107
-
-google.golang.org/genproto@v0.0.0-20190404172233-64821d5d2107 google.golang.org/grpc@v1.19.0
-
-google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/go-module-a-guide-for-monorepos-part-1/image1.png&quot; alt=&quot;Diagram generated using modgraphviz&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Diagram generated using modgraphviz&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;stay-tuned-for-more&quot;&gt;Stay tuned for more&lt;/h2&gt;
-&lt;p&gt;I hope you have enjoyed this article. In our next post, we’ll cover the other solutions we have for catching unexpected changes to the &lt;code class=&quot;highlighter-rouge&quot;&gt;go.mod&lt;/code&gt; file and addressing dependency issues.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Thu, 28 May 2020 20:34:40 +0000</pubDate>
-        <link>https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1</link>
-        <guid isPermaLink="true">https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1</guid>
-        
-        <category>go</category>
-        
-        <category>monorepo</category>
-        
-        <category>vendoring</category>
-        
-        <category>vendors</category>
-        
-        <category>libraries</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
     
       <item>
         <title>Does Southeast Asia run on coffee?</title>
@@ -1602,6 +1451,182 @@ Zezhou Yu, Ryan Ooi, Hui Yang, Yuguang Xiao, Ling Zhang, Roy Kim, Matt Hino, Jum
         <category>Mobile</category>
         
         <category>Performance</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
+    
+      <item>
+        <title>Marionette - Enabling E2E user-scenario simulation</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;A plethora of interconnected microservices is what powers the Grab’s app. The microservices work behind the scenes to delight millions of our customers in Southeast Asia. It is a no-brainer that we emphasize on strong testing tools, so our app performs flawlessly to continuously meet our customers’ needs.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;We have a microservices-based architecture, in which microservices are interconnected to numerous other microservices. Each passing day sees teams within Grab updating their microservices, which in turn enhances the overall app. If any of the microservices fail after changes are rolled out, it may lead to the whole app getting into an unstable state or worse. This is a major risk and that’s why we stress on conducting “end-to-end (E2E) testing” as an integral part of our software test life-cycle.&lt;/p&gt;
+
+&lt;p&gt;E2E tests are done for all crucial workflows in the app, but not for every detail. For that we have conventional tests such as unit tests, component tests, functional tests, etc. Consider E2E testing as the final approval in the quality assurance of the app.&lt;/p&gt;
+
+&lt;p&gt;Writing E2E tests in the microservices world is not a trivial task. We are not testing just a single monolithic application. To test a workflow on the app from a user’s perspective, we need to traverse multiple microservices, which communicate through different protocols such as HTTP/HTTPS and TCP. E2E testing gets even more challenging with the continuous addition of microservices. Over the years, we have grown tremendously with hundreds of microservices working in the background to power our app.&lt;/p&gt;
+
+&lt;p&gt;Some major challenges in writing E2E tests for the microservices-based apps are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Availability&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;p&gt;Getting all microservices together for E2E testing is tough. Each development team works independently and is responsible only for its microservices. Teams use different programming languages, data stores, etc for each microservice. It’s hard to construct all pieces in a common test environment as a complete app for E2E testing each time.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Data or resource set up&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;p&gt;E2E testing requires comprehensive data set up. Otherwise, testing results are affected because of data constraints, and not due to any recent changes to underlying microservices. For example, we need to create real-life equivalent driver accounts, passenger accounts, etc and to have those, there are a few dependencies on other internal systems which manage user accounts. Further, data and booking generation should be robust enough to replicate real-world scenarios as far as possible.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Access and authentication&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;p&gt;Usually, the test cases require sequential execution in E2E testing. In a microservices architecture, it is difficult to test a workflow which requires access and permissions to several resources or data that should remain available throughout the test execution.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Resource and time intensive&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;p&gt;It is expensive and time consuming to run E2E tests; significant time is involved in deploying new changes, configuring all the necessary test data, etc.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Though there are several challenges, we had to find a way to overcome them and test workflows from the beginning to the end in our app.&lt;/p&gt;
+
+&lt;h2 id=&quot;our-approach-to-overcome-challenges&quot;&gt;Our approach to overcome challenges&lt;/h2&gt;
+
+&lt;p&gt;We knew what our challenges were and what we wanted to achieve from E2E testing, so we started thinking about how to develop a platform for E2E tests. To begin with, we determined that the scope of E2E testing that we’re going to primarily focus on is Grab’s transport domain — the microservices powering the driver and passenger apps.&lt;/p&gt;
+
+&lt;p&gt;One approach is to &lt;em&gt;“simulate”&lt;/em&gt; user scenarios through a single platform before any new versions of these microservices are released. Ideally, the platform should also have the capabilities to set up the data required for these simulations. For example, ride booking requires data set up such as driver accounts, passenger accounts, location coordinates, geofencing, etc.&lt;/p&gt;
+
+&lt;p&gt;We wanted to create a single platform that multiple teams could use to set up their test data and run E2E user-scenario simulations easily. We put ourselves to work on that idea, which resulted in the creation of an internal platform called “Marionette”. It simulates actions performed by Grab’s passenger and driver apps as they are expected to behave in the real world. The objective is to ensure that all standard user workflows are tested before deploying new app versions.&lt;/p&gt;
+
+&lt;h2 id=&quot;introducing-marionette&quot;&gt;Introducing Marionette&lt;/h2&gt;
+
+&lt;p&gt;Marionette enables Grabbers (developers and QAs) to run E2E user-scenario simulations without depending on the actual passenger and driver apps. Grabbers can set up data as well as configure data such as drivers, passengers, taxi types, etc to mimic the real-world behavior.&lt;/p&gt;
+
+&lt;p&gt;Let’s look at the overall architecture to understand Marionette better:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Overall Architecture&quot; src=&quot;/img/marionette-enabling-e2e-user-scenario-simulation/architecture.png&quot; /&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;/p&gt;
+
+&lt;p&gt;Grabbers can interact with Marionette through three channels: UI, SDK, and through RESTful API endpoints in their test scripts. All requests are routed through a load balancer to the Marionette platform. The Marionette platform in turn talks to the required microservices to create test data and to run the simulations.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-benefits&quot;&gt;The benefits&lt;/h2&gt;
+
+&lt;p&gt;With Marionette, Grabbers now have the ability to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Simulate the whole booking flow including customer and driver behavior as well as transition through the booking life cycle including pick-up, drop-off, cancellation, etc. For example, developers can make passenger booking from the UI and configure pick-up points, drop-off points, taxi types, and other parameters easily. They can define passenger behaviour such as “make bookings after a specified time interval”, “cancel each booking”, etc. They can also set driver locations, define driver behaviour such as “always accept booking manually”, “decline received bookings”, etc.&lt;/li&gt;
+  &lt;li&gt;Simulate bookings in all cities where Grab operates. Further, developers can run simulations for multiple Grab taxi types such as JustGrab, GrabShare, etc.&lt;/li&gt;
+  &lt;li&gt;Visualize passengers, drivers, and ride transitions on the UI, which lets them easily test their workflows.&lt;/li&gt;
+  &lt;li&gt;Save efforts and time spent on installing third-party android or iOS emulators, troubleshooting or debugging &lt;code class=&quot;highlighter-rouge&quot;&gt;.apk&lt;/code&gt; installation files, etc before testing workflows.&lt;/li&gt;
+  &lt;li&gt;Conduct E2E testing without real mobile devices and installed apps.&lt;/li&gt;
+  &lt;li&gt;Run automatic simulations, in which a particular set of scenarios are run continuously, thus helping developers with exploratory testing.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;how-we-isolated-simulations-among-users&quot;&gt;How we isolated simulations among users&lt;/h2&gt;
+
+&lt;p&gt;It is important to have independent simulations for each user. Otherwise, simulations don’t yield correct results. This was one of the challenges we faced when we first started running simulations on Marionette.&lt;/p&gt;
+
+&lt;p&gt;To resolve this issue, we came up with the idea of “cohorts”. A cohort is a logical group of passengers and drivers who are located in a particular city. Each simulation on Marionette is run using a “cohort” containing the number of drivers and passengers required for that simulation. When a passenger/driver needs to interact with other passengers/drivers (such as for ride bookings), Marionette ensures that the interaction is constrained to resources within the cohort. This ensures that drivers and passengers are not shared in different test cases/simulations, resulting in more consistent test runs.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-to-interact-with-marionette&quot;&gt;How to interact with Marionette&lt;/h2&gt;
+
+&lt;p&gt;Let’s take a look at how to interact with Marionette starting with its user interface first.&lt;/p&gt;
+
+&lt;h3 id=&quot;user-interface&quot;&gt;User Interface&lt;/h3&gt;
+
+&lt;p&gt;The Marionette UI is designed to provide the same level of granularity as available on the real passenger and driver apps.&lt;/p&gt;
+
+&lt;p&gt;Generally, the UI is used in the following scenarios:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;To test common user scenarios/workflows after deploying a change on staging.&lt;/li&gt;
+  &lt;li&gt;To test the end-to-end booking flow right from the point where a passenger makes a booking till drop-off at the destination.&lt;/li&gt;
+  &lt;li&gt;To simulate functionality of other teams within Grab - the passenger app developers can simulate the driver app for their testing and vice versa. Usually, teams work independently and the ability to simulate the dependent app for testing allows developers to work independently.&lt;/li&gt;
+  &lt;li&gt;To perform E2E testing (such as by QA teams) without writing any test scripts.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The Marionette UI also allows Grabbers to create and set up data. All that needs to be done is to specify the necessary resources such as number of drivers, number of passengers, city to run the simulation, etc. Running E2E simulations involves just the click of a button after data set up. Reports generated at the end of running simulations provide a graphical visualization of the results. Visual reports save developers’ time, which otherwise is spent on browsing through logs to ascertain errors.&lt;/p&gt;
+
+&lt;h3 id=&quot;sdk&quot;&gt;SDK&lt;/h3&gt;
+
+&lt;p&gt;Marionette also provides an SDK, written in the Go programming language.&lt;/p&gt;
+
+&lt;p&gt;It lets developers:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Create resources such as passengers, drivers, and cohorts for simulating booking flows.&lt;/li&gt;
+  &lt;li&gt;Create booking simulations in both staging and production.&lt;/li&gt;
+  &lt;li&gt;Set bookings to specific states as needed for simulation through customizable driver and passenger behaviour.&lt;/li&gt;
+  &lt;li&gt;Make HTTP requests and receive responses that matter in tests.&lt;/li&gt;
+  &lt;li&gt;Run load tests by scaling up booking requests to match the required workload (QPS).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Let’s look at a high-level booking test case example to understand the simulation workflow.&lt;/p&gt;
+
+&lt;p&gt;Assume we want to run an E2E booking test with this driver behavior type — “accepts passenger bookings and transits between booking states according to defined behavior parameters”. This is just one of the driver behavior types in Marionette; other behavior types are also supported. Similarly, passengers also have behaviour types.&lt;/p&gt;
+
+&lt;p&gt;To write the E2E test for this example case, we first define the driver behavior in a function like this:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Overall Architecture&quot; src=&quot;/img/marionette-enabling-e2e-user-scenario-simulation/code1.png&quot; /&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;/p&gt;
+
+&lt;p&gt;Then, we handle the booking request for the driver like this:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Overall Architecture&quot; src=&quot;/img/marionette-enabling-e2e-user-scenario-simulation/code2.png&quot; /&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;/p&gt;
+
+&lt;p&gt;The SDK client makes the handling of passengers, drivers, and bookings very easy as developers don’t need to worry about hitting multiple services and multiple APIs to set up their required driver and passenger actions. Instead, teams can focus on testing their use cases.&lt;/p&gt;
+
+&lt;p&gt;To ensure that passengers and drivers are isolated in our test, we need to group them together in a cohort before running the E2E test.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Overall Architecture&quot; src=&quot;/img/marionette-enabling-e2e-user-scenario-simulation/code3.png&quot; /&gt;
+&lt;/div&gt;
+&lt;p&gt;&lt;/p&gt;
+
+&lt;p&gt;In summary, we have defined the driver’s behavior, created the booking request, created the SDK client and associated the driver and passenger to a cohort. Now, we just have to trigger the E2E test from our IDE. It’s just that simple and easy!&lt;/p&gt;
+
+&lt;p&gt;Previously, developers had to write boilerplate code to make HTTP requests and parse returned HTTP responses. With the Marionette SDK in place, developers don’t have to write any boilerplate code saving significant time and effort in E2E testing.&lt;/p&gt;
+
+&lt;h3 id=&quot;restful-apis-in-test-scripts&quot;&gt;RESTful APIs in test scripts&lt;/h3&gt;
+
+&lt;p&gt;Marionette provides several RESTful API endpoints that cover different simulation areas such as resource or data creation APIs, driver APIs, passenger APIs, etc. APIs are particularly suitable for scripted testing. Developers can directly call these APIs in their test scripts to facilitate their own tests such as load tests, integration tests, E2E tests, etc.&lt;/p&gt;
+
+&lt;p&gt;Developers use these APIs with their preferred programming languages to run simulations. They don’t need to worry about any underlying complexities when using the APIs. For example, developers in Grab have created custom libraries using Marionette APIs in Python, Java, and Bash to run simulations.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;Currently, we cover E2E tests for our transport domain (microservices for the passenger and driver apps) through Marionette. The next phase is to expand into a full-fledged platform that can test microservices in other Grab domains such as Food, Payments, and so on. Going forward, we are also looking to further simplify the writing of E2E tests and running them as a part of the CD pipeline for seamless testing before deployment.&lt;/p&gt;
+
+&lt;h2 id=&quot;in-conclusion&quot;&gt;In conclusion&lt;/h2&gt;
+
+&lt;p&gt;We had an idea of creating a simulation platform that can run and facilitate E2E testing of microservices. With Marionette, we have achieved this objective. Marionette has helped us understand how end users use our apps, allowing us to make improvements to our services. Further, Marionette ensures there are no breaking changes and provides additional visibility into potential bugs that might be introduced as a result of any changes to microservices.&lt;/p&gt;
+
+&lt;p&gt;If you have any comments or questions about Marionette, please leave a comment below.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 23 Dec 2019 21:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/marionette-enabling-e2e-user-scenario-simulation</link>
+        <guid isPermaLink="true">https://engineering.grab.com/marionette-enabling-e2e-user-scenario-simulation</guid>
+        
+        <category>Backend</category>
+        
+        <category>Testing</category>
+        
+        <category>Microservice</category>
         
         
         <category>Engineering</category>
