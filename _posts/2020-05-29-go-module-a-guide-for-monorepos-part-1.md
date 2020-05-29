@@ -2,7 +2,7 @@
 layout: post
 id: 2020-05-29-go-module-a-guide-for-monorepos-part-1
 title: Go Modules- A guide for monorepos (Part 1)
-date: 2020-05-29 21:34:40
+date: 2020-05-29 11:34:40
 authors: [michael-cartmell]
 categories: [Engineering]
 tags: [go, monorepo, vendoring, vendors, libraries]
@@ -11,7 +11,7 @@ cover_photo: /img/go-module-a-guide-for-monorepos-part-1/cover.png
 excerpt: "This post is the first in a series of blogs about Grab’s experience with Go modules in a multi-module monorepo. Here, we discuss the challenges we faced along the way and the solutions we came up with."
 ---
 
-[Go modules](https://github.com/golang/go/wiki/Modules%23quick-start) are a new feature in Go for versioning packages and managing dependencies. It has been almost 2 years in the making, and it’s finally production-ready in the Go 1.14 release early this year. Go recommends using single-module repositories by default, and warns that multi-module repositories require great care.ß
+[Go modules](https://github.com/golang/go/wiki/Modules%23quick-start) are a new feature in Go for versioning packages and managing dependencies. It has been almost 2 years in the making, and it’s finally production-ready in the Go 1.14 release early this year. Go recommends using single-module repositories by default, and warns that multi-module repositories require great care.
 
 At Grab, we have a large monorepo and changing from our existing monorepo structure has been an interesting and humbling adventure. We faced serious obstacles to fully adopting Go modules. This series of articles describes Grab’s experience working with Go modules in a multi-module monorepo, the challenges we faced along the way, and the solutions we came up with.
 
