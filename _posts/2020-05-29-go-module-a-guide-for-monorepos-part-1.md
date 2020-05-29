@@ -2,7 +2,7 @@
 layout: post
 id: 2020-05-29-go-module-a-guide-for-monorepos-part-1
 title: Go Modules- A guide for monorepos (Part 1)
-date: 2020-05-29 20:34:40
+date: 2020-05-29 21:34:40
 authors: [michael-cartmell]
 categories: [Engineering]
 tags: [go, monorepo, vendoring, vendors, libraries]
@@ -11,7 +11,7 @@ cover_photo: /img/go-module-a-guide-for-monorepos-part-1/cover.png
 excerpt: "This post is the first in a series of blogs about Grab’s experience with Go modules in a multi-module monorepo. Here, we discuss the challenges we faced along the way and the solutions we came up with."
 ---
 
-[Go modules](https://github.com/golang/go/wiki/Modules%23quick-start) are a new feature in Go for versioning packages and managing dependencies. It has been almost 2 years in the making, and it’s finally production-ready in the Go 1.14 release early this year. Go recommends using single-module repositories by default, and warns that multi-module repositories require great care.
+[Go modules](https://github.com/golang/go/wiki/Modules%23quick-start) are a new feature in Go for versioning packages and managing dependencies. It has been almost 2 years in the making, and it’s finally production-ready in the Go 1.14 release early this year. Go recommends using single-module repositories by default, and warns that multi-module repositories require great care.ß
 
 At Grab, we have a large monorepo and changing from our existing monorepo structure has been an interesting and humbling adventure. We faced serious obstacles to fully adopting Go modules. This series of articles describes Grab’s experience working with Go modules in a multi-module monorepo, the challenges we faced along the way, and the solutions we came up with.
 
@@ -135,7 +135,11 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
 ## Stay tuned for more
 I hope you have enjoyed this article. In our next post, we’ll cover the other solutions we have for catching unexpected changes to the `go.mod` file and addressing dependency issues.
 
+
 ## Join us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+
+#### Credits
+*The cute Go gopher logo for this blog's cover image was inspired by Renee French's original work.*
