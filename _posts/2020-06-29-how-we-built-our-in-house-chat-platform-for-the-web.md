@@ -306,9 +306,12 @@ We’re happy to have shared our learnings from building our in-house chat platf
 
 We hope this post also helped you get a deeper sense of how SharedWorker and BroadcastChannels work in a production application.
 
-## Acknowledgements
 
-I'd like to take this opportunity to thank the working team for their contributions- Sanket Thanvi for extending the PoC to build a production grade SDK, Dinh Duong for adding more features to the SDK, and to Kevin Lee and Matthew Yeow for finding the edge cases and fixing the race condition during deploys. 
+---
+
+<small class="credits">Authored By Vasu on behalf of the Real-Time Communications team at Grab. Special thanks to the working team for their contributions- Sanket Thanvi, Dinh Duong,  Kevin Lee, and Matthew Yeow.</small>
+
+---
 
 ## Join us
 
