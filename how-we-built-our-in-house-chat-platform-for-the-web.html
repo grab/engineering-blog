@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>How we built our in-house chat platform for the web</title>
+    <meta name="description" content="This blog post shares our learnings from building our very own chat platform for the web.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web">
+    <meta property="og:title" content="How we built our in-house chat platform for the web">
+    <meta property="og:description" content="This blog post shares our learnings from building our very own chat platform for the web.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/how-we-built-our-in-house-chat-platform-for-the-web/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/vasudevan-k.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">How we built our in-house chat platform for the web</h1>
+      
+      <div class="post-meta">
+        29 Jun 2020
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#vasudevan-k">Vasudevan K.</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#chat" class="label tags-label">chat</a>
+  
+    <a href="/tags#customer-support" class="label tags-label">customer support</a>
+  
+    <a href="/tags#engineering" class="label tags-label">engineering</a>
+  
+    <a href="/tags#web" class="label tags-label">web</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p>At Grab, we’ve built an in-house chat platform to help connect our passengers with drivers during a booking, as well as with their friends and family for social sharing purposes.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image6.png" alt="P2P chat for the Angbow campaign and GrabHitch chat" />
+  <figcaption align="middle"><i>P2P chat for the Angbow campaign and GrabHitch chat</i></figcaption>
+</figure></div>
+
+<p>We wanted to focus on our customer support chat experience, and so we replaced the third-party live chat tool that we’ve used for years with our newly developed chat platform. As a part of this initiative, we extended this platform for the web to integrate with our internal Customer Support portal.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image3.png" alt="Sample chat between a driver and a customer support agent" />
+  <figcaption align="middle"><i>Sample chat between a driver and a customer support agent</i></figcaption>
+</figure></div>
+
+<p>This is the first time we introduced chat on the web, and we faced a few challenges while building it. In this article, we’ll go over some of these challenges and how we solved them.</p>
+
+<h2 id="current-architecture">Current Architecture</h2>
+
+<p>A vast majority of the communication from our Grab Passenger and Driver apps happens via TCP. Our TCP gateway takes care of processing all the incoming messages, authenticating, and routing them to the respective services. Our TCP connections are unicast, which means there is only one active connection possible per user at any point in time. This served us well, as we only allow our users to log in from one device at a time.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image2.png" alt="A TL;DR version of our current system" />
+  <figcaption align="middle"><i>A TL;DR version of our current system</i></figcaption>
+</figure></div>
+
+<p>However, this model breaks on the web since our users can have multiple tabs open at the same time, and each would establish a new socket connection. Due to the unicast nature of our TCP connections, the older tabs would get disconnected and wouldn’t receive any messages from our servers. Our Customer Support agents love their tabs and have a gazillion open at any time. This behaviour would be too disruptive for them.</p>
+
+<p>The obvious answer was to change our TCP connection strategy to multicast. We took a look at this and quickly realised that it was going to be a huge undertaking and could introduce a lot of unknowns for us to deal with.</p>
+
+<p>We had to consider a different approach for the web and zeroed in on a hybrid approach with a little known Javascript APIs called <a href="https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker">SharedWorker</a> and <a href="https://developers.google.com/web/updates/2016/09/broadcastchannel">BroadcastChannel</a>.</p>
+
+<h2 id="understanding-the-basics">Understanding the basics</h2>
+
+<p>Before we jump in, let’s take a quick detour to review some of the terminologies that we’ll be using in this post.</p>
+
+<p>If you’re familiar with how WebWorker works, feel free to skip ahead to the next section. For the uninitiated, JavaScript on the browser runs in a single-threaded environment. Workers are a mechanism to introduce background, OS-level threads in the browser. Creating a worker in JavaScript is simple. Let’s look at it with an example:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//instantiate a worker</span>
+<span class="kd">const</span> <span class="nx">worker</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebWorker</span><span class="p">(</span><span class="s2">"./worker.js"</span><span class="p">);</span>
+<span class="nx">worker</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">({</span> <span class="na">message</span><span class="p">:</span> <span class="s2">"Ping"</span> <span class="p">});</span>
+<span class="nx">worker</span><span class="p">.</span><span class="nx">onMessage</span><span class="p">((</span><span class="nx">e</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">"Message from the worker"</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="c1">// and in  worker.js</span>
+<span class="nx">onMessage</span> <span class="o">=</span> <span class="p">(</span><span class="nx">e</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">message</span><span class="p">);</span>
+  <span class="k">this</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">({</span> <span class="na">message</span><span class="p">:</span> <span class="s2">"pong"</span> <span class="p">});</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>The worker API comes with a handy <code class="highlighter-rouge">postMessage</code> method which can be used to pass messages between the main thread and worker thread. Workers are a great way to add concurrency in a JavaScript application and help in speeding up an expensive process in the background.</p>
+
+<p>Note: While the method looks similar, <a href="https://developer.mozilla.org/en-US/docs/Web/API/Worker/postMessage"><code class="highlighter-rouge">worker.postMessage</code></a> is not the same as <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage"><code class="highlighter-rouge">window.postMessage</code></a>.</p>
+
+<h3 id="what-is-a-sharedworker">What is a SharedWorker?</h3>
+
+<p>SharedWorker is similar to a WebWorker and spawns an OS thread, but as the name indicates, it’s shared across browser contexts. In other words, there is only one instance of that worker running for that domain across tabs/windows. The API is similar to WebWorker but has a few subtle differences.</p>
+
+<p>SharedWorkers internally use <a href="https://developer.mozilla.org/en-US/docs/Web/API/MessagePort">MessagePort</a> to pass messages between the worker thread and the main thread. There are two ports- one for sending a message to the main thread and the other to receive. Let’s explore it with an example:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">mySharedWorker</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">SharedWorker</span><span class="p">(</span><span class="s2">"./worker.js"</span><span class="p">);</span>
+<span class="nx">mySharedWorker</span><span class="p">.</span><span class="nx">port</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span>
+<span class="nx">mySharedWorker</span><span class="p">.</span><span class="nx">port</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+
+<span class="nx">onconnect</span> <span class="o">=</span> <span class="p">(</span><span class="nx">e</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">port</span> <span class="o">=</span> <span class="nx">e</span><span class="p">.</span><span class="nx">ports</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+
+  <span class="c1">// Handle messages from the main thread</span>
+  <span class="nx">port</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="nx">handleEventFromMainThread</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nx">port</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="c1">// Message from the main thread</span>
+<span class="kd">const</span> <span class="nx">handleEventFromMainThread</span> <span class="o">=</span> <span class="p">(</span><span class="nx">params</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">"I received"</span><span class="p">,</span> <span class="nx">params</span><span class="p">,</span> <span class="s2">"from the main thread"</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="kd">const</span> <span class="nx">sendEventToMainThread</span> <span class="o">=</span> <span class="p">(</span><span class="nx">params</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">connections</span><span class="p">.</span><span class="nx">forEach</span><span class="p">((</span><span class="nx">c</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nx">c</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="nx">params</span><span class="p">));</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>There is a lot to unpack here. Once a SharedWorker is created, we’ve to manually start the port using <code class="highlighter-rouge">mySharedWorker.port.start()</code> to establish a connection between the script running on the main thread and the worker thread. Post that, messages can be passed via the worker’s <code class="highlighter-rouge">postMessage</code> method. On the worker side, there is an <code class="highlighter-rouge">onconnect</code> callback which helps in setting up listeners for connections from each browser context.</p>
+
+<p>Under the hood, SharedWorker spawns a single OS thread per worker script per domain. For instance, if the script name is <code class="highlighter-rouge">worker.js</code> running in the domain <code class="highlighter-rouge">https://ce.grab.com</code>. The logic inside <code class="highlighter-rouge">worker.js</code> runs <em>exactly once</em> in this domain. The advantage of this approach is that we can run multiple worker scripts in the same-origin each managing a different part of the functionality. This was one of the key reasons why we picked SharedWorker over other solutions.</p>
+
+<h3 id="what-are-broadcast-channels">What are Broadcast channels</h3>
+
+<p>In a multi-tab environment, our users may send messages from any of the tabs and switch to another for the next message. For a seamless experience, we need to ensure that the state is in sync across all the browser contexts.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image1.png" alt="Message passing across tabs" />
+  <figcaption align="middle"><i>Message passing across tabs</i></figcaption>
+</figure></div>
+
+<p>The <code class="highlighter-rouge">BroadcastChannel</code> API creates a message bus that allows us to pass messages between multiple browser contexts within the same origin. This helps us sync the message that’s being sent on the client to all the open tabs.</p>
+
+<p>Let’s explore the API with a code example:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">channel</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">BroadcastChannel</span><span class="p">(</span><span class="s2">"chat_messages"</span><span class="p">);</span>
+<span class="c1">// Sets up an event listener to receive messages from other browser contexts</span>
+<span class="nx">channel</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="p">({</span> <span class="nx">data</span> <span class="p">})</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">"Received "</span><span class="p">,</span> <span class="nx">data</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="kd">const</span> <span class="nx">sendMessage</span> <span class="o">=</span> <span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">event</span> <span class="o">=</span> <span class="p">{</span> <span class="nx">message</span><span class="p">,</span> <span class="na">type</span><span class="p">:</span> <span class="s2">"new_message"</span> <span class="p">};</span>
+  <span class="nx">send</span><span class="p">(</span><span class="nx">event</span><span class="p">);</span>
+  <span class="c1">// Publish event to all browser contexts listening on the chat\_messages channel</span>
+  <span class="nx">channel</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="nx">event</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="kd">const</span> <span class="nx">off</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="c1">// clear event listeners</span>
+  <span class="nx">channel</span><span class="p">.</span><span class="nx">close</span><span class="p">();</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>One thing to note here is that communication is restricted to listeners from the same origin.</p>
+
+<h2 id="how-are-our-chat-rooms-powered">How are our chat rooms powered</h2>
+
+<p>Now that we have a basic understanding of how SharedWorker and Broadcast channels work, let’s take a peek into how Grab is using it.</p>
+
+<p>Our Chat SDK abstracts the calls to the worker and the underlying transport mechanism. On the surface, the interface just exposes two methods: one for sending a message and another for listening to incoming events from the server.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">export</span> <span class="kr">interface</span> <span class="nx">IChatSDK</span> <span class="p">{</span>
+  <span class="nl">sendMessage</span><span class="p">:</span> <span class="p">(</span><span class="nx">message</span><span class="p">:</span> <span class="nx">ChatMessage</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nx">string</span><span class="p">;</span>
+  <span class="nl">sendReadReceipt</span><span class="p">:</span> <span class="p">(</span><span class="nx">receiptAck</span><span class="p">:</span> <span class="nx">MessageReceiptACK</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+  <span class="nl">on</span><span class="p">:</span> <span class="p">(</span><span class="nx">callback</span><span class="p">:</span> <span class="nx">ICallBack</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+  <span class="nl">off</span><span class="p">:</span> <span class="p">(</span><span class="nx">topic</span><span class="p">?:</span> <span class="nx">SDKTopics</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+  <span class="nl">close</span><span class="p">:</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="k">void</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The SDK does all the heavy lifting to manage the connection with our TCP service, and keeping the information in-sync across tabs.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image5.png" alt="SDK flow" />
+  <figcaption align="middle"><i>SDK flow</i></figcaption>
+</figure></div>
+
+<p>In our worker, we additionally maintain all the connections from browser contexts. When an incoming event arrives from the socket, we publish it to the first active connection. Our SDK listens to this event, processes it, sends out an acknowledgment to the server, and publishes it in the BroadcastChannel. Let’s look at how we’ve achieved this via a code example.</p>
+
+<p>Managing connections in the worker:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">let</span> <span class="nx">socket</span><span class="p">;</span>
+<span class="kd">let</span> <span class="nx">instances</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="kd">let</span> <span class="nx">connections</span> <span class="o">=</span> <span class="p">[];</span>
+
+<span class="kd">let</span> <span class="nx">URI</span><span class="p">:</span> <span class="nx">string</span><span class="p">;</span>
+
+<span class="c1">// Called when a  new worker is connected.</span>
+<span class="c1">// Worker is created at</span>
+<span class="nx">onconnect</span> <span class="o">=</span> <span class="nx">e</span> <span class="o">=&gt;</span> <span class="p">{</span>
+ <span class="kd">const</span> <span class="nx">port</span> <span class="o">=</span> <span class="nx">e</span><span class="p">.</span><span class="nx">ports</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+
+ <span class="nx">port</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span>
+ <span class="nx">port</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="nx">handleEventFromMainThread</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nx">port</span><span class="p">);</span>
+ <span class="nx">connections</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">port</span><span class="p">);</span>
+ <span class="nx">instances</span> <span class="o">++</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// Publish ONLY to the first connection.</span>
+<span class="c1">// Let the caller decide on how to sync this with other tabs</span>
+<span class="kd">const</span> <span class="nx">callback</span><span class="o">=</span> <span class="p">(</span><span class="nx">topic</span><span class="p">,</span> <span class="nx">payload</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+    <span class="nx">connections</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">postMessage</span><span class="p">({</span>
+      <span class="nx">topic</span><span class="p">,</span>
+      <span class="nx">payload</span><span class="p">,</span>
+    <span class="p">});</span>
+ <span class="p">}</span>
+
+ <span class="kd">const</span> <span class="nx">handleEventFromMainThread</span> <span class="o">=</span> <span class="nx">e</span> <span class="o">=&gt;</span> <span class="p">{</span>
+   <span class="k">switch</span> <span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">topic</span><span class="p">)</span> <span class="p">{</span>
+     <span class="k">case</span> <span class="nx">SocketTopics</span><span class="p">.</span><span class="na">CONNECT</span><span class="p">:</span> <span class="p">{</span>
+       <span class="kd">const</span> <span class="nx">config</span> <span class="o">=</span> <span class="nx">e</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">payload</span><span class="p">;</span>
+       <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">socket</span><span class="p">)</span> <span class="p">{</span>
+         <span class="c1">// Establishes a WebSocket connection with the server</span>
+          <span class="nx">socket</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">SocketManager</span><span class="p">({...})</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+          <span class="nx">callback</span><span class="p">(</span><span class="nx">SocketTopics</span><span class="p">.</span><span class="nx">CONNECTED</span><span class="p">,</span> <span class="s1">''</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">break</span><span class="p">;</span>
+      <span class="p">}</span>
+      <span class="k">case</span> <span class="nx">SocketTopics</span><span class="p">.</span><span class="na">CLOSE</span><span class="p">:</span> <span class="p">{</span>
+        <span class="kd">const</span> <span class="nx">index</span> <span class="o">=</span> <span class="nx">connections</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nx">index</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">&amp;&amp;</span> <span class="nx">instances</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nx">connections</span><span class="p">.</span><span class="nx">splice</span><span class="p">(</span><span class="nx">index</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+            <span class="nx">instances</span><span class="o">--</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">break</span><span class="p">;</span>
+      <span class="p">}</span>
+        <span class="c1">// Forward everything else to the server</span>
+      <span class="nl">default</span><span class="p">:</span> <span class="p">{</span>
+        <span class="kd">const</span> <span class="nx">payload</span> <span class="o">=</span> <span class="nx">e</span><span class="p">.</span><span class="nx">data</span><span class="p">;</span>
+        <span class="nx">socket</span><span class="p">.</span><span class="nx">sendMessage</span><span class="p">(</span><span class="nx">payload</span><span class="p">);</span>
+        <span class="k">break</span><span class="p">;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+</code></pre></div></div>
+
+<p>And in the ChatSDK:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Implements IChatSDK</span>
+
+<span class="c1">// Rough outline of our GrabChat implementation</span>
+
+<span class="kd">class</span> <span class="nx">GrabChatSDK</span> <span class="p">{</span>
+  <span class="kd">constructor</span><span class="p">(</span><span class="nx">config</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">channel</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">BroadcastChannel</span><span class="p">(</span><span class="s1">'incoming_events'</span><span class="p">);</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">channel</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="p">({</span><span class="nx">data</span><span class="p">})</span> <span class="o">=&gt;</span> <span class="p">{</span>
+        <span class="k">switch</span><span class="p">(</span><span class="nx">data</span><span class="p">.</span><span class="nx">type</span><span class="p">)</span> <span class="p">{</span>
+            <span class="c1">// Handle events from other tabs</span>
+            <span class="c1">// .....</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">worker</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">SharedWorker</span><span class="p">(</span><span class="s1">'./worker'</span><span class="p">,</span> <span class="p">{</span>
+        <span class="na">type</span><span class="p">:</span> <span class="s1">'module'</span><span class="p">,</span>
+        <span class="na">name</span><span class="p">:</span> <span class="s2">`</span><span class="p">${</span><span class="nx">config</span><span class="p">.</span><span class="nx">appID</span><span class="p">}</span><span class="s2">-</span><span class="p">${</span><span class="nx">config</span><span class="p">.</span><span class="nx">appEnv</span><span class="p">}</span><span class="s2">`</span><span class="p">,</span>
+        <span class="na">credentials</span><span class="p">:</span> <span class="s1">'include'</span><span class="p">,</span>
+      <span class="p">});</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">worker</span><span class="p">.</span><span class="nx">port</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span>
+      <span class="c1">// Publish a connected event, so the worker manager can register this connection</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">worker</span><span class="p">.</span><span class="nx">port</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">({</span>
+        <span class="na">topic</span><span class="p">:</span> <span class="nx">SocketTopics</span><span class="p">.</span><span class="nx">CONNECT</span><span class="p">,</span>
+        <span class="nx">payload</span><span class="p">,</span>
+      <span class="p">});</span>
+      <span class="c1">// Incoming event from the shared worker</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">worker</span><span class="p">.</span><span class="nx">port</span><span class="p">.</span><span class="nx">onmessage</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">_handleIncomingMessage</span><span class="p">;</span>
+      <span class="c1">// Disconnect this port before tab closes</span>
+      <span class="nx">addEventListener</span><span class="p">(</span><span class="s1">'beforeunload'</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_disconnect</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="nx">sendMessage</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Attempt a delivery of the message</span>
+      <span class="nx">worker</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">({</span>
+        <span class="na">topic</span><span class="p">:</span> <span class="nx">SocketTopics</span><span class="p">.</span><span class="nx">NEW_MESSAGE</span><span class="p">,</span>
+        <span class="nx">getPayload</span><span class="p">(</span><span class="nx">message</span><span class="p">),</span>
+      <span class="p">});</span>
+      <span class="c1">// Send the message to all tabs to keep things in sync</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">channel</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="nx">getPayload</span><span class="p">(</span><span class="nx">message</span><span class="p">));</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Hit if this connection is the leader of the SharedWorker connection</span>
+    <span class="nx">_handleIncomingMessage</span><span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Send an ACK to our servers confirming receipt of the message</span>
+      <span class="nx">worker</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">({</span>
+        <span class="na">topic</span><span class="p">:</span> <span class="nx">SocketTopics</span><span class="p">.</span><span class="nx">ACK</span><span class="p">,</span>
+        <span class="nx">payload</span><span class="p">,</span>
+      <span class="p">});</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="nx">shouldBroadcast</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">type</span><span class="p">))</span> <span class="p">{</span>
+        <span class="k">this</span><span class="p">.</span><span class="nx">channel</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="nx">event</span><span class="p">);</span>
+      <span class="p">}</span>
+
+      <span class="k">this</span><span class="p">.</span><span class="nx">callback</span><span class="p">(</span><span class="nx">event</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="nx">_disconnect</span><span class="p">()</span> <span class="p">{</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">worker</span><span class="p">.</span><span class="nx">port</span><span class="p">.</span><span class="nx">postMessage</span><span class="p">(</span><span class="nx">data</span><span class="p">);</span>
+      <span class="nx">removeEventListener</span><span class="p">(</span><span class="s1">'beforeunload'</span><span class="p">,</span> <span class="k">this</span><span class="p">.</span><span class="nx">_disconnect</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This ensures that there is only one connection between our application and the TCP service irrespective of the number of tabs the page is open in.</p>
+
+<h2 id="some-caveats">Some caveats</h2>
+
+<p>While SharedWorker is a great way to enforce singleton objects across browser contexts, the developer experience of SharedWorker leaves a lot to be desired. There aren’t many resources on the web, and it could be quite confusing if this is the first time you’re using this feature.</p>
+
+<p>We faced some trouble integrating SharedWorker with bundling the worker code along. This plugin from <a href="https://github.com/GoogleChromeLabs/worker-plugin">GoogleChromeLabs</a> did a great job of alleviating some pain. Debugging an issue with SharedWorker was not obvious. Chrome has a dedicated page for inspecting SharedWorkers (<code class="highlighter-rouge">chrome://inspect/#workers</code>), and it took some getting used to.</p>
+
+<p>The browser support for SharedWorker is <a href="https://caniuse.com/sharedworkers">far from universal</a>. While it works great in Chrome, Firefox, and Opera, Safari and most mobile browsers lack support. This was an acceptable trade-off in our use case, as we built this for an internal portal and all our users are on Chrome.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image4.png" alt="Shared race" />
+  <figcaption align="middle"><i>Shared race</i></figcaption>
+</figure></div>
+
+<p>SharedWorker enforces uniqueness using a combination of origin and the script name. This could potentially introduce an unintentional race condition during deploy times if we’re not careful. Let’s say the user has a tab open before the latest deployment, and another one after deployment, it’s possible to end up with two different versions of the same script. We built a wrapper over the SharedWorker which cedes control to the latest connection, ensuring that there is only one version of the worker active.</p>
+
+<h2 id="wrapping-up">Wrapping up</h2>
+
+<p>We’re happy to have shared our learnings from building our in-house chat platform for the web, and we hope you found this post helpful. We’ve built the web solution as a reusable SDK for our internal portals and public-facing websites for quick and easy integration, providing a powerful user experience.</p>
+
+<p>We hope this post also helped you get a deeper sense of how SharedWorker and BroadcastChannels work in a production application.</p>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
+
+<p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#chat" class="label tags-label">chat</a>
+  
+    <a href="/tags#customer-support" class="label tags-label">customer support</a>
+  
+    <a href="/tags#engineering" class="label tags-label">engineering</a>
+  
+    <a href="/tags#web" class="label tags-label">web</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=How we built our in-house chat platform for the web&url=https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web&title=How we built our in-house chat platform for the web
+&summary=This blog post shares our learnings from building our very own chat platform for the web.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web';
+    this.page.identifier = '/how-we-built-our-in-house-chat-platform-for-the-web';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
