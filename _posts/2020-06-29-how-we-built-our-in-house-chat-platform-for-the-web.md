@@ -50,17 +50,17 @@ If you're familiar with how WebWorker works, feel free to skip ahead to the next
 
 ```js
 //instantiate a worker
-const worker = new WebWorker('./worker.js');
-worker.postMessage({message: "Ping"});
+const worker = new WebWorker("./worker.js");
+worker.postMessage({ message: "Ping" });
 worker.onMessage((e) => {
- console.log("Message from the worker");
+  console.log("Message from the worker");
 });
 
 // and in  worker.js
 onMessage = (e) => {
- console.log(e.message);
- this.postMessage({message: "pong"});
-}
+  console.log(e.message);
+  this.postMessage({ message: "pong" });
+};
 ```
 
 The worker API comes with a handy `postMessage` method which can be used to pass messages between the main thread and worker thread. Workers are a great way to add concurrency in a JavaScript application and help in speeding up an expensive process in the background.
@@ -74,23 +74,25 @@ SharedWorker is similar to a WebWorker and spawns an OS thread, but as the name 
 SharedWorkers internally use [MessagePort](https://developer.mozilla.org/en-US/docs/Web/API/MessagePort) to pass messages between the worker thread and the main thread. There are two ports- one for sending a message to the main thread and the other to receive. Let's explore it with an example:
 
 ```js
-const mySharedWorker = new SharedWorker('./worker.js');
+const mySharedWorker = new SharedWorker("./worker.js");
 mySharedWorker.port.start();
 mySharedWorker.port.postMessage(message);
 
-onconnect = e => {
- const port = e.ports[0];
+onconnect = (e) => {
+  const port = e.ports[0];
 
- // Handle messages from the main thread
- port.onmessage = handleEventFromMainThread.bind(port);
+  // Handle messages from the main thread
+  port.onmessage = handleEventFromMainThread.bind(port);
 };
 
 // Message from the main thread
 const handleEventFromMainThread = (params) => {
- console.log("I received", params, "from the main thread");
-}
+  console.log("I received", params, "from the main thread");
+};
 
-const sendEventToMainThread = params => {connections.forEach(c => c.postMessage(params))}
+const sendEventToMainThread = (params) => {
+  connections.forEach((c) => c.postMessage(params));
+};
 ```
 
 There is a lot to unpack here. Once a SharedWorker is created, we've to manually start the port using `mySharedWorker.port.start()` to establish a connection between the script running on the main thread and the worker thread. Post that, messages can be passed via the worker’s `postMessage` method. On the worker side, there is an `onconnect` callback which helps in setting up listeners for connections from each browser context.
@@ -111,23 +113,23 @@ The `BroadcastChannel` API creates a message bus that allows us to pass messages
 Let’s explore the API with a code example:
 
 ```js
-const channel = new BroadcastChannel('chat_messages');
+const channel = new BroadcastChannel("chat_messages");
 // Sets up an event listener to receive messages from other browser contexts
-channel.onmessage = ({data}) => {
- console.log("Received ", data)
-}
+channel.onmessage = ({ data }) => {
+  console.log("Received ", data);
+};
 
 const sendMessage = (message) => {
- const event =  { message, type: "new_message"};
- send(event);
- // Publish event to all browser contexts listening on the chat\_messages channel
- channel.postMessage(event);
-}
+  const event = { message, type: "new_message" };
+  send(event);
+  // Publish event to all browser contexts listening on the chat\_messages channel
+  channel.postMessage(event);
+};
 
 const off = () => {
- // clear event listeners
- channel.close();
-}
+  // clear event listeners
+  channel.close();
+};
 ```
 
 One thing to note here is that communication is restricted to listeners from the same origin.
@@ -140,12 +142,12 @@ Our Chat SDK abstracts the calls to the worker and the underlying transport mech
 
 ```js
 export interface IChatSDK {
- sendMessage: (message: ChatMessage) => string;
- sendReadReceipt: (receiptAck: MessageReceiptACK) => void;
- on: (callback: ICallBack) => void;
- off: (topic?: SDKTopics) => void;
- close: () => void;
- }
+  sendMessage: (message: ChatMessage) => string;
+  sendReadReceipt: (receiptAck: MessageReceiptACK) => void;
+  on: (callback: ICallBack) => void;
+  off: (topic?: SDKTopics) => void;
+  close: () => void;
+}
 ```
 
 The SDK does all the heavy lifting to manage the connection with our TCP service, and keeping the information in-sync across tabs.
@@ -303,7 +305,6 @@ SharedWorker enforces uniqueness using a combination of origin and the script na
 We’re happy to have shared our learnings from building our in-house chat platform for the web, and we hope you found this post helpful. We’ve built the web solution as a reusable SDK for our internal portals and public-facing websites for quick and easy integration, providing a powerful user experience.
 
 We hope this post also helped you get a deeper sense of how SharedWorker and BroadcastChannels work in a production application.
-
 
 ## Join us
 
