@@ -306,6 +306,10 @@ We’re happy to have shared our learnings from building our in-house chat platf
 
 We hope this post also helped you get a deeper sense of how SharedWorker and BroadcastChannels work in a production application.
 
+## Acknowledgements
+
+I'd like to take this opportunity to thank the working team for their contributions- Sanket Thanvi for extending the PoC to build a production grade SDK, Dinh Duong for adding more features to the SDK, and to Kevin Lee and Matthew Yeow for finding the edge cases and fixing the race condition during deploys. 
+
 ## Join us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
