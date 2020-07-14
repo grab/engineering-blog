@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>The journey of deploying Apache Airflow at Grab</title>
+    <meta name="description" content="This blog post shares how we designed and implemented an Apache Airflow-based scheduling and orchestration platform for teams across Grab.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab">
+    <meta property="og:title" content="The journey of deploying Apache Airflow at Grab">
+    <meta property="og:description" content="This blog post shares how we designed and implemented an Apache Airflow-based scheduling and orchestration platform for teams across Grab.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/the-journey-of-deploying-apache-airflow-at-Grab/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/chandulal-kavar.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">The journey of deploying Apache Airflow at Grab</h1>
+      
+      <div class="post-meta">
+        14 Jul 2020
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#chandulal-kavar">Chandulal Kavar</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#airflow" class="label tags-label">airflow</a>
+  
+    <a href="/tags#data-pipelines" class="label tags-label">data pipelines</a>
+  
+    <a href="/tags#engineering" class="label tags-label">engineering</a>
+  
+    <a href="/tags#kubernetes" class="label tags-label">kubernetes</a>
+  
+    <a href="/tags#platform" class="label tags-label">platform</a>
+  
+    <a href="/tags#scheduling" class="label tags-label">scheduling</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p>At Grab, we use <a href="https://airflow.apache.org">Apache Airflow</a> to schedule and orchestrate the ingestion and transformation of data,  train machine learning models, and the copy data between clouds. There are many engineering teams at Grab that use Airflow, each of which originally had their own Airflow instance.</p>
+
+<p>The proliferation of independently managed Airflow instances resulted in inefficient use of resources, where each team ended up solving the same problems of logging, scaling, monitoring, and more. From this morass came the idea of having a single dedicated team to manage all the Airflow instances for anyone in Grab that wants to use Airflow as a scheduling tool.</p>
+
+<p>We designed and implemented an Apache Airflow-based scheduling and orchestration platform that currently runs close to 20 Airflow instances for different teams at Grab. Sounds interesting? What follows is a brief history.</p>
+
+<h2 id="early-days">Early days</h2>
+
+<p>Circa 2018, we were running a few hundred Directed Acyclic Graphs (DAGs) on one Airflow instance in the Data Engineering team. There was no dedicated team to maintain it, and no Airflow expert in our team. We were struggling to maintain our Airflow instance, which was causing many jobs to fail every day. We were facing issues with library management, scaling, managing and syncing artefacts across all Airflow components, upgrading Airflow versions, deployment, rollbacks, etc.</p>
+
+<p>After a few postmortem reports, we realized that we needed a dedicated team to maintain our Airflow. This was how our Airflow team was born.</p>
+
+<p>In the initial months, we dedicated ourselves to stabilizing our Airflow environment. During this process, we realized that Airflow has a steep learning curve and requires time and effort to understand and maintain properly. Also, we found that tweaking of Airflow configurations required a thorough understanding of Airflow internals.</p>
+
+<p>We felt that for the benefit of everyone at Grab, we should leverage what we learned about Airflow to help other teams at Grab; there was no need for anyone else to go through the same struggles we did. That’s when we started thinking about managing Airflow for other teams.</p>
+
+<p>We talked to the Data Science and Engineering teams who were also running Airflow to schedule their jobs. Almost all the teams were struggling to maintain their Airflow instance. A few teams didn’t have enough technical expertise to maintain their instance. The Data Scientists and Analysts that we spoke to were more than happy to outsource the overhead of Airflow maintenance and wanted to focus more on their Data Science use cases instead.</p>
+
+<p>We started working with one of the Data Science teams and initiated the discussion to create a dockerized Airflow instance and run it on our Kubernetes cluster.</p>
+
+<p>We created the Airflow instance and maintained it for them. Later, we were approached by two more teams to help with their Airflow instances. This was the trigger for us to design and create a platform on which we can efficiently manage Airflow instances for different teams.</p>
+
+<h2 id="current-state">Current state</h2>
+
+<p>As mentioned, we are currently serving close to 20 Airflow instances for various teams on this platform and leverage Apache Airflow to schedule thousands of daily jobs.  Each Airflow instance is currently scheduling 1k to 60k daily jobs. Also, new teams can quickly try out Airflow without worrying about infrastructure and maintenance overhead. Let’s go through the important aspects of this platform such as design considerations, architecture, deployment, scalability, dependency management, monitoring and alerting, and more.</p>
+
+<h3 id="design-considerations">Design considerations</h3>
+
+<p>The initial step we took towards building our scheduling platform was to define a set of expectations and guidelines around ownership, infrastructure, authentication, common artifacts and CI/CD, to name a few.</p>
+
+<p>These were the considerations we had in mind:</p>
+
+<ul>
+  <li>Deploy containerized Airflow instances on Kubernetes cluster to isolate Airflow instances at the team level. It should scale up and scale out according to usage.</li>
+  <li>Each team can have different sets of jobs that require specific dependencies on the Airflow server.</li>
+  <li>Provide common CI/CD templates to build, test, and deploy Airflow instances. These CI/CD templates should be flexible enough to be extended by users and modified according to their use case.</li>
+  <li>Common plugins, operators, hooks, sensors will be shipped to all Airflow instances. Moreover, each team can have its own plugins, operators, hooks, and sensors.</li>
+  <li>Support LDAP based authentication as it is natively supported by Apache Airflow. Each team can authenticate Airflow UI by their LDAP credentials.</li>
+  <li>Use the Hashicorp Vault to store Airflow specific secrets. Inject these secrets via sidecar in Airflow servers.</li>
+  <li>Use ELK stack to access all application logs and infrastructure logs.</li>
+  <li>Datadog and PagerDuty will be used for monitoring and alerting.</li>
+  <li>Ingest job statistics such as total number of jobs scheduled, no of failed jobs, no of successful jobs, active DAGs, etc. into the data lake and will be accessible via Presto.</li>
+</ul>
+
+<div class="post-image-section"><figure>
+  <img src="/img/the-journey-of-deploying-apache-airflow-at-Grab/image2.png" alt="Architecture diagram" />
+  <figcaption align="middle"><i>Architecture diagram</i></figcaption>
+</figure></div>
+
+<h3 id="infrastructure-management">Infrastructure management</h3>
+
+<p>Initially, we started deploying Airflow instances on  Kubernetes clusters managed via <a href="https://github.com/kubernetes/kops">Kubernetes Operations (KOPS)</a>. Later, we migrated to Amazon EKS to reduce the overhead of managing the Kubernetes control plane. Each Kubernetes namespace deploys one Airflow instance.</p>
+
+<p>We chose Terraform to manage infrastructure as code. We deployed each Airflow instance using Terraform modules, which include a <strong>helm_release</strong> Terraform resource on top of our customized Airflow Helm Chart.</p>
+
+<p>Each Airflow instance connects to its own Redis and RDS. RDS is responsible for storing Airflow metadata and Redis is acting as a celery broker between Airflow scheduler and Airflow workers.</p>
+
+<p>The Hashicorp Vault is used to store secrets required by Airflow instances and injected via sidecar by each Airflow component. The ELK stack stores all logs related to Airflow instances and is used for troubleshooting any instance. Datadog, Slack, and PagerDuty are used to send alerts.</p>
+
+<p>Presto is used to access job statistics, such as numbers on scheduled jobs, failed jobs, successful jobs, and active DAGs, to help each team to analyze their usage and stability of their jobs.</p>
+
+<h3 id="doing-things-at-scale">Doing things at scale</h3>
+
+<p>There are two kinds of scaling we need to talk about:</p>
+
+<ul>
+  <li>scaling of Airflow instances on a resource level handling different loads</li>
+  <li>scaling in terms of teams served on the platform</li>
+</ul>
+
+<p>To scale Airflow instances, we set the request and the limit of each Airflow component allowing any of the components to scale up easily. To scale out Airflow workers, we decided to enable the horizontal pod autoscaler (HPA) using Memory and CPU parameters. The cluster autoscaler on EKS helps in scaling the platform to accommodate more teams.</p>
+
+<p>Moreover, we categorized all our Airflow instances in three sizes (small, medium, and large) to efficiently use the resources. This was based on how many hourly/daily jobs it scheduled. Each Airflow instance type has a specific RDS instance type and storage, Redis instance type and CPU and memory, request/limit for scheduler, worker, web server, and flower. There are different Airflow configurations for each instance type to optimize the given resources to the Airflow instance.</p>
+
+<h3 id="airflow-image-and-version-management">Airflow image and version management</h3>
+
+<p>The Airflow team builds and releases one common base Docker image for each Airflow version. The base image has Airflow installed with specific versions, as well as common Python packages, plugins, helpers, tests, patches, and so on.</p>
+
+<p>Each team has their customized Docker image on top of the base image. In their customized Docker image, they can update the Python packages and can download other artifacts that they require. Each Airflow instance will be deployed using the team’s customized image.</p>
+
+<p>There are common CI/CD templates provided by the Airflow team to build the customized image, run unit tests, and deploy Airflow instances from their GitLab pipeline.</p>
+
+<p>To upgrade the Airflow version, the Airflow team reviews and studies the changelog of the released Airflow version, note down the important features and its impacts, open issues, bugs, and workable solutions. Later, we build and release the base Docker image using the new Airflow version.</p>
+
+<p>We support only one Airflow version for all Airflow instances to have less maintenance overhead. In the case of minor or major versions, we support one old and new versions until the retirement period.</p>
+
+<h3 id="how-do-we-deploy">How do we deploy</h3>
+
+<p>There is a deployment ownership guideline that explains the schedule of deployments and the corresponding PICs. All teams have agreed on this guideline and share the responsibility with the Airflow Team.</p>
+
+<p>There are two kinds of deployment:</p>
+
+<ul>
+  <li><strong>DAG deployment</strong>: This is part of the common GitLab CI/CD template. The Airflow team doesn’t trigger the DAG deployment, it’s fully owned by the teams.</li>
+  <li><strong>Airflow instance deployment</strong>: The Airflow instance deployment is required in these scenarios:
+    <ol>
+      <li>update in base Docker image</li>
+      <li>add/update in Python packages by any team</li>
+      <li>customization in the base image by any team</li>
+      <li>change in Airflow configurations</li>
+      <li>change in the resource of scheduler, worker, web server or flower</li>
+    </ol>
+  </li>
+</ul>
+
+<h4 id="base-docker-image-update">Base Docker image update</h4>
+
+<p>The Airflow team maintains the base Docker image on the AWS Elastic Container Registry. The GitLab CI/CD builds the updated base image whenever the Airflow team changes the base image. The base image is validated by automated deployment on the test environment and automated smoke test. The Airflow instance owner of each team needs to trigger their build and deployment pipeline to apply the base image changes on their Airflow instance.</p>
+
+<h4 id="python-package-additions-or-updates">Python package additions or updates</h4>
+
+<p>Each team can add or update their Python dependencies. The Gitlab CI/CD pipeline builds a new image with updated changes. The Airflow instance owner manually triggers the deployment from their CI/CD pipeline. There is a flag to make it automated deployment as well.</p>
+
+<h4 id="based-image-customization">Based image customization</h4>
+
+<p>Each team can add any customizations on the base image. Similar to the above scenario, the Gitlab CI/CD pipeline builds a new image with updated changes. The Airflow instance owner manually triggers the deployment from their CI/CD pipeline. To automate the deployment, a flag is made available.</p>
+
+<h4 id="configuration-airflow-and-airflow-component-resource-changes">Configuration Airflow and Airflow component resource changes</h4>
+
+<p>To optimize the Airflow instances, the Airflow Team makes changes to the Airflow configurations and resources of any of the Airflow components. The Airflow configurations and resources are also part of the Terraform code. Atlantis (<a href="https://www.runatlantis.io/">https://www.runatlantis.io/</a>) deploys the Airflow instances with Terraform changes.</p>
+
+<p>There is no downtime in any form of deployment and doesn’t impact the running tasks and the Airflow UI.</p>
+
+<h3 id="testing">Testing</h3>
+
+<p>During the process of making our first Airflow stable, we started exploring testing in Airflow. We wanted to validate the correctness of DAGs, duplicate DAG IDs, checking typos and cyclicity in DAGs, etc. We then later wrote the tests by ourselves and published a detailed blog in several channels: <a href="https://blog.usejournal.com/testing-in-airflow-part-1-dag-validation-tests-dag-definition-tests-and-unit-tests-2aa94970570c">usejournal (part1)</a> and <a href="https://medium.com/@chandukavar/testing-in-airflow-part-2-integration-tests-and-end-to-end-pipeline-tests-af0555cd1a82">medium (part2)</a>.</p>
+
+<p>These tests are available in the base image and run in the GitLab pipeline from the user’s repository to validate their DAGs. The unit tests run using the common GitLab CI/CD template provided by the Airflow team.</p>
+
+<h3 id="monitoring--alerting">Monitoring &amp; alerting</h3>
+
+<p>Our scheduling platform runs the Airflow instance for many critical jobs scheduled by each team. It’s important for us to monitor all Airflow instances and alert respective stakeholders in case of any failure.</p>
+
+<p>We use a Datadog for monitoring and alerting. To create a common Datadog dashboard, it is required to pass tags with metrics from Airflow and till Airflow 1.10.x, it doesn’t support tagging to Datadog metrics.</p>
+
+<p>We have contributed to the community to enable Datadog support and it will be released in Airflow 2.0.0 (<a href="https://github.com/apache/airflow/pull/7376">https://github.com/apache/Airflow/pull/7376</a>). We internally patched this pull request and created the common Datadog dashboard.</p>
+
+<p>There are three categories of metrics that we are interested in:</p>
+
+<ul>
+  <li><strong>EKS cluster metrics</strong>: It includes total In-Service Nodes, allocated CPU cores, allocated Memory, Node status, CPU/Memory request vs limit, Node disk and Memory pressure, Rx-Tx packets dropped/errors, etc.</li>
+  <li><strong>Host Metrics</strong>: These metrics are for each host participating in the EKS cluster. It includes Host CPU/Memory utilization, Host free memory, System disk, and EBS IOPS, etc.</li>
+  <li><strong>Airflow instance metrics</strong>: These metrics are for each Airflow instance. It includes scheduler heartbeats, DagBag size, DAG processing import errors, DAG processing time, open/used slots in a pool, each pod’s Memory/CPU usage, CPU and Memory utilization of metadata DB, database connections as well as the number of workers, active/paused DAGs, successful/failed/queued/running tasks, etc.</li>
+</ul>
+
+<div class="post-image-section"><figure>
+  <img src="/img/the-journey-of-deploying-apache-airflow-at-Grab/image1.png" alt="Sample Datadog dashboard" />
+  <figcaption align="middle"><i>Sample Datadog dashboard</i></figcaption>
+</figure></div>
+
+<p>We alert respective stakeholders and oncalls using Slack and PagerDuty.</p>
+
+<h3 id="benefits">Benefits</h3>
+
+<p>These are the benefits of having our own Scheduling Platform:</p>
+
+<ul>
+  <li><strong>Scaling</strong>: HPA on Airflow workers running on EKS with autoscaler helps Airflow workers to scale automatically to theoretically infinite scale. This enables teams to run thousands of DAGs.</li>
+  <li><strong>Logging</strong>: Centralized logging using Kibana.</li>
+  <li><strong>Better Isolation</strong>: Separate Docker images for each team provide better isolation.</li>
+  <li><strong>Better Customization</strong>: All teams are provided with a mechanism to customize their Airflow worker environment according to their requirements.</li>
+  <li><strong>Zero Downtime</strong>: Rolling upgrade and termination period on Airflow workers helps in zero downtime during the deployment.</li>
+  <li><strong>Efficient usage of infrastructure</strong>: Each team doesn’t need to allocate infrastructure for Airflow instances. All Airflow instances are deployed on one shared EKS cluster.</li>
+  <li><strong>Less maintenance overhead for users</strong>:  Users can focus on their core work and don’t need to spend time maintaining Airflow instances and it’s resources.</li>
+  <li><strong>Common plugins and helpers</strong>: All common plugins and helpers available to use on Airflow instances. Each team doesn’t need to add.</li>
+</ul>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Designing and implementing our own scheduling platform started with many challenges and unknowns. We were not sure about the scale we were aiming for, the heterogeneous workload from each team, or the level of triviality or complexity we were going to be faced. After two years, we have successfully built and productionized a scalable scheduling platform that helps teams at Grab to schedule their workload.</p>
+
+<p>We have many failure stories, odd things we ran into, hacks and workarounds we patched. But, we went through it and provided a cost-effective and scalable scheduling platform with low maintenance overhead to all teams at Grab.</p>
+
+<h2 id="whats-next">What’s Next</h2>
+
+<p>Moving ahead, we will be exploring to add the following capabilities:</p>
+
+<ul>
+  <li>REST APIs to enable teams to access their Airflow instance programmatically and have better integration with other tools and frameworks.</li>
+  <li>Support of dynamic DAGs at scale to help in decreasing the DAG maintenance overhead.</li>
+  <li>Template-based engine to act as a middle layer between the scheduling platform and external systems. It will have a set of templates to generate DAGs which helps in better integration with the external system.</li>
+</ul>
+
+<p>We suggest anyone who is running multiple Airflow instances within different teams to look at this approach and build the centralized scheduling platform. Before you begin,  review the feasibility of building the centralized platform as it requires a vision, a lot of effort, and cross-communication with many teams.</p>
+
+<hr />
+
+<p><small class="credits">Authored by Chandulal Kavar on behalf of the Airflow team at Grab - Charles Martinot, Vinson Lee, Akash Sihag, Piyush Gupta, Pramiti Goel, Dewin Goh, QuiHieu Nguyen, James Anh-Tu Nguyen, and the Data Engineering Team.</small></p>
+
+<hr />
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
+
+<p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#airflow" class="label tags-label">airflow</a>
+  
+    <a href="/tags#data-pipelines" class="label tags-label">data pipelines</a>
+  
+    <a href="/tags#engineering" class="label tags-label">engineering</a>
+  
+    <a href="/tags#kubernetes" class="label tags-label">kubernetes</a>
+  
+    <a href="/tags#platform" class="label tags-label">platform</a>
+  
+    <a href="/tags#scheduling" class="label tags-label">scheduling</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=The journey of deploying Apache Airflow at Grab&url=https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab&title=The journey of deploying Apache Airflow at Grab
+&summary=This blog post shares how we designed and implemented an Apache Airflow-based scheduling and orchestration platform for teams across Grab.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab';
+    this.page.identifier = '/the-journey-of-deploying-apache-airflow-at-Grab';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
