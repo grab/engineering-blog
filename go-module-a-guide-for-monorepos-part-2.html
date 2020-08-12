@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Go Modules- A guide for monorepos (Part 2)</title>
+    <meta name="description" content="This is the second post on the Go module series, which highlights Grab’s experience working with Go modules in a multi-module monorepo. Here, we discuss the additional solutions for addressing dependency issues, as well as cover automatic upgrades.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2">
+    <meta property="og:title" content="Go Modules- A guide for monorepos (Part 2)">
+    <meta property="og:description" content="This is the second post on the Go module series, which highlights Grab’s experience working with Go modules in a multi-module monorepo. Here, we discuss the additional solutions for addressing dependency issues, as well as cover automatic upgrades.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/go-module-a-guide-for-monorepos-part-1/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/michael-cartmell.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Go Modules- A guide for monorepos (Part 2)</h1>
+      
+      <div class="post-meta">
+        12 Aug 2020
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#michael-cartmell">Michael Cartmell</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#go" class="label tags-label">go</a>
+  
+    <a href="/tags#libraries" class="label tags-label">libraries</a>
+  
+    <a href="/tags#monorepo" class="label tags-label">monorepo</a>
+  
+    <a href="/tags#vendoring" class="label tags-label">vendoring</a>
+  
+    <a href="/tags#vendors" class="label tags-label">vendors</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p>This is the second post on the Go module series, which highlights Grab’s experience working with Go modules in a multi-module monorepo. In this article, we’ll focus on suggested solutions for catching unexpected changes to the <code class="highlighter-rouge">go.mod</code> file and addressing dependency issues. We’ll also cover automatic upgrades and other learnings uncovered from the initial obstacles in using Go modules.</p>
+
+<h2 id="vendoring-process-issues">Vendoring process issues</h2>
+
+<p>Our previous vendoring process fell solely on the developer who wanted to add or update a dependency. However, it was often the case that the developer came across many unexpected changes, due to previous vendoring attempts, accidental imports and changes to dependencies.</p>
+
+<p>The developer would then have to resolve these issues before being able to make a change, costing time and causing frustration with the process. It became clear that it wasn’t practical to expect the developer to catch all of the potential issues while vendoring, especially since Go modules itself was new and still in development.</p>
+
+<h2 id="avoiding-unexpected-changes">Avoiding unexpected changes</h2>
+
+<p>Reluctantly, we added a check to our CI process which ran on every merge request. This helped ensure that there are no unexpected changes required to go mod. This added time to every build and often flagged a failure, but it saved a lot of post-merge hassle. We then realized that we should have done this from the beginning.</p>
+
+<p>Since we hadn’t enabled Go modules for builds yet, we couldn’t rely on the <a href="https://godoc.org/cmd/go%23hdr-Maintaining_module_requirements"><code class="highlighter-rouge">\mod=readonly</code></a> flag. We implemented the check by running <code class="highlighter-rouge">go mod vendor</code> and then checking the resulting difference.</p>
+
+<p>If there were any changes to <code class="highlighter-rouge">go.mod</code> or the vendor directory, the merge request would get rejected. This worked well in ensuring the integrity of our <code class="highlighter-rouge">go.mod</code>.</p>
+
+<h2 id="roadblocks-and-learnings">Roadblocks and learnings</h2>
+
+<p>However, as this was the first time we were using Go modules on our CI system, it uncovered some more problems.</p>
+
+<h3 id="private-repository-access">Private repository access</h3>
+
+<p>There was the problem of accessing private repositories. We had to ensure that the CI system was able to clone all of our private repositories as well as the main monorepo, by adding the relevant SSH deploy keys to the repository.</p>
+
+<h3 id="false-positives">False positives</h3>
+
+<p>The check sometimes fired <code class="highlighter-rouge">false positives</code> - detecting a go mod failure when there were no changes. This was often due to network issues, especially when the modules are hosted by less reliable third-party servers. This is somewhat solved in Go 1.13 onwards with the introduction of <a href="https://golang.org/cmd/go/%23hdr-Module_downloading_and_verification">proxy servers</a>, but our workaround was simply to retry the command several times.</p>
+
+<p>We also avoided adding dependencies hosted by a domain that we haven’t seen before, unless absolutely necessary.</p>
+
+<h3 id="inconsistent-go-versions">Inconsistent Go versions</h3>
+
+<p>We found several inconsistencies between Go versions - running go mod vendor on one Go version gave different results to another. One example was a <a href="https://github.com/golang/go/issues/29278">change to the checksums</a>. These inconsistencies are less common now, but still remain between Go 1.12 and later versions. The only solution is to stick to a single version when running the vendoring process.</p>
+
+<h2 id="automated-upgrades">Automated upgrades</h2>
+
+<p>There are benefits to using Go modules for vendoring. It’s faster than previous solutions, better supported by the community and it’s part of the language, so it doesn’t require any extra tools or wrappers to use it.</p>
+
+<p>One of the most useful benefits from using Go modules is that it enables automated upgrades of dependencies in the go.mod file - and it becomes more useful as more third-party modules adopt Go modules and semantic versioning.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/go-module-a-guide-for-monorepos-part-2/image1.png" alt="Automated updates workflow" />
+  <figcaption align="middle"><i>Automated updates workflow</i></figcaption>
+</figure></div>
+
+<p>We call our solution for automating updates at Grab the AutoVend Bot. It is built around a single Go command, <code class="highlighter-rouge">go list -m -u all</code>, which finds and lists available updates to the dependencies listed in <code class="highlighter-rouge">go.mod</code> (add <code class="highlighter-rouge">\json</code> for JSON output). We integrated the bot with our development workflow and change-request system to take the output from this command and create merge requests automatically, one per update.</p>
+
+<p>Once the merge request is approved (by a human, after verifying the test results), the bot would push the change. We have hundreds of dependencies in our main monorepo module, so we’ve scheduled it to run a small number each day so we’re not overwhelmed.</p>
+
+<p>By reducing the manual effort required to update dependencies to almost nothing, we have been able to apply hundreds of updates to our dependencies, and ensure our most critical dependencies are on the latest version. This not only helps keep our dependencies free from bugs and security flaws, but it makes future updates far easier and less impactful by reducing the set of changes needed.</p>
+
+<h2 id="in-summary">In Summary</h2>
+
+<p>Using Go modules for vendoring has given us valuable and low-risk exposure to the feature. We have been able to detect and solve issues early, without affecting our regular builds, and develop tooling that’ll help us in future.</p>
+
+<p>Although Go modules is part of the standard Go toolchain, it shouldn’t be viewed as a complete <em>off the shelf</em> solution that can be dropped into a codebase, especially a monorepo.</p>
+
+<p>Like many other Go tools, the Modules feature comprises many small, focused tools that work best when combined together with other code. By embracing this concept and leveraging things like go list, go mod graph and go mod vendor, Go modules can be made to integrate into existing workflows, and deliver the benefits of structured versioning and reproducible builds.</p>
+
+<p>I hope you have enjoyed this article on using Go modules and vendoring within a monorepo.</p>
+
+<h2 id="join-us">Join us</h2>
+<p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
+
+<p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
+
+<h4 id="credits">Credits</h4>
+<p><em>The cute Go gopher logo for this blog’s cover image was inspired by Renee French’s original work.</em></p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#go" class="label tags-label">go</a>
+  
+    <a href="/tags#libraries" class="label tags-label">libraries</a>
+  
+    <a href="/tags#monorepo" class="label tags-label">monorepo</a>
+  
+    <a href="/tags#vendoring" class="label tags-label">vendoring</a>
+  
+    <a href="/tags#vendors" class="label tags-label">vendors</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Go Modules- A guide for monorepos (Part 2)&url=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2&title=Go Modules- A guide for monorepos (Part 2)
+&summary=This is the second post on the Go module series, which highlights Grab’s experience working with Go modules in a multi-module monorepo. Here, we discuss the additional solutions for addressing dependency issues, as well as cover automatic upgrades.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2';
+    this.page.identifier = '/go-module-a-guide-for-monorepos-part-2';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
