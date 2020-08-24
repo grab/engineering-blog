@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway</title>
+    <meta name="description" content="This blog post discusses how Grab's DataGateway plays a key role in supporting hundreds of users in our entire Presto ecosystem - from managing user access, cluster selection, workload distribution, and many more.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/data-gateway">
+    <meta property="og:title" content="Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway">
+    <meta property="og:description" content="This blog post discusses how Grab's DataGateway plays a key role in supporting hundreds of users in our entire Presto ecosystem - from managing user access, cluster selection, workload distribution, and many more.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/data-gateway/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/data-gateway">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/vinnson-lee.jpg">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway</h1>
+      
+      <div class="post-meta">
+        24 Aug 2020
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#vinnson-lee">Vinnson Lee</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#access-control" class="label tags-label">Access Control</a>
+  
+    <a href="/tags#cluster" class="label tags-label">Cluster</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#data-pipeline" class="label tags-label">Data Pipeline</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#presto" class="label tags-label">Presto</a>
+  
+    <a href="/tags#workload-distribution" class="label tags-label">Workload Distribution</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <h2 id="introduction">Introduction</h2>
+
+<p>Data is the lifeblood of Grab and the insights we gain from it drive all the most critical business decisions made by Grabbers and our leaders every day.</p>
+
+<p>Grab’s Data Engineering (DE) team is responsible for maintaining the data platform, which consists of data pipelines, job schedulers, and the query/computation engines that are the key components for generating insights from data. SQL is the core language for analytics at Grab and as of early 2020, our Presto platform serves about 200 user groups that add up to 500 users who run 350,000 queries every day. These queries span across 10,000 tables that process up to 1PB of data daily.</p>
+
+<p>In 2016, we started the DataGateway project to enable us to manage data access for the hundreds of Grabbers who needed access to <a href="https://aws.amazon.com/big-data/what-is-presto/">Presto</a> for their work. Since then, DataGateway has grown to become much more than just an access control mechanism for Presto. In this blog, we want to share what we’ve achieved since the initial launch of the project.</p>
+
+<h2 id="the-problems-we-wanted-to-solve">The problems we wanted to solve</h2>
+
+<p>As we were reviewing the key challenges around data access in Grab and assessing possible solutions, we came up with this prioritized list of user requirements we wanted to work on:</p>
+
+<ul>
+  <li>Use a single endpoint to serve everyone.</li>
+  <li>Manage user access to clusters, schemas, tables, and fields.</li>
+  <li>Provide seamless user experience when presto clusters are scaled up/down, in/out, or provisioned/decommissioned.</li>
+  <li>Capture audit trail of user activities.</li>
+</ul>
+
+<p>To provide Grabbers with the critical need of interactive querying, as well as performing extract, transform, load (ETL) jobs, we evaluated several technologies. Presto was among the ones we evaluated, and was what we eventually chose although it didn’t meet all of our requirements out of the box. In order to address these gaps, we came up with the idea of a security gateway for the Presto compute engine that could also act as a load balancer/proxy, this is how we ended up creating the DataGateway.</p>
+
+<p>DataGateway is a service that sits between clients and Presto clusters. It is essentially a smart HTTP proxy server that is an abstraction layer on top of the Presto clusters that handles the following actions:</p>
+
+<ol>
+  <li>Parse incoming SQL statements to get requested schemas, tables, and fields.</li>
+  <li>Manage user Access Control List (ACL) to limit users’ data access by checking against the SQL parsing results.</li>
+  <li>Manage users’ cluster access.</li>
+  <li>Redirect users’ traffic to the authorized clusters.</li>
+  <li>Show meaningful error messages to users whenever the query is rejected or exceptions from clusters are encountered.</li>
+</ol>
+
+<h2 id="anatomy-of-datagateway">Anatomy of DataGateway</h2>
+
+<p>The DataGateway’s key components are as follows:</p>
+
+<ul>
+  <li>API Service</li>
+  <li>SQL Parser</li>
+  <li>Auth framework</li>
+  <li>Administration UI</li>
+</ul>
+
+<p>We leveraged Kubernetes to run all these components as microservices.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Figure 1. DataGateway Key Components" height="90%" width="90%" src="/img/data-gateway/image3.png" />
+    <figcaption><em>Figure 1. DataGateway Key Components</em></figcaption>
+  </figure>
+</div>
+
+<h3 id="api-service">API Service</h3>
+
+<p>This is the component that manages all users and cluster-facing processes. We integrated this service with the Presto API, which means it appears to be the same as a Presto cluster to a client. It accepts query requests from clients, gets the parsing result and runs authorization from the SQL Parser and the Auth Framework.</p>
+
+<p>If everything is good to go, the API Service forwards queries to the assigned clusters and continues the entire query process.</p>
+
+<h3 id="auth-framework">Auth Framework</h3>
+
+<p>This handles both authentication and authorization requests. It stores the ACL of users and communicates with the API Service and the SQL Parser to run the entire authentication process. But why is it a microservice instead of a module in API Service, you ask? It’s because we keep evolving the security checks at Grab to ensure that everything is compliant with our security requirements, especially when dealing with data.</p>
+
+<p>We wanted to make it flexible to fulfill ad-hoc requests from the security team without affecting the API Service. Furthermore, there are different authentication methods out there that we might need to deal with (OAuth2, SSO, you name it). The API Service supports multiple authentication frameworks that enable different authentication methods for different users.</p>
+
+<h3 id="sql-parser">SQL Parser</h3>
+
+<p>This is a SQL parsing engine to get schema, tables, and fields by reading SQL statements. Since Presto SQL parsing works differently in each version, we would compile multiple SQL Parsers that are identical to the Presto clusters we run. The SQL Parser becomes the single source of truth.</p>
+
+<h3 id="admin-ui">Admin UI</h3>
+
+<p>This is a UI for Presto administrators to manage clusters and user access, as well as to select an authentication framework, making it easier for the administrators to deal with the entire ecosystem.</p>
+
+<h2 id="how-we-deployed-datagateway-using-kubernetes">How we deployed DataGateway using Kubernetes</h2>
+
+<p>In the past couple of years, we’ve had significant growth in workloads from analysts and data scientists. As we were very enthusiastic about Kubernetes, DataGateway was chosen as one of the earliest services for deployment in Kubernetes. DataGateway in Kubernetes is known to be highly available and fully scalable to handle traffic from users and systems.</p>
+
+<p>We also tested the <a href="https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough">HPA feature of Kubernetes</a>, which is a dynamic scaling feature to scale in or out the number of pods based on actual traffic and resource consumption.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Figure 2. DataGateway deployment using Kubernetes" height="90%" width="90%" src="/img/data-gateway/image1.png" />
+    <figcaption><em>Figure 2. DataGateway deployment using Kubernetes</em></figcaption>
+  </figure>
+</div>
+
+<h2 id="functionality-of-datagateway">Functionality of DataGateway</h2>
+
+<p>This section highlights some of the ways we use DataGateway to manage our Presto ecosystem efficiently.</p>
+
+<h3 id="restrict-users-based-on-schematable-level-access">Restrict users based on Schema/Table level access</h3>
+
+<p>In a setup where a Presto cluster is deployed on <a href="https://aws.amazon.com/emr">AWS Amazon Elastic MapReduce (EMR)</a> or <a href="https://aws.amazon.com/eks">Elastic Kubernetes Service (EKS)</a>, we configure an <a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html">IAM</a> role and attach it to the EMR or EKS nodes. The IAM role is set to limit the access to S3 storage. However, the IAM only provides bucket-level and file-level control; it doesn’t meet our requirements to have schema, table, and column-level ACLs. That’s how DataGateway is found useful in such scenarios.</p>
+
+<p>One of the DataGateway services is an SQL Parser. As previously covered, this is a service that parses and digs out schemas and tables involved in a query. The API service receives the parsing result and checks against the ACL of users, and decides whether to allow or reject the query. This is a remarkable improvement in our security control since we now have another layer to restrict access, on top of the S3 storage. We’ve implemented an SQL-based access control down to table level.</p>
+
+<p>As shown in the Figure 3, user A is trying run a SQL statement <code class="highlighter-rouge">select * from locations.cities</code>. The SQL Parser reads the statement and tells the API service that user A is trying to read data from the table <code class="highlighter-rouge">cities</code> in the schema <code class="highlighter-rouge">locations</code>. Then, the API service checks against the ACL of user A. The service finds that user A has only read access to table <code class="highlighter-rouge">countries</code> in schema <code class="highlighter-rouge">locations</code>. Eventually, the API service denies this attempt because user A doesn’t have read access to table <code class="highlighter-rouge">cities</code> in the schema <code class="highlighter-rouge">locations</code>.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Figure 3. An example of how to check user access to run SQL statements" height="90%" width="90%" src="/img/data-gateway/image5.png" />
+    <figcaption><em>Figure 3. An example of how to check user access to run SQL statements</em></figcaption>
+  </figure>
+</div>
+
+<p>The above flow shows an access denied result because the user doesn’t have the appropriate permissions.</p>
+
+<h3 id="seamless-user-experience-during-the-emr-migration">Seamless User Experience during the EMR migration</h3>
+
+<p>We use AWS EMR to deploy Presto as an SQL query engine since deployment is really easy. However, without DataGateway, any EMR operations such as terminations, new cluster deployment, config changes, and version upgrades, would require quite a bit of user involvement. We would sometimes need users to make changes on their side. For example, request users to change the endpoints to connect to suitable clusters.</p>
+
+<p>With DataGateway, ACLs exist for each of the user accounts. The ACL includes the list of EMR clusters that users are allowed to access. As a Presto access management platform, here the DataGateway redirects user traffics to an appropriate cluster based on the ACL, like a proxy. Users always connect to the same endpoint we offer, which is the DataGateway. To switch over from one cluster to another, we just need to edit the cluster ACL and everything is handled seamlessly.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Figure 4. Cluster switching using DataGateway" height="90%" width="90%" src="/img/data-gateway/image4.png" />
+    <figcaption><em>Figure 4. Cluster switching using DataGateway</em></figcaption>
+  </figure>
+</div>
+
+<p>Figure 4 highlights the case when we’re switching EMR from one cluster to another. No changes are required from users.</p>
+
+<p>We executed the migration of our entire Presto platform from an AWS EMR instance to another AWS EMR instance using the same methodology. The migrations were executed with little to no disruption for our users. We were able to move 40 clusters with hundreds of users. They were able to issue millions of queries daily in a few phases over a couple of months.</p>
+
+<p>In most cases, users didn’t have to make any changes on their end, they just continued using Presto as usual while we made the changes in the background.</p>
+
+<h3 id="multi-cloud-data-lakepresto-cluster-maintenance">Multi-Cloud Data Lake/Presto Cluster maintenance</h3>
+
+<p>Recently, we started to build and maintain data lakes not just in one cloud, but two - in AWS and Azure. Since most end-users are AWS-based, and each team has their own AWS sub-account to run their services and workloads, it would be a nightmare to bridge all the connections and access routes between these two clouds from end-to-end, sub-account by sub-account.</p>
+
+<p>Here, the DataGateway plays the role of the multi-cloud gateway. Since all end-users’ AWS sub-accounts have peered to DataGateway’s network, everything becomes much easier to handle.</p>
+
+<p>For end-users, they retain the same Presto connection profile. The DE team then handles the connection setup from DataGateway to Azure, and also the deployment of Presto clusters in Azure.</p>
+
+<p>When all is set, end-users use the same endpoint to DataGateway. We offer a feature called <em>Cluster Switch</em> that allows users to switch between AWS Presto cluster and Azure Presto Cluster on the fly by filling in parameters on the connection string. This feature allows users to switch to their target Presto cluster without any endpoint changes. The switch works instantly whenever they do the change. That means users can run different queries in different clusters based on their requirements.</p>
+
+<p>This feature has helped the DE team to maintain Presto Cluster easily. We can spin up different Presto clusters for different teams, so that each team has their own query engine to run their queries with dedicated resources.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Figure 5. Sub-account connections and Queries" height="75%" width="75%" src="/img/data-gateway/image6.png" />
+    <figcaption><em>Figure 5. Sub-account connections and Queries</em></figcaption>
+  </figure>
+</div>
+
+<p>Figure 5 shows an example of how sub-accounts connect to DataGateway and run queries on resources in different clouds and clusters.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Figure 6. Sample scenario without DataGateway" height="90%" width="90%" src="/img/data-gateway/image2.png" />
+    <figcaption><em>Figure 6. Sample scenario without DataGateway</em></figcaption>
+  </figure>
+</div>
+
+<p>Figure 6 shows a scenario of what would happen if DataGatway doesn’t exist. Each of the accounts would have to maintain its own connections, <a href="https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html">Virtual Private C</a><a href="https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html">loud (VPC)</a> peering, and express link to connect to our Presto resources.</p>
+
+<h2 id="summary">Summary</h2>
+
+<p>DataGateway is playing a key role in Grab’s entire Presto ecosystem. It helps us manage user access and cluster selections on a single endpoint, ensuring that everyone is running their Presto queries on the same place. It also helps distribute workload to different types and versions of Presto clusters.</p>
+
+<p>When we started to deploy the DataGateway on Kubernetes, our vision for the Presto ecosystem underwent an epic change as it further motivated us to continuously improve. Since then, we’ve had new ideas on deployment method/pipeline, microservice implementations, scaling strategy, resource control, we even made use of Kubernetes and designed an on-demand, container-based Presto cluster provisioning engine. We’ll share this in another engineering blog, so do stay tuned!.</p>
+
+<p>We also made crucial enhancements on data access control as we extended Presto’s access controls down to the schema/table-level.</p>
+
+<p>In day-to-day operations, especially when we started to implement data lake in multiple clouds, DataGateway solved a lot of implementation issues. DataGateway made it simpler to switch a user’s Presto cluster from one cloud to another or allow a user to use a different Presto cluster using parameters. DataGateway allowed us to provide a seamless experience to our users.</p>
+
+<p>Looking forward, we’ve more and more ideas for our Presto ecosystem, such Spark DataGateway or AWS Athena integrations, to keep our data safe at any time and to provide our users with a smoother experience when dealing with data used for analysis or research.</p>
+
+<hr />
+
+<p><small class="credits">Authored by Vinnson Lee on behalf of the Presto Development Team at Grab - Edwin Law, Qui Hieu Nguyen, Rahul Penti, Wenli Wan, Wang Hui and the Data Engineering Team.</small></p>
+
+<hr />
+
+<h2 id="join-us">Join us</h2>
+<p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
+
+<p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#access-control" class="label tags-label">Access Control</a>
+  
+    <a href="/tags#cluster" class="label tags-label">Cluster</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#data-pipeline" class="label tags-label">Data Pipeline</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#presto" class="label tags-label">Presto</a>
+  
+    <a href="/tags#workload-distribution" class="label tags-label">Workload Distribution</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway&url=https://engineering.grab.com/data-gateway&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/data-gateway" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/data-gateway&title=Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway
+&summary=This blog post discusses how Grab's DataGateway plays a key role in supporting hundreds of users in our entire Presto ecosystem - from managing user access, cluster selection, workload distribution, and many more.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/data-gateway';
+    this.page.identifier = '/data-gateway';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>

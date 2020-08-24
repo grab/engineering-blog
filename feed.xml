@@ -6,9 +6,213 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 12 Aug 2020 14:03:40 +0000</pubDate>
-    <lastBuildDate>Wed, 12 Aug 2020 14:03:40 +0000</lastBuildDate>
+    <pubDate>Mon, 24 Aug 2020 09:12:04 +0000</pubDate>
+    <lastBuildDate>Mon, 24 Aug 2020 09:12:04 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Data is the lifeblood of Grab and the insights we gain from it drive all the most critical business decisions made by Grabbers and our leaders every day.&lt;/p&gt;
+
+&lt;p&gt;Grab’s Data Engineering (DE) team is responsible for maintaining the data platform, which consists of data pipelines, job schedulers, and the query/computation engines that are the key components for generating insights from data. SQL is the core language for analytics at Grab and as of early 2020, our Presto platform serves about 200 user groups that add up to 500 users who run 350,000 queries every day. These queries span across 10,000 tables that process up to 1PB of data daily.&lt;/p&gt;
+
+&lt;p&gt;In 2016, we started the DataGateway project to enable us to manage data access for the hundreds of Grabbers who needed access to &lt;a href=&quot;https://aws.amazon.com/big-data/what-is-presto/&quot;&gt;Presto&lt;/a&gt; for their work. Since then, DataGateway has grown to become much more than just an access control mechanism for Presto. In this blog, we want to share what we’ve achieved since the initial launch of the project.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-problems-we-wanted-to-solve&quot;&gt;The problems we wanted to solve&lt;/h2&gt;
+
+&lt;p&gt;As we were reviewing the key challenges around data access in Grab and assessing possible solutions, we came up with this prioritized list of user requirements we wanted to work on:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Use a single endpoint to serve everyone.&lt;/li&gt;
+  &lt;li&gt;Manage user access to clusters, schemas, tables, and fields.&lt;/li&gt;
+  &lt;li&gt;Provide seamless user experience when presto clusters are scaled up/down, in/out, or provisioned/decommissioned.&lt;/li&gt;
+  &lt;li&gt;Capture audit trail of user activities.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To provide Grabbers with the critical need of interactive querying, as well as performing extract, transform, load (ETL) jobs, we evaluated several technologies. Presto was among the ones we evaluated, and was what we eventually chose although it didn’t meet all of our requirements out of the box. In order to address these gaps, we came up with the idea of a security gateway for the Presto compute engine that could also act as a load balancer/proxy, this is how we ended up creating the DataGateway.&lt;/p&gt;
+
+&lt;p&gt;DataGateway is a service that sits between clients and Presto clusters. It is essentially a smart HTTP proxy server that is an abstraction layer on top of the Presto clusters that handles the following actions:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Parse incoming SQL statements to get requested schemas, tables, and fields.&lt;/li&gt;
+  &lt;li&gt;Manage user Access Control List (ACL) to limit users’ data access by checking against the SQL parsing results.&lt;/li&gt;
+  &lt;li&gt;Manage users’ cluster access.&lt;/li&gt;
+  &lt;li&gt;Redirect users’ traffic to the authorized clusters.&lt;/li&gt;
+  &lt;li&gt;Show meaningful error messages to users whenever the query is rejected or exceptions from clusters are encountered.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;anatomy-of-datagateway&quot;&gt;Anatomy of DataGateway&lt;/h2&gt;
+
+&lt;p&gt;The DataGateway’s key components are as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;API Service&lt;/li&gt;
+  &lt;li&gt;SQL Parser&lt;/li&gt;
+  &lt;li&gt;Auth framework&lt;/li&gt;
+  &lt;li&gt;Administration UI&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We leveraged Kubernetes to run all these components as microservices.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;figure&gt;
+    &lt;img alt=&quot;Figure 1. DataGateway Key Components&quot; height=&quot;90%&quot; width=&quot;90%&quot; src=&quot;/img/data-gateway/image3.png&quot; /&gt;
+    &lt;figcaption&gt;&lt;em&gt;Figure 1. DataGateway Key Components&lt;/em&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;api-service&quot;&gt;API Service&lt;/h3&gt;
+
+&lt;p&gt;This is the component that manages all users and cluster-facing processes. We integrated this service with the Presto API, which means it appears to be the same as a Presto cluster to a client. It accepts query requests from clients, gets the parsing result and runs authorization from the SQL Parser and the Auth Framework.&lt;/p&gt;
+
+&lt;p&gt;If everything is good to go, the API Service forwards queries to the assigned clusters and continues the entire query process.&lt;/p&gt;
+
+&lt;h3 id=&quot;auth-framework&quot;&gt;Auth Framework&lt;/h3&gt;
+
+&lt;p&gt;This handles both authentication and authorization requests. It stores the ACL of users and communicates with the API Service and the SQL Parser to run the entire authentication process. But why is it a microservice instead of a module in API Service, you ask? It’s because we keep evolving the security checks at Grab to ensure that everything is compliant with our security requirements, especially when dealing with data.&lt;/p&gt;
+
+&lt;p&gt;We wanted to make it flexible to fulfill ad-hoc requests from the security team without affecting the API Service. Furthermore, there are different authentication methods out there that we might need to deal with (OAuth2, SSO, you name it). The API Service supports multiple authentication frameworks that enable different authentication methods for different users.&lt;/p&gt;
+
+&lt;h3 id=&quot;sql-parser&quot;&gt;SQL Parser&lt;/h3&gt;
+
+&lt;p&gt;This is a SQL parsing engine to get schema, tables, and fields by reading SQL statements. Since Presto SQL parsing works differently in each version, we would compile multiple SQL Parsers that are identical to the Presto clusters we run. The SQL Parser becomes the single source of truth.&lt;/p&gt;
+
+&lt;h3 id=&quot;admin-ui&quot;&gt;Admin UI&lt;/h3&gt;
+
+&lt;p&gt;This is a UI for Presto administrators to manage clusters and user access, as well as to select an authentication framework, making it easier for the administrators to deal with the entire ecosystem.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-we-deployed-datagateway-using-kubernetes&quot;&gt;How we deployed DataGateway using Kubernetes&lt;/h2&gt;
+
+&lt;p&gt;In the past couple of years, we’ve had significant growth in workloads from analysts and data scientists. As we were very enthusiastic about Kubernetes, DataGateway was chosen as one of the earliest services for deployment in Kubernetes. DataGateway in Kubernetes is known to be highly available and fully scalable to handle traffic from users and systems.&lt;/p&gt;
+
+&lt;p&gt;We also tested the &lt;a href=&quot;https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough&quot;&gt;HPA feature of Kubernetes&lt;/a&gt;, which is a dynamic scaling feature to scale in or out the number of pods based on actual traffic and resource consumption.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;figure&gt;
+    &lt;img alt=&quot;Figure 2. DataGateway deployment using Kubernetes&quot; height=&quot;90%&quot; width=&quot;90%&quot; src=&quot;/img/data-gateway/image1.png&quot; /&gt;
+    &lt;figcaption&gt;&lt;em&gt;Figure 2. DataGateway deployment using Kubernetes&lt;/em&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;functionality-of-datagateway&quot;&gt;Functionality of DataGateway&lt;/h2&gt;
+
+&lt;p&gt;This section highlights some of the ways we use DataGateway to manage our Presto ecosystem efficiently.&lt;/p&gt;
+
+&lt;h3 id=&quot;restrict-users-based-on-schematable-level-access&quot;&gt;Restrict users based on Schema/Table level access&lt;/h3&gt;
+
+&lt;p&gt;In a setup where a Presto cluster is deployed on &lt;a href=&quot;https://aws.amazon.com/emr&quot;&gt;AWS Amazon Elastic MapReduce (EMR)&lt;/a&gt; or &lt;a href=&quot;https://aws.amazon.com/eks&quot;&gt;Elastic Kubernetes Service (EKS)&lt;/a&gt;, we configure an &lt;a href=&quot;https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html&quot;&gt;IAM&lt;/a&gt; role and attach it to the EMR or EKS nodes. The IAM role is set to limit the access to S3 storage. However, the IAM only provides bucket-level and file-level control; it doesn’t meet our requirements to have schema, table, and column-level ACLs. That’s how DataGateway is found useful in such scenarios.&lt;/p&gt;
+
+&lt;p&gt;One of the DataGateway services is an SQL Parser. As previously covered, this is a service that parses and digs out schemas and tables involved in a query. The API service receives the parsing result and checks against the ACL of users, and decides whether to allow or reject the query. This is a remarkable improvement in our security control since we now have another layer to restrict access, on top of the S3 storage. We’ve implemented an SQL-based access control down to table level.&lt;/p&gt;
+
+&lt;p&gt;As shown in the Figure 3, user A is trying run a SQL statement &lt;code class=&quot;highlighter-rouge&quot;&gt;select * from locations.cities&lt;/code&gt;. The SQL Parser reads the statement and tells the API service that user A is trying to read data from the table &lt;code class=&quot;highlighter-rouge&quot;&gt;cities&lt;/code&gt; in the schema &lt;code class=&quot;highlighter-rouge&quot;&gt;locations&lt;/code&gt;. Then, the API service checks against the ACL of user A. The service finds that user A has only read access to table &lt;code class=&quot;highlighter-rouge&quot;&gt;countries&lt;/code&gt; in schema &lt;code class=&quot;highlighter-rouge&quot;&gt;locations&lt;/code&gt;. Eventually, the API service denies this attempt because user A doesn’t have read access to table &lt;code class=&quot;highlighter-rouge&quot;&gt;cities&lt;/code&gt; in the schema &lt;code class=&quot;highlighter-rouge&quot;&gt;locations&lt;/code&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;figure&gt;
+    &lt;img alt=&quot;Figure 3. An example of how to check user access to run SQL statements&quot; height=&quot;90%&quot; width=&quot;90%&quot; src=&quot;/img/data-gateway/image5.png&quot; /&gt;
+    &lt;figcaption&gt;&lt;em&gt;Figure 3. An example of how to check user access to run SQL statements&lt;/em&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The above flow shows an access denied result because the user doesn’t have the appropriate permissions.&lt;/p&gt;
+
+&lt;h3 id=&quot;seamless-user-experience-during-the-emr-migration&quot;&gt;Seamless User Experience during the EMR migration&lt;/h3&gt;
+
+&lt;p&gt;We use AWS EMR to deploy Presto as an SQL query engine since deployment is really easy. However, without DataGateway, any EMR operations such as terminations, new cluster deployment, config changes, and version upgrades, would require quite a bit of user involvement. We would sometimes need users to make changes on their side. For example, request users to change the endpoints to connect to suitable clusters.&lt;/p&gt;
+
+&lt;p&gt;With DataGateway, ACLs exist for each of the user accounts. The ACL includes the list of EMR clusters that users are allowed to access. As a Presto access management platform, here the DataGateway redirects user traffics to an appropriate cluster based on the ACL, like a proxy. Users always connect to the same endpoint we offer, which is the DataGateway. To switch over from one cluster to another, we just need to edit the cluster ACL and everything is handled seamlessly.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;figure&gt;
+    &lt;img alt=&quot;Figure 4. Cluster switching using DataGateway&quot; height=&quot;90%&quot; width=&quot;90%&quot; src=&quot;/img/data-gateway/image4.png&quot; /&gt;
+    &lt;figcaption&gt;&lt;em&gt;Figure 4. Cluster switching using DataGateway&lt;/em&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Figure 4 highlights the case when we’re switching EMR from one cluster to another. No changes are required from users.&lt;/p&gt;
+
+&lt;p&gt;We executed the migration of our entire Presto platform from an AWS EMR instance to another AWS EMR instance using the same methodology. The migrations were executed with little to no disruption for our users. We were able to move 40 clusters with hundreds of users. They were able to issue millions of queries daily in a few phases over a couple of months.&lt;/p&gt;
+
+&lt;p&gt;In most cases, users didn’t have to make any changes on their end, they just continued using Presto as usual while we made the changes in the background.&lt;/p&gt;
+
+&lt;h3 id=&quot;multi-cloud-data-lakepresto-cluster-maintenance&quot;&gt;Multi-Cloud Data Lake/Presto Cluster maintenance&lt;/h3&gt;
+
+&lt;p&gt;Recently, we started to build and maintain data lakes not just in one cloud, but two - in AWS and Azure. Since most end-users are AWS-based, and each team has their own AWS sub-account to run their services and workloads, it would be a nightmare to bridge all the connections and access routes between these two clouds from end-to-end, sub-account by sub-account.&lt;/p&gt;
+
+&lt;p&gt;Here, the DataGateway plays the role of the multi-cloud gateway. Since all end-users’ AWS sub-accounts have peered to DataGateway’s network, everything becomes much easier to handle.&lt;/p&gt;
+
+&lt;p&gt;For end-users, they retain the same Presto connection profile. The DE team then handles the connection setup from DataGateway to Azure, and also the deployment of Presto clusters in Azure.&lt;/p&gt;
+
+&lt;p&gt;When all is set, end-users use the same endpoint to DataGateway. We offer a feature called &lt;em&gt;Cluster Switch&lt;/em&gt; that allows users to switch between AWS Presto cluster and Azure Presto Cluster on the fly by filling in parameters on the connection string. This feature allows users to switch to their target Presto cluster without any endpoint changes. The switch works instantly whenever they do the change. That means users can run different queries in different clusters based on their requirements.&lt;/p&gt;
+
+&lt;p&gt;This feature has helped the DE team to maintain Presto Cluster easily. We can spin up different Presto clusters for different teams, so that each team has their own query engine to run their queries with dedicated resources.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;figure&gt;
+    &lt;img alt=&quot;Figure 5. Sub-account connections and Queries&quot; height=&quot;75%&quot; width=&quot;75%&quot; src=&quot;/img/data-gateway/image6.png&quot; /&gt;
+    &lt;figcaption&gt;&lt;em&gt;Figure 5. Sub-account connections and Queries&lt;/em&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Figure 5 shows an example of how sub-accounts connect to DataGateway and run queries on resources in different clouds and clusters.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;figure&gt;
+    &lt;img alt=&quot;Figure 6. Sample scenario without DataGateway&quot; height=&quot;90%&quot; width=&quot;90%&quot; src=&quot;/img/data-gateway/image2.png&quot; /&gt;
+    &lt;figcaption&gt;&lt;em&gt;Figure 6. Sample scenario without DataGateway&lt;/em&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Figure 6 shows a scenario of what would happen if DataGatway doesn’t exist. Each of the accounts would have to maintain its own connections, &lt;a href=&quot;https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html&quot;&gt;Virtual Private C&lt;/a&gt;&lt;a href=&quot;https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html&quot;&gt;loud (VPC)&lt;/a&gt; peering, and express link to connect to our Presto resources.&lt;/p&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;p&gt;DataGateway is playing a key role in Grab’s entire Presto ecosystem. It helps us manage user access and cluster selections on a single endpoint, ensuring that everyone is running their Presto queries on the same place. It also helps distribute workload to different types and versions of Presto clusters.&lt;/p&gt;
+
+&lt;p&gt;When we started to deploy the DataGateway on Kubernetes, our vision for the Presto ecosystem underwent an epic change as it further motivated us to continuously improve. Since then, we’ve had new ideas on deployment method/pipeline, microservice implementations, scaling strategy, resource control, we even made use of Kubernetes and designed an on-demand, container-based Presto cluster provisioning engine. We’ll share this in another engineering blog, so do stay tuned!.&lt;/p&gt;
+
+&lt;p&gt;We also made crucial enhancements on data access control as we extended Presto’s access controls down to the schema/table-level.&lt;/p&gt;
+
+&lt;p&gt;In day-to-day operations, especially when we started to implement data lake in multiple clouds, DataGateway solved a lot of implementation issues. DataGateway made it simpler to switch a user’s Presto cluster from one cloud to another or allow a user to use a different Presto cluster using parameters. DataGateway allowed us to provide a seamless experience to our users.&lt;/p&gt;
+
+&lt;p&gt;Looking forward, we’ve more and more ideas for our Presto ecosystem, such Spark DataGateway or AWS Athena integrations, to keep our data safe at any time and to provide our users with a smoother experience when dealing with data used for analysis or research.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored by Vinnson Lee on behalf of the Presto Development Team at Grab - Edwin Law, Qui Hieu Nguyen, Rahul Penti, Wenli Wan, Wang Hui and the Data Engineering Team.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 24 Aug 2020 08:12:56 +0000</pubDate>
+        <link>https://engineering.grab.com/data-gateway</link>
+        <guid isPermaLink="true">https://engineering.grab.com/data-gateway</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Presto</category>
+        
+        <category>Data</category>
+        
+        <category>Data Pipeline</category>
+        
+        <category>Access Control</category>
+        
+        <category>Workload Distribution</category>
+        
+        <category>Cluster</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>Go Modules- A guide for monorepos (Part 2)</title>
@@ -85,15 +289,15 @@
         <link>https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2</link>
         <guid isPermaLink="true">https://engineering.grab.com/go-module-a-guide-for-monorepos-part-2</guid>
         
-        <category>go</category>
+        <category>Go</category>
         
-        <category>monorepo</category>
+        <category>Monorepo</category>
         
-        <category>vendoring</category>
+        <category>Vendoring</category>
         
-        <category>vendors</category>
+        <category>Vendors</category>
         
-        <category>libraries</category>
+        <category>Libraries</category>
         
         
         <category>Engineering</category>
@@ -289,7 +493,7 @@
 
 &lt;hr /&gt;
 
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored by Chandulal Kavar on behalf of the Airflow team at Grab - Charles Martinot, Vinson Lee, Akash Sihag, Piyush Gupta, Pramiti Goel, Dewin Goh, QuiHieu Nguyen, James Anh-Tu Nguyen, and the Data Engineering Team.&lt;/small&gt;&lt;/p&gt;
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored by Chandulal Kavar on behalf of the Airflow team at Grab - Charles Martinot, VinNson Lee, Akash Sihag, Piyush Gupta, Pramiti Goel, Dewin Goh, QuiHieu Nguyen, James Anh-Tu Nguyen, and the Data Engineering Team.&lt;/small&gt;&lt;/p&gt;
 
 &lt;hr /&gt;
 
@@ -303,20 +507,22 @@
         <link>https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab</link>
         <guid isPermaLink="true">https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab</guid>
         
-        <category>engineering</category>
+        <category>Engineering</category>
         
-        <category>data pipelines</category>
+        <category>Data Pipeline</category>
         
-        <category>scheduling</category>
+        <category>Scheduling</category>
         
-        <category>airflow</category>
+        <category>Airflow</category>
         
-        <category>kubernetes</category>
+        <category>Kubernetes</category>
         
-        <category>platform</category>
+        <category>Platform</category>
         
         
         <category>Engineering</category>
+        
+        <category>Data Science</category>
         
       </item>
     
@@ -613,7 +819,7 @@
 
 &lt;hr /&gt;
 
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored By Vasu on behalf of the Real-Time Communications team at Grab. Special thanks to the working team for their contributions- Sanket Thanvi, Dinh Duong,  Kevin Lee, and Matthew Yeow.&lt;/small&gt;&lt;/p&gt;
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored By Vasu on behalf of the Real-Time Communications team at Grab. Special thanks to the working team for their contributions- Sanket Thanvi, Dinh Duong, Kevin Lee, and Matthew Yeow.&lt;/small&gt;&lt;/p&gt;
 
 &lt;hr /&gt;
 
@@ -627,13 +833,13 @@
         <link>https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web</link>
         <guid isPermaLink="true">https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web</guid>
         
-        <category>chat</category>
+        <category>Chat</category>
         
-        <category>web</category>
+        <category>Web</category>
         
-        <category>customer support</category>
+        <category>Customer Support</category>
         
-        <category>engineering</category>
+        <category>Engineering</category>
         
         
         <category>Engineering</category>
@@ -779,15 +985,15 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
         <link>https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1</link>
         <guid isPermaLink="true">https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1</guid>
         
-        <category>go</category>
+        <category>Go</category>
         
-        <category>monorepo</category>
+        <category>Monorepo</category>
         
-        <category>vendoring</category>
+        <category>Vendoring</category>
         
-        <category>vendors</category>
+        <category>Vendors</category>
         
-        <category>libraries</category>
+        <category>Libraries</category>
         
         
         <category>Engineering</category>
@@ -1405,19 +1611,19 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
         <link>https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing</link>
         <guid isPermaLink="true">https://engineering.grab.com/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing</guid>
         
-        <category>xcode</category>
+        <category>Xcode</category>
         
-        <category>testing</category>
+        <category>Testing</category>
         
-        <category>mobile</category>
+        <category>Mobile</category>
         
-        <category>parallelism</category>
+        <category>Parallelism</category>
         
         <category>UI tests</category>
         
         <category>CI</category>
         
-        <category>iOS</category>
+        <category>IOS</category>
         
         
         <category>Engineering</category>
@@ -1526,145 +1732,6 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
         <category>Android</category>
         
         <category>Performance</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Grab-Posisi - Southeast Asia’s first comprehensive GPS trajectory dataset</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction        &lt;/h2&gt;
-
-&lt;p&gt;At Grab, thousands of bookings happen daily via the Grab app. The driver phones and GPS devices enable us to collect large-scale GPS trajectories.&lt;/p&gt;
-
-&lt;p&gt;Apart from the time and location of the object, GPS trajectories are also characterised by other parameters such as speed, the headed direction, the area and distance covered during its travel, and the travelled time. Thus, the trajectory patterns from users GPS data are a valuable source of information for a wide range of urban applications, such as solving transportation problems, traffic prediction, and developing reasonable urban planning.&lt;/p&gt;
-
-&lt;p&gt;Currently, it’s a herculean task to create and maintain the GPS datasets since it’s costly and laborious. As a result, most of the GPS datasets available today in the market have poor coverage or contain outdated information. They cover only a small area of a city, have low sampling rates and contain less contextual information of the GPS pings such as no accuracy level, bearing, and speed. Despite over a dozen mapping communities engaged in collecting GPS trajectory datasets, a significant amount of effort would be required for data cleaning and data pre-processing in order to utilize them.&lt;/p&gt;
-
-&lt;p&gt;To overcome the shortfalls in the existing datasets, we built Grab-Posisi, the first GPS trajectory dataset of Southeast Asia. The term Posisi refers to a position in Bahasa. The data was collected from Grab drivers’ phones while in transit. By tackling the addition of major arterial roads in regions where existing maps have poor coverage, and the incremental improvement of coverage in regions where major roads are already mapped, Posisi substantially improves mapping productivity.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-inside-the-dataset&quot;&gt;What’s inside the dataset&lt;/h2&gt;
-
-&lt;p&gt;The whole Grab-Posisi dataset contains in total 84K trajectories that consist of more than 80 million GPS pings and cover over 1 million km. The average trajectory length is 11.94 km and the average duration per trip is 21.50 minutes.&lt;/p&gt;
-
-&lt;p&gt;The data were collected very recently in April 2019 with a 1 second sampling rate, which is the highest amongst all the publicly available datasets. It also has richer contextual information, including the accuracy level, bearing and speed. The accuracy level is important because GPS measurements are noisy and the true location can be anywhere inside a circle centred at the reported location with a radius equal to the accuracy level. The bearing is the horizontal direction of travel, measured in degrees relative to true north. Finally, the speed is reported in meters/second over ground.&lt;/p&gt;
-
-&lt;p&gt;As the GPS trajectories were collected from Grab drivers’ phones while in transit, we labelled each trajectory by phone device type being either Android or iOS. This is the first dataset which differentiates such device information. Furthermore, we also label the trajectories by driving mode (Car or Motorcycle).&lt;/p&gt;
-
-&lt;p&gt;All drivers’ personal information is encrypted and the real start/end locations are removed within the dataset.&lt;/p&gt;
-
-&lt;h3 id=&quot;data-format&quot;&gt;Data format&lt;/h3&gt;
-
-&lt;p&gt;Each trajectory is serialised in a file in Apache Parquet format. The whole dataset size is around 2 GB. Each GPS ping is associated with values for a trajectory ID, latitude, longitude, timestamp (UTC), accuracy level, bearing and speed. The GPS sampling rate is 1 second, which is the highest among all the existing open source datasets. Table 1 shows a sample of the dataset.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grab-posisi/image6.png&quot; alt=&quot;Table 1: Sample dataset&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Table 1: Sample dataset&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;coverage&quot;&gt;Coverage&lt;/h3&gt;
-
-&lt;p&gt;Figure 1a shows the spatial coverage of the dataset in Singapore. Compared with the GPS datasets available in the market that only cover a specific area of a city, the Grab-Posisi dataset encompasses almost the whole island of Singapore. Figure 1b depicts the GPS density in Singapore. Red represents high density while green represents low density. Expressways in Singapore are clearly visible because of their dense GPS pings.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grab-posisi/image7.png&quot; alt=&quot;Figure 1a. Spatial coverage (Singapore)&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1a. Spatial coverage (Singapore)&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grab-posisi/image5.png&quot; alt=&quot;Figure 1b. GPS density (highways have more GPS)&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1b. GPS density (highways have more GPS)&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Figure 2a illustrates that the Grab-Posisi dataset encloses not only central Jakarta but also extends to external highways. Figure 2b depicts the GPS density of cars in Jakarta. Compared with Singapore, trips in Jakarta are spread out in all different areas, not just concentrated on highways.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grab-posisi/image2.png&quot; alt=&quot;Figure 2a. Spatial coverage (Jakarta)&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2a. Spatial coverage (Jakarta)&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grab-posisi/image1.png&quot; alt=&quot;Figure 2b. GPS density (Car)&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2b. GPS density (Car)&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h4 id=&quot;applications-of-grab-posisi&quot;&gt;Applications of Grab-Posisi&lt;/h4&gt;
-
-&lt;p&gt;The following are some of the applications of Grab-Posisi dataset.&lt;/p&gt;
-
-&lt;h5 id=&quot;on-map-inference&quot;&gt;On Map Inference&lt;/h5&gt;
-
-&lt;p&gt;The traditional method used in updating road networks in maps is time-consuming and labour-intensive. That’s why maps might have important roads missing and real-time traffic conditions might be unavailable. To address this problem, we can use GPS trajectories in reconstructing road networks automatically.&lt;/p&gt;
-
-&lt;p&gt;A bunch of map generation algorithms can be applied to infer both map topology and road attributes. Figure 3b shows a snippet of the inferred map from our GPS trajectories (Figure 3a) using one of the algorithms. As you can see from the blue dots, the skeleton of the underlining map inferred is correct, although some section of the inferred road is disconnected, and at the roundabout in the bottom right corner it’s not a smooth curve.&lt;/p&gt;
-
-&lt;div style=&quot;text-align: center;&quot;&gt;
-&lt;div class=&quot;row&quot;&gt;
-  &lt;div class=&quot;column&quot;&gt;
-    &lt;img src=&quot;/img/grab-posisi/image3.jpg&quot; alt=&quot;Figure 3a. Raw GPS trajectories&quot; /&gt;
-    &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3a. Raw GPS trajectories  &lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/div&gt;
-  &lt;div class=&quot;column&quot;&gt;
-    &lt;img src=&quot;/img/grab-posisi/image4.jpg&quot; alt=&quot;Figure 3b. Inferred Map&quot; /&gt;
-    &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3b. Inferred Map&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/div&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-
-&lt;h5 id=&quot;on-map-matching-&quot;&gt;On Map Matching                                         &lt;/h5&gt;
-
-&lt;p&gt;The map matching refers to the task of automatically determining the correct route where the driver has travelled on a digital map, given a sequence of raw and noisy GPS points. The correction of the raw GPS data has been important for many location-based applications such as navigation, tracking, and road attribute detection as aforementioned. The accuracy levels provided in the Grab-Posisi dataset can be of great use to address this issue.&lt;/p&gt;
-
-&lt;h5 id=&quot;on-traffic-detection-and-forecast-&quot;&gt;On Traffic Detection and Forecast                         &lt;/h5&gt;
-
-&lt;p&gt;In addition to the inference of a static digital map, the Grab-Posisi GPS dataset can also be used to perform real-time traffic forecasting, which is very important for congestion detection, flow control, route planning, and navigation. Some examples of the fundamental indicators that are mostly used to monitor the current status of traffic conditions include the average speed, volume, and density in each road segment. These variables can be computed based on drivers’ GPS trajectories and can be used to predict the future traffic conditions.&lt;/p&gt;
-
-&lt;h5 id=&quot;on-mode-detection-&quot;&gt;On Mode Detection                         &lt;/h5&gt;
-
-&lt;p&gt;Transportation mode detection refers to the task of identifying the travel mode of a user (some examples of transportation mode include walk, bike, car, bus, etc.). The GPS trajectories in our dataset are associated with rich attributes including GPS accuracy, bearing, and speed in addition to the latitude and longitude of geo-coordinates, which can be used to develop mode detection models. Our dataset also provides labels for each trajectory to be collected from a car or motorcycle, which can be used to verify performance of those models.&lt;/p&gt;
-
-&lt;h5 id=&quot;economics-perspective-&quot;&gt;Economics Perspective                                         &lt;/h5&gt;
-
-&lt;p&gt;The real-world GPS trajectories of people reveal realistic travel patterns and demands, which can be of great help for city planning. As there are some realistic constraints faced by governments such as budget limitations and construction inconvenience, it is important to incorporate both the planning authorities’ requirements and the realistic travel demands mined from trajectories for intelligent city planning. For example, the trajectories of cars can provide suggestions on how to schedule highway constructions. The trajectories of motorcycles can help the government to choose the optimal locations to construct motorcycle lanes for safety concerns.&lt;/p&gt;
-
-&lt;h2 id=&quot;want-to-access-our-dataset&quot;&gt;Want to access our dataset?&lt;/h2&gt;
-
-&lt;p&gt;Grab-Posisi dataset offers a great value and is a significant resource to the community for benchmarking and revisiting existing technologies.         &lt;/p&gt;
-
-&lt;p&gt;If you want to access our dataset for research purposes, email &lt;a href=&quot;mailto:grab.posisi@grabtaxi.com&quot;&gt;grab.posisi@grabtaxi.com&lt;/a&gt; with the following details:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Your Name and contact details&lt;/li&gt;
-  &lt;li&gt;Your institution&lt;/li&gt;
-  &lt;li&gt;Your potential usage of the dataset&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;When using Grab-Posisi dataset, please cite the following paper:&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Huang, X., Yin, Y., Lim, S., Wang, G., Hu, B., Varadarajan, J., … &amp;amp; Zimmermann, R. (2019, November). Grab-Posisi: An Extensive Real-Life GPS Trajectory Dataset in Southeast Asia. In Proceedings of the 3rd ACM SIGSPATIAL International Workshop on Prediction of Human Mobility (pp. 1-10). DOI: &lt;a href=&quot;https://doi.org/10.1145/3356995.3364536&quot;&gt;https://doi.org/10.1145/3356995.3364536&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
-
-&lt;div&gt;Click &lt;a href=&quot;/files/Grab-Posisi_An_Extensive_Real-Life_GPS_Trajectory_Dataset_in_Southeast_Asia.pdf&quot; download=&quot;&quot;&gt;here&lt;/a&gt; to download the published paper.&lt;p&gt;&lt;/p&gt;&lt;/div&gt;
-
-&lt;div&gt;Click &lt;a href=&quot;/files/grab-posisi-dataset.bib&quot; download=&quot;&quot;&gt;here&lt;/a&gt; to download the BibTex file.&lt;p&gt;&lt;/p&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Note: You cannot use Grab-Posisi dataset for commercial purposes.&lt;/strong&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Thu, 20 Feb 2020 18:43:40 +0000</pubDate>
-        <link>https://engineering.grab.com/grab-posisi</link>
-        <guid isPermaLink="true">https://engineering.grab.com/grab-posisi</guid>
-        
-        <category>gps</category>
-        
-        <category>datasets</category>
-        
-        <category>map</category>
         
         
         <category>Engineering</category>
