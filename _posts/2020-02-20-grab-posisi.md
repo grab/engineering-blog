@@ -5,7 +5,7 @@ title: Grab-Posisi - Southeast Asia’s first comprehensive GPS trajectory datas
 date: 2020-02-20 18:43:40
 authors: [zhengmin-xu, poornima-badrinath, xiaocheng-huang, abeesh-thomas]
 categories: [Engineering]
-tags: [gps, datasets, map]
+tags: [GPS, Datasets, Map]
 comments: true
 cover_photo: /img/grab-posisi/cover.png
 excerpt: "This blog highlights Grab's latest GPS trajectory dataset - its content, format, applications, and how you can access the dataset for your research purpose."
