@@ -5,7 +5,7 @@ title: Go Modules- A guide for monorepos (Part 1)
 date: 2020-05-29 11:34:40
 authors: [michael-cartmell]
 categories: [Engineering]
-tags: [go, monorepo, vendoring, vendors, libraries]
+tags: [Go, Monorepo, Vendoring, Vendors, Libraries]
 comments: true
 cover_photo: /img/go-module-a-guide-for-monorepos-part-1/cover.png
 excerpt: "This post is the first in a series of blogs about Grab’s experience with Go modules in a multi-module monorepo. Here, we discuss the challenges we faced along the way and the solutions we came up with."

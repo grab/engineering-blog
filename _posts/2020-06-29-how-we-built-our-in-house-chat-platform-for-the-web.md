@@ -5,7 +5,7 @@ title: How we built our in-house chat platform for the web
 date: 2020-06-29 14:34:40
 authors: [vasudevan-k]
 categories: [Engineering]
-tags: [chat, web, customer support, engineering]
+tags: [Chat, Web, Customer Support, Engineering]
 comments: true
 cover_photo: /img/how-we-built-our-in-house-chat-platform-for-the-web/cover.png
 excerpt: "This blog post shares our learnings from building our very own chat platform for the web."
@@ -309,7 +309,7 @@ We hope this post also helped you get a deeper sense of how SharedWorker and Bro
 
 ---
 
-<small class="credits">Authored By Vasu on behalf of the Real-Time Communications team at Grab. Special thanks to the working team for their contributions- Sanket Thanvi, Dinh Duong,  Kevin Lee, and Matthew Yeow.</small>
+<small class="credits">Authored By Vasu on behalf of the Real-Time Communications team at Grab. Special thanks to the working team for their contributions- Sanket Thanvi, Dinh Duong, Kevin Lee, and Matthew Yeow.</small>
 
 ---
 
