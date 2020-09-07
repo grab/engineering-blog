@@ -6,9 +6,191 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 24 Aug 2020 09:12:04 +0000</pubDate>
-    <lastBuildDate>Mon, 24 Aug 2020 09:12:04 +0000</lastBuildDate>
+    <pubDate>Mon, 07 Sep 2020 10:11:07 +0000</pubDate>
+    <lastBuildDate>Mon, 07 Sep 2020 10:11:07 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Uncovering the truth behind Lua and Redis data consistency</title>
+        <description>&lt;h2 id=&quot;uncovering-the-truth-behind-lua-and-redis-data-consistency&quot;&gt;Uncovering the truth behind Lua and Redis data consistency&lt;/h2&gt;
+
+&lt;p&gt;Our team at Grab uses Redis as one of our message queues. The Redis server is deployed in a master/replica setup. Quite recently, we have been noticing a spike in the CPU usage of the Redis replicas every time we deploy our service, even when the replicas are not in use and when there’s no read traffic to it. However, the issue is resolved once we reboot the replica.&lt;/p&gt;
+
+&lt;p&gt;Because a reboot of the replica fixes the issue every time, we thought that it might be due to some Elasticache replication issues and didn’t pursue further. However, a recent Redis failover brought this to our attention again. After the failover, the problematic replica becomes the new master and its CPU immediately goes to 100% with the read traffic, which essentially means the cluster is not functional after the failover. And this time we investigated the issue with new vigour. What we found in our investigation led us to deep dive into the details of Redis replication and its implementation of Hash.&lt;/p&gt;
+
+&lt;p&gt;Did you know that Redis master/replica can become inconsistent in certain scenarios?&lt;/p&gt;
+
+&lt;p&gt;Did you know the encoding of Hash objects on the master and the replica are different even if the writing operations are exactly the same and in the same order? Read on to find out why.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-problem&quot;&gt;The problem&lt;/h2&gt;
+
+&lt;p&gt;The following graph shows the CPU utilization of the master vs. the replica immediately after our service is deployed.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/uncovering-the-truth-behind-lua-and-redis-data-consistency/cpuUtilization.png&quot; alt=&quot;Architecture diagram&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;CPU Utilization&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;From the graph, you can see the following CPU usage trends. Replica’s CPU usage:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Increases immediately after our service is deployed.&lt;/li&gt;
+  &lt;li&gt;Spikes higher than the master after a certain time.&lt;/li&gt;
+  &lt;li&gt;Get’s back to normal after a reboot.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;cursory-investigation&quot;&gt;Cursory investigation&lt;/h2&gt;
+
+&lt;p&gt;Because the spike occurs only when we deploy our service, we scrutinised all the scripts that were triggered immediately after the deployment. Lua monitor script was identified as a possible suspect. The script redistributes inactive service instances’ messages in the queue to active service instances so that messages can be processed by other healthy instances.&lt;/p&gt;
+
+&lt;p&gt;We ran a few experiments related to the Lua monitor script using the Redis &lt;a href=&quot;https://redis.io/commands/monitor&quot;&gt;monitor&lt;/a&gt; command to compare the script’s behaviour on master and the replica. A side note, because this command causes performance degradation, use it with discretion. Coming back to the script, we were surprised to note that the monitor script behaves differently between the master and the replica:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Redis executes the script separately on the master and the replica. We expected the script to execute only on master and the resulting changes to be replicated to the secondary.&lt;/li&gt;
+  &lt;li&gt;The Redis command &lt;code class=&quot;highlighter-rouge&quot;&gt;HGETALL&lt;/code&gt; used in the script returns the hash keys in a different order on master compared to the replica.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Due to the above reasons, the script causes data inconsistencies between the master and its replica. From that point on, the data between the master and the replica keeps diverging till they become completely distinct. Due to the inconsistency, the data on the secondary does not get deleted correctly thereby growing into an extremely large dataset. Any further operations on the large dataset requires a higher CPU usage, which explains why the replica’s CPU usage is higher than the master.&lt;/p&gt;
+
+&lt;p&gt;During replica reboots, the data gets synced and consistent again, which is why the CPU usage gets to normal values after rebooting.&lt;/p&gt;
+
+&lt;h2 id=&quot;diving-deeper-on-hgetall&quot;&gt;Diving deeper on HGETALL&lt;/h2&gt;
+
+&lt;p&gt;We knew that the keys of a hash are not ordered and we should not rely on the order. But it still puzzled us that the order is different even when the writing sequence is the same between the master and the replica. Plus the fact that the orders are always the same in our local environment with a similar setup made us even more curious.&lt;/p&gt;
+
+&lt;p&gt;So to better understand the underlying magic of Redis and to avoid similar bugs in the future, we decided to hammer on and read the Redis source code to get more details.&lt;/p&gt;
+
+&lt;h2 id=&quot;hgetall-command-handling-code&quot;&gt;HGETALL command handling code&lt;/h2&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;HGETALL&lt;/code&gt; command is handled by the function &lt;code class=&quot;highlighter-rouge&quot;&gt;genericHgetallCommand&lt;/code&gt; and it further calls &lt;code class=&quot;highlighter-rouge&quot;&gt;hashTypeNext&lt;/code&gt; to iterate through the Hash object. A snippet of the code is shown as follows:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* Move to the next entry in the hash. Return C_OK when the next entry
+ * could be found and C_ERR when the iterator reaches the end. */
+int hashTypeNext(hashTypeIterator *hi) {
+    if (hi-&amp;gt;encoding == OBJ_ENCODING_ZIPLIST) {
+        // call zipListNext
+    } else if (hi-&amp;gt;encoding == OBJ_ENCODING_HT) {
+        // call dictNext
+    } else {
+        serverPanic(&quot;Unknown hash encoding&quot;);
+    }
+    return C_OK;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;From the code snippet, you can see that the Redis Hash object actually has two underlying representations:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;ZIPLIST&lt;/li&gt;
+  &lt;li&gt;HASHTABLE (dict)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;A bit of research online helped us understand that, to save memory, Redis chooses between the two hash representations based on the following limits:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;By default, Redis stores the Hash object as a &lt;a href=&quot;https://redis.io/topics/memory-optimization&quot;&gt;zipped list&lt;/a&gt; when the hash has less than 512 entries and when each element’s size is smaller than 64 bytes.&lt;/li&gt;
+  &lt;li&gt;If either limit is exceeded, Redis converts the list to a &lt;a href=&quot;https://github.com/antirez/redis/blob/3.2/src/t_hash.c#L40&quot;&gt;hashtable&lt;/a&gt;, and this is irreversible. That is, Redis won’t convert the hashtable back to a list again, even if the entries/size falls below the limit.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;eureka-moment&quot;&gt;Eureka moment&lt;/h2&gt;
+
+&lt;p&gt;Based on this understanding, we checked the encoding of the problematic hash in staging.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;stg-bookings-qu-002.pcxebj.0001.apse1.cache.amazonaws.com:6379&amp;gt; object encoding queue_stats
+&quot;hashtable&quot;
+
+stg-bookings-qu-001.pcxebj.0001.apse1.cache.amazonaws.com:6379&amp;gt; object encoding queue_stats
+&quot;ziplist&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;To our surprise, the encodings of the Hash object on the master and its replica were different.&lt;/strong&gt; Which means if we add or delete elements in the hash, the sequence of the keys won’t be the same due to hashtable operation vs. list operation!&lt;/p&gt;
+
+&lt;p&gt;Now that we have identified the root cause, we were still curious about the difference in encoding between the master and the replica.&lt;/p&gt;
+
+&lt;h3 id=&quot;how-could-the-underlying-representations-be-different&quot;&gt;How could the underlying representations be different?&lt;/h3&gt;
+
+&lt;p&gt;We reasoned, “&lt;em&gt;If the master and its replica’s writing operations are exactly the same and in the same order, why are the underlying representations still different?&lt;/em&gt;”&lt;/p&gt;
+
+&lt;p&gt;To answer this, we further looked through the Redis source to find all the possible places that a Hash object’s representation could be changed and soon found the following code snippet:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* Load a Redis object of the specified type from the specified file.
+ * On success a newly allocated object is returned, otherwise NULL. */
+robj *rdbLoadObject(int rdbtype, rio *rdb) {
+  //...
+  if (rdbtype == RDB_TYPE_HASH) {
+    //...
+    o = createHashObject();  // ziplist
+
+    /* Too many entries? Use a hash table. */
+    if (len &amp;gt; server.hash_max_ziplist_entries)
+        hashTypeConvert(o, OBJ_ENCODING_HT);
+
+    //...
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Reading through the code we understand the following behaviour:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;When restoring from an RDB file, Redis creates a ziplist first for Hash objects.&lt;/li&gt;
+  &lt;li&gt;Only when the size of the Hash object is greater than the &lt;code class=&quot;highlighter-rouge&quot;&gt;hash_max_ziplist_entries&lt;/code&gt;, the ziplist is converted to a hashtable.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So, if you have a Redis Hash object encoded as a &lt;code class=&quot;highlighter-rouge&quot;&gt;hashtable&lt;/code&gt; with its length less than &lt;code class=&quot;highlighter-rouge&quot;&gt;hash_max_ziplist_entries&lt;/code&gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;(512)&lt;/code&gt; in the master, when you set up a replica, it is encoded as a &lt;code class=&quot;highlighter-rouge&quot;&gt;ziplist&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;We were able to verify this behaviour in our local setup as well.&lt;/p&gt;
+
+&lt;h3 id=&quot;how-did-we-fix-it&quot;&gt;How did we fix it?&lt;/h3&gt;
+
+&lt;p&gt;We could use the following two approaches to address this issue:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Enable&lt;a href=&quot;https://redis.io/commands/eval#replicating-commands-instead-of-scripts&quot;&gt; script effect replication mode&lt;/a&gt;. This tells Redis to replicate the commands generated by the script instead of running the whole script on the replica. One disadvantage to using this approach is that it adds network traffic between the master and the replica.&lt;/li&gt;
+  &lt;li&gt;Ensure the behaviour of the Lua monitor script is deterministic. In our case, we can do this by sorting the outputs of HKEYS/HGETALL.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We chose the latter approach because:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The Hash object is pretty small ( &amp;lt; 30 elements) so the sorting overhead is low, less than 1ms for 100 elements based on our tests.&lt;/li&gt;
+  &lt;li&gt;Replicating our script effect would end up replicating thousands of Redis writing commands on the secondary causing a much higher overhead compared to replicating just the script.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;After the fix, the CPU usage of the replica remained in range after each deployment. This also prevented the Redis cluster from being destroyed in the event of a master failover.&lt;/p&gt;
+
+&lt;h2 id=&quot;key-takeaways&quot;&gt;Key takeaways&lt;/h2&gt;
+
+&lt;p&gt;In addition to writing clear and maintainable code, it’s equally important to understand the underlying storage layer that you are dealing with to produce efficient and bug-free code.&lt;/p&gt;
+
+&lt;p&gt;The following are some of the key learnings on Redis:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Redis does not guarantee the consistency between master and its replica nodes when Lua scripts are used. You have to ensure that the behaviour of the scripts are deterministic to avoid data inconsistency.&lt;/li&gt;
+  &lt;li&gt;Redis replicates the whole Lua script instead of the resulting commands to the replica. However, this is the default behaviour and you can disable it.&lt;/li&gt;
+  &lt;li&gt;To save memory, Redis uses different representations for Hash. Your Hash object could be stored as a list in memory or a hashtable. This is not guaranteed to be the same across the master and its replicas.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 07 Sep 2020 08:43:40 +0000</pubDate>
+        <link>https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency</link>
+        <guid isPermaLink="true">https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency</guid>
+        
+        <category>Redis</category>
+        
+        <category>Lua Scripts</category>
+        
+        <category>CPU Usage</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway</title>
@@ -1624,114 +1806,6 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
         <category>CI</category>
         
         <category>IOS</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Returning 575 Terabytes of storage space back to our users</title>
-        <description>&lt;p&gt;Have you ever run out of storage on your phone? Mobile phones come with limited storage and with the multiplication of apps and large video files, many of you are running out of space.&lt;/p&gt;
-
-&lt;p&gt;In this article, we explain how we measure and reduce the storage footprint of the Grab App on a user’s device to help you overcome this issue.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-wakeup-call&quot;&gt;The wakeup call&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://developer.android.com/topic/performance/vitals&quot;&gt;Android vitals&lt;/a&gt; (information provided by Google play Console about our app performance) gives us two main pieces of information about storage footprint.&lt;/p&gt;
-
-&lt;p&gt;15.7% of users have less than 1GB of free storage and they tend to uninstall more than other users (1.2x).&lt;/p&gt;
-
-&lt;p&gt;The proportion of 30 day active devices which reported less than 1GB free storage. Calculated as a 30 days rolling average.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image2.png&quot; alt=&quot;Active devices with &amp;lt;1GB free space&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Active devices with &amp;lt;1GB free space&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;This is the ratio of uninstalls on active devices with less than 1GB free storage to uninstalls on all active devices. Calculated as a 30 days rolling average.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image5.png&quot; alt=&quot;Ratio of uninstalls on active devices with less than 1GB&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Ratio of uninstalls on active devices with less than 1GB&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;instrumentation-to-know-where-we-stand&quot;&gt;Instrumentation to know where we stand&lt;/h2&gt;
-
-&lt;p&gt;First things first, we needed to know how much space the Grab App occupies on user device. So we started using our personal devices. We can find this information by opening the phone settings and selecting Grab App.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image3.jpg&quot; alt=&quot;App Settings&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;App Settings&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;For this device (screenshot), the application itself (Installed binary) was 186 MB and the total footprint was 322 MB. Since this information varies a lot based on the usage of the app, we needed this information directly from our users in production.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Disclaimer: We are only measuring files that are inside the internal Grab app folder (Cache/Database). We do NOT measure any file that is not inside the private Grab folder.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;We decided to leverage on our current implementation using &lt;a href=&quot;https://developer.android.com/reference/android/os/storage/StorageManager&quot;&gt;StorageManager&lt;/a&gt; API to gather the following information during each session launch:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Application Size (Installed binary size)&lt;/li&gt;
-  &lt;li&gt;Cache folder size&lt;/li&gt;
-  &lt;li&gt;Total footprint&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image1.png&quot; alt=&quot;Sample code to retrieve storage information on Android&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Sample code to retrieve storage information on Android&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;data-analysis&quot;&gt;Data analysis&lt;/h3&gt;
-
-&lt;p&gt;We began analysing this data one month after our users’ updated their app and found that the cache size was anomaly huge (&amp;gt; 1GB) for a lot of users. Intrigued, we dug deeper.&lt;/p&gt;
-
-&lt;p&gt;We added code to log the top largest files inside the cache folder, and we found that most of the files were inside a sub cache folder that was no longer in use. This was due to a usage of a 3rd party library that was removed from our app. We added a specific metric to track the size of this folder.&lt;/p&gt;
-
-&lt;p&gt;In the end, a lot of users still had this old cache data and for some users the amount of data can be up to 1GB.&lt;/p&gt;
-
-&lt;h3 id=&quot;root-cause-analysis&quot;&gt;Root cause analysis&lt;/h3&gt;
-
-&lt;p&gt;The Grab app relies a lot on 3rd party libraries. For example, &lt;a href=&quot;https://github.com/square/picasso&quot;&gt;Picasso&lt;/a&gt; was a library we used in the past for image display which is now replaced by &lt;a href=&quot;https://developer.android.com/topic/performance/graphics/load-bitmap&quot;&gt;Glide&lt;/a&gt;. Picasso uses a cache to store images and avoid making network calls again and again. After removing Picasso from the app, we didn’t delete this cache folder on the user device. We knew there would likely be more third-party libraries that had been discontinued so we expanded our analysis to look at how other 3rd party libraries cached their data.&lt;/p&gt;
-
-&lt;h2 id=&quot;freeing-up-space-on-users-phone&quot;&gt;Freeing up space on user’s phone&lt;/h2&gt;
-
-&lt;p&gt;Here comes the fun part. We implemented a cleanup mechanism to remove old cache folders. When users update the GrabApp, any old cache folders which were there before would automatically be removed. Through this, we released up to 1GB of data in a second back to our users. In total, we removed 575 terabytes of old cache data across more than 13 million devices (approximately 40MB per user on average).&lt;/p&gt;
-
-&lt;h2 id=&quot;data-summary&quot;&gt;Data summary&lt;/h2&gt;
-
-&lt;p&gt;The following graph shows the total size of junk data (in Terabytes) that we can potentially remove each day, calculated by summing up the maximum size of cache when a user opens the Grab app each day.&lt;/p&gt;
-
-&lt;p&gt;The first half of the graph reflects the amount of junk data in relation to the latest app version before auto-clean up was activated. The second half of the graph shows a dramatic dip in junk data after auto-clean up was activated. We were deleting up to 33 Terabytes of data per day on the user’s device when we first started!&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/returning-storage-space-back-to-our-users/image4.png&quot; alt=&quot;Sum of all junk data on user’s device reported per day in Terabytes&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Sum of all junk data on user’s device reported per day in Terabytes&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;next-step&quot;&gt;Next step&lt;/h2&gt;
-
-&lt;p&gt;This is the first phase of our journey in reducing the storage footprint of our app on Android devices. We specifically focused on making improvements at scale i.e. deliver huge storage gains to the most number of users in the shortest time. In the next phase, we will look at more targeted improvements for specific groups of users that still have a high storage footprint. In addition, we are also reviewing iOS data to see if a round of clean up is necessary.&lt;/p&gt;
-
-&lt;p&gt;Concurrently, we are also reducing the maximum size of cache created by some libraries. For example, Glide by default creates a cache of 250MB but this can be configured and optimised.&lt;/p&gt;
-
-&lt;p&gt;We hope you found this piece insightful and please remember to update your app regularly to benefit from the improvements we’re making every day. If you find that your app is still taking a lot of space on your phone, be assured that we’re looking into it.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Tue, 25 Feb 2020 20:13:00 +0000</pubDate>
-        <link>https://engineering.grab.com/returning-storage-space-back-to-our-users</link>
-        <guid isPermaLink="true">https://engineering.grab.com/returning-storage-space-back-to-our-users</guid>
-        
-        <category>Mobile</category>
-        
-        <category>Android</category>
-        
-        <category>Performance</category>
         
         
         <category>Engineering</category>
