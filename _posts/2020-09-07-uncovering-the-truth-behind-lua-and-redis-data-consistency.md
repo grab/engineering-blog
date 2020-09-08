@@ -5,7 +5,7 @@ title: Uncovering the truth behind Lua and Redis data consistency
 date: 2020-9-07 08:43:40
 authors: [allen-wang]
 categories: [Engineering]
-tags: [Redis, Lua Scripts, CPU Usage]
+tags: [Redis, Lua Scripts]
 comments: true
 cover_photo: /img/uncovering-the-truth-behind-lua-and-redis-data-consistency/cover.png
 excerpt: "Redis does not guarantee the consistency between master and its replica nodes when Lua scripts are used. Read more to find out why and how to guarantee data consistency."
