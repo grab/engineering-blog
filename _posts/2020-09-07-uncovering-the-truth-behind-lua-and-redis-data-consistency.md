@@ -11,9 +11,6 @@ cover_photo: /img/uncovering-the-truth-behind-lua-and-redis-data-consistency/cov
 excerpt: "Redis does not guarantee the consistency between master and its replica nodes when Lua scripts are used. Read more to find out why and how to guarantee data consistency."
 ---
 
-
-## Uncovering the truth behind Lua and Redis data consistency
-
 Our team at Grab uses Redis as one of our message queues. The Redis server is deployed in a master/replica setup. Quite recently, we have been noticing a spike in the CPU usage of the Redis replicas every time we deploy our service, even when the replicas are not in use and when there’s no read traffic to it. However, the issue is resolved once we reboot the replica.
 
 Because a reboot of the replica fixes the issue every time, we thought that it might be due to some Elasticache replication issues and didn’t pursue further. However, a recent Redis failover brought this to our attention again. After the failover, the problematic replica becomes the new master and its CPU immediately goes to 100% with the read traffic, which essentially means the cluster is not functional after the failover. And this time we investigated the issue with new vigour. What we found in our investigation led us to deep dive into the details of Redis replication and its implementation of Hash.
