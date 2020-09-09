@@ -185,7 +185,7 @@ We suggest anyone who is running multiple Airflow instances within different tea
 
 ---
 
-<small class="credits">Authored by Chandulal Kavar on behalf of the Airflow team at Grab - Charles Martinot, VinNson Lee, Akash Sihag, Piyush Gupta, Pramiti Goel, Dewin Goh, QuiHieu Nguyen, James Anh-Tu Nguyen, and the Data Engineering Team.</small>
+<small class="credits">Authored by Chandulal Kavar on behalf of the Airflow team at Grab - Charles Martinot, Vinnson Lee, Akash Sihag, Piyush Gupta, Pramiti Goel, Dewin Goh, QuiHieu Nguyen, James Anh-Tu Nguyen, and the Data Engineering Team.</small>
 
 ---
 
