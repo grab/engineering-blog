@@ -1,24 +1,22 @@
 ---
 layout: post
-id: 22020-09-23-our-journey-to-continuous-delivery-at-grab
+id: 2020-09-23-our-journey-to-continuous-delivery-at-grab
 title: Our Journey to Continuous Delivery at Grab (Part 1)
 date: 2020-9-23 08:00:00
 authors: [sylvain-bougerel]
 categories: [Engineering]
-tags: [Deployment, CI, continuous_integration, continuous_deployment, deployment_process, cloud_agnostic, spinnaker, continuous_delivery, multi_cloud]
+tags: [Deployment, CI, Continuous Integration, Continuous Deployment, Deployment Process, Cloud Agnostic, Spinnaker, Continuous Delivery, Multi Cloud]
 comments: true
 cover_photo: /img/our-journey-to-continuous-delivery-at-grab/cover.png
-excerpt: "Continuous Delivery is the principle of delivering software often, every day."
+excerpt: "Continuous Delivery is the principle of delivering software often, every day. Read more to find out how we implemented continuous delivery at Grab."
 ---
 
-Title: Our Journey to Continuous Delivery at Grab (Part 1)
 
 This blog post is a 2 part presentation of the effort that went into improving the continuous delivery processes for backend services at Grab in the past 2 years. In the first part, we take stock of where we started 2 years ago and describe the software and tools we created while introducing some of the integrations we've done to automate our software delivery in our staging environment.
 
-Continuous Delivery is the principle of delivering software often, every day.
-
-continuousdelivery.com
-
+```Continuous Delivery is the principle of delivering software often, every day.
+                                                    - continuousdelivery.com
+```
 As a backend engineer at Grab, nothing matters more than the ability to innovate quickly and safely. Around the end of 2018, Grab's transportation and deliveries backend architecture consisted of roughly 270 services (the majority being microservices). The deployment process was lengthy, required careful inputs and clear communication. The care needed to push changes in production and the risk associated with manual operations led to the introduction of a Slack bot to coordinate deployments. The bot ensures that deployments occur only during off-peak and within work hours:
 
 <div class="post-image-section">
@@ -41,8 +39,7 @@ In spite of the fragmented process and risky manual operations impacting our vel
 
 
 These figures meant that, on average, it took 10 business days between each service update in production, and only 10% of the staging deployments were eventually promoted to production.
-
-Automating Continuous Deployments at Grab
+## Automating Continuous Deployments at Grab
 -----------------------------------------
 
 With an increased focus on Engineering efficiency, in 2018 we started an internal initiative to address frictions in deployments that became known as Conveyor. To build Conveyor with a small team of engineers, we had to rely on an already mature platform which exhibited properties that are desirable to us to achieve our mission.
@@ -81,9 +78,16 @@ Overview Of Conveyor
 
 ### Setting Sail With Spinnaker
 
-Conveyor is based on [Spinnaker](https://spinnaker.io/&usg=AOvVaw1a93_1MJmR_1SZQ0mlu4Ow), an open-source, multi-cloud continuous delivery platform. We've chosen Spinnaker over other platforms because it is a mature deployment platform with no single point of failure, supports complex workflows (referred to as pipelines in Spinnaker), and already supports a large array of cloud providers. Since Spinnaker is open-source and extensible, it allowed us to add the features we needed for the specificity of our ecosystem. To further ease adoption within our organization, we built a tailored  user interface and created our own domain-specific language (DSL) to manage its pipelines as code.![](images/image3.png)
+Conveyor is based on [Spinnaker](https://spinnaker.io/&usg=AOvVaw1a93_1MJmR_1SZQ0mlu4Ow), an open-source, multi-cloud continuous delivery platform. We've chosen Spinnaker over other platforms because it is a mature deployment platform with no single point of failure, supports complex workflows (referred to as pipelines in Spinnaker), and already supports a large array of cloud providers. Since Spinnaker is open-source and extensible, it allowed us to add the features we needed for the specificity of our ecosystem. To further ease adoption within our organization, we built a tailored  user interface and created our own domain-specific language (DSL) to manage its pipelines as code.
 
-Outline of Conveyor's Architecture
+<div class="post-image-section">
+  <figure>
+    <img alt="Outline of Conveyor's Architecture" height="90%" width="90%" src="/img/dour-journey-to-continuous-delivery-at-grab/image3.png" />
+    <figcaption><em>Outline of Conveyor's Architecture</em></figcaption>
+  </figure>
+</div>
+
+
 
 ### Onboarding To A Simpler Interface
 
@@ -144,7 +148,7 @@ We set on creating a pipeline-as-code implementation when none were widely being
 
 
 
-Creating a conveyor.jsonnet file inside with the service's directory of our monorepository with the few lines below is all that's required for Artificer to do its work and get the benefits of automation provided by Conveyor's pipeline:
+Creating a ```conveyor.jsonnet``` file inside with the service's directory of our monorepository with the few lines below is all that's required for Artificer to do its work and get the benefits of automation provided by Conveyor's pipeline:
 
 ```
 local default = import 'default.libsonnet';
@@ -157,7 +161,7 @@ local default = import 'default.libsonnet';
  }
 ]
 ```
-Sample minimal conveyor.jsonnet configuration to onboard services.
+Sample minimal ```conveyor.jsonnet``` configuration to onboard services.
 
 In this file, engineers simply specify the name of their service and the group that a user should belong to, to have deployment rights for the service.
 
@@ -174,8 +178,8 @@ The sections below relate some of the improvements in engineering efficiency we'
 
 <div class="post-image-section">
   <figure>
-    <img alt="P " height="90%" width="90%" src="/img/dour-journey-to-continuous-delivery-at-grab/image7.png" />
-    <figcaption><em> </em></figcaption>
+    <img alt="Continuous Integration Job " height="90%" width="90%" src="/img/dour-journey-to-continuous-delivery-at-grab/image7.png" />
+    <figcaption><em>Continuous Integration Job </em></figcaption>
   </figure>
 </div>
 
@@ -185,14 +189,15 @@ The first modification happens at the step "Upload & Register artefacts". At thi
 
 <div class="post-image-section">
   <figure>
-    <img alt=" " height="90%" width="90%" src="/img/dour-journey-to-continuous-delivery-at-grab/image5.png" />
-    <figcaption><em> </em></figcaption>
+    <img alt=" Staging" height="90%" width="90%" src="/img/dour-journey-to-continuous-delivery-at-grab/image5.png" />
+    <figcaption><em>Staging </em></figcaption>
   </figure>
 </div>
 
 Each selectable version shows contextual information: title, author, version and link to the code change where it originated. During registration, the commit time is also recorded and used to order entries chronologically in the interface. To ensure this integration is not a single point of failure for deployments, manual input is still available optionally.
 
 The second modification implements one of the essential feature continuous delivery: your deployments should happen often, automatically. Engineers are now given the possibility to start automatic deployments once continuous integration has successfully completed, by simply modifying their project's continuous integration settings:
+
 ```
  "AfterBuild": [
   {
@@ -250,9 +255,9 @@ local default = import 'default.libsonnet';
 ]
 ```
 
-Sample conveyor.jsonnet configuration with integration tests added.
+Sample ```conveyor.jsonnet ``` configuration with integration tests added.
 
-Additionally, in parallel to the execution of the smoke tests, the canary is also being monitored from the moment its deployment has completed and for a predetermined duration. We leverage our integration with Datadog to allow engineers to select the alerts to monitor. If an alert is triggered during the monitoring period, and while the tests are executed, the canary is again rolled back, and the pipeline is terminated. Engineers can specify the alerts by adding them to the conveyor.jsonnet configuration file together with the monitoring duration:
+Additionally, in parallel to the execution of the smoke tests, the canary is also being monitored from the moment its deployment has completed and for a predetermined duration. We leverage our integration with Datadog to allow engineers to select the alerts to monitor. If an alert is triggered during the monitoring period, and while the tests are executed, the canary is again rolled back, and the pipeline is terminated. Engineers can specify the alerts by adding them to the ```conveyor.jsonnet``` configuration file together with the monitoring duration:
 ```
 local default = import 'default.libsonnet';
 \[
@@ -293,7 +298,7 @@ local default = import 'default.libsonnet';
   }
 \]
 ```
-Sample conveyor.jsonnet configuration with alerts in staging added.
+Sample ```conveyor.jsonnet``` configuration with alerts in staging added.
 
 When the smoke tests and monitor pass and the deployment of new artefacts is completed, the pipeline execution triggers functional and security tests. Unlike smoke tests, functional & security tests run only after that step, as they communicate with the cluster through load-balancers, impersonating other services.
 
@@ -317,7 +322,10 @@ With the advancements made in continuous integration and deployment to staging, 
 
 In the sequel to this blog post, we'll dive into the improvements that we've made to our production deployments and introduce a crucial concept that led to the creation of our proof for successful staging deployment. Finally, we'll cover the impact that Conveyor had on the continuous delivery of our backend services, by comparing our deployment velocity when we started 2 years ago versus where we are today.
 
+_________________________________________________________________________________________________________________________
+
 All these improvements in efficiency for our engineers would never have been possible without the hard work of all team members involved in the project, past and present: Evan Sebastian, Tanun Chalermsinsuwan, Aufar Gilbran, Deepak Ramakrishnaiah, Repon Kumar Roy (Kowshik), Su Han, Voislav Dimitrijevikj, Qijia Wang, Oscar Ng, Jacob Sunny, Subhodip Mandal and many others who have contributed and collaborated with them.
+_________________________________________________________________________________________________________________________
 
 ## Join us
 
