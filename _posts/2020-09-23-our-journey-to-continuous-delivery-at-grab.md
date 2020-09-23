@@ -240,20 +240,20 @@ local default = import 'default.libsonnet';
     group: [
     "group-name",
     ],
-    gandalf\_smoke\_tests: \[
+    gandalf_smoke_tests: [
     {
         path: "repo.internal/path/to/my/smoke/tests"
       }
-      \],
-      gandalf\_functional\_tests: \[
+      ],
+      gandalf_functional_tests: [
       {
         path: "repo.internal/path/to/my/functional/tests"
       }
-      gandalf\_security\_tests: \[
+      gandalf_security_tests: [
       {
         path: "repo.internal/path/to/my/security/tests"
       }
-      \]
+      ]
     }
 ]
 ```
@@ -263,43 +263,43 @@ Additionally, in parallel to the execution of the smoke tests, the canary is als
 
 ```
 local default = import 'default.libsonnet';
-\[
+[
  {
    name: "service-name",
-   group: \[
+   group: [
    "group-name",
-   \],
-    gandalf\_smoke\_tests: \[
+   ],
+    gandalf_smoke_tests: [
     {
       path: "repo.internal/path/to/my/smoke/tests"
    }
-   \],
-   gandalf\_functional\_tests: \[
+   ],
+   gandalf_functional_tests: [
    {
    path: "repo.internal/path/to/my/functional/tests"
   }
-     gandalf\_security\_tests: \[
+     gandalf_security_tests: [
      {
      path: "repo.internal/path/to/my/security/tests"
      }
-     \],
+     ],
      monitor: {
      stg: {
-     duration\_seconds: 300,
-     alarms: \[
+     duration_seconds: 300,
+     alarms: [
      {
    type: "datadog",
-   alert\_id: 12345678
+   alert_id: 12345678
    },
    {
    type: "datadog",
-   alert\_id: 23456789
+   alert_id: 23456789
       }
-      \]
+      ]
       }
     }
   }
-\]
+]
 ```
 Sample `conveyor.jsonnet` configuration with alerts in staging added.
 
