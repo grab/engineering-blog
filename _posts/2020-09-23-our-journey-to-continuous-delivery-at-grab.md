@@ -12,15 +12,17 @@ excerpt: "Continuous Delivery is the principle of delivering software often, eve
 ---
 
 This blog post is a two-part presentation of the effort that went into improving the [continuous delivery](https://continuousdelivery.com/) processes for backend services at Grab in the past two years. In the first part, we take stock of where we started two years ago and describe the software and tools we created while introducing some of the integrations we've done to automate our software delivery in our staging environment.
+<br>
 
-<div><br></div>
 ---
 <div class="post-quotations">
-  <i>Continuous Delivery is the principle of delivering software often, every day.</i>
+  <i>Continuous Delivery is the ability to get changes of all types—including new features, configuration changes, bug fixes and experiments—into production, or into the hands of users, safely and quickly in a sustainable way.</i>
+  <br/>
+  <i>— <a href="https://continuousdelivery.com/">continuousdelivery.com</a></i>
 </div>
----
-<div><br></div>
 
+---
+<br>
 As a backend engineer at Grab, nothing matters more than the ability to innovate quickly and safely. Around the end of 2018, Grab's transportation and deliveries backend architecture consisted of roughly 270 services (the majority being microservices). The deployment process was lengthy, required careful inputs and clear communication. The care needed to push changes in production and the risk associated with manual operations led to the introduction of a Slack bot to coordinate deployments. The bot ensures that deployments occur only during off-peak and within work hours:
 
 <div class="post-image-section">
@@ -106,7 +108,7 @@ To reduce our barrier to adoption, we decided early on to create a simple interf
   </figure>
 </div>
 
-With this interface, each engineer can focus on what matters to them immediately: the pipeline they have started, or those started by other teammates working on the same services as they are. Conveyor also provides a search bar (on the top) and filters (on the left) that work in concert to explore all pipelines executed at Grab.
+With this interface, each engineer can focus on what matters to them immediately: the pipelines they have started, or those started by other teammates working on the same services as they are. Conveyor also provides a search bar (on the top) and filters (on the left) that work in concert to explore all pipelines executed at Grab.
 
 We adopted a consistent set of colours to model all information in our interface:
 
@@ -151,20 +153,22 @@ We set on creating a pipeline-as-code implementation when none were widely being
 
 Pipelines are being updated at every commit if necessary.
 
-Creating a `conveyor.jsonnet` file inside with the service's directory of our monorepository with the few lines below is all that's required for Artificer to do its work and get the benefits of automation provided by Conveyor's pipeline:
+Creating a `conveyor.jsonnet` file within the service's directory of our monorepository with the few lines below is all that's required for Artificer to do its work and get the benefits of automation provided by Conveyor's pipeline:
 
-```
+```js
 local default = import 'default.libsonnet';
 [
- {
- name: "service-name",
- group: [
- "group-name",
- ]
- }
+  {
+     name: "service-name",
+     group: [
+       "group-name",
+     ]
+  }
 ]
 ```
-Sample minimal `conveyor.jsonnet` configuration to onboard services.
+<div class="post-image-section">
+<p><em>Sample minimal <code class="highlighter-rouge">conveyor.jsonnet</code> configuration to onboard services.</em></p>
+</div>
 
 In this file, engineers simply specify the name of their service and the group that a user should belong to, to have deployment rights for the service.
 
@@ -200,18 +204,23 @@ Each selectable version shows contextual information: title, author, version and
 
 The second modification implements one of the essential feature continuous delivery: your deployments should happen often, automatically. Engineers are now given the possibility to start automatic deployments once continuous integration has successfully completed, by simply modifying their project's continuous integration settings:
 
-```
- "AfterBuild": [
-  {
+```js
+{
+  "AfterBuild": [
+    {
       "AutoDeploy": {
-      "OnDiff": false,
-      "OnLand": true
+        "OnDiff": false,
+        "OnLand": true
+      },
+      "TYPE": "conveyor"
     }
-    "TYPE": "conveyor"
-  }
- ],
+  ],
+  // other settings...
+}
 ```
-Sample settings needed to trigger auto-deployments. ‘Diff’ refers to code review submissions, and ‘Land’ refers to merged code changes.
+<div class="post-image-section">
+<p><em>Sample settings needed to trigger auto-deployments. <code class="highlighter-rouge">Diff</code> refers to code review submissions, and <code class="highlighter-rouge">Land</code> refers to merged code changes.</em></p>
+</div>
 
 ### Staging Pipeline
 
@@ -228,80 +237,86 @@ We start by acquiring a deployment lock for this service and this environment. T
 
 The stage _"Compute Changeset"_ ensures that the deployment is not a rollback. It verifies that the new version deployed does not correspond to a rollback by comparing the ancestry of the commits provided during the artefact registration at build time: since we automate deployments after the build process has completed, cases of rollback may occur when two changes are created in quick succession and the latest build completes earlier than the older one.
 
-After the stage _"Deploy Canary"_ has completed, smoke test run. There are three kinds of tests executed at different stages of the pipeline: smoke, functional and security tests. Smoke tests directly reach the canary instance's endpoint, by-passing load-balancers. If the smoke tests fail,  the canary is immediately rolled back and this deployment is terminated.
+After the stage _"Deploy Canary"_ has completed, smoke test run. There are three kinds of tests executed at different stages of the pipeline: smoke, functional and security tests. Smoke tests directly reach the canary instance's endpoint, by-passing load-balancers. If the smoke tests fail, the canary is immediately rolled back and this deployment is terminated.
 
 All tests are generated from the same builds as the artefact being tested and their versions must match during testing. To ensure that the right version of the test run and distinguish between the different kind of tests to perform, we provide additional metadata that will be passed by Conveyor to the tests system, known internally as Gandalf:
 
-```
+```js
 local default = import 'default.libsonnet';
 [
   {
     name: "service-name",
     group: [
-    "group-name",
+      "group-name",
     ],
     gandalf_smoke_tests: [
-    {
+      {
         path: "repo.internal/path/to/my/smoke/tests"
       }
-      ],
-      gandalf_functional_tests: [
+    ],
+    gandalf_functional_tests: [
       {
         path: "repo.internal/path/to/my/functional/tests"
       }
-      gandalf_security_tests: [
+    ],
+    gandalf_security_tests: [
       {
         path: "repo.internal/path/to/my/security/tests"
       }
-      ]
-    }
+    ]
+  }
 ]
 ```
-Sample `conveyor.jsonnet` configuration with integration tests added.
+<div class="post-image-section">
+<p><em>Sample <code class="highlighter-rouge">conveyor.jsonnet</code> configuration with integration tests added.</em></p>
+</div>
 
 Additionally, in parallel to the execution of the smoke tests, the canary is also being monitored from the moment its deployment has completed and for a predetermined duration. We leverage our integration with Datadog to allow engineers to select the alerts to monitor. If an alert is triggered during the monitoring period, and while the tests are executed, the canary is again rolled back, and the pipeline is terminated. Engineers can specify the alerts by adding them to the `conveyor.jsonnet` configuration file together with the monitoring duration:
 
-```
+```js
 local default = import 'default.libsonnet';
 [
- {
-   name: "service-name",
-   group: [
-   "group-name",
-   ],
+  {
+    name: "service-name",
+    group: [
+      "group-name",
+    ],
     gandalf_smoke_tests: [
-    {
-      path: "repo.internal/path/to/my/smoke/tests"
-   }
-   ],
-   gandalf_functional_tests: [
-   {
-   path: "repo.internal/path/to/my/functional/tests"
-  }
-     gandalf_security_tests: [
-     {
-     path: "repo.internal/path/to/my/security/tests"
-     }
-     ],
-     monitor: {
-     stg: {
-     duration_seconds: 300,
-     alarms: [
-     {
-   type: "datadog",
-   alert_id: 12345678
-   },
-   {
-   type: "datadog",
-   alert_id: 23456789
+      {
+        path: "repo.internal/path/to/my/smoke/tests"
       }
-      ]
+    ],
+    gandalf_functional_tests: [
+      {
+        path: "repo.internal/path/to/my/functional/tests"
+      }
+    ],
+    gandalf_security_tests: [
+      {
+        path: "repo.internal/path/to/my/security/tests"
+      }
+    ],
+    monitor: {
+      stg: {
+        duration_seconds: 300,
+        alarms: [
+          {
+            type: "datadog",
+            alert_id: 12345678
+          },
+          {
+            type: "datadog",
+            alert_id: 23456789
+          }
+        ]
       }
     }
   }
 ]
 ```
-Sample `conveyor.jsonnet` configuration with alerts in staging added.
+<div class="post-image-section">
+<p><em>Sample <code class="highlighter-rouge">conveyor.jsonnet</code> configuration with alerts in staging added.</em></p>
+</div>
 
 When the smoke tests and monitor pass and the deployment of new artefacts is completed, the pipeline execution triggers functional and security tests. Unlike smoke tests, functional & security tests run only after that step, as they communicate with the cluster through load-balancers, impersonating other services.
 
