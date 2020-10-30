@@ -28,7 +28,8 @@ While we do have an internal process on how to update the libraries, it doesn’
 However, this isn't really the case. We've a few developers taking ownership of the libraries as a whole and trying to maintain it. With more than 170 external libraries, we surveyed the Android developer community on how they manage libraries in the company. The result can be summarized as follow:
 
 <div class="post-image-section"><figure>
-  <img src="/img/keeping-170-libraries-up-to-date/infography.png" alt="TODO">
+  <img src="/img/keeping-170-libraries-up-to-date/infography.png" alt="Survey Results">
+  <figcaption align="middle"><i>Survey Results</i></figcaption>
 </figure></div>
 
 While most developers are aware of updates, they don't update a library because the risk of defects leaking into production is too high.
@@ -43,7 +44,8 @@ Before updating (bump) a library, we evaluate two metrics:
 The risk needs to be assessed between the number of usages of a certain library and the size of the changes. The following chart illustrate this point.
 
 <div class="post-image-section"><figure>
-  <img src="/img/keeping-170-libraries-up-to-date/radar.png" alt="TODO">
+  <img src="/img/keeping-170-libraries-up-to-date/radar.png" alt="Risk Assessment Radar">
+  <figcaption align="middle"><i>Risk Assessment Radar</i></figcaption>
 </figure></div>
 
 This arbitrary scale helps us in deciding if we will require additional signoff from the QA team. If the estimation places the item on the bottom-left corner, the update will be less risky while if it’s on the top-right corner, it means we should follow extra verification to reduce the risk.
