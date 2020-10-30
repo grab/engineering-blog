@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2020-10-30-keeping-170-libraries-up-to-date
+id: 2020-10-30-keeping-170-libraries-up-to-date-on-a-large-scale-android-app
 title: Keeping 170 libraries up to date on a large scale Android App
 date: 2020-10-30 04:39:00
 authors: [lucas-nelaupe]
