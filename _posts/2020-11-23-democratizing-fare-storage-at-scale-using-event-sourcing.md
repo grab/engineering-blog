@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2020-11-03-democratizing-fare-storage-at-scale-using-event-sourcing
-title: Democratizing fare storage at scale using event sourcing
-date: 2020-11-03 06:21:00
+id: 2020-11-23-democratizing-fare-storage-at-scale-using-event-sourcing
+title: Democratizing Fare Storage at scale using Event Sourcing
+date: 2020-11-23 06:21:00
 authors: [sourabh-suman]
 categories: [Engineering]
 tags: [Pricing, Event Sourcing, Fare Storage]
