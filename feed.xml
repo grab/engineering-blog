@@ -6,9 +6,203 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 30 Oct 2020 16:18:18 +0000</pubDate>
-    <lastBuildDate>Fri, 30 Oct 2020 16:18:18 +0000</lastBuildDate>
+    <pubDate>Mon, 23 Nov 2020 12:14:11 +0000</pubDate>
+    <lastBuildDate>Mon, 23 Nov 2020 12:14:11 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Democratizing Fare Storage at scale using Event Sourcing</title>
+        <description>&lt;p&gt;From humble beginnings, Grab has expanded across different markets in the last couple of years. We’ve added a wide range of features to the Grab platform to continue to delight our customers and driver-partners. We had to incessantly find ways to improve our existing solutions to better support new features.&lt;/p&gt;
+
+&lt;p&gt;In this blog, we discuss how we built &lt;em&gt;Fare Storage&lt;/em&gt;, Grab’s single source of truth fare data store, and how we overcame the challenges to make it more reliable and scalable to support our expanding features.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image1.jpg&quot; alt=&quot;High-level Flow&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;To set some context for this blog, let’s define some key terms before proceeding. A &lt;em&gt;Fare&lt;/em&gt; is a dollar amount calculated to move someone or something from point A to point B. And, a &lt;em&gt;Fee&lt;/em&gt; is a dollar amount added to or subtracted from the original fare amount for any additional service.&lt;/p&gt;
+
+&lt;p&gt;Now that you’re acquainted with the key concepts, let’s look take a look at the following image. It illustrates that features such as &lt;em&gt;Destination Change Fee&lt;/em&gt;, &lt;em&gt;Waiting Fee&lt;/em&gt;, &lt;em&gt;Cancellation Fee&lt;/em&gt;, &lt;em&gt;Tolls&lt;/em&gt;, &lt;em&gt;Promos&lt;/em&gt;, &lt;em&gt;Surcharges&lt;/em&gt;, and many others store additional fee breakdown along with the original fare. This set of information is crucial for generating receipts and debugging processes. However, our legacy storage system wasn’t designed to host massive quantities of information effectively.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image2.jpg&quot; alt=&quot;Sample Flow with Fee Breakdown&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;In our legacy architecture, we stored all the booking and fare-related information in a single relational database table. Adding new fare fields and breakdowns required changes in our critical booking system, making iterations prohibitively expensive and hindering innovation.&lt;/p&gt;
+
+&lt;p&gt;The need to store the fare information and metadata for every additional feature along with other booking information resulted in a bloated booking entity. With millions of bookings created every day at Grab, this posed a scaling and stability threat to our booking service storage. Moreover, the legacy storage only tracked the latest value of fare and lacked a holistic view of all the modifications to the fare. So, debugging the fare was also a massive chore for our Engineering and Tech Operations teams.&lt;/p&gt;
+
+&lt;h2 id=&quot;drafting-a-solution&quot;&gt;Drafting a solution&lt;/h2&gt;
+
+&lt;p&gt;The shortcomings of our legacy system led us to explore options for decoupling the fare and its metadata storage from the booking details. We wanted to build a platform that can store and provide access to both fare and its audit trail.&lt;/p&gt;
+
+&lt;p&gt;High-level functional requirements for the new fare store were:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Provide a platform to store and retrieve fare and associated breakdowns, with no tight coupling between services.&lt;/li&gt;
+  &lt;li&gt;Act as a single source-of-truth for fare and associated fees in the Grab ecosystem.&lt;/li&gt;
+  &lt;li&gt;Enable clients to access the metadata of fare change events in real-time, enabling the Product team to innovate freely.&lt;/li&gt;
+  &lt;li&gt;Provide smooth access to a fare’s audit trail, improving the response time to our customers’ queries.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Non-functional requirements for the fare store were:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;High availability for the read and write APIs, with few milliseconds latency.&lt;/li&gt;
+  &lt;li&gt;Handle concurrent updates to the fare gracefully.&lt;/li&gt;
+  &lt;li&gt;Detect duplicate events for a booking for the same transaction.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;storing-change-sequence-with-event-sourcing&quot;&gt;Storing change sequence with Event Sourcing&lt;/h2&gt;
+
+&lt;p&gt;Our legacy storage solution used a defined schema and only stored the latest state of the fare. We needed an audit trail-based storage system with fast querying capabilities that can store and retrieve changes in chronological order.&lt;/p&gt;
+
+&lt;p&gt;The &lt;em&gt;Event Sourcing pattern&lt;/em&gt; stood out as a flexible architectural pattern as it allowed us to store and query the sequence of changes in the order it occurred. In Martin Fowler’s &lt;a href=&quot;https://martinfowler.com/eaaDev/EventSourcing.html&quot;&gt;blog&lt;/a&gt;, he described &lt;a href=&quot;https://microservices.io/patterns/data/event-sourcing.html&quot;&gt;Event Sourcing&lt;/a&gt; as:&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;“The fundamental idea of Event Sourcing is to ensure that every change to the state of an application is captured in an event object and that these event objects are themselves stored in the sequence they were applied for the same lifetime as the application state itself.”&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;With the Event Sourcing pattern, we store all the fare changes as events in the order they occurred for a booking. We iterate through these events to retrieve a complete snapshot of the modifications to the fare.&lt;/p&gt;
+
+&lt;p&gt;A sample Fare Event looks like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nx&quot;&gt;message&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Event&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// type of the event, ADD, SUB, SET, resilient&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;EventType&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// value which was added, subtracted or modified&lt;/span&gt;
+  &lt;span class=&quot;kr&quot;&gt;double&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// fare for the booking after applying discount&lt;/span&gt;
+  &lt;span class=&quot;kr&quot;&gt;double&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;fare&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+  &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// description bytes generated by SDK&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;bytes&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;11&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;//transactionID for the EventType&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;transactionID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;12&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The Event Sourcing pattern also enable us to use the Command Query Responsibility Segregation (&lt;a href=&quot;https://martinfowler.com/bliki/CQRS.html&quot;&gt;CQRS&lt;/a&gt;) pattern to decouple the read responsibility for different use cases.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image4.jpg&quot; alt=&quot;CQRS Pattern&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Clients of the fare life cycle read the current fare and create events to change the fare value as per their logic. Clients can also access fare events, when required. This pattern enable clients to modify fares independently, and give them visibility to the sequence for different business needs.&lt;/p&gt;
+
+&lt;p&gt;The diagram below describes the overall fare life cycle from creation, modification to display using the event store.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image5.png&quot; alt=&quot;Overall Fare Life Cycle&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;architecture-overview&quot;&gt;Architecture overview&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image6.jpg&quot; alt=&quot;Fare Cycle Architecture&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Clients interact with the Fare LifeCycle service through an SDK. The SDK offers various features such as metadata serialization, deserialization, retries, and timeouts configurations, some of which are discussed later.&lt;/p&gt;
+
+&lt;p&gt;The &lt;em&gt;Fare LifeCycle Store&lt;/em&gt; service uses DynamoDB as Event Store to persist and read the fare change events backed by a cache for eventually consistent reads. For further processing, such as archiving and generation of receipts, the successfully updated events are streamed out to a message queue system.&lt;/p&gt;
+
+&lt;h2 id=&quot;ensuring-the-integrity-of-the-fare-sequence&quot;&gt;Ensuring the integrity of the fare sequence&lt;/h2&gt;
+
+&lt;p&gt;Democratizing the responsibility of fare modification means that multiple services might try to update the fare in parallel without prior synchronization. Concurrent fare updates for the same booking might result in a race condition. Concurrency and consistency problems are always highlights of distributed storage systems.&lt;/p&gt;
+
+&lt;p&gt;Let’s understand why the ordering of fare updates are important. Business rules for different cities and countries regulate the pricing features based on local market conditions and prevailing laws. For example, in some scenarios, &lt;em&gt;Tolls&lt;/em&gt; and &lt;em&gt;Waiting Fees&lt;/em&gt; may not be eligible for discounts or promotions. The service applying discounts needs to consider this information while applying a discount. Therefore, updates to the fare are not independent of the previous fare events.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image3.jpg&quot; alt=&quot;Fare Integrity&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;We needed a mechanism to detect race conditions and handle them appropriately to ensure the integrity of the fare. To handle race conditions based on our use case, we explored &lt;a href=&quot;https://en.wikipedia.org/wiki/Lock_(computer_science)&quot;&gt;Pessimistic and Optimistic locking mechanisms&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;All the expected fare change events happen based on certain conditions being true or false. For example, less than 1% of the bookings have a payment change request initiated by passengers during a ride. And, the probability of multiple similar changes happening on the same booking is rather low. &lt;em&gt;Optimistic Locking&lt;/em&gt; offers both efficiency and correctness for our requirements where the chances of race conditions are low, and the records are independent of each other.&lt;/p&gt;
+
+&lt;p&gt;The logic to calculate the fare/surcharge is coupled with the business logic of the system that calculates the fare component or fees. So, handling data race conditions on the data store layer was not an acceptable option either. It made more sense to let the clients handle it and keep the storage system decoupled from the business logic to compute the fare.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image8.jpg&quot; alt=&quot;Optimistic Locking&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;To achieve &lt;em&gt;Optimistic Locking&lt;/em&gt;, we store a fare version and increment it on every successful update. The client must pass the version they read to modify the fare. Should there be a version mismatch between the update query and the current fare, the update is rejected. On version mismatches, the clients read the updated checksum(version) and retry with the recalculated fare.&lt;/p&gt;
+
+&lt;h2 id=&quot;idempotency-of-event-updates&quot;&gt;Idempotency of event updates&lt;/h2&gt;
+
+&lt;p&gt;The next challenge we came across was how to handle client retries - ensuring that we do not duplicate the same event for the booking. Clients might encounter sporadic errors as a result of network-related issues, although the update was successful. Under such circumstances, clients retry to update the same event, resulting in duplicate events. Duplicate events not only result in an extra space requirement, but it also impairs the clients’ understanding on whether we’ve taken an action multiple times on the fare.&lt;/p&gt;
+
+&lt;p&gt;As discussed in the previous section, retrying with the same version would fail due to the version mismatch. If the previous attempt successfully modified the fare, it would also update the version.&lt;/p&gt;
+
+&lt;p&gt;However, clients might not know if their update modified the version or if any other clients updated the data. Relying on clients to check for event duplication makes the client-side complex and leaves a chance of error if the clients do not handle it correctly.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image9.jpg&quot; alt=&quot;Solution for Duplicate Events&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;To handle the duplicate events, we associate each event with a unique UUID (&lt;code class=&quot;highlighter-rouge&quot;&gt;transactionID&lt;/code&gt;) generated from the client-side using a UUID library from the Fare LifeCycle service SDK. We check whether the &lt;code class=&quot;highlighter-rouge&quot;&gt;transactionID&lt;/code&gt; is already part of successful transaction IDs before updating the fare. If we identify a non-unique &lt;code class=&quot;highlighter-rouge&quot;&gt;transactionID&lt;/code&gt;, we return duplicate event errors to the client.&lt;/p&gt;
+
+&lt;p&gt;For unique &lt;code class=&quot;highlighter-rouge&quot;&gt;transactionIDs&lt;/code&gt;, we append it to the list of transactionIDs and save it to the Event Store along with the event.&lt;/p&gt;
+
+&lt;h2 id=&quot;schema-less-metadata&quot;&gt;Schema-less metadata&lt;/h2&gt;
+
+&lt;p&gt;Metadata are the breakdowns associated with the fare. We require the metadata for specific fee/fare calculation for the generation of receipts and debugging purposes. Thus, for the storage system and multiple clients, they need not know the metadata definition of all events.&lt;/p&gt;
+
+&lt;p&gt;One goal for our data store was to give our clients the flexibility to add new fields to existing metadata or to define new metadata without changing the API. We adopted an SDK-based approach for metadata, where clients interact with the Fare LifeCycle service via SDK. The SDK has the following responsibilities for metadata:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Serialize the metadata into bytes before making an API call to the Fare LifeCycle service.&lt;/li&gt;
+  &lt;li&gt;Deserialize the bytes metadata returned from the Fare LifeCycle service into a Go struct for client access.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/democratizing-fare-storage-at-scale-using-event-sourcing/image7.jpg&quot; alt=&quot;Fare LifeCycle SDK&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Serializing and deserializing the metadata on the client-side decoupled it from the Fare LifeCycle Store API. This helped teams update the metadata without deploying the storage service each time.&lt;/p&gt;
+
+&lt;p&gt;For reading the breakdown, the clients pass the metadata bytes to the SDK along with the Event Type, and then it converts them back into the corresponding proto schema. With this approach, clients can update the metadata without changing the Data Store Service.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;The Fare LifeCycle service enabled us to revolutionize the fare storage at scale for Grab’s ecosystem of services. Further benefits realized with the system are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The feature agnostic platform helped us to reduce the time-to-market for our hyper-local features so that we can further outserve our customers and driver-partners.&lt;/li&gt;
+  &lt;li&gt;Decoupling the fare information from the booking information also helped us to achieve a better separation of concerns between services.&lt;/li&gt;
+  &lt;li&gt;Improve the overall reliability and scalability of the Grab platform by decoupling fare and booking information, allowing them to scale independently of each other.&lt;/li&gt;
+  &lt;li&gt;Reduce unnecessary coupling between services to fetch fare related information and update fare.&lt;/li&gt;
+  &lt;li&gt;The audit-trail of fare changes in the chronological order reduced the time to debug fare and improved our response to customers for fare-related queries.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We hope this post helped you to have a closer look at how we used the Event Source pattern for building a data store and how we handled a few caveats and challenges in the process.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored by Sourabh Suman on behalf of the Pricing team at Grab. Special thanks to Karthik Gandhi, Kurni Famili, ChandanKumar Agarwal, Adarsh Koyya, Niteesh Mehra, Sebastian Wong, Matthew Saw, Muhammad Muneer, and Vishal Sharma for their contributions.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 23 Nov 2020 06:21:00 +0000</pubDate>
+        <link>https://engineering.grab.com/democratizing-fare-storage-at-scale-using-event-sourcing</link>
+        <guid isPermaLink="true">https://engineering.grab.com/democratizing-fare-storage-at-scale-using-event-sourcing</guid>
+        
+        <category>Pricing</category>
+        
+        <category>Event Sourcing</category>
+        
+        <category>Fare Storage</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Keeping 170 libraries up to date on a large scale Android App</title>
@@ -1782,108 +1976,6 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Does Southeast Asia run on coffee?</title>
-        <description>&lt;p align=&quot;center&quot;&gt;&lt;i&gt;This article was originally published in the Grab Medium account on December 4, 2019. Reposting it here for your reading pleasure.&lt;/i&gt;&lt;/p&gt;
-
-&lt;p&gt;There is no surprise as to why coffee is a go-to drink in the region. For one, almost a third of coffee is produced in &lt;a href=&quot;https://utzcertified.org/en/aboututzcertified/136-general-stories-coffee/asia8/2155-coffee-asia&quot;&gt;Asia&lt;/a&gt;, giving us easy access to beans. Coupled with the plethora of local cafes and stores at every corner in Southeast Asia, coffee has become an accessible and affordable drink — and one that enjoys a huge following.&lt;/p&gt;
-
-&lt;p&gt;For many, a morning cuppa is fuel to kick start their day. For some it’s the secret weapon to a food coma, for others, it’s fuel to keep them going throughout the day.&lt;/p&gt;
-
-&lt;p&gt;To get a glimpse of how our fellow Southeast Asians refuel with coffee on a daily basis, we took a look (along with our ‘kopi’) at GrabFood data, and here is what we found.&lt;/p&gt;
-
-&lt;h2 id=&quot;did-you-know-coffee-orders-have-grown-1400-on-grabfood&quot;&gt;Did you know: Coffee orders have grown 1,400% on GrabFood?&lt;/h2&gt;
-
-&lt;p&gt;How much do we actually love our coffee? It seems like we do, a lot.&lt;/p&gt;
-
-&lt;p&gt;Coffee orders on GrabFood has been growing pervasively throughout the major cities, and a timelapse visualisation based on data from GrabFood orders show us the growth of orders across major cities over a 9-month period:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/does-southeast-asia-run-on-coffee/image1.gif&quot; alt=&quot;Timelapse visualisation&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;time-for-coffee&quot;&gt;Time for coffee?&lt;/h2&gt;
-
-&lt;p&gt;But how reliant are we on caffeine? We analysed the coffee consumption behaviour of GrabFood users from major SEA countries across a typical week.&lt;/p&gt;
-
-&lt;h3 id=&quot;coffee-orders-by-day-of-the-week-singapore-coffee-orders-peak-on-the-weekends&quot;&gt;Coffee Orders by Day of the Week: Singapore coffee orders peak on the weekends&lt;/h3&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/does-southeast-asia-run-on-coffee/image2.png&quot; alt=&quot;Coffee Orders by Day of the Week - Chart&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Turns out most coffee orders are placed on Wednesdays — clearly a much needed shot to overcome the dreaded hump day. And as we head into the weekend, orders begin to decline as Southeast Asians wind down from the work week.&lt;/p&gt;
-
-&lt;p&gt;However, the complete opposite happens for our friends in Singapore and the Philippines! Coffee orders actually spike on the weekends, and especially so on Sundays. It can only mean that Singaporeans and Filipinos surely enjoy their coffee catch-ups with friends and family.&lt;/p&gt;
-
-&lt;h3 id=&quot;am--coffee-pm--still-coffee&quot;&gt;AM- Coffee… PM- Still coffee&lt;/h3&gt;
-
-&lt;p&gt;&lt;em&gt;The question begets&lt;/em&gt; — when exactly do SEA coffee drinkers summon that life saving cup from our delivery heroes in green?&lt;/p&gt;
-
-&lt;p&gt;Check out this trippy visualisation that resembles jumping coffee beans:&lt;/p&gt;
-
-&lt;h3 id=&quot;coffee-orders-by-hour-of-day--orders-peak-at-10am-for-thailand-and-2pm-in-indonesia&quot;&gt;Coffee Orders by Hour of Day — Orders peak at 10am for Thailand and 2pm in Indonesia&lt;/h3&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/does-southeast-asia-run-on-coffee/image3.gif&quot; alt=&quot;Coffee Orders by Day of the Week&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;While other cities generally reach for the Grab app at noon for that extra boost to fight that food coma through the rest of the day, our friends in Thailand gets their caffeine fix early, with most orders coming in at 10.00am, just before the lunch hour.&lt;/p&gt;
-
-&lt;p&gt;Interestingly, coffee orders for Singapore peak at about 4pm in the afternoon… are they working hard, or are they hardly working?&lt;/p&gt;
-
-&lt;h2 id=&quot;grabfoods-love-is-in-the-air-and-it-smells-like-coffee&quot;&gt;GrabFood’s love is in the air, and it smells like coffee&lt;/h2&gt;
-
-&lt;p&gt;Curious as to what coffee flavours our SEA neighbours prefer? We spill the (coffee) beans!&lt;/p&gt;
-
-&lt;h3 id=&quot;top-3-coffee-flavours-in-each-country&quot;&gt;Top 3 Coffee Flavours in each Country&lt;/h3&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/does-southeast-asia-run-on-coffee/image4.png&quot; alt=&quot;Top 3 Coffee Flavours in each Country&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;what-is-a-non-coffee-drinker-to-do&quot;&gt;What is a non-coffee drinker to do?&lt;/h3&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/does-southeast-asia-run-on-coffee/image5.png&quot; alt=&quot;What non-coffee drinker drinks&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Also known as Matcha Latte, Green Tea Latte seems to be the next big beverage fad in the region , serving as a perfect coffee alternative for non-coffee drinkers.&lt;/p&gt;
-
-&lt;p&gt;Matcha latte, made with concentrated shots of green tea and topped with frothy, steamed milk, is gaining popularity. While it offers the same quantity of caffeine as a cup of brewed coffee, the drink is perceived to be as more energising , because of the slower release of caffeine.&lt;/p&gt;
-
-&lt;p&gt;It has consistently been one of the top 10 beverage items ordered on GrabFood, and we’ve delivered over 25 million cups of these green, frothy and creamy ‘heaven in a cup’ over the last nine months!&lt;/p&gt;
-
-&lt;p&gt;Southeast Asian’s love of tea-based latte (other than green tea) is apparent in Grab’s data! Some of the unique flavours that are being ordered on GrabFood include the following flavours:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/does-southeast-asia-run-on-coffee/image6.png&quot; alt=&quot;Unique flavours&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;grabfood-coffee-is-a-hug-in-a-mug&quot;&gt;GrabFood Coffee is a hug in a mug&lt;/h2&gt;
-
-&lt;p&gt;Is your blood type coffee? Whether you feel like caramelly and chocolatey Macchiato, or fruity and floral aroma of freshly brewed Americano, or intense and bitter double-shot Long Black — GrabFood has got you covered! May your coffee get delivered (and kick in) before reality does!&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Thu, 26 Mar 2020 08:34:00 +0000</pubDate>
-        <link>https://engineering.grab.com/does-southeast-asia-run-on-coffee</link>
-        <guid isPermaLink="true">https://engineering.grab.com/does-southeast-asia-run-on-coffee</guid>
-        
-        <category>Data</category>
-        
-        <category>Data Analytics</category>
-        
-        <category>Data Visualisation</category>
-        
-        
-        <category>Data Science</category>
         
       </item>
     
