@@ -103,7 +103,7 @@ The concept of the critical path introduced a number of action items, which we p
 
 *   The critical path must be as short as possible.
 *   Any huge module/target on the critical path must be split into smaller modules/targets.
-*   Depend on interfaces/bridges rather than implementations to shorten the The critical path,
+*   Depend on interfaces/bridges rather than implementations to shorten the critical path.
 *   The presence of other teams’ implementation modules/targets in the critical path of the given team is a red flag.
 
 <div class="post-image-section"><figure>
@@ -118,7 +118,7 @@ During this period of time, we assigned engineers who were responsible to review
 
 #### Results
 
-Even though the overall plan seemed to be good on paper, the result had minimal results - it just flattened the build time curve of the upcoming trend introduced by the growth of the codebase. The estimated impact was almost the same for both platforms and gave us about a **7%-10% cut in the CI and local build time**.
+Even though the overall plan seemed to be good on paper, the results were minimal - it just flattened the build time curve of the upcoming trend introduced by the growth of the codebase. The estimated impact was almost the same for both platforms and gave us about a **7%-10% cut in the CI and local build time**.
 
 #### Open source plan
 
@@ -194,7 +194,7 @@ But the effort to shift to this new build system was huge. We made sure that we 
 
 #### Migration limitations
 
-After those 5 months of investigation, we got the endless list of incompatible features and major blockers to be addressed. Those blockers touched even such obvious things as indexing and the _jump to definition IDE_ feature, which we used to take for granted.
+After those 5 months of investigation, we got the endless list of incompatible features and major blockers to be addressed. Those blockers touched even such obvious things as indexing and the _jump to definition_ IDE feature, which we used to take for granted.
 
 But the biggest challenge was the need to keep the pace of the product release. There was no compromise of stopping the product development even for a day. The way out appeared to be a **hybrid build** concept. We figured out how to marry native and Bazel build systems to live together in harmony. This move gave us a chance to start migrating target by target, project by project moving from the bottom to top of the dependency graph.
 
