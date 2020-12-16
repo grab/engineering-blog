@@ -4,11 +4,11 @@ id: 2020-12-16-reflecting-on-the-five-years-of-bug-bounty-at-grab
 title: Reflecting on the five years of Bug Bounty at Grab
 date: 2020-12-16 00:00:00
 authors: [ajay-srivastava, aniket-kulkarni, avinash-singh, nathaniel-callens]
-categories: [Security]
+categories: [Engineering, Security]
 tags: [Security, HackerOne, Bug Bounty]
 comments: true
 cover_photo: /img/reflecting-on-the-five-years-of-bug-bounty-at-grab/cover.jpg
-excerpt: "Read about how the product security team's bug bounty program has helped kept Grab secure."
+excerpt: "Read about how the product security team's bug bounty program has helped keep Grab secure."
 ---
 
 Security has always been a top-priority at Grab; our product security team works round-the-clock to ensure that our customers' data remains safe. Five years ago, we launched our private bug bounty program on [HackerOne](https://hackerone.com/grab), which evolved into a public program in August 2017. The idea was to complement the security efforts our team has been putting through to keep Grab secure. We were a pioneer in South East Asia to implement a public bug bounty program, and now we stand among the [Top 20 programs on HackerOne](https://www.hackerone.com/resources/e-book/top-20-public-bug-bounty-programs) worldwide.
