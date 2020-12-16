@@ -38,10 +38,10 @@ _Noticeable spike in the number of incoming reports as we went public in July 20
 
 Although we were running our bug bounty program in private for sometime before going public, we still had not worked much on building standard operating procedures and processes for managing our bug bounty program up until early 2018. Listed below, are our key takeaways from 2018 till July 2020 in terms of improvements, challenges, and other insights.
 
-1.  Response Time: No researcher wants to work with a bug bounty team that doesn't respect the time that they are putting into reporting bugs to the program. We initially didn't have a formal process around response times, because we wanted to encourage all security engineers to pick-up reports. Still, we have been consistently delivering a first response to reports in a matter of hours, which is significantly lower than the top 20 bug bounty programs running on HackerOne. Know what structured (or unstructured) processes work for your team in this area, because your program can see significant rewards from fast response times.
-2.  Time to Bounty: In most bug bounty programs the payout for a bug is made in one of the following ways: full payment after the bug has been resolved, full payment after the bug has been triaged, or paying a portion of the bounty after triage and the remaining after resolution. We opt to pay the full bounty after triage. While we're always working to speed up resolution times, that timeline is in our hands, not the researcher's. Instead of making them wait, we pay them as soon as impact is determined to incentivize long-term engagement in the program.
-3.  Noise Reduction: With [HackerOne Triage](https://www.hackerone.com/services) and [Human-Augmented Signal](https://www.hackerone.com/blog/Double-your-signal-double-your-fun), we're able to focus our team's efforts on resolving unique, valid vulnerabilities. Human-Augmented Signal flags any reports that are likely false-positives, and Triage provides a validation layer between our security team and the report inbox. Collaboration with the HackerOne Triage team has been fantastic and ultimately allows us to be more efficient by focusing our energy on valid, actionable reports. In addition, we take significant steps to block traffic coming from networks running automated scans against our Grab infrastructure and we're constantly exploring this area to actively prevent automated external scanning.
-4.  Team Coverage: We introduced a team scheduling process, in which we assign a security engineer (chosen during sprint planning) on a weekly basis, whose sole responsibility is to review and respond to bug bounty reports. We have integrated our systems with HackerOne’s API and PagerDuty to ensure alerts are for valid reports and verified as much as possible.
+1.  **Response Time**: No researcher wants to work with a bug bounty team that doesn't respect the time that they are putting into reporting bugs to the program. We initially didn't have a formal process around response times, because we wanted to encourage all security engineers to pick-up reports. Still, we have been consistently delivering a first response to reports in a matter of hours, which is significantly lower than the top 20 bug bounty programs running on HackerOne. Know what structured (or unstructured) processes work for your team in this area, because your program can see significant rewards from fast response times.
+2.  **Time to Bounty**: In most bug bounty programs the payout for a bug is made in one of the following ways: full payment after the bug has been resolved, full payment after the bug has been triaged, or paying a portion of the bounty after triage and the remaining after resolution. We opt to pay the full bounty after triage. While we're always working to speed up resolution times, that timeline is in our hands, not the researcher's. Instead of making them wait, we pay them as soon as impact is determined to incentivize long-term engagement in the program.
+3.  **Noise Reduction**: With [HackerOne Triage](https://www.hackerone.com/services) and [Human-Augmented Signal](https://www.hackerone.com/blog/Double-your-signal-double-your-fun), we're able to focus our team's efforts on resolving unique, valid vulnerabilities. Human-Augmented Signal flags any reports that are likely false-positives, and Triage provides a validation layer between our security team and the report inbox. Collaboration with the HackerOne Triage team has been fantastic and ultimately allows us to be more efficient by focusing our energy on valid, actionable reports. In addition, we take significant steps to block traffic coming from networks running automated scans against our Grab infrastructure and we're constantly exploring this area to actively prevent automated external scanning.
+4.  **Team Coverage**: We introduced a team scheduling process, in which we assign a security engineer (chosen during sprint planning) on a weekly basis, whose sole responsibility is to review and respond to bug bounty reports. We have integrated our systems with HackerOne’s API and PagerDuty to ensure alerts are for valid reports and verified as much as possible.
 
 ## Looking Ahead
 
@@ -55,11 +55,15 @@ We are open to community feedback and how we can improve. We want to hear from y
 
 Last but not least, we’d like to thank all researchers who have contributed to the Grab program so far. Your immense efforts have helped keep Grab’s businesses and users safe. Here’s a shoutout to our program’s top-earning hackers [🏆](https://emojipedia.org/trophy/%23:~:text%3DThe%2520trophy%2520emoji%2520is%2520a,the%2520bottom%2520detailing%2520the%2520award.%26text%3DTrophy%2520was%2520approved%2520as%2520part,to%2520Emoji%25201.0%2520in%25202015.):
 
-| Ranking | Overall Top 3 Researchers | Year 2019/2020 Top 3 Researchers |
-| ----------- | ----------- | ----------- | ----------- |
-| 1 | [@reptou](https://hackerone.com/reptou?type%3Duser) | [@reptou](https://hackerone.com/reptou?type%3Duser) |
-| 2 | [@quanyang](https://hackerone.com/quanyang?type%3Duser) | [@alexeypetrenko](https://hackerone.com/alexeypetrenko?type%3Duser) |
-| 3 | [@ngocdh](https://hackerone.com/ngocdh?type%3Duser) |  [@chaosbolt](https://hackerone.com/chaosbolt?type%3Duser) |
+**Overall Top 3 Researchers**
+1. [@reptou](https://hackerone.com/reptou?type%3Duser)
+2. [@quanyang](https://hackerone.com/quanyang?type%3Duser)
+3. [@ngocdh](https://hackerone.com/ngocdh?type%3Duser)
+
+**Year 2019/2020 Top 3 Researchers**
+1. [@reptou](https://hackerone.com/reptou?type%3Duser)
+2. [@alexeypetrenko](https://hackerone.com/alexeypetrenko?type%3Duser)
+3. [@chaosbolt](https://hackerone.com/chaosbolt?type%3Duser)
 
 Lastly, here is a special shoutout to [@bagipro](https://hackerone.com/bagipro) who has done some great work and testing on our Grab mobile applications!
 
