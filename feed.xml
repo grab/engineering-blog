@@ -6,9 +6,209 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 16 Dec 2020 07:56:26 +0000</pubDate>
-    <lastBuildDate>Wed, 16 Dec 2020 07:56:26 +0000</lastBuildDate>
+    <pubDate>Tue, 22 Dec 2020 12:23:31 +0000</pubDate>
+    <lastBuildDate>Tue, 22 Dec 2020 12:23:31 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Pharos - Searching Nearby Drivers on Road Network at Scale</title>
+        <description>&lt;p&gt;Have you ever wondered what happens when you click on the book button when arranging a ride home? Actually, many things happen behind this simple action and it would take days and nights to talk about all of them. Perhaps, we should rephrase this question to be more precise.  So, let’s try again - have you ever thought about how Grab stores and uses driver locations to allocate a driver to you? If so, you will surely find this blog post interesting as we cover how it all works in the backend.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-problems-are-we-going-to-solve&quot;&gt;What problems are we going to solve?&lt;/h2&gt;
+
+&lt;p&gt;One of the fundamental problems of the ride-hailing and delivery industry is to locate the nearest moving drivers in real-time. There are two challenges from serving this request in real time.&lt;/p&gt;
+
+&lt;h3 id=&quot;fast-moving-vehicles&quot;&gt;Fast-moving vehicles&lt;/h3&gt;
+
+&lt;p&gt;Vehicles are constantly moving and sometimes the drivers go at the speed of over 20 meters per second. As shown in Figure 1a and Figure 1b, the two nearest drivers to the pick-up point (blue dot) change as time passes. To provide a high-quality allocation service, it is important to constantly track the objects and update object locations at high frequency (e.g. per second).&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/fast-moving-drivers.png&quot; alt=&quot;Figure 1: Fast-moving drivers&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1: Fast-moving drivers&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;routing-distance-calculation&quot;&gt;Routing distance calculation&lt;/h3&gt;
+
+&lt;p&gt;To satisfy business requirements, K nearest objects need to be calculated based on the routing distance instead of straight-line distance. Due to the complexity of the road network, the driver with the shortest straight-line distance may not be the optimal driver as it could reach the pick-up point with a longer routing distance due to detour.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+   &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image1.png&quot; alt=&quot;Figure 2: Straight line vs routing&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2: Straight line vs routing&lt;/i&gt;&lt;/figcaption&gt;
+ &lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;As shown in Figure 2, the driver at the top is deemed as the nearest one to pick-up point by straight line distance. However, the driver at the bottom should be the true nearest driver by routing distance. Moreover, routing distance helps to infer the estimated time of arrival (ETA), which is an important factor for allocation, as shorter ETA reduces passenger waiting time thus reducing order cancellation rate and improving order completion rate.&lt;/p&gt;
+
+&lt;p&gt;Searching for the K nearest drivers with respect to a given POI is a well studied topic for all ride-hailing companies, which can be treated as a &lt;em&gt;K Nearest Neighbour (KNN) problem&lt;/em&gt;. Our predecessor, Sextant, searches nearby drivers with the &lt;em&gt;&lt;a href=&quot;https://en.wikipedia.org/wiki/Haversine_formula&quot;&gt;haversine&lt;/a&gt;&lt;/em&gt; distance from driver locations to the pick-up point. By partitioning the region into grids and storing them in a distributed manner, Sextant can handle large volumes of requests with low latency. However, nearest drivers found by the haversine distance may incur long driving distance and ETA as illustrated in Figure 2. For more information about Sextant, kindly refer to the paper, &lt;em&gt;&lt;a href=&quot;https://ieeexplore.ieee.org/document/8788742&quot;&gt;Sextant: Grab’s Scalable In-Memory Spatial Data Store for Real-Time K-Nearest Neighbour Search&lt;/a&gt;&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;To better address the challenges mentioned above, we present the next-generation solution, &lt;strong&gt;Pharos&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image7.png&quot; alt=&quot;Figure 3: Lighthouse of Alexandria&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3: Lighthouse of Alexandria&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;what-is-pharos&quot;&gt;What is Pharos?&lt;/h2&gt;
+
+&lt;p&gt;Pharos means lighthouse in Greek. At Grab, it is a scalable in-memory solution that supports large-volume, real-time K nearest search by driving distance or ETA with high object update frequency.&lt;/p&gt;
+
+&lt;p&gt;In Pharos, we use &lt;a href=&quot;https://en.wikipedia.org/wiki/OpenStreetMap&quot;&gt;OpenStreetMap&lt;/a&gt; (OSM) graphs to represent road networks. To support hyper-localized business requirements, the graph is partitioned by cities and verticals (e.g. the road network for a four-wheel vehicle is definitely different compared to a motorbike or a pedestrian). We denote this partition key as &lt;em&gt;map ID&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;Pharos loads the graph partitions at service start and stores drivers’ spatial data in memory in a distributed manner to alleviate the scalability issue when the graph or the number of drivers grows. These data are distributed into multiple instances (i.e. machines) with replicas for high stability. Pharos exploits &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2016/papers/leis-icde2013.pdf&quot;&gt;Adaptive Radix Trees&lt;/a&gt; (ART) to store objects’ locations along with their metadata.&lt;/p&gt;
+
+&lt;p&gt;To answer the KNN query by routing distance or ETA, Pharos uses &lt;a href=&quot;http://www.vldb.org/pvldb/vol9/p492-abeywickrama.pdf&quot;&gt;Incremental Network Expansion&lt;/a&gt; (INE) starting from the road segment of the query point. During the expansion, drivers stored along the road segments are incrementally retrieved as candidates and put into the results. As the expansion actually generates an isochrone map, it can be terminated by reaching a predefined radius of distance or ETA, or even simply a maximum number of candidates.&lt;/p&gt;
+
+&lt;p&gt;Now that you have an  overview of Pharos, we would like to go into the design details of it, starting with its architecture.&lt;/p&gt;
+
+&lt;h3 id=&quot;pharos-architecture&quot;&gt;Pharos architecture&lt;/h3&gt;
+
+&lt;p&gt;As a microservice, Pharos receives requests from the upstream, performs corresponding actions and then returns the result back. As shown in Figure 4, the Pharos architecture can be broken down into three layers: &lt;em&gt;Proxy&lt;/em&gt;, &lt;em&gt;Node&lt;/em&gt;, and &lt;em&gt;Model&lt;/em&gt;.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Proxy layer&lt;/strong&gt;. This layer helps to pass down the request to the right node, especially when the Node is on another machine.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Node layer&lt;/strong&gt;. This layer stores the index of map IDs to models and distributes the request to the right model for execution.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Model layer&lt;/strong&gt;. This layer is, where the business logic is implemented, executes the operations and returns the result.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;As a distributed in-memory driver storage, Pharos is designed to handle load balancing, fault tolerance, and fast recovery.&lt;/p&gt;
+
+&lt;p&gt;Taking Figure 4 as an example, Pharos consists of three instances. Each individual instance is able to handle any request from the upstream. Whenever there is a request coming from the upstream, it is distributed into one of the three instances, which achieves the purpose of load balancing.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image2.png&quot; alt=&quot;Figure 4: Pharos architecture&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 4: Pharos architecture&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;In Pharos, each model has two replicas and they are stored on different instances and different availability zones. If one instance is down, the other two instances are still up for service. The fault tolerance module in Pharos automatically detects the reduction of replicas and creates new instances to load graphs and build the models of missing replicas. This proves the reliability of Pharos even under extreme situations.&lt;/p&gt;
+
+&lt;p&gt;With the architecture of Pharos in mind, let’s take a look at how it stores driver information.&lt;/p&gt;
+
+&lt;h3 id=&quot;driver-storage&quot;&gt;Driver storage&lt;/h3&gt;
+
+&lt;p&gt;Pharos acts as a driver storage, and rather than being an external storage, it adopts in-memory storage which is faster and more adequate to handle frequent driver position updates and retrieve driver locations for nearby driver queries. Without loss of generality, drivers are assumed to be located on the vertices, i.e. &lt;a href=&quot;https://github.com/Project-OSRM/osrm-backend/wiki/Graph-representation&quot;&gt;Edge Based Nodes&lt;/a&gt; (EBN) of an edge-based graph.&lt;/p&gt;
+
+&lt;p&gt;Model is in charge of the driver storage in Pharos. Driver objects are passed down from upper layers to the model layer for storage. Each driver object contains several fields such as driver ID and metadata, containing the driver’s business related information e.g. driver status and particular allocation preferences.&lt;/p&gt;
+
+&lt;p&gt;There is also a &lt;em&gt;Latitude and Longitude (LatLon) pair&lt;/em&gt; contained in the object, which indicates the driver’s current location. Very often, this LatLon pair sent from the driver is off the road (not on any existing road). The computation of routing distance between the query point and drivers is based on the road network. Thus, we need to infer which road segment (EBN) the driver is most probably on.&lt;/p&gt;
+
+&lt;p&gt;To convert a LatLon pair to an exact location on a road is called &lt;strong&gt;Snapping&lt;/strong&gt;. Model begins with finding EBNs which are close to the driver’s location. After that, as illustrated in Figure 5, the driver’s location is projected to those EBNs, by drawing perpendicular lines from the location to the EBNs. The projected point is denoted as a &lt;strong&gt;phantom node&lt;/strong&gt;. As the name suggests, these nodes do not exist in the graph. They are merely memory representations of the snapped driver.&lt;/p&gt;
+
+&lt;p&gt;Each phantom node contains information about its projected location such as the ID of EBN it is projected to, projected LatLon and projection ratio, etc. Snapping returns a list of phantom nodes ordered by the haversine distance from the driver’s LatLon to the phantom node in ascending order. The nearest phantom node is bound with the original driver object to provide information about the driver’s snapped location.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image12.png&quot; alt=&quot;Figure 5: Snapping and phantom nodes&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 5: Snapping and phantom nodes&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;To efficiently index drivers from the graph, Pharos uses ART for driver storage. Two ARTs are maintained by each model: &lt;em&gt;Driver ART&lt;/em&gt; and &lt;em&gt;EBN ART&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Driver ART&lt;/strong&gt; is used to store the index of driver IDs to corresponding driver objects, while &lt;strong&gt;EBN ART&lt;/strong&gt; is used to store the index of EBN IDs to the root of an ART, which stores the drivers on that EBN.&lt;/p&gt;
+
+&lt;p&gt;Bi-directional indexing between EBNs and drivers are built because an efficient retrieval from driver to EBN is needed as driver locations are constantly updated. In practice, as index keys, driver IDs, and EBN IDs are both numerical. ART has a better throughput for dense keys (e.g. numerical keys) in contrast to sparse keys such as alphabetical keys, and when compared to other in-memory look-up tables (e.g. hash table). It also incurs less memory than other tree-based methods.&lt;/p&gt;
+
+&lt;p&gt;Figure 6 gives an example of driver ART assuming that the driver ID only has three digits.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image9.png&quot; alt=&quot;Figure 6: Driver ART&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 6: Driver ART&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;After snapping, this new driver object is wrapped into an update task for execution. During execution, the model firstly checks if this driver already exists using its driver ID. If it does not exist, the model directly adds it to driver ART and EBN ART. If the driver already exists, the new driver object replaces the old driver object on driver ART. For EBN ART, the old driver object on the previous EBN needs to be deleted first before adding the new driver object to the current EBN.&lt;/p&gt;
+
+&lt;p&gt;Every insertion or deletion modifies both ARTs, which might cause changes to roots. The model only stores the roots of ARTs, and in order to prevent race conditions, a lock is used to prevent other read or write operations to access the ARTs while changing the ART roots.&lt;/p&gt;
+
+&lt;p&gt;Whenever a driver nearby request comes in, it needs to get a snapshot of driver storage, i.e. the roots of two ARTs. A simple example (Figure 7a and 7b) is used to explain how synchronization is achieved during concurrent driver update and nearby requests.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/art-synchronization.png&quot; alt=&quot;Figure 7: How ARTs change roots for synchronization&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 7: How ARTs change roots for synchronization&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Currently there are two drivers A and B stored and these two drivers reside on the same EBN. When there is a nearby request, the current roots of the two ARTs are returned. When processing this nearby request, there could be driver updates coming and modifying the ARTs, e.g. a new root is resulted due to update of driver C. This driver update has no impact on ongoing driver nearby requests as they are using different roots. Subsequent nearby requests will use the new ART roots to find the nearby drivers. Once the current roots are not used by any nearby request, these roots and their child nodes are ready to be garbage collected.&lt;/p&gt;
+
+&lt;p&gt;Pharos does not delete drivers actively. A deletion of expired drivers is carried out every midnight by populating two new ARTs with the same driver update requests for a duration of driver’s &lt;em&gt;Time To Live (TTL)&lt;/em&gt;, and then doing a switch of the roots at the end. Drivers with expired TTLs are not referenced and they are ready to be garbage collected. In this way, expired drivers are removed from the driver storage.&lt;/p&gt;
+
+&lt;h3 id=&quot;driver-update-and-nearby&quot;&gt;Driver update and nearby&lt;/h3&gt;
+
+&lt;p&gt;Pharos mainly has two external endpoints: &lt;em&gt;Driver Update&lt;/em&gt; and &lt;em&gt;Driver Nearby&lt;/em&gt;. The following describes how the business logic is implemented in these two operations.&lt;/p&gt;
+
+&lt;h4 id=&quot;driver-update&quot;&gt;Driver update&lt;/h4&gt;
+
+&lt;p&gt;Figure 8 demonstrates the life cycle of a driver update request from upstream. Driver update requests from upstream are distributed to each proxy by a load balancer. The chosen proxy firstly constructs a driver object from the request body.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;RouteTable&lt;/em&gt;, a structure in proxy, stores the index between map IDs and replica addresses. Proxy then uses map ID in the request as the key to check its RouteTable and gets the IP addresses of all the instances containing the model of that map ID.&lt;/p&gt;
+
+&lt;p&gt;Then, proxy forwards the update to other replicas that reside in other instances. Those instances, upon receiving the message, know that the update is forwarded from another proxy. Hence they directly pass down the driver object to the node.&lt;/p&gt;
+
+&lt;p&gt;After receiving the driver object, Node sends it to the right model by checking the index between map ID and model. The remaining part of the update flow is the same as described in Driver Storage. Sometimes the driver updates to replicas are not successful, e.g. request lost or model does not exist, Pharos will not react to such kinds of scenarios.&lt;/p&gt;
+
+&lt;p&gt;It can be observed that data storage in Pharos does not guarantee strong consistency. In practice, Pharos favors high throughput over strong consistency of KNN query results as the update frequency is high and slight inconsistency does not affect allocation performance significantly.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image6.png&quot; alt=&quot;Figure 8: Driver update flow&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 8: Driver update flow&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;driver-nearby&quot;&gt;Driver nearby&lt;/h4&gt;
+
+&lt;p&gt;Similar to driver update, after a driver nearby request comes from the upstream, it is distributed to one of the machines by the load balancer. In a nearby request, a set of filter parameters is used to match with driver metadata in order to support KNN queries with various business requirements. Note that driver metadata also carries an update timestamp. During the nearby search, drivers with an expired timestamp are filtered.&lt;/p&gt;
+
+&lt;p&gt;As illustrated in Figure 9, upon receiving the nearby request, a nearby object is built and passed to the proxy layer. The proxy first checks RouteTable by map ID to see if this request can be served on the current instance. If so, the nearby object is passed to the Node layer. Otherwise, this nearby request needs to be forwarded to the instances that contain this map ID.&lt;/p&gt;
+
+&lt;p&gt;In this situation, a round-robin fashion is applied to select the right instance for load balancing. After receiving the request, the proxy of the chosen instance directly passes the nearby object to the node. Once the node layer receives the nearby object, it looks for the right model using the map ID as key. Eventually, the nearby object goes to the model layer where K-nearest-driver computation takes place. Model snaps the location of the request to some phantom nodes as described previously - these nodes are used as start nodes for expansion later.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image5.png&quot; alt=&quot;Figure 9: Driver nearby flow&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 9: Driver nearby flow&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;k-nearest-driver-search&quot;&gt;K nearest driver search&lt;/h4&gt;
+
+&lt;p&gt;Starting from the phantom nodes found in the &lt;em&gt;Driver Nearby&lt;/em&gt; flow, the K nearest driver search begins. Two priority queues are used during the search: &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt; is used to keep track of the nearby EBNs, while &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt; keeps track of drivers found during expansion by their driving distance to the query point.&lt;/p&gt;
+
+&lt;p&gt;At first, a snapshot of the current driver storage is taken (using roots of current ARTs) and it shows the driver locations on the road network at the time when the nearby request comes in. From each start node, the parent EBN is found and drivers on these EBNs are appended to driverPQ. After that, KNN search expands to adjacent EBNs and appends these EBNs to &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;. After iterating all start nodes, there will be some initial drivers in driverPQ and adjacent EBNs waiting to be expanded in &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Each time the nearest EBN is removed from &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;, drivers located on this EBN are appended to &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt;. After that, the closest driver is removed from &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt;. If the driver satisfies all filtering requirements, it is appended to the array of qualified drivers. This step repeats until driverPQ becomes empty. During this process, if the size of qualified drivers reaches the maximum driver limit, the KNN search stops right away and qualified drivers are returned.&lt;/p&gt;
+
+&lt;p&gt;After &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt; becomes empty, adjacent EBNs of the current one are to be expanded and those within the predefined range, e.g. three kilometers, are appended to &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;. Then the nearest EBN is removed from &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt; and drivers on that EBN are appended to &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt; again. The whole process continues until &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt; becomes empty. The driver array is returned as the result of the nearby query.&lt;/p&gt;
+
+&lt;p&gt;Figure 10 shows the pseudo code of this KNN algorithm.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image8.png&quot; alt=&quot;Figure 10: KNN search algorithm&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 10: KNN search algorithm&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;Currently, Pharos is running on the production environment, where it handles requests with &lt;strong&gt;P99 latency time of 10ms for driver update&lt;/strong&gt; and &lt;strong&gt;50ms for driver nearby&lt;/strong&gt;, respectively. Even though the performance of Pharos is quite satisfying, we still see some potential areas of improvements:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Pharos uses ART for driver storage. Even though ART proves its ability to handle large volumes of driver update and driver nearby requests, the write operations (driver update) are not carried out in parallel. Hence, we plan to explore other data structures that can achieve high concurrency of read and write, eg. concurrent hash table.&lt;/li&gt;
+  &lt;li&gt;Pharos uses OSM &lt;a href=&quot;https://www.google.com/url?q=https://i11www.iti.kit.edu/_media/teaching/theses/ba-hamme-13.pdf&amp;amp;sa=D&amp;amp;ust=1608637926094000&amp;amp;usg=AOvVaw0hO37L1Wqh_C423C51e3S8&quot;&gt;Multi-level Dijkstra&lt;/a&gt; (MLD) graphs to find K nearest drivers. As the predefined range of nearby driver search is often a few kilometers, Pharos does not make use of MLD partitions or support long distance query. Thus, we are interested in exploiting MLD graph partitions to enable Pharos to support long distance query.&lt;/li&gt;
+  &lt;li&gt;In Pharos, maps are partitioned by cities and we assume that drivers of a city operate within that city. When finding the nearby drivers, Pharos only allocates drivers of that city to the passenger. Hence, in the future, we want to enable Pharos to support cross city allocation.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We hope this blog helps you to have a closer look at how we store driver locations and how we use these locations to find nearby drivers around you.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+
+&lt;h4 id=&quot;acknowledgements&quot;&gt;Acknowledgements&lt;/h4&gt;
+&lt;p&gt;We would like to thank Chunda Ding, Zerun Dong, and Jiang Liu for their contributions to the distributed layer used in Pharos. Their efforts make Pharos reliable and fault tolerant.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Figure 3, Lighthouse of Alexandria is taken from &lt;a href=&quot;https://www.britannica.com/topic/lighthouse-of-Alexandria%23/media/1/455210/187239&quot;&gt;https://www.britannica.com/topic/lighthouse-of-Alexandria#/media/1/455210/187239&lt;/a&gt; authored by Sergey Kamshylin.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Figure 5, Snapping and Phantom Nodes, is created by Minbo Qiu. We would like to thank him for the insightful elaboration of the snapping mechanism.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Cover Photo by Kevin Huang on Unsplash&lt;/em&gt;&lt;/p&gt;
+</description>
+        <pubDate>Tue, 22 Dec 2020 03:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/pharos-searching-nearby-drivers-on-road-network-at-scale</link>
+        <guid isPermaLink="true">https://engineering.grab.com/pharos-searching-nearby-drivers-on-road-network-at-scale</guid>
+        
+        <category>Real-Time K Nearest Neighbour Search</category>
+        
+        <category>Spatial Data Store</category>
+        
+        <category>Distributed System</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Reflecting on the five years of Bug Bounty at Grab</title>
@@ -1672,228 +1872,6 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>The journey of deploying Apache Airflow at Grab</title>
-        <description>&lt;p&gt;At Grab, we use &lt;a href=&quot;https://airflow.apache.org&quot;&gt;Apache Airflow&lt;/a&gt; to schedule and orchestrate the ingestion and transformation of data,  train machine learning models, and the copy data between clouds. There are many engineering teams at Grab that use Airflow, each of which originally had their own Airflow instance.&lt;/p&gt;
-
-&lt;p&gt;The proliferation of independently managed Airflow instances resulted in inefficient use of resources, where each team ended up solving the same problems of logging, scaling, monitoring, and more. From this morass came the idea of having a single dedicated team to manage all the Airflow instances for anyone in Grab that wants to use Airflow as a scheduling tool.&lt;/p&gt;
-
-&lt;p&gt;We designed and implemented an Apache Airflow-based scheduling and orchestration platform that currently runs close to 20 Airflow instances for different teams at Grab. Sounds interesting? What follows is a brief history.&lt;/p&gt;
-
-&lt;h2 id=&quot;early-days&quot;&gt;Early days&lt;/h2&gt;
-
-&lt;p&gt;Circa 2018, we were running a few hundred Directed Acyclic Graphs (DAGs) on one Airflow instance in the Data Engineering team. There was no dedicated team to maintain it, and no Airflow expert in our team. We were struggling to maintain our Airflow instance, which was causing many jobs to fail every day. We were facing issues with library management, scaling, managing and syncing artefacts across all Airflow components, upgrading Airflow versions, deployment, rollbacks, etc.&lt;/p&gt;
-
-&lt;p&gt;After a few postmortem reports, we realized that we needed a dedicated team to maintain our Airflow. This was how our Airflow team was born.&lt;/p&gt;
-
-&lt;p&gt;In the initial months, we dedicated ourselves to stabilizing our Airflow environment. During this process, we realized that Airflow has a steep learning curve and requires time and effort to understand and maintain properly. Also, we found that tweaking of Airflow configurations required a thorough understanding of Airflow internals.&lt;/p&gt;
-
-&lt;p&gt;We felt that for the benefit of everyone at Grab, we should leverage what we learned about Airflow to help other teams at Grab; there was no need for anyone else to go through the same struggles we did. That’s when we started thinking about managing Airflow for other teams.&lt;/p&gt;
-
-&lt;p&gt;We talked to the Data Science and Engineering teams who were also running Airflow to schedule their jobs. Almost all the teams were struggling to maintain their Airflow instance. A few teams didn’t have enough technical expertise to maintain their instance. The Data Scientists and Analysts that we spoke to were more than happy to outsource the overhead of Airflow maintenance and wanted to focus more on their Data Science use cases instead.&lt;/p&gt;
-
-&lt;p&gt;We started working with one of the Data Science teams and initiated the discussion to create a dockerized Airflow instance and run it on our Kubernetes cluster.&lt;/p&gt;
-
-&lt;p&gt;We created the Airflow instance and maintained it for them. Later, we were approached by two more teams to help with their Airflow instances. This was the trigger for us to design and create a platform on which we can efficiently manage Airflow instances for different teams.&lt;/p&gt;
-
-&lt;h2 id=&quot;current-state&quot;&gt;Current state&lt;/h2&gt;
-
-&lt;p&gt;As mentioned, we are currently serving close to 20 Airflow instances for various teams on this platform and leverage Apache Airflow to schedule thousands of daily jobs.  Each Airflow instance is currently scheduling 1k to 60k daily jobs. Also, new teams can quickly try out Airflow without worrying about infrastructure and maintenance overhead. Let’s go through the important aspects of this platform such as design considerations, architecture, deployment, scalability, dependency management, monitoring and alerting, and more.&lt;/p&gt;
-
-&lt;h3 id=&quot;design-considerations&quot;&gt;Design considerations&lt;/h3&gt;
-
-&lt;p&gt;The initial step we took towards building our scheduling platform was to define a set of expectations and guidelines around ownership, infrastructure, authentication, common artifacts and CI/CD, to name a few.&lt;/p&gt;
-
-&lt;p&gt;These were the considerations we had in mind:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Deploy containerized Airflow instances on Kubernetes cluster to isolate Airflow instances at the team level. It should scale up and scale out according to usage.&lt;/li&gt;
-  &lt;li&gt;Each team can have different sets of jobs that require specific dependencies on the Airflow server.&lt;/li&gt;
-  &lt;li&gt;Provide common CI/CD templates to build, test, and deploy Airflow instances. These CI/CD templates should be flexible enough to be extended by users and modified according to their use case.&lt;/li&gt;
-  &lt;li&gt;Common plugins, operators, hooks, sensors will be shipped to all Airflow instances. Moreover, each team can have its own plugins, operators, hooks, and sensors.&lt;/li&gt;
-  &lt;li&gt;Support LDAP based authentication as it is natively supported by Apache Airflow. Each team can authenticate Airflow UI by their LDAP credentials.&lt;/li&gt;
-  &lt;li&gt;Use the Hashicorp Vault to store Airflow specific secrets. Inject these secrets via sidecar in Airflow servers.&lt;/li&gt;
-  &lt;li&gt;Use ELK stack to access all application logs and infrastructure logs.&lt;/li&gt;
-  &lt;li&gt;Datadog and PagerDuty will be used for monitoring and alerting.&lt;/li&gt;
-  &lt;li&gt;Ingest job statistics such as total number of jobs scheduled, no of failed jobs, no of successful jobs, active DAGs, etc. into the data lake and will be accessible via Presto.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-journey-of-deploying-apache-airflow-at-Grab/image2.png&quot; alt=&quot;Architecture diagram&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Architecture diagram&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;infrastructure-management&quot;&gt;Infrastructure management&lt;/h3&gt;
-
-&lt;p&gt;Initially, we started deploying Airflow instances on  Kubernetes clusters managed via &lt;a href=&quot;https://github.com/kubernetes/kops&quot;&gt;Kubernetes Operations (KOPS)&lt;/a&gt;. Later, we migrated to Amazon EKS to reduce the overhead of managing the Kubernetes control plane. Each Kubernetes namespace deploys one Airflow instance.&lt;/p&gt;
-
-&lt;p&gt;We chose Terraform to manage infrastructure as code. We deployed each Airflow instance using Terraform modules, which include a &lt;strong&gt;helm_release&lt;/strong&gt; Terraform resource on top of our customized Airflow Helm Chart.&lt;/p&gt;
-
-&lt;p&gt;Each Airflow instance connects to its own Redis and RDS. RDS is responsible for storing Airflow metadata and Redis is acting as a celery broker between Airflow scheduler and Airflow workers.&lt;/p&gt;
-
-&lt;p&gt;The Hashicorp Vault is used to store secrets required by Airflow instances and injected via sidecar by each Airflow component. The ELK stack stores all logs related to Airflow instances and is used for troubleshooting any instance. Datadog, Slack, and PagerDuty are used to send alerts.&lt;/p&gt;
-
-&lt;p&gt;Presto is used to access job statistics, such as numbers on scheduled jobs, failed jobs, successful jobs, and active DAGs, to help each team to analyze their usage and stability of their jobs.&lt;/p&gt;
-
-&lt;h3 id=&quot;doing-things-at-scale&quot;&gt;Doing things at scale&lt;/h3&gt;
-
-&lt;p&gt;There are two kinds of scaling we need to talk about:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;scaling of Airflow instances on a resource level handling different loads&lt;/li&gt;
-  &lt;li&gt;scaling in terms of teams served on the platform&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To scale Airflow instances, we set the request and the limit of each Airflow component allowing any of the components to scale up easily. To scale out Airflow workers, we decided to enable the horizontal pod autoscaler (HPA) using Memory and CPU parameters. The cluster autoscaler on EKS helps in scaling the platform to accommodate more teams.&lt;/p&gt;
-
-&lt;p&gt;Moreover, we categorized all our Airflow instances in three sizes (small, medium, and large) to efficiently use the resources. This was based on how many hourly/daily jobs it scheduled. Each Airflow instance type has a specific RDS instance type and storage, Redis instance type and CPU and memory, request/limit for scheduler, worker, web server, and flower. There are different Airflow configurations for each instance type to optimize the given resources to the Airflow instance.&lt;/p&gt;
-
-&lt;h3 id=&quot;airflow-image-and-version-management&quot;&gt;Airflow image and version management&lt;/h3&gt;
-
-&lt;p&gt;The Airflow team builds and releases one common base Docker image for each Airflow version. The base image has Airflow installed with specific versions, as well as common Python packages, plugins, helpers, tests, patches, and so on.&lt;/p&gt;
-
-&lt;p&gt;Each team has their customized Docker image on top of the base image. In their customized Docker image, they can update the Python packages and can download other artifacts that they require. Each Airflow instance will be deployed using the team’s customized image.&lt;/p&gt;
-
-&lt;p&gt;There are common CI/CD templates provided by the Airflow team to build the customized image, run unit tests, and deploy Airflow instances from their GitLab pipeline.&lt;/p&gt;
-
-&lt;p&gt;To upgrade the Airflow version, the Airflow team reviews and studies the changelog of the released Airflow version, note down the important features and its impacts, open issues, bugs, and workable solutions. Later, we build and release the base Docker image using the new Airflow version.&lt;/p&gt;
-
-&lt;p&gt;We support only one Airflow version for all Airflow instances to have less maintenance overhead. In the case of minor or major versions, we support one old and new versions until the retirement period.&lt;/p&gt;
-
-&lt;h3 id=&quot;how-do-we-deploy&quot;&gt;How do we deploy&lt;/h3&gt;
-
-&lt;p&gt;There is a deployment ownership guideline that explains the schedule of deployments and the corresponding PICs. All teams have agreed on this guideline and share the responsibility with the Airflow Team.&lt;/p&gt;
-
-&lt;p&gt;There are two kinds of deployment:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;DAG deployment&lt;/strong&gt;: This is part of the common GitLab CI/CD template. The Airflow team doesn’t trigger the DAG deployment, it’s fully owned by the teams.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Airflow instance deployment&lt;/strong&gt;: The Airflow instance deployment is required in these scenarios:
-    &lt;ol&gt;
-      &lt;li&gt;update in base Docker image&lt;/li&gt;
-      &lt;li&gt;add/update in Python packages by any team&lt;/li&gt;
-      &lt;li&gt;customization in the base image by any team&lt;/li&gt;
-      &lt;li&gt;change in Airflow configurations&lt;/li&gt;
-      &lt;li&gt;change in the resource of scheduler, worker, web server or flower&lt;/li&gt;
-    &lt;/ol&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;base-docker-image-update&quot;&gt;Base Docker image update&lt;/h4&gt;
-
-&lt;p&gt;The Airflow team maintains the base Docker image on the AWS Elastic Container Registry. The GitLab CI/CD builds the updated base image whenever the Airflow team changes the base image. The base image is validated by automated deployment on the test environment and automated smoke test. The Airflow instance owner of each team needs to trigger their build and deployment pipeline to apply the base image changes on their Airflow instance.&lt;/p&gt;
-
-&lt;h4 id=&quot;python-package-additions-or-updates&quot;&gt;Python package additions or updates&lt;/h4&gt;
-
-&lt;p&gt;Each team can add or update their Python dependencies. The Gitlab CI/CD pipeline builds a new image with updated changes. The Airflow instance owner manually triggers the deployment from their CI/CD pipeline. There is a flag to make it automated deployment as well.&lt;/p&gt;
-
-&lt;h4 id=&quot;based-image-customization&quot;&gt;Based image customization&lt;/h4&gt;
-
-&lt;p&gt;Each team can add any customizations on the base image. Similar to the above scenario, the Gitlab CI/CD pipeline builds a new image with updated changes. The Airflow instance owner manually triggers the deployment from their CI/CD pipeline. To automate the deployment, a flag is made available.&lt;/p&gt;
-
-&lt;h4 id=&quot;configuration-airflow-and-airflow-component-resource-changes&quot;&gt;Configuration Airflow and Airflow component resource changes&lt;/h4&gt;
-
-&lt;p&gt;To optimize the Airflow instances, the Airflow Team makes changes to the Airflow configurations and resources of any of the Airflow components. The Airflow configurations and resources are also part of the Terraform code. Atlantis (&lt;a href=&quot;https://www.runatlantis.io/&quot;&gt;https://www.runatlantis.io/&lt;/a&gt;) deploys the Airflow instances with Terraform changes.&lt;/p&gt;
-
-&lt;p&gt;There is no downtime in any form of deployment and doesn’t impact the running tasks and the Airflow UI.&lt;/p&gt;
-
-&lt;h3 id=&quot;testing&quot;&gt;Testing&lt;/h3&gt;
-
-&lt;p&gt;During the process of making our first Airflow stable, we started exploring testing in Airflow. We wanted to validate the correctness of DAGs, duplicate DAG IDs, checking typos and cyclicity in DAGs, etc. We then later wrote the tests by ourselves and published a detailed blog in several channels: &lt;a href=&quot;https://blog.usejournal.com/testing-in-airflow-part-1-dag-validation-tests-dag-definition-tests-and-unit-tests-2aa94970570c&quot;&gt;usejournal (part1)&lt;/a&gt; and &lt;a href=&quot;https://medium.com/@chandukavar/testing-in-airflow-part-2-integration-tests-and-end-to-end-pipeline-tests-af0555cd1a82&quot;&gt;medium (part2)&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;These tests are available in the base image and run in the GitLab pipeline from the user’s repository to validate their DAGs. The unit tests run using the common GitLab CI/CD template provided by the Airflow team.&lt;/p&gt;
-
-&lt;h3 id=&quot;monitoring--alerting&quot;&gt;Monitoring &amp;amp; alerting&lt;/h3&gt;
-
-&lt;p&gt;Our scheduling platform runs the Airflow instance for many critical jobs scheduled by each team. It’s important for us to monitor all Airflow instances and alert respective stakeholders in case of any failure.&lt;/p&gt;
-
-&lt;p&gt;We use a Datadog for monitoring and alerting. To create a common Datadog dashboard, it is required to pass tags with metrics from Airflow and till Airflow 1.10.x, it doesn’t support tagging to Datadog metrics.&lt;/p&gt;
-
-&lt;p&gt;We have contributed to the community to enable Datadog support and it will be released in Airflow 2.0.0 (&lt;a href=&quot;https://github.com/apache/airflow/pull/7376&quot;&gt;https://github.com/apache/Airflow/pull/7376&lt;/a&gt;). We internally patched this pull request and created the common Datadog dashboard.&lt;/p&gt;
-
-&lt;p&gt;There are three categories of metrics that we are interested in:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;EKS cluster metrics&lt;/strong&gt;: It includes total In-Service Nodes, allocated CPU cores, allocated Memory, Node status, CPU/Memory request vs limit, Node disk and Memory pressure, Rx-Tx packets dropped/errors, etc.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Host Metrics&lt;/strong&gt;: These metrics are for each host participating in the EKS cluster. It includes Host CPU/Memory utilization, Host free memory, System disk, and EBS IOPS, etc.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Airflow instance metrics&lt;/strong&gt;: These metrics are for each Airflow instance. It includes scheduler heartbeats, DagBag size, DAG processing import errors, DAG processing time, open/used slots in a pool, each pod’s Memory/CPU usage, CPU and Memory utilization of metadata DB, database connections as well as the number of workers, active/paused DAGs, successful/failed/queued/running tasks, etc.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-journey-of-deploying-apache-airflow-at-Grab/image1.png&quot; alt=&quot;Sample Datadog dashboard&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Sample Datadog dashboard&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;We alert respective stakeholders and oncalls using Slack and PagerDuty.&lt;/p&gt;
-
-&lt;h3 id=&quot;benefits&quot;&gt;Benefits&lt;/h3&gt;
-
-&lt;p&gt;These are the benefits of having our own Scheduling Platform:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Scaling&lt;/strong&gt;: HPA on Airflow workers running on EKS with autoscaler helps Airflow workers to scale automatically to theoretically infinite scale. This enables teams to run thousands of DAGs.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Logging&lt;/strong&gt;: Centralized logging using Kibana.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Better Isolation&lt;/strong&gt;: Separate Docker images for each team provide better isolation.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Better Customization&lt;/strong&gt;: All teams are provided with a mechanism to customize their Airflow worker environment according to their requirements.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Zero Downtime&lt;/strong&gt;: Rolling upgrade and termination period on Airflow workers helps in zero downtime during the deployment.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Efficient usage of infrastructure&lt;/strong&gt;: Each team doesn’t need to allocate infrastructure for Airflow instances. All Airflow instances are deployed on one shared EKS cluster.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Less maintenance overhead for users&lt;/strong&gt;:  Users can focus on their core work and don’t need to spend time maintaining Airflow instances and it’s resources.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Common plugins and helpers&lt;/strong&gt;: All common plugins and helpers available to use on Airflow instances. Each team doesn’t need to add.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Designing and implementing our own scheduling platform started with many challenges and unknowns. We were not sure about the scale we were aiming for, the heterogeneous workload from each team, or the level of triviality or complexity we were going to be faced. After two years, we have successfully built and productionized a scalable scheduling platform that helps teams at Grab to schedule their workload.&lt;/p&gt;
-
-&lt;p&gt;We have many failure stories, odd things we ran into, hacks and workarounds we patched. But, we went through it and provided a cost-effective and scalable scheduling platform with low maintenance overhead to all teams at Grab.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next&lt;/h2&gt;
-
-&lt;p&gt;Moving ahead, we will be exploring to add the following capabilities:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;REST APIs to enable teams to access their Airflow instance programmatically and have better integration with other tools and frameworks.&lt;/li&gt;
-  &lt;li&gt;Support of dynamic DAGs at scale to help in decreasing the DAG maintenance overhead.&lt;/li&gt;
-  &lt;li&gt;Template-based engine to act as a middle layer between the scheduling platform and external systems. It will have a set of templates to generate DAGs which helps in better integration with the external system.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We suggest anyone who is running multiple Airflow instances within different teams to look at this approach and build the centralized scheduling platform. Before you begin,  review the feasibility of building the centralized platform as it requires a vision, a lot of effort, and cross-communication with many teams.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored by Chandulal Kavar on behalf of the Airflow team at Grab - Charles Martinot, Vinnson Lee, Akash Sihag, Piyush Gupta, Pramiti Goel, Dewin Goh, QuiHieu Nguyen, James Anh-Tu Nguyen, and the Data Engineering Team.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Tue, 14 Jul 2020 10:34:40 +0000</pubDate>
-        <link>https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab</link>
-        <guid isPermaLink="true">https://engineering.grab.com/the-journey-of-deploying-apache-airflow-at-Grab</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Data Pipeline</category>
-        
-        <category>Scheduling</category>
-        
-        <category>Airflow</category>
-        
-        <category>Kubernetes</category>
-        
-        <category>Platform</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
         
       </item>
     
