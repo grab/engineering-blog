@@ -2,7 +2,7 @@
 layout: post
 id: 2020-12-22-pharos-searching-nearby-drivers-on-road-network-at-scale
 title: Pharos - Searching Nearby Drivers on Road Network at Scale
-date: 2020-12-16 00:00:00
+date: 2020-12-22 03:23:00
 authors: [hao-wu, minglei-su, thanh-dat-le, nuo-xu, guanfeng-wang, mihai-stroe]
 categories: [Engineering]
 tags: [Real-Time K Nearest Neighbour Search, Spatial Data Store, Distributed System]
