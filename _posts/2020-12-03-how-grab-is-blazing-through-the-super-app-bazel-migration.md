@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-12-03-how-grab-is-blazing-through-the-super-app-bazel-migration
-title: How Grab is Blazing Through the Super App Bazel Migration
+title: How Grab is blazing through the super app Bazel migration
 date: 2020-12-03 04:30:00
 authors: [sergii-grechukha]
 categories: [Engineering]
