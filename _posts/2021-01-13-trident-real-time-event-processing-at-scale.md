@@ -2,10 +2,10 @@
 layout: post
 id: 2021-01-13-trident-real-time-event-processing-at-scale
 title: Trident - Real-time event processing at scale
-date: 2020-12-22 03:23:00
+date: 2021-01-13 00:23:00
 authors: [jie-zhang, abdullah-mamun]
 categories: [Engineering]
-tags: [A/B Testing, Event Processing, ]
+tags: [A/B Testing, Event Processing]
 comments: true
 cover_photo: /img/trident-real-time-event-processing-at-scale/cover.png
 excerpt: "Find out where the messages and rewards come from, that arrive on your Grab app. Walk through scaling and processing optimizations that achieve tremendous throughput."
