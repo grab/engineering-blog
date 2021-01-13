@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-12-22-pharos-searching-nearby-drivers-on-road-network-at-scale
-title: Pharos - Searching Nearby Drivers on Road Network at Scale
+title: Pharos - Searching nearby drivers on road network at scale
 date: 2020-12-22 03:23:00
 authors: [hao-wu, minglei-su, thanh-dat-le, nuo-xu, guanfeng-wang, mihai-stroe]
 categories: [Engineering]
