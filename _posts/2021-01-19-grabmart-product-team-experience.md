@@ -43,19 +43,9 @@ Our user research validated our hypothesis that shopping for groceries online is
    <img src="/img/grabmart-product-team-experience/grabmartblogimage2.png" alt="The New GrabMart Experience"> <figcaption align="middle"><i>The New GrabMart Experience</i></figcaption>
  </figure></div>
 
-In order to meet our timelines, we divided the deliverables into two main releases and got early feedback from internal users through our Grab Early Access (GEA) program. Since GEA gives users a sneak-peek into upcoming app features, we can resolve any issues that they encounter before releasing the product to the general public.
+In order to meet our timelines, we divided the deliverables into two main releases and got early feedback from internal users through our Grab Early Access (GEA) program. Since GEA gives users a sneak-peek into upcoming app features, we can resolve any issues that they encounter before releasing the product to the general public. In addition, we made some large-scale changes required across multiple Grab systems, such as the order management system to account for the new mart order type, the allocation system to allocate the right type of driver for mart orders, and the merchant app and our Partner APIs to enable merchants to prepare mart orders efficiently.
 
-In addition, we made some  large-scale changes required across multiple Grab systems such as:
-
-*   Changes to the content management system to account for mart catalogs.
-*   Changes to the order management system to account for the new mart order type and manage payments to mart merchants appropriately.
-*   Changes to the consumer app to display a new homepage and browsing experience tailored for mart.
-*   Changes to the allocation system to allocate the right type of driver for mart orders
-*   Changes to the merchant app and our Partner APIs to enable merchants to prepare mart orders efficiently.
-
-Coupled with user research and country insights on grocery shopping behavior, we ruthlessly prioritised the features to be built.
-
-With these insights in mind, we introduced Item categories to cater to  customers who needed urgent restock of a few items, and Store categories for those shopping for their weekly groceries. We developed add-to-cart to make it easier for customers to put items in their basket, especially if they have a long list of products to buy. Furthermore, we included a Scheduled Delivery option for our Indonesian customers who want to receive their orders in person.
+Coupled with user research and country insights on grocery shopping behaviour, we ruthlessly prioritised the features to be built. We introduced Item categories to cater to customers who needed urgent restock of a few items, and Store categories for those shopping for their weekly groceries. We developed add-to-cart to make it easier for customers to put items in their basket, especially if they have a long list of products to buy. Furthermore, we included a Scheduled Delivery option for our Indonesian customers who want to receive their orders in person.
 
 
 ## Designing for emotional states
