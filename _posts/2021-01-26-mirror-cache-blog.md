@@ -5,7 +5,7 @@ title: Serving driver-partners data at scale using mirror cache
 date: 2021-01-26 00:23:00
 authors: [indrajit-sarkar]
 categories: [Engineering]
-tags: [mirror cache, data at scale]
+tags: [Mirror Cache, Data at Scale]
 comments: true
 cover_photo: /img/mirror-cache-blog/mirror-cache-blog-cover.png
 excerpt: "Find out how a team at Grab used Mirror Cache, an in-memory local caching solution, to serve driver-partners data efficiently."
@@ -21,7 +21,7 @@ We built the **Drivers Data service** to provide drivers-partners data to other 
   <img src="/img/mirror-cache-blog/image1.png" alt="Figure 1. Drivers Data service architecture"> <figcaption align="middle"><i>Figure 1. Drivers Data service architecture</i></figcaption>
 </figure></div>
 
-Our Drivers Data service previously used MySQL DB as persistent storage and two caching layers - standalone local cache (RAM of the EC2 instances) as primary cache and Redis as secondary for eventually consistent reads. With this setup, the cache hit ratio was very low.
+Our Drivers Data service previously used MySQL DB as persistent storage and two caching layers - _standalone local cache_ (RAM of the EC2 instances) as primary cache and _Redis_ as secondary for eventually consistent reads. With this setup, the cache hit ratio was very low.
 
 <div class="post-image-section"><figure>
   <img src="/img/mirror-cache-blog/image2.png" alt="Figure 2. Request flow chart"> <figcaption align="middle"><i>Figure 2. Request flow chart</i></figcaption>
@@ -32,12 +32,11 @@ We opted for a [cache aside](https://docs.microsoft.com/en-us/azure/architecture
 *   If data is not present in the in-memory cache and found in Redis, then the service sends back the response and updates the local cache asynchronously with data from Redis.
 *   If data is not present either in the in-memory cache or Redis, then the service responds back with the data fetched from the MySQL DB and updates both Redis and local cache asynchronously.
 
-
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image3.png" alt="Figure 3. Percentage of response from different sources="middle"><i>Figure 3. Percentage of response from different sources</i></figcaption>
+  <img src="/img/mirror-cache-blog/image3.png" alt="Figure 3. Percentage of response from different sources"> <figcaption align="middle"><i>Figure 3. Percentage of response from different sources</i></figcaption>
 </figure></div>
 
-The measurement of the response source revealed that during peak hours ~25% of the requests were being served via standalone local cache, ~20% by MySQL DB, and ~55% via Redis.
+The measurement of the response source revealed that during peak hours __~25% of the requests were being served via standalone local cache__, __~20% by MySQL DB__, and __~55% via Redis__.
 
 The low cache hit rate is caused by the driver-partners data loading patterns: _low frequency per driver over time but the high frequency in a short amount of time._ When a driver-partner is a candidate for a job or is involved in an ongoing job, different services make multiple requests to the Drivers Data service to fetch that specific driver-partner information. The frequency of calls for a specific driver-partner reduces if he/she is not involved in the job allocation process or is not doing any job at the moment.
 
@@ -57,7 +56,7 @@ We set the following design goals:
 ## The building blocks
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image4.png" alt="Figure 4. Mirror cache="middle"><i>Figure 4. Mirror cache</i></figcaption>
+  <img src="/img/mirror-cache-blog/image4.png" alt="Figure 4. Mirror cache"> <figcaption align="middle"><i>Figure 4. Mirror cache</i></figcaption>
 </figure></div>
 
 The mirror cache library runs alongside the Drivers Data service inside each of the EC2 instances of the cluster. The two main components are in-memory cache and replicator.
@@ -87,12 +86,12 @@ An exclusive gRPC server runs for mirror cache. The different nodes of the Drive
 
 Here’s the structure of each cache update entity:
 
-```
+```go
 message Entity {
     string key = 1; // Key for cache entry.
     bytes value = 2; // Value associated with the key.
     Metadata metadata = 3; // Metadata related to the entity.
-    replicationType replicate = 4; // Further actions to be              undertaken by the mirror cache after updating its own in-memory cache.
+    replicationType replicate = 4; // Further actions to be undertaken by the mirror cache after updating its own in-memory cache.
     int64 TTL = 5; // TTL associated with the data.
     bool  delete = 6; // If delete is set as true, then mirror cache needs to delete the key from it's local cache.
 }
@@ -106,6 +105,7 @@ message Metadata {
     int64 updatedAt = 1; // Same as updatedAt time of DB.
 }
 ```
+
 The server first checks if the local cache should update this new value or not. It tries to fetch the existing value for the key. If the value is not found, then the new key/value pair is added. If there is an existing value, then it compares the _updatedAt_ time to ensure that stale data is not updated in the cache.
 
 If the replicationType is _Nothing_, then the mirror cache stops further replication. In case the replicationType is _SameRZ_ then the mirror cache tries to propagate this cache update among all the nodes in the same AZ as itself.
@@ -113,18 +113,18 @@ If the replicationType is _Nothing_, then the mirror cache stops further replica
 ## Run at scale
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image5.png" alt="Figure 5. Drivers Data Service new architecture="middle"><i>Figure 5. Drivers Data Service new architecture</i></figcaption>
+  <img src="/img/mirror-cache-blog/image5.png" alt="Figure 5. Drivers Data Service new architecture"> <figcaption align="middle"><i>Figure 5. Drivers Data Service new architecture</i></figcaption>
 </figure></div>
 
 
 The behavior of the service hasn't changed and the requests are being served in the same manner as before. The only difference here is the replacement of the standalone local cache in each of the nodes with mirror cache. It is the responsibility of mirror cache to replicate any cache updates to the other nodes in the cluster.
 
-After mirror cache was fully rolled out to production, we rechecked our metrics related to the response source and saw a huge improvement. The graph showed that during peak hours _~75% of the response was from in-memory local cache._ About 15% of the response was served by MySQL DB and a further _10%_ via Redis.
+After mirror cache was fully rolled out to production, we rechecked our metrics related to the response source and saw a huge improvement. The graph showed that during peak hours __~75% of the response was from in-memory local cache__. About __15% of the response was served by MySQL DB__ and a further __10% via Redis__.
 
-The local cache hit ratio was at 0.75, a jump of 0.5 from before and there was a 5% drop in the number of DB calls too.
+The local cache hit ratio was at __0.75__, a jump of 0.5 from before and there was a __5% drop in the number of DB calls__ too.
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image6.png" alt="Figure 6. New percentage of response from different sources="middle"><i>Figure 6. New percentage of response from different sources</i></figcaption>
+  <img src="/img/mirror-cache-blog/image6.png" alt="Figure 6. New percentage of response from different sources"> <figcaption align="middle"><i>Figure 6. New percentage of response from different sources</i></figcaption>
 </figure></div>
 
 
@@ -142,9 +142,11 @@ Mirror cache really helped us scale the Drivers Data service better and serve dr
 
 We also extended mirror cache in some other services and found similar promising results.
 
-####Acknowledgements
-A huge shout out to Haoqiang Zhang and Roman Atachiants for their inputs into the final design. Special thanks to the Driver Backend team at Grab for their contribution.
+---
 
+<small class="credits">A huge shout out to Haoqiang Zhang and Roman Atachiants for their inputs into the final design. Special thanks to the Driver Backend team at Grab for their contribution.</small>
+
+---
 
 ## Join us
 
