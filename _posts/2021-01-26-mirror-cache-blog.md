@@ -13,18 +13,18 @@ excerpt: "Find out how a team at Grab used Mirror Cache, an in-memory local cach
 
 Since the early beginnings, driver-partners have been the centerpiece of the wide-range of  services or features provided by the Grab platform. Over time, many backend microservices were developed to support our driver-partners such as earnings, ratings, insurance, etc. All of these different microservices require certain information, such as name, phone number, email, active car types, and so on, to curate the services provided to the driver-partners.
 
-We built the **Drivers Data service** to provide drivers-partners data to other microservices. The service attracts a high QPS and handles 10K requests during peak hours. Over the years, we have tried different strategies to serve driver-partners data in a resilient and cost-effective manner, while accounting for low response time. In this blog post, we talk about **mirror cache**, an in-memory local caching solution built to serve driver-partners data efficiently.
+We built the **Drivers Data service** to provide drivers-partners data to other microservices. The service attracts a high QPS and handles 10K requests per second during peak hours. Over the years, we have tried different strategies to serve driver-partners data in a resilient and cost-effective manner, while accounting for low response time. In this blog post, we talk about **mirror cache**, an in-memory local caching solution built to serve driver-partners data efficiently.
 
 ## What we started with
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image1.png" alt="Figure 1. Drivers Data service architecture"> <figcaption align="middle"><i>Figure 1. Drivers Data service architecture</i></figcaption>
+  <img src="/img/mirror-cache-blog/image3.png" alt="Figure 1. Drivers Data service architecture"> <figcaption align="middle"><i>Figure 1. Drivers Data service architecture</i></figcaption>
 </figure></div>
 
 Our Drivers Data service previously used MySQL DB as persistent storage and two caching layers - _standalone local cache_ (RAM of the EC2 instances) as primary cache and _Redis_ as secondary for eventually consistent reads. With this setup, the cache hit ratio was very low.
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image2.png" alt="Figure 2. Request flow chart"> <figcaption align="middle"><i>Figure 2. Request flow chart</i></figcaption>
+  <img src="/img/mirror-cache-blog/image6.png" alt="Figure 2. Request flow chart"> <figcaption align="middle"><i>Figure 2. Request flow chart</i></figcaption>
 </figure></div>
 
 We opted for a [cache aside](https://docs.microsoft.com/en-us/azure/architecture/patterns/cache-aside) strategy. So when a client request comes, the Drivers Data service responds in the following manner:
@@ -33,7 +33,7 @@ We opted for a [cache aside](https://docs.microsoft.com/en-us/azure/architecture
 *   If data is not present either in the in-memory cache or Redis, then the service responds back with the data fetched from the MySQL DB and updates both Redis and local cache asynchronously.
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image3.png" alt="Figure 3. Percentage of response from different sources"> <figcaption align="middle"><i>Figure 3. Percentage of response from different sources</i></figcaption>
+  <img src="/img/mirror-cache-blog/image4.png" alt="Figure 3. Percentage of response from different sources"> <figcaption align="middle"><i>Figure 3. Percentage of response from different sources</i></figcaption>
 </figure></div>
 
 The measurement of the response source revealed that during peak hours __~25% of the requests were being served via standalone local cache__, __~20% by MySQL DB__, and __~55% via Redis__.
@@ -56,7 +56,7 @@ We set the following design goals:
 ## The building blocks
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image4.png" alt="Figure 4. Mirror cache"> <figcaption align="middle"><i>Figure 4. Mirror cache</i></figcaption>
+  <img src="/img/mirror-cache-blog/image5.png" alt="Figure 4. Mirror cache"> <figcaption align="middle"><i>Figure 4. Mirror cache</i></figcaption>
 </figure></div>
 
 The mirror cache library runs alongside the Drivers Data service inside each of the EC2 instances of the cluster. The two main components are in-memory cache and replicator.
@@ -113,7 +113,7 @@ If the replicationType is _Nothing_, then the mirror cache stops further replica
 ## Run at scale
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image5.png" alt="Figure 5. Drivers Data Service new architecture"> <figcaption align="middle"><i>Figure 5. Drivers Data Service new architecture</i></figcaption>
+  <img src="/img/mirror-cache-blog/image2.png" alt="Figure 5. Drivers Data Service new architecture"> <figcaption align="middle"><i>Figure 5. Drivers Data Service new architecture</i></figcaption>
 </figure></div>
 
 
@@ -124,13 +124,13 @@ After mirror cache was fully rolled out to production, we rechecked our metrics 
 The local cache hit ratio was at __0.75__, a jump of 0.5 from before and there was a __5% drop in the number of DB calls__ too.
 
 <div class="post-image-section"><figure>
-  <img src="/img/mirror-cache-blog/image6.png" alt="Figure 6. New percentage of response from different sources"> <figcaption align="middle"><i>Figure 6. New percentage of response from different sources</i></figcaption>
+  <img src="/img/mirror-cache-blog/image1.png" alt="Figure 6. New percentage of response from different sources"> <figcaption align="middle"><i>Figure 6. New percentage of response from different sources</i></figcaption>
 </figure></div>
 
 
 ## Limitations and future improvements
 
-Mirror cache is [eventually consistent](https://en.wikipedia.org/wiki/Eventual_consistency#:~:text=Eventual%20consistency%20is%20a%20consistency,return%20the%20last%20updated%20value.), so it is not a good choice for systems that need strong consistency.
+Mirror cache is [eventually consistent](https://en.wikipedia.org/wiki/Eventual_consistency#:~:text=Eventual%20consistency%20is%20a%20consistency,return%20the%20last%20updated%20value), so it is not a good choice for systems that need strong consistency.
 
 Mirror cache stores all the data in volatile memory (RAM) and they are wiped out during deployments, resulting in a temporary load increase to Redis and DB.
 
