@@ -6,9 +6,170 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 19 Jan 2021 11:30:26 +0000</pubDate>
-    <lastBuildDate>Tue, 19 Jan 2021 11:30:26 +0000</lastBuildDate>
+    <pubDate>Wed, 27 Jan 2021 13:36:48 +0000</pubDate>
+    <lastBuildDate>Wed, 27 Jan 2021 13:36:48 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Serving driver-partners data at scale using mirror cache</title>
+        <description>&lt;p&gt;Since the early beginnings, driver-partners have been the centerpiece of the wide-range of  services or features provided by the Grab platform. Over time, many backend microservices were developed to support our driver-partners such as earnings, ratings, insurance, etc. All of these different microservices require certain information, such as name, phone number, email, active car types, and so on, to curate the services provided to the driver-partners.&lt;/p&gt;
+
+&lt;p&gt;We built the &lt;strong&gt;Drivers Data service&lt;/strong&gt; to provide drivers-partners data to other microservices. The service attracts a high QPS and handles 10K requests during peak hours. Over the years, we have tried different strategies to serve driver-partners data in a resilient and cost-effective manner, while accounting for low response time. In this blog post, we talk about &lt;strong&gt;mirror cache&lt;/strong&gt;, an in-memory local caching solution built to serve driver-partners data efficiently.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-we-started-with&quot;&gt;What we started with&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/mirror-cache-blog/image1.png&quot; alt=&quot;Figure 1. Drivers Data service architecture&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1. Drivers Data service architecture&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Our Drivers Data service previously used MySQL DB as persistent storage and two caching layers - &lt;em&gt;standalone local cache&lt;/em&gt; (RAM of the EC2 instances) as primary cache and &lt;em&gt;Redis&lt;/em&gt; as secondary for eventually consistent reads. With this setup, the cache hit ratio was very low.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/mirror-cache-blog/image2.png&quot; alt=&quot;Figure 2. Request flow chart&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2. Request flow chart&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;We opted for a &lt;a href=&quot;https://docs.microsoft.com/en-us/azure/architecture/patterns/cache-aside&quot;&gt;cache aside&lt;/a&gt; strategy. So when a client request comes, the Drivers Data service responds in the following manner:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;If data is present in the in-memory cache (local cache), then the service directly sends back the response.&lt;/li&gt;
+  &lt;li&gt;If data is not present in the in-memory cache and found in Redis, then the service sends back the response and updates the local cache asynchronously with data from Redis.&lt;/li&gt;
+  &lt;li&gt;If data is not present either in the in-memory cache or Redis, then the service responds back with the data fetched from the MySQL DB and updates both Redis and local cache asynchronously.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/mirror-cache-blog/image3.png&quot; alt=&quot;Figure 3. Percentage of response from different sources&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3. Percentage of response from different sources&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;The measurement of the response source revealed that during peak hours &lt;strong&gt;~25% of the requests were being served via standalone local cache&lt;/strong&gt;, &lt;strong&gt;~20% by MySQL DB&lt;/strong&gt;, and &lt;strong&gt;~55% via Redis&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;The low cache hit rate is caused by the driver-partners data loading patterns: &lt;em&gt;low frequency per driver over time but the high frequency in a short amount of time.&lt;/em&gt; When a driver-partner is a candidate for a job or is involved in an ongoing job, different services make multiple requests to the Drivers Data service to fetch that specific driver-partner information. The frequency of calls for a specific driver-partner reduces if he/she is not involved in the job allocation process or is not doing any job at the moment.&lt;/p&gt;
+
+&lt;p&gt;While low frequency per driver over time impacts the Redis cache hit rate, high frequency in short amounts of time mostly contributes to in-memory cache hit rate. In our investigations, we found that local caches of different nodes in the Drivers Data service cluster were making redundant calls to Redis and DB for fetching the same data that are already present in a node local cache.&lt;/p&gt;
+
+&lt;p&gt;Making in-memory cache available on every instance while the data is in active use, we could greatly increase the in-memory cache hit rate, and that’s what we did.&lt;/p&gt;
+
+&lt;h2 id=&quot;mirror-cache-design-goals&quot;&gt;Mirror cache design goals&lt;/h2&gt;
+
+&lt;p&gt;We set the following design goals:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Support a local least recently used (LRU) cache use-case.&lt;/li&gt;
+  &lt;li&gt;Support active cache invalidation.&lt;/li&gt;
+  &lt;li&gt;Support best effort replication between local cache instances (EC2 instances). If any instance successfully fetches the latest data from the database, then it should try to replicate or mirror this latest data across all the other nodes in the cluster. If replication fails and the item is expired or not found, then the nodes should fetch it from the database.&lt;/li&gt;
+  &lt;li&gt;Support async data replication across nodes to ensure updates for the same key happens only with more recent data. For any older updates, the current data in the cache is ignored. The ordering of cache updates is not guaranteed due to the async replication.&lt;/li&gt;
+  &lt;li&gt;Ability to handle auto-scaling.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;the-building-blocks&quot;&gt;The building blocks&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/mirror-cache-blog/image4.png&quot; alt=&quot;Figure 4. Mirror cache&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 4. Mirror cache&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;The mirror cache library runs alongside the Drivers Data service inside each of the EC2 instances of the cluster. The two main components are in-memory cache and replicator.&lt;/p&gt;
+
+&lt;h3 id=&quot;in-memory-cache&quot;&gt;In-memory cache&lt;/h3&gt;
+&lt;p&gt;The in-memory cache is used to store multiple key/value pairs in RAM. There is a TTL associated with each key/value pair. We wanted to use a cache that can provide high hit ratio, memory bound, high throughput, and concurrency. After evaluating several options, we went with dgraph’s open-source concurrent caching library &lt;a href=&quot;https://github.com/dgraph-io/ristretto&quot;&gt;Ristretto&lt;/a&gt; as our in-memory local cache. We were particularly impressed by its use of the TinyLFU admission policy to ensure a high hit ratio.&lt;/p&gt;
+
+&lt;h3 id=&quot;replicator&quot;&gt;Replicator&lt;/h3&gt;
+&lt;p&gt;The replicator is responsible for mirroring/replicating each key/value entry among all the live instances of the Drivers Data service. The replicator has three main components: Membership Store, Notifier, and gRPC Server.&lt;/p&gt;
+
+&lt;h4 id=&quot;membership-store&quot;&gt;Membership Store&lt;/h4&gt;
+&lt;p&gt;The Membership Store registers callbacks with our service discovery service to notify mirror cache in case any nodes are added or removed from the Drivers Data service cluster.&lt;/p&gt;
+
+&lt;p&gt;It maintains two maps - nodes in the same AZ (AWS availability zone) as itself (the current node of the Drivers Data service in which mirror cache is running) and the nodes in the other AZs.&lt;/p&gt;
+
+&lt;h4 id=&quot;notifier&quot;&gt;Notifier&lt;/h4&gt;
+&lt;p&gt;Each service (Drivers Data) node runs a single instance of mirror cache. So effectively, each node has one notifier.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Combine several (key/value) pairs updates to form a batch.&lt;/li&gt;
+  &lt;li&gt;Propagate the batch updates among all the nodes in the same AZ as itself.&lt;/li&gt;
+  &lt;li&gt;Send the batch updates to exactly one notifier (node) in different AZs who, in turn, are responsible for updating all the nodes in their own AZs with the latest batch of data. This communication technique helps to reduce cross AZ data transfer overheads.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In the case of auto-scaling, there is a warm-up period during which the notifier doesn’t notify the other nodes in the cluster. This is done to minimize duplicate data propagation. The warm-up period is configurable.&lt;/p&gt;
+
+&lt;h4 id=&quot;grpc-server&quot;&gt;gRPC Server&lt;/h4&gt;
+&lt;p&gt;An exclusive gRPC server runs for mirror cache. The different nodes of the Drivers Data service use this server to receive new cache updates from the other nodes in the cluster.&lt;/p&gt;
+
+&lt;p&gt;Here’s the structure of each cache update entity:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Entity&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Key for cache entry.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Value associated with the key.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Metadata&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;metadata&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Metadata related to the entity.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;replicationType&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;replicate&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Further actions to be undertaken by the mirror cache after updating its own in-memory cache.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TTL&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// TTL associated with the data.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;bool&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;  &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;delete&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// If delete is set as true, then mirror cache needs to delete the key from it's local cache.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;enum&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;replicationType&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Nothing&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Stop propagation of the request.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SameRZ&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Notify the nodes in the same Region and AZ.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Metadata&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int64&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;updatedAt&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Same as updatedAt time of DB.&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The server first checks if the local cache should update this new value or not. It tries to fetch the existing value for the key. If the value is not found, then the new key/value pair is added. If there is an existing value, then it compares the &lt;em&gt;updatedAt&lt;/em&gt; time to ensure that stale data is not updated in the cache.&lt;/p&gt;
+
+&lt;p&gt;If the replicationType is &lt;em&gt;Nothing&lt;/em&gt;, then the mirror cache stops further replication. In case the replicationType is &lt;em&gt;SameRZ&lt;/em&gt; then the mirror cache tries to propagate this cache update among all the nodes in the same AZ as itself.&lt;/p&gt;
+
+&lt;h2 id=&quot;run-at-scale&quot;&gt;Run at scale&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/mirror-cache-blog/image5.png&quot; alt=&quot;Figure 5. Drivers Data Service new architecture&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 5. Drivers Data Service new architecture&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;The behavior of the service hasn’t changed and the requests are being served in the same manner as before. The only difference here is the replacement of the standalone local cache in each of the nodes with mirror cache. It is the responsibility of mirror cache to replicate any cache updates to the other nodes in the cluster.&lt;/p&gt;
+
+&lt;p&gt;After mirror cache was fully rolled out to production, we rechecked our metrics related to the response source and saw a huge improvement. The graph showed that during peak hours &lt;strong&gt;~75% of the response was from in-memory local cache&lt;/strong&gt;. About &lt;strong&gt;15% of the response was served by MySQL DB&lt;/strong&gt; and a further &lt;strong&gt;10% via Redis&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;The local cache hit ratio was at &lt;strong&gt;0.75&lt;/strong&gt;, a jump of 0.5 from before and there was a &lt;strong&gt;5% drop in the number of DB calls&lt;/strong&gt; too.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/mirror-cache-blog/image6.png&quot; alt=&quot;Figure 6. New percentage of response from different sources&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 6. New percentage of response from different sources&lt;/i&gt;&lt;/figcaption&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;limitations-and-future-improvements&quot;&gt;Limitations and future improvements&lt;/h2&gt;
+
+&lt;p&gt;Mirror cache is &lt;a href=&quot;https://en.wikipedia.org/wiki/Eventual_consistency#:~:text=Eventual%20consistency%20is%20a%20consistency,return%20the%20last%20updated%20value.&quot;&gt;eventually consistent&lt;/a&gt;, so it is not a good choice for systems that need strong consistency.&lt;/p&gt;
+
+&lt;p&gt;Mirror cache stores all the data in volatile memory (RAM) and they are wiped out during deployments, resulting in a temporary load increase to Redis and DB.&lt;/p&gt;
+
+&lt;p&gt;Also, many new driver-partners are added everyday to the Grab system, and we might need to increase the cache size to maintain a high hit ratio. To address these issues we plan to use SSD in the future to store a part of the data and use RAM only to store hot data.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Mirror cache really helped us scale the Drivers Data service better and serve driver-partners data to the different microservices at low latencies. It also helped us achieve our original goal of an increase in the local cache hit ratio.&lt;/p&gt;
+
+&lt;p&gt;We also extended mirror cache in some other services and found similar promising results.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;A huge shout out to Haoqiang Zhang and Roman Atachiants for their inputs into the final design. Special thanks to the Driver Backend team at Grab for their contribution.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 26 Jan 2021 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/mirror-cache-blog</link>
+        <guid isPermaLink="true">https://engineering.grab.com/mirror-cache-blog</guid>
+        
+        <category>Mirror Cache</category>
+        
+        <category>Data at Scale</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>The GrabMart journey</title>
@@ -1803,188 +1964,6 @@ As a backend engineer at Grab, nothing matters more than the ability to innovate
         <category>Continuous Delivery</category>
         
         <category>Multi Cloud</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Uncovering the truth behind Lua and Redis data consistency</title>
-        <description>&lt;p&gt;Our team at Grab uses Redis as one of our message queues. The Redis server is deployed in a master/replica setup. Quite recently, we have been noticing a spike in the CPU usage of the Redis replicas every time we deploy our service, even when the replicas are not in use and when there’s no read traffic to it. However, the issue is resolved once we reboot the replica.&lt;/p&gt;
-
-&lt;p&gt;Because a reboot of the replica fixes the issue every time, we thought that it might be due to some Elasticache replication issues and didn’t pursue further. However, a recent Redis failover brought this to our attention again. After the failover, the problematic replica becomes the new master and its CPU immediately goes to 100% with the read traffic, which essentially means the cluster is not functional after the failover. And this time we investigated the issue with new vigour. What we found in our investigation led us to deep dive into the details of Redis replication and its implementation of Hash.&lt;/p&gt;
-
-&lt;p&gt;Did you know that Redis master/replica can become inconsistent in certain scenarios?&lt;/p&gt;
-
-&lt;p&gt;Did you know the encoding of Hash objects on the master and the replica are different even if the writing operations are exactly the same and in the same order? Read on to find out why.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-problem&quot;&gt;The problem&lt;/h2&gt;
-
-&lt;p&gt;The following graph shows the CPU utilization of the master vs. the replica immediately after our service is deployed.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/uncovering-the-truth-behind-lua-and-redis-data-consistency/cpuUtilization.png&quot; alt=&quot;Architecture diagram&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;CPU Utilization&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;From the graph, you can see the following CPU usage trends. Replica’s CPU usage:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Increases immediately after our service is deployed.&lt;/li&gt;
-  &lt;li&gt;Spikes higher than the master after a certain time.&lt;/li&gt;
-  &lt;li&gt;Get’s back to normal after a reboot.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;cursory-investigation&quot;&gt;Cursory investigation&lt;/h2&gt;
-
-&lt;p&gt;Because the spike occurs only when we deploy our service, we scrutinised all the scripts that were triggered immediately after the deployment. Lua monitor script was identified as a possible suspect. The script redistributes inactive service instances’ messages in the queue to active service instances so that messages can be processed by other healthy instances.&lt;/p&gt;
-
-&lt;p&gt;We ran a few experiments related to the Lua monitor script using the Redis &lt;a href=&quot;https://redis.io/commands/monitor&quot;&gt;monitor&lt;/a&gt; command to compare the script’s behaviour on master and the replica. A side note, because this command causes performance degradation, use it with discretion. Coming back to the script, we were surprised to note that the monitor script behaves differently between the master and the replica:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Redis executes the script separately on the master and the replica. We expected the script to execute only on master and the resulting changes to be replicated to the secondary.&lt;/li&gt;
-  &lt;li&gt;The Redis command &lt;code class=&quot;highlighter-rouge&quot;&gt;HGETALL&lt;/code&gt; used in the script returns the hash keys in a different order on master compared to the replica.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Due to the above reasons, the script causes data inconsistencies between the master and its replica. From that point on, the data between the master and the replica keeps diverging till they become completely distinct. Due to the inconsistency, the data on the secondary does not get deleted correctly thereby growing into an extremely large dataset. Any further operations on the large dataset requires a higher CPU usage, which explains why the replica’s CPU usage is higher than the master.&lt;/p&gt;
-
-&lt;p&gt;During replica reboots, the data gets synced and consistent again, which is why the CPU usage gets to normal values after rebooting.&lt;/p&gt;
-
-&lt;h2 id=&quot;diving-deeper-on-hgetall&quot;&gt;Diving deeper on HGETALL&lt;/h2&gt;
-
-&lt;p&gt;We knew that the keys of a hash are not ordered and we should not rely on the order. But it still puzzled us that the order is different even when the writing sequence is the same between the master and the replica. Plus the fact that the orders are always the same in our local environment with a similar setup made us even more curious.&lt;/p&gt;
-
-&lt;p&gt;So to better understand the underlying magic of Redis and to avoid similar bugs in the future, we decided to hammer on and read the Redis source code to get more details.&lt;/p&gt;
-
-&lt;h2 id=&quot;hgetall-command-handling-code&quot;&gt;HGETALL command handling code&lt;/h2&gt;
-
-&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;HGETALL&lt;/code&gt; command is handled by the function &lt;code class=&quot;highlighter-rouge&quot;&gt;genericHgetallCommand&lt;/code&gt; and it further calls &lt;code class=&quot;highlighter-rouge&quot;&gt;hashTypeNext&lt;/code&gt; to iterate through the Hash object. A snippet of the code is shown as follows:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* Move to the next entry in the hash. Return C_OK when the next entry
- * could be found and C_ERR when the iterator reaches the end. */
-int hashTypeNext(hashTypeIterator *hi) {
-    if (hi-&amp;gt;encoding == OBJ_ENCODING_ZIPLIST) {
-        // call zipListNext
-    } else if (hi-&amp;gt;encoding == OBJ_ENCODING_HT) {
-        // call dictNext
-    } else {
-        serverPanic(&quot;Unknown hash encoding&quot;);
-    }
-    return C_OK;
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;From the code snippet, you can see that the Redis Hash object actually has two underlying representations:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;ZIPLIST&lt;/li&gt;
-  &lt;li&gt;HASHTABLE (dict)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;A bit of research online helped us understand that, to save memory, Redis chooses between the two hash representations based on the following limits:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;By default, Redis stores the Hash object as a &lt;a href=&quot;https://redis.io/topics/memory-optimization&quot;&gt;zipped list&lt;/a&gt; when the hash has less than 512 entries and when each element’s size is smaller than 64 bytes.&lt;/li&gt;
-  &lt;li&gt;If either limit is exceeded, Redis converts the list to a &lt;a href=&quot;https://github.com/antirez/redis/blob/3.2/src/t_hash.c#L40&quot;&gt;hashtable&lt;/a&gt;, and this is irreversible. That is, Redis won’t convert the hashtable back to a list again, even if the entries/size falls below the limit.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;eureka-moment&quot;&gt;Eureka moment&lt;/h2&gt;
-
-&lt;p&gt;Based on this understanding, we checked the encoding of the problematic hash in staging.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;stg-bookings-qu-002.pcxebj.0001.apse1.cache.amazonaws.com:6379&amp;gt; object encoding queue_stats
-&quot;hashtable&quot;
-
-stg-bookings-qu-001.pcxebj.0001.apse1.cache.amazonaws.com:6379&amp;gt; object encoding queue_stats
-&quot;ziplist&quot;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;To our surprise, the encodings of the Hash object on the master and its replica were different.&lt;/strong&gt; Which means if we add or delete elements in the hash, the sequence of the keys won’t be the same due to hashtable operation vs. list operation!&lt;/p&gt;
-
-&lt;p&gt;Now that we have identified the root cause, we were still curious about the difference in encoding between the master and the replica.&lt;/p&gt;
-
-&lt;h3 id=&quot;how-could-the-underlying-representations-be-different&quot;&gt;How could the underlying representations be different?&lt;/h3&gt;
-
-&lt;p&gt;We reasoned, “&lt;em&gt;If the master and its replica’s writing operations are exactly the same and in the same order, why are the underlying representations still different?&lt;/em&gt;”&lt;/p&gt;
-
-&lt;p&gt;To answer this, we further looked through the Redis source to find all the possible places that a Hash object’s representation could be changed and soon found the following code snippet:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/* Load a Redis object of the specified type from the specified file.
- * On success a newly allocated object is returned, otherwise NULL. */
-robj *rdbLoadObject(int rdbtype, rio *rdb) {
-  //...
-  if (rdbtype == RDB_TYPE_HASH) {
-    //...
-    o = createHashObject();  // ziplist
-
-    /* Too many entries? Use a hash table. */
-    if (len &amp;gt; server.hash_max_ziplist_entries)
-        hashTypeConvert(o, OBJ_ENCODING_HT);
-
-    //...
-  }
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Reading through the code we understand the following behaviour:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;When restoring from an RDB file, Redis creates a ziplist first for Hash objects.&lt;/li&gt;
-  &lt;li&gt;Only when the size of the Hash object is greater than the &lt;code class=&quot;highlighter-rouge&quot;&gt;hash_max_ziplist_entries&lt;/code&gt;, the ziplist is converted to a hashtable.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;So, if you have a Redis Hash object encoded as a &lt;code class=&quot;highlighter-rouge&quot;&gt;hashtable&lt;/code&gt; with its length less than &lt;code class=&quot;highlighter-rouge&quot;&gt;hash_max_ziplist_entries&lt;/code&gt; &lt;code class=&quot;highlighter-rouge&quot;&gt;(512)&lt;/code&gt; in the master, when you set up a replica, it is encoded as a &lt;code class=&quot;highlighter-rouge&quot;&gt;ziplist&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;We were able to verify this behaviour in our local setup as well.&lt;/p&gt;
-
-&lt;h3 id=&quot;how-did-we-fix-it&quot;&gt;How did we fix it?&lt;/h3&gt;
-
-&lt;p&gt;We could use the following two approaches to address this issue:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Enable&lt;a href=&quot;https://redis.io/commands/eval#replicating-commands-instead-of-scripts&quot;&gt; script effect replication mode&lt;/a&gt;. This tells Redis to replicate the commands generated by the script instead of running the whole script on the replica. One disadvantage to using this approach is that it adds network traffic between the master and the replica.&lt;/li&gt;
-  &lt;li&gt;Ensure the behaviour of the Lua monitor script is deterministic. In our case, we can do this by sorting the outputs of HKEYS/HGETALL.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We chose the latter approach because:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The Hash object is pretty small ( &amp;lt; 30 elements) so the sorting overhead is low, less than 1ms for 100 elements based on our tests.&lt;/li&gt;
-  &lt;li&gt;Replicating our script effect would end up replicating thousands of Redis writing commands on the secondary causing a much higher overhead compared to replicating just the script.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;After the fix, the CPU usage of the replica remained in range after each deployment. This also prevented the Redis cluster from being destroyed in the event of a master failover.&lt;/p&gt;
-
-&lt;h2 id=&quot;key-takeaways&quot;&gt;Key takeaways&lt;/h2&gt;
-
-&lt;p&gt;In addition to writing clear and maintainable code, it’s equally important to understand the underlying storage layer that you are dealing with to produce efficient and bug-free code.&lt;/p&gt;
-
-&lt;p&gt;The following are some of the key learnings on Redis:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Redis does not guarantee the consistency between master and its replica nodes when Lua scripts are used. You have to ensure that the behaviour of the scripts are deterministic to avoid data inconsistency.&lt;/li&gt;
-  &lt;li&gt;Redis replicates the whole Lua script instead of the resulting commands to the replica. However, this is the default behaviour and you can disable it.&lt;/li&gt;
-  &lt;li&gt;To save memory, Redis uses different representations for Hash. Your Hash object could be stored as a list in memory or a hashtable. This is not guaranteed to be the same across the master and its replicas.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 07 Sep 2020 08:43:40 +0000</pubDate>
-        <link>https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency</link>
-        <guid isPermaLink="true">https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency</guid>
-        
-        <category>Redis</category>
-        
-        <category>Lua Scripts</category>
-        
-        <category>High CPU Usage</category>
-        
-        <category>Data Consistency</category>
         
         
         <category>Engineering</category>
