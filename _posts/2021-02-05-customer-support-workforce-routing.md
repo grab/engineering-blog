@@ -172,13 +172,13 @@ Given that the bottleneck for this system is the number of resources (i.e. numbe
 
 ## Scalability
 
-Letting the system behave appropriately when rolled out to multiple regions is a very critical piece that needed to be taken into account. To ensure that there were enough workers to handle the requests, horizontal scaling of instances can be done if the CPU utilisation increases.
+Letting the system behave appropriately when rolled out to multiple regions is a very critical piece that needed to be taken into account. To ensure that there were enough workers to handle the requests, horizontal scaling of instances was set when the CPU utilisation increases.
 
 Now to understand the system limitations and behaviour before releasing to multiple regions, we ran load tests with 10x more traffic than expected. This gave us the understanding on what monitors and alerts we should add to make sure the system is able to function efficiently and reduce our recovery time if something goes wrong.
 
 ## Next steps
 
-The few enhancements lined up after building this routing solution are to focus on reducing customer’s waiting time and to reduce the time spent by the agents on unresponsive customers, who have waited too long in the queue. Aside from chats, we would like to employ this solution into handling digital issues (social media and emails) and voice requests (call).
+We have lined up a few enhancements to reduce the  customer wait time and the time spent by the agents on unresponsive customers who waited too long in the queue. Aside from chats, we plan to implement this solution to handle digital issues (social media and emails) and voice requests (call).
 
 ---
 
