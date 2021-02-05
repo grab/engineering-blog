@@ -97,9 +97,9 @@ for i := startIndex; i < len(consumer.priorityQueue); i++ {
  queue := consumer.priorityQueue\[i\]
  duration := queue.config.ProcessingDurationInMilliseconds
  for now := time.Now(); time.Since(now) < time.Duration(duration)\*time.Millisecond; {
- consumer.processMessage(queue.client, queue.config)
- // cool down
- time.Sleep(time.Millisecond \* 100)
+   consumer.processMessage(queue.client, queue.config)
+   // cool down
+   time.Sleep(time.Millisecond \* 100)
  }
 }
 ```
