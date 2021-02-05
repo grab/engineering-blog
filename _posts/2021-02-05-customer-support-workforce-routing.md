@@ -5,7 +5,7 @@ title: Customer Support workforce routing
 date: 2021-02-05 00:15:00
 authors: [suman-anand, elisa-monacchi, jasmine-lim, matthew-yeow, pengcheng-zhao]
 categories: [Engineering]
-tags: [Workforce Routing, Chat, Product, Routing, Queueing ]
+tags: [Workforce Routing, Chat, Product, Routing, Queueing, Customer Support]
 comments: true
 cover_photo: /img/customer-support-workforce-routing/cover.png
 excerpt: "Read how we built our in-house workforce routing system at Grab."
@@ -18,12 +18,13 @@ With Grab’s wide range of services, we get large volumes of queries a day. Our
 Our routing workforce system ensures that available resources are efficiently assigned to a request based on the right skillset and deciding factors such as department, country, request priority. Scalability to work across support channels (e.g. voice, chat, or digital) is also another factor considered for routing a request to a particular support specialist.
 
 <div class="post-image-section"><figure>
-  <img src="/img/customer-support-workforce-routing/image8.gif" alt="Sample flow of how it works today" style="width:90%"> <figcaption align="middle"><i>Sample flow of how it works today</i></figcaption>
+  <img src="/img/customer-support-workforce-routing/image8.gif" alt="Sample Livechat flow - How it works today" style="width:90%"> <figcaption align="middle"><i>Sample Livechat flow - How it works today</i></figcaption>
   </figure></div>
+
 
 Having an efficient workforce routing system ensures that requests are directed to relevant support specialists who are most suited to handle a certain type of issue, resulting in quicker resolution, happier and satisfied customers, and reduced cost spent on support.
 
-We initially implemented a third-party solution, however there were a few limitations, such prioritisation, that motivated us to build our very own routing solution that provides better routing configuration controls and cost reduction from licensing costs.
+We initially implemented a third-party solution, however there were a few limitations, such as prioritisation, that motivated us to build our very own routing solution that provides better routing configuration controls and cost reduction from licensing costs.
 
 This article describes how we built our in-house workforce routing system at Grab and focuses on _Livechat_, one of the domains of customer support.
 
@@ -42,17 +43,17 @@ With the third-party solution being a generic service provider, customisations o
 
 *   **Bulk configuration changes** - Previously, it was challenging to assign the same configuration to multiple agents. So, we introduced another layer of grouping for agents that share the same configuration. For example, which queues the agents receive chats from and what the proficiency and max concurrency should be.
 *   **Resource Constraints** - To avoid overwhelming resources with unlimited chats and maintaining reasonable wait times for our customers, we introduced a dynamic queue limit on the number of chat requests enqueued. This limit was based on factors like the number of incoming chats and the agent performance over the last hour.
-*   **Remote Work Challenges** - With the pandemic situation and more of our agents working remotely, network issues were common. So we released an enhancement on the routing system to reroute chats handled by unavailable agents (due to disconnection for an extended period) to another available agent.The seamless experience helped increase customer satisfaction.
+*   **Remote Work Challenges** - With the pandemic situation and more of our agents working remotely, network issues were common. So we released an enhancement on the routing system to reroute chats handled by unavailable agents (due to disconnection for an extended period) to another available agent. The seamless experience helped increase customer satisfaction.
 
 ### Reporting and analytics
 
-Similar to previous point, having a solution addressing generic use cases doesn’t allow you to add customisations at will over monitoring. With the custom implementation, we were able to add more granular metrics which are very useful to assess the agent productivity and performance and helps in planning the resources ahead of time, and this is why reporting and analytics were so valuable for workforce planning. Few of the customisations added additionally were
+Similar to previous point, having a solution addressing generic use cases didn't allow us to add further customisations for monitoring. With the custom implementation, we were able to add more granular metrics that are very useful to assess the agent productivity and performance, which helps in planning the resources ahead of time. This is why reporting and analytics were so valuable for workforce planning. Few of the customisations added additionally were:
 
-*   **Agent Time Utilisation** - While basic agent tracking was available in the out-of-the-box solution, it limited users to three states (online, away, and invisible). With the custom routing solution, we were able to create customised statuses to reflect the time the agent spent in a particular status due to  chat connection issues and failures and reflect this on dashboards for immediate attention.
+*   **Agent Time Utilisation** - While basic agent tracking was available in the out-of-the-box solution, it limited users to three states (online, away, and invisible). With the custom routing solution, we were able to create customised statuses to reflect the time the agent spent in a particular state due to chat connection issues and failures and reflect this on dashboards for immediate attention.
 *   **Chat Transfers** - The number of chat transfers could only be tabulated manually. We then automated this process with a custom implementation.
 
 ## Solution
-Now that we've covered the issues we're solving, let's cover the solutions.
+Now that we've covered the issues we're solving, let's go over the solutions.
 
 ### Prioritising high-priority requests
 
@@ -64,13 +65,13 @@ One of the ways to prevent this is to have a separate group of agents to solely 
 
 High-priority requests, such as safety issues, must not be in the queue for a long duration and should be handled as fast as possible even when the system is filled with low-priority requests.
 
-There are two different kinds of queues, one to handle requests at priority level and other to handle individual issues, which are the business queues on which the queue limit constraints apply.
+There are two different kinds of queues: one to handle requests at priority level and the other to handle individual issues that are on the business queues on which the queue limit constraints apply.
 
 To illustrate further, here are two different scenarios of enqueuing/de-queuing:
 
 **Different issues with different priorities**
 
-In this scenario, the priority is set to dequeue safety issues, which are in the high-priority queue, before picking up the enquiry issues from the low-priority queue.
+In this scenario, the priority is set to de-queue safety issues, which are in the high-priority queue, before picking up the enquiry issues from the low-priority queue.
 
 <div class="post-image-section"><figure>
   <img src="/img/customer-support-workforce-routing/image6.png" alt="Different issues with different priorities"> <figcaption align="middle"><i>Different issues with different priorities</i></figcaption>
@@ -78,7 +79,7 @@ In this scenario, the priority is set to dequeue safety issues, which are in the
 
 **Identical issues with different priorities**
 
-In this scenario where identical issues have different priorities, the reallocated enquiry issue in the high-priority queue is dequeued first before picking up a low-priority enquiry issue.  Reallocations happen when a chat is transferred to another agent or when it was not accepted by the allocated agent. When reallocated, it goes back to the queue with a higher priority.
+In this scenario where identical issues have different priorities, the reallocated enquiry issue in the high-priority queue is de-queued first before picking up a low-priority enquiry issue. Reallocations happen when a chat is transferred to another agent or when it was not accepted by the allocated agent. When reallocated, it goes back to the queue with a higher priority.
 
 <div class="post-image-section"><figure>
   <img src="/img/customer-support-workforce-routing/image7.png" alt="Identical issues with different priorities"> <figcaption align="middle"><i>Identical issues with different priorities</i></figcaption>
@@ -94,12 +95,12 @@ The architecture uses multiple de-queueing workers running in parallel, with eac
 
 ```
 for i := startIndex; i < len(consumer.priorityQueue); i++ {
- queue := consumer.priorityQueue\[i\]
+ queue := consumer.priorityQueue[i]
  duration := queue.config.ProcessingDurationInMilliseconds
- for now := time.Now(); time.Since(now) < time.Duration(duration)\*time.Millisecond; {
+ for now := time.Now(); time.Since(now) < time.Duration(duration)*time.Millisecond; {
    consumer.processMessage(queue.client, queue.config)
    // cool down
-   time.Sleep(time.Millisecond \* 100)
+   time.Sleep(time.Millisecond * 100)
  }
 }
 ```
@@ -116,8 +117,6 @@ Now when priority queues are used, there is a possibility that some of the low-p
 
 We wanted to make sure that agents with the adequate skills are assigned to the right queues to handle the requests. On top of that, we wanted to ensure that there is a limit on the number of requests that a queue can accept at a time, guaranteeing that the system isn’t flushed with too many requests, which can lead to longer waiting times for request allocation.
 
-![](images/image1.png)
-
 #### Approach
 
 The queues are configured with a dynamic queue limit, which is the upper limit on the number of requests that a queue can accept. Additionally attributes such as country, department, and skills are defined on the queue.
@@ -126,15 +125,19 @@ The dynamic queue limit takes account of the utilisation factor of the queue and
 
 A simple approach to assign which queues the agents can receive the requests from is to directly assign the queues to the agents. But this leads to another problem to solve, which is to control the number of concurrent chats an agent can handle and define how proficient an agent is at solving a request. Keeping this in mind, it made sense to have another grouping layer between the queue and agent assignment and to define attributes, such as concurrency, to make sure these groups can be reused.
 
+<div class="post-image-section"><figure>
+  <img src="/img/customer-support-workforce-routing/image1.png" alt="Agent assignment"> <figcaption align="middle"><i>Agent assignment</i></figcaption>
+  </figure></div>
+
 There are three entities in agent assignment:
 
 *   Queue
 *   Agent Group
 *   Agent
 
-When the request is de-queued, the agent list mapped to the queue is found and then some additional business rules (e.g. checking for proficiency) are applied to calculate the eligibility score of each mapped agent to decide which agent is the best suited to cater to the request.
+When the request is de-queued, the agent list mapped to the queue is found and then some additional business rules (e.g. proficiency check) are applied to calculate the eligibility score of each mapped agent to decide which agent is the best suited to cater to the request.
 
-The factors impacting the eligibility score are proficiency, whether the agent is online/offline, the current concurrency, max concurrency and the last allocation time.
+The factors impacting the eligibility score are proficiency (whether the agent is online/offline), current concurrency, max concurrency, and last allocation time.
 
 #### Ensuring the concurrency is not breached
 
@@ -144,9 +147,9 @@ A similar approach was used to ensure that the queue limit doesn’t exceed the 
 
 #### Reallocation and transfers
 
-Having the routing configuration set up, the reallocation of agents is done using the same steps for agent allocation.
+Having the routing configuration setup, the reallocation of agents is done using the same steps for agent allocation.
 
-To transfer a  chat to another queue, the request goes back to the queue with a higher priority so that the request is assigned faster.
+To transfer a chat to another queue, the request goes back to the queue with a higher priority so that the request is assigned faster.
 
 #### Unaccepted chats
 
@@ -154,7 +157,7 @@ If the agent fails to accept the request in a given period of time, then the req
 
 #### Informing the frontend about allocation
 
-When an allocation of an agent happens, the routing system needs to inform the frontend by sending messages over websocket to the frontend. This is done with our super reliable messaging system called _Hermes_, which operates at scale in supporting *12k concurrent connections* and establishes real time communication between agents and customers.
+When an allocation of an agent happens, the routing system needs to inform the frontend by sending messages over websocket to the frontend. This is done with our super reliable messaging system called _Hermes_, which operates at scale in supporting *12k concurrent connections* and establishes real-time communication between agents and customers.
 
 #### Finding the online agents
 
@@ -162,23 +165,23 @@ The routing system should only send the allocation message to the frontend when 
 
 ### Enriched reporting and analytics
 
-The routing system is able to push monitoring metrics, such as number of online agents, number of chat requests assigned to the agent, and so on. Because of fine grained control that comes with building this system in-house, it gives us the ability to push more custom metrics.
+The routing system is able to push monitoring metrics, such as number of online agents, number of chat requests assigned to the agent, and so on. Because of the fine-grained control that comes with building this system in-house, it gives us the ability to push more custom metrics.
 
-There are two levels of monitoring offered by this system, real time monitoring and non-real time monitoring, which could be used for analytics for calculating things like the productivity of the agent and the time they spent on each chat.
+There are two levels of monitoring offered by this system: real-time monitoring and non-real time monitoring. They can be used for analytics for calculating things like the productivity of the agent and the time they spent on each chat.
 
-We achieved the discussed solutions with the help of StatsD for real time monitoring and for analytical purposes, we sent the data used for Tableau visualisations and reporting to Presto tables.
+We achieved the discussed solutions with the help of _StatsD_ for real-time monitoring and for analytical purposes. We sent the data used for Tableau visualisations and reporting to Presto tables.
 
 Given that the bottleneck for this system is the number of resources (i.e. number of agents), the real time monitoring helps identify which configuration needs to be adjusted when there is a spike in the number of requests. Moreover, the analytical persistent data allows us the ability to predict the traffic and plan the workforce management such that they are efficiently handling the requests.
 
 ## Scalability
 
-Letting the system behave appropriately when rolled out to multiple regions is a very critical piece that needed to be taken into account. To ensure that there were enough workers to handle the requests, horizontal scaling of instances was set when the CPU utilisation increases.
+Letting the system behave appropriately when rolled out to multiple regions is a very critical piece that needed to be taken into account. To ensure that there were enough workers to handle requests, horizontal scaling of instances was set when the CPU utilisation increases.
 
 Now to understand the system limitations and behaviour before releasing to multiple regions, we ran load tests with 10x more traffic than expected. This gave us the understanding on what monitors and alerts we should add to make sure the system is able to function efficiently and reduce our recovery time if something goes wrong.
 
 ## Next steps
 
-We have lined up a few enhancements to reduce the  customer wait time and the time spent by the agents on unresponsive customers who waited too long in the queue. Aside from chats, we plan to implement this solution to handle digital issues (social media and emails) and voice requests (call).
+We have lined up a few enhancements to reduce the customer wait time and the time spent by the agents on unresponsive customers. Aside from chats, we plan to implement this solution to handle digital issues (social media and emails) and voice requests (call).
 
 ---
 
