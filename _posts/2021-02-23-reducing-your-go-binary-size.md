@@ -45,7 +45,7 @@ The core engineering teams wanted to adopt container workloads to achieve the fo
 *   Allow reuse of common Grab tools in different projects by running the zero dependency version of the tools on demand whenever needed.
 *   Allow a more flexible staging/dev/shadow deployment of new features.
 
-## Adoption to containerisation
+## Adoption of containerisation
 
 Engineering teams at Grab use the containerisation model to build and deploy services at scale. Our containerisation effort helps the development teams move faster by:
 
