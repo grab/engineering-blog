@@ -6,9 +6,214 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 05 Feb 2021 22:49:19 +0000</pubDate>
-    <lastBuildDate>Fri, 05 Feb 2021 22:49:19 +0000</lastBuildDate>
+    <pubDate>Tue, 23 Feb 2021 04:10:50 +0000</pubDate>
+    <lastBuildDate>Tue, 23 Feb 2021 04:10:50 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>One small step closer to containerising service binaries</title>
+        <description>&lt;p&gt;Grab’s engineering teams currently own and manage more than 250+ microservices. Depending on the business problems that each team tackles, our development ecosystem ranges from Golang, Java, and everything in between.&lt;/p&gt;
+
+&lt;p&gt;Although there are centralised systems that help automate most of the build and deployment tasks, there are still some teams working on different technologies that manage their own build, test and deployment systems at different maturity levels. Managing a varied build and deploy ecosystems brings their own challenges.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Build challenges&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Broken external dependencies.&lt;/li&gt;
+  &lt;li&gt;Non-reproducible builds due to changes in AMI, configuration keys and other build parameters.&lt;/li&gt;
+  &lt;li&gt;Missing security permissions between different repositories.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Deployment challenges&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Varied deployment environments necessitating a bigger learning curve.&lt;/li&gt;
+  &lt;li&gt;Managing the underlying infrastructure as code.&lt;/li&gt;
+  &lt;li&gt;Higher downtime when bringing the systems up after a scale down event.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Grab’s appetite for customer obsession and quality drives the engineering teams to innovate and deliver value rapidly. The time that the team spends in fixing build issues or deployment-related tasks has a direct impact on the time they spend on delivering business value.&lt;/p&gt;
+
+&lt;h2 id=&quot;introduction-to-containerisation&quot;&gt;Introduction to containerisation&lt;/h2&gt;
+
+&lt;p&gt;Using the Container architecture helps the team deploy and run multiple applications, isolated from each other, on the same virtual machine or server and with much less overhead.&lt;/p&gt;
+
+&lt;p&gt;At Grab, both the platform and the core engineering teams wanted to move to the containerisation architecture to achieve the following goals:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Support to build and push container images during the CI process.&lt;/li&gt;
+  &lt;li&gt;Create a standard virtual machine image capable of running container workloads. The AMI is maintained by a central team and comes with Grab infrastructure components such as (DataDog, Filebeat, Vault, etc.).&lt;/li&gt;
+  &lt;li&gt;A deployment experience which allows existing services to migrate to container workload safely by initially running both types of workloads concurrently.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The core engineering teams wanted to adopt container workloads to achieve the following benefits:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Provide a containerised version of the service that can be run locally and on different cloud providers without any dependency on Grab’s internal (runtime) tooling.&lt;/li&gt;
+  &lt;li&gt;Allow reuse of common Grab tools in different projects by running the zero dependency version of the tools on demand whenever needed.&lt;/li&gt;
+  &lt;li&gt;Allow a more flexible staging/dev/shadow deployment of new features.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;adoption-of-containerisation&quot;&gt;Adoption of containerisation&lt;/h2&gt;
+
+&lt;p&gt;Engineering teams at Grab use the containerisation model to build and deploy services at scale. Our containerisation effort helps the development teams move faster by:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Providing a consistent environment across development, testing and production&lt;/li&gt;
+  &lt;li&gt;Deploying software efficiently&lt;/li&gt;
+  &lt;li&gt;Reducing infrastructure cost&lt;/li&gt;
+  &lt;li&gt;Abstracting OS dependency&lt;/li&gt;
+  &lt;li&gt;Increasing scalability between cloud vendors&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When we started using containers we realised that building smaller containers had some benefits over bigger containers. For example, smaller containers:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Include only the needed libraries and therefore are more secure.&lt;/li&gt;
+  &lt;li&gt;Build and deploy faster as they can be pulled to the running container cluster quickly.&lt;/li&gt;
+  &lt;li&gt;Utilise disk space and memory efficiently.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;During the course of containerising our applications, we noted that some service binaries appeared to be bigger (&lt;em&gt;~110 MB&lt;/em&gt;) than they should be. For a statically-linked Golang binary, that’s pretty big! So how do we figure out what’s bloating the size of our binary?&lt;/p&gt;
+
+&lt;h2 id=&quot;go-binary-size-visualisation-tool&quot;&gt;Go binary size visualisation tool&lt;/h2&gt;
+
+&lt;p&gt;In the course of poking around for tools that would help us analyse the symbols in a Golang binary, we found &lt;a href=&quot;https://github.com/knz/go-binsize-viz&quot;&gt;go-binsize-viz&lt;/a&gt; based on &lt;a href=&quot;https://www.cockroachlabs.com/blog/go-file-size/&quot;&gt;this article&lt;/a&gt;. We particularly liked this tool, because it utilises the existing Golang toolchain (specifically, &lt;a href=&quot;https://golang.org/cmd/nm/&quot;&gt;Go tool nm&lt;/a&gt;) to analyse imports, and provides a straightforward mechanism for traversing through the symbols present via treemap. We will briefly outline the steps that we did to analyse a Golang binary here.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;First, build your service using the following command (important for consistency between builds):&lt;/p&gt;
+
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ go build -a -o service_name ./path/to/main.go
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Next, copy the binary over to the cloned directory of &lt;code class=&quot;highlighter-rouge&quot;&gt;go-binsize-viz&lt;/code&gt; repository.&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Run the following script that covers the steps in the &lt;a href=&quot;https://github.com/knz/go-binsize-viz/blob/master/README.md&quot;&gt;go-binsize-viz README&lt;/a&gt;.&lt;/p&gt;
+
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/usr/bin/env bash&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# This script needs more input parsing, but it serves the needs for now.&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;mkdir &lt;/span&gt;dist
+&lt;span class=&quot;c&quot;&gt;# step 1&lt;/span&gt;
+go tool nm &lt;span class=&quot;nt&quot;&gt;-size&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$1&lt;/span&gt; | c++filt &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; dist/&lt;span class=&quot;nv&quot;&gt;$1&lt;/span&gt;.symtab
+&lt;span class=&quot;c&quot;&gt;# step 2&lt;/span&gt;
+python3 tab2pydic.py dist/&lt;span class=&quot;nv&quot;&gt;$1&lt;/span&gt;.symtab &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; dist/&lt;span class=&quot;nv&quot;&gt;$1&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;-map&lt;/span&gt;.py
+&lt;span class=&quot;c&quot;&gt;# step 3&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# must be data.js&lt;/span&gt;
+python3 simplify.py dist/&lt;span class=&quot;nv&quot;&gt;$1&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;-map&lt;/span&gt;.py &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; dist/&lt;span class=&quot;nv&quot;&gt;$1&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;-data&lt;/span&gt;.js
+&lt;span class=&quot;nb&quot;&gt;rm &lt;/span&gt;data.js
+&lt;span class=&quot;nb&quot;&gt;ln&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-s&lt;/span&gt; dist/&lt;span class=&quot;nv&quot;&gt;$1&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;-data&lt;/span&gt;.js data.js
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+
+    &lt;p&gt;Running this script creates a dist folder where each intermediate step is deposited, and a &lt;code class=&quot;highlighter-rouge&quot;&gt;data.js&lt;/code&gt; symlink in the top-level directory which points to the consumable &lt;code class=&quot;highlighter-rouge&quot;&gt;.js&lt;/code&gt; file by treemap.html.&lt;/p&gt;
+
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# top-level directory
+$ ll
+-rw-r--r--   1 stan.halka  staff   1.1K Aug 20 09:57 README.md
+-rw-r--r--   1 stan.halka  staff   6.7K Aug 20 09:57 app3.js
+-rw-r--r--   1 stan.halka  staff   1.6K Aug 20 09:57 cockroach_sizes.html
+lrwxr-xr-x   1 stan.halka  staff        65B Aug 25 16:49 data.js -&amp;gt; dist/v2.0.709356.segments-paxgroups-macos-master-go1.13-data.js
+drwxr-xr-x   8 stan.halka  staff   256B Aug 25 16:49 dist
+...
+# dist folder
+$ ll dist
+total 71728
+drwxr-xr-x   8 stan.halka  staff   256B Aug 25 16:49 .
+drwxr-xr-x  21 stan.halka  staff   672B Aug 25 16:49 ..
+-rw-r--r--   1 stan.halka  staff   4.2M Aug 25 16:37 v2.0.709356.segments-paxgroups-macos-master-go1.13-data.js
+-rw-r--r--   1 stan.halka  staff   3.4M Aug 25 16:37 v2.0.709356.segments-paxgroups-macos-master-go1.13-map.py
+-rw-r--r--   1 stan.halka  staff    11M Aug 25 16:37 v2.0.709356.segments-paxgroups-macos-master-go1.13.symtab
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+
+    &lt;p&gt;As you can probably tell from the file names, these steps were explored on the &lt;em&gt;segments-paxgroups&lt;/em&gt; service, which is a microservice used for segment information at Grab. You can ignore the versioning metadata, branch name, and Golang information embedded in the name.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Finally, run a local python3 server to visualise the binary components.&lt;/p&gt;
+
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ python3 -m http.server
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+
+    &lt;p&gt;So now that we have a methodology to consistently generate a service binary, and a way to explore the symbols present, let’s dive in!&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Open your browser and visit &lt;a href=&quot;http://localhost:8000&quot;&gt;http://localhost:8000/treemap_v3.html&lt;/a&gt;:&lt;/p&gt;
+
+    &lt;p&gt;Of the 103MB binary produced, 81MB are recognisable, with 66MB recognised as Golang (UNKNOWN is present, and also during parsing there were a fair number of warnings. Note that we haven’t spent enough time with the tool to understand why we aren’t able to recognise and index all the symbols present).&lt;/p&gt;
+
+    &lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/one-small-step-closer-to-containerising-service-binaries/image1.png&quot; alt=&quot;Treemap&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+    &lt;p&gt;The next step is to figure out where the symbols are coming from. There’s a bunch of Grab-internal stuff that for the sake of this blog isn’t necessary to go into, and it was reasonably easy to come to the right answer based on the intuitiveness of the &lt;code class=&quot;highlighter-rouge&quot;&gt;go-binsize-viz&lt;/code&gt; tool.&lt;/p&gt;
+
+    &lt;p&gt;This visualisation shows us the source of how 11 MB of symbols are sneaking into the &lt;em&gt;segments-paxgroups&lt;/em&gt; binary.&lt;/p&gt;
+
+    &lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/one-small-step-closer-to-containerising-service-binaries/image2.png&quot; alt=&quot;Visualisation&quot; /&gt;
+&lt;/figure&gt;&lt;/div&gt;
+
+    &lt;p&gt;Every message format for any service that reads from, or writes to, streams at Grab is included in every service binary! Not cloud native!&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;how-did-this-happen&quot;&gt;How did this happen?&lt;/h2&gt;
+
+&lt;p&gt;The short answer is that Golang doesn’t import only the symbols that it requires, but rather all the symbols defined within an imported directory and transitive symbols as well. So, when we think we’re importing just one directory, if our code structure doesn’t follow principles of encapsulation or isolation, we end up importing 11 MB of symbols that we don’t need! In our case, this occurred because a generic Message interface was included in the same directory with all the auto-generated code you see in the pretty picture above.&lt;/p&gt;
+
+&lt;p&gt;The Streams team did an awesome job of restructuring the code, which when built again, led to this outcome:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$$ ll | grep paxgroups
+-rwxr-xr-x   1 stan.halka  staff   110M Aug 21 14:53 v2.0.709356.segments-paxgroups-macos-master-go1.12
+-rwxr-xr-x   1 stan.halka  staff   103M Aug 25 16:34 v2.0.709356.segments-paxgroups-macos-master-go1.13
+-rwxr-xr-x   1 stan.halka  staff        80M Aug 21 14:53 v2.0.709356.segments-paxgroups-macos-tinkered-go1.12
+-rwxr-xr-x   1 stan.halka  staff        78M Aug 25 16:34 v2.0.709356.segments-paxgroups-macos-tinkered-go1.13
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Not a bad reduction in service binary size!&lt;/p&gt;
+
+&lt;h2 id=&quot;lessons-learnt&quot;&gt;Lessons learnt&lt;/h2&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;go-binsize-viz&lt;/code&gt; utility offers a treemap representation for imported symbols, and is very useful in determining what symbols are contributing to the overall size.&lt;/p&gt;
+
+&lt;p&gt;Code architecture matters: Keep binaries as small as possible!&lt;/p&gt;
+
+&lt;p&gt;To reduce your binary size, follow these best practices:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Structure your code so that the interfaces and common classes/utilities are imported from different locations than auto-generated classes.&lt;/li&gt;
+  &lt;li&gt;Avoid huge, flat directory structures.&lt;/li&gt;
+  &lt;li&gt;If it’s a platform offering and has too many interwoven dependencies, try to decouple the actual platform offering from the company specific instantiations. This fosters creating isolated, minimalistic code.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
+</description>
+        <pubDate>Tue, 23 Feb 2021 00:12:23 +0000</pubDate>
+        <link>https://engineering.grab.com/reducing-your-go-binary-size</link>
+        <guid isPermaLink="true">https://engineering.grab.com/reducing-your-go-binary-size</guid>
+        
+        <category>Backend</category>
+        
+        <category>Engineering</category>
+        
+        <category>Golang</category>
+        
+        <category>Cloud-Native Transformations</category>
+        
+        <category>Containerisation</category>
+        
+        <category>Kubernetes</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Customer Support workforce routing</title>
@@ -1689,122 +1894,6 @@ Expected check order: B, D, C
         <category>Android</category>
         
         <category>Engineering</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Optimally scaling Kafka consumer applications</title>
-        <description>&lt;p&gt;Earlier this year, we took you on a journey on how we built and deployed our event sourcing and stream processing framework at Grab. We’re happy to share that we’re able to reliably maintain our uptime and continue to service close to 400 billion events a week. We haven’t stopped there though. To ensure that we can scale our framework as the Grab business continuously grows, we have spent efforts optimizing our infrastructure.&lt;/p&gt;
-
-&lt;p&gt;In this article, we will dive deeper into our Kubernetes infrastructure setup for our &lt;a href=&quot;https://engineering.grab.com/plumbing-at-scale&quot;&gt;stream processing framework&lt;/a&gt;. We will cover why and how we focus on optimal scalability and availability of our infrastructure.&lt;/p&gt;
-
-&lt;h2 id=&quot;quick-architecture-recap&quot;&gt;Quick Architecture Recap&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;figure&gt;
-    &lt;img alt=&quot;Coban Platform Architecture&quot; src=&quot;/img/optimally-scaling-kafka-consumer-applications/image2.png&quot; /&gt;
-    &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The Coban platform provides lightweight &lt;a href=&quot;https://medium.com/learning-the-go-programming-language/writing-modular-go-programs-with-plugins-ec46381ee1a9&quot;&gt;Golang plugin&lt;/a&gt; architecture-based data processing pipelines running in Kubernetes. These are essentially Kafka consumer pods that consume data, process it, and then materialize the results into various sinks (RDMS, other Kafka topics).&lt;/p&gt;
-
-&lt;h2 id=&quot;anatomy-of-a-processing-pod&quot;&gt;Anatomy of a Processing Pod&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;figure&gt;
-    &lt;img alt=&quot;Anatomy of a Processing Pod&quot; src=&quot;/img/optimally-scaling-kafka-consumer-applications/image1.png&quot; /&gt;
-    &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Each stream processing pod (the smallest unit of a pipeline’s deployment) has three top level components:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Trigger&lt;/strong&gt;: An interface that connects directly to the source of the data and converts it into an event channel.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Runtime&lt;/strong&gt;: This is the app’s entry point and the orchestrator of the pod. It manages the worker pools, triggers, event channels, and lifecycle events.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Pipeline plugin&lt;/strong&gt;: This is provided by the user, and conforms to a contract that the platform team publishes. It contains the domain logic for the pipeline and houses the pipeline orchestration defined by a user based on our Stream Processing Framework.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;optimal-scaling&quot;&gt;Optimal Scaling&lt;/h3&gt;
-
-&lt;p&gt;We initially architected our Kubernetes setup around &lt;a href=&quot;https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale&quot;&gt;horizontal pod autoscaling&lt;/a&gt; (HPA), which scales the number of pods per deployment based on CPU and memory usage. HPA keeps CPU and memory per pod specified in the deployment manifest and scales horizontally as the load changes.&lt;/p&gt;
-
-&lt;p&gt;These were the areas of application wastage we observed on our platform:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;As Grab’s traffic is uneven, we’d always have to provision for peak traffic. As users would not (or could not) always account for ramps, they would be fairly liberal with setting limit values (CPU and memory), leading to resource wastage.&lt;/li&gt;
-  &lt;li&gt;Pods often had uneven traffic distribution despite fairly even partition load distribution in Kafka. The Stream Processing Framework(SPF) is essentially Kafka consumers consuming from Kafka topics, hence the number of pods scaling in and out resulted in unequal partition load per pod.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;vertically-scaling-with-fixed-number-of-pods&quot;&gt;Vertically Scaling with Fixed Number of Pods&lt;/h3&gt;
-
-&lt;p&gt;We initially kept the number of pods for a pipeline equal to the number of partitions in the topic the pipeline consumes from. This ensured even distribution of partitions to each pod providing balanced consumption. In order to abstract this from the end user, we automated the application deployment process to directly call the Kafka API to fetch the number of partitions during runtime.&lt;/p&gt;
-
-&lt;p&gt;After achieving a fixed number of pods for the pipeline, we wanted to move away from HPA. We wanted our pods to scale up and down as the load increases or decreases without any manual intervention. &lt;a href=&quot;https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler&quot;&gt;Vertical pod autoscaling&lt;/a&gt; (VPA) solves this problem as it relieves us from any manual operation for setting up resources for our deployment.&lt;/p&gt;
-
-&lt;p&gt;We just deploy the application and let VPA handle the resources required for its operation. It’s known to not be very susceptible to quick load changes as it trains its model to monitor the deployment’s load trend over a period of time before recommending an optimal resource. This process ensures the optimal resource allocation for our pipelines considering the historic trends on throughput.&lt;/p&gt;
-
-&lt;p&gt;We saw a &lt;em&gt;~45%&lt;/em&gt; reduction in our total resource usage vs resource requested after moving to VPA with a fixed number of pods from HPA.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;figure&gt;
-    &lt;img alt=&quot;Anatomy of a Processing Pod&quot; src=&quot;/img/optimally-scaling-kafka-consumer-applications/image3.png&quot; /&gt;
-    &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;managing-availability&quot;&gt;Managing Availability&lt;/h3&gt;
-
-&lt;p&gt;We broadly classify our workloads as latency sensitive (critical) and latency tolerant (non-critical). As a result, we could optimize scheduling and cost efficiency using &lt;a href=&quot;https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption&quot;&gt;priority classes&lt;/a&gt; and &lt;a href=&quot;https://github.com/kubernetes-sigs/cluster-proportional-autoscaler&quot;&gt;overprovisioning&lt;/a&gt; on heterogeneous node types on AWS.&lt;/p&gt;
-
-&lt;h2 id=&quot;kubernetes-priority-classes&quot;&gt;Kubernetes Priority Classes&lt;/h2&gt;
-
-&lt;p&gt;The main cost of running EKS in AWS is attributed to the EC2 machines that form the worker nodes for the Kubernetes cluster. Running &lt;a href=&quot;https://aws.amazon.com/ec2/pricing/on-demand&quot;&gt;On-Demand&lt;/a&gt; brings all the guarantees of instance availability but it is definitely very expensive. Hence, our first action to drive cost optimisation was to include &lt;a href=&quot;https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-spot-instances.html&quot;&gt;Spot instances&lt;/a&gt; in our worker node group.&lt;/p&gt;
-
-&lt;p&gt;With the uncertainty of losing a spot instance, we started assigning priority to our various applications. We then let the user choose the priority of their pipeline depending on their use case. Different priorities would result in different node affinity to different kinds of instance groups (On-Demand/Spot). For example, Critical pipelines (latency sensitive) run on On-Demand worker node groups and Non-critical pipelines (latency tolerant) on Spot instance worker node groups.&lt;/p&gt;
-
-&lt;p&gt;We use priority class as a method of preemption, as well as a node affinity that chooses a certain priority pipeline for the node group to deploy to.&lt;/p&gt;
-
-&lt;h2 id=&quot;overprovisioning&quot;&gt;Overprovisioning&lt;/h2&gt;
-
-&lt;p&gt;With spot instances running we realised a need to make our cluster quickly respond to failures. We wanted to achieve quick rescheduling of evicted pods, hence we added overprovisioning to our cluster. This means we keep some noop pods occupying free space running in our worker node groups for the quick scheduling of evicted or deploying pods.&lt;/p&gt;
-
-&lt;p&gt;The overprovisioned pods are the lowest priority pods, thus can be preempted by any pod waiting in the queue for scheduling. We used cluster proportional autoscaler to decide the right number of these overprovisioned pods, which scales up and down proportionally to cluster size (i.e number of nodes and CPU in worker node group). This relieves us from tuning the number of these noop pods as the cluster scales up or down over the period keeping the free space proportional to current cluster capacity.&lt;/p&gt;
-
-&lt;p&gt;Lastly, overprovisioning also helped improve the deployment time because there is no  dependency on the time required for &lt;a href=&quot;https://docs.aws.amazon.com/autoscaling/ec2/userguide/AutoScalingGroup.html&quot;&gt;Auto Scaling Groups&lt;/a&gt; (ASG) to add a new node to the cluster every time we want to deploy a new application.&lt;/p&gt;
-
-&lt;h2 id=&quot;future-improvements&quot;&gt;Future Improvements&lt;/h2&gt;
-
-&lt;p&gt;Evolution is an ongoing process. In the next few months, we plan to work on custom resources for combining VPA and fixed deployment size. Our current architecture setup works fine for now, but we would like to create a more tuneable in-house &lt;a href=&quot;https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources&quot;&gt;CRD&lt;/a&gt;&lt;a href=&quot;https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources&quot;&gt;(Custom Resource Definition)&lt;/a&gt; for VPA that incorporates rightsizing our Kubernetes deployment horizontally.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored By Shubham Badkur on behalf of the Coban team at Grab - Ryan Ooi, Karan Kamath, Hui Yang, Yuguang Xiao, Jump Char, Jason Cusick, Shrinand Thakkar, Dean Barlan, Shivam Dixit, Andy Nguyen, and Ravi Tandon.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Tue, 13 Oct 2020 02:13:54 +0000</pubDate>
-        <link>https://engineering.grab.com/optimally-scaling-kafka-consumer-applications</link>
-        <guid isPermaLink="true">https://engineering.grab.com/optimally-scaling-kafka-consumer-applications</guid>
-        
-        <category>Event Sourcing</category>
-        
-        <category>Stream Processing</category>
-        
-        <category>Kubernetes</category>
-        
-        <category>Backend</category>
-        
-        <category>Platform</category>
-        
-        <category>Go</category>
         
         
         <category>Engineering</category>

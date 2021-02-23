@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>One small step closer to containerising service binaries</title>
+    <meta name="description" content="Learn how Grab is investigating and reducing service binary size for Golang projects.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/reducing-your-go-binary-size">
+    <meta property="og:title" content="One small step closer to containerising service binaries">
+    <meta property="og:description" content="Learn how Grab is investigating and reducing service binary size for Golang projects.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/one-small-step-closer-to-containerising-service-binaries/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/reducing-your-go-binary-size">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-sm-8 col-xs-4">
+          <div>
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle hidden-xs">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-4 col-xs-8 text-right site-search">
+          <form action="/search.html" method="get">
+  <div class="input-group">
+    <input type="text" id="search" name="q" class="form-control" placeholder="Search...">
+    <span class="input-group-btn">
+      <button class="btn" type="submit"><i class="fa fa-search"></i></button>
+    </span>
+  </div>
+</form>
+
+        </div>
+      </div>
+    </div>
+    <nav>
+      <ul class="nav-category">
+        
+          
+          <li>
+            <a href="/categories/engineering/">Engineering</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/data-science/">Data Science</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/design/">Design</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/product/">Product</a>
+          </li>
+        
+          
+          <li>
+            <a href="/categories/security/">Security</a>
+          </li>
+        
+      </ul>
+    </nav>
+  </div>
+</header>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <div class="text-center">
+        
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/stan-halka.png">
+            
+          
+            
+            
+              <img class="post-author-thumbnail-large img-circle" src="/img/authors/samuel-thomas.png">
+            
+          
+        
+      </div>
+      <br>
+      <h1 class="post-title text-center">One small step closer to containerising service binaries</h1>
+      
+      <div class="post-meta">
+        23 Feb 2021
+        
+          
+            
+            
+              &middot;
+              <a href="/authors#stan-halka">Stan Halka</a>
+            
+          
+            
+            
+              &middot;
+              <a href="/authors#samuel-thomas">Samuel Thomas</a>
+            
+          
+        
+        
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#backend" class="label tags-label">Backend</a>
+  
+    <a href="/tags#cloud-native-transformations" class="label tags-label">Cloud-Native Transformations</a>
+  
+    <a href="/tags#containerisation" class="label tags-label">Containerisation</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#golang" class="label tags-label">Golang</a>
+  
+    <a href="/tags#kubernetes" class="label tags-label">Kubernetes</a>
+  
+</div>
+
+        
+      </div>
+    </header>
+    <article class="post-content">
+      <p>Grab’s engineering teams currently own and manage more than 250+ microservices. Depending on the business problems that each team tackles, our development ecosystem ranges from Golang, Java, and everything in between.</p>
+
+<p>Although there are centralised systems that help automate most of the build and deployment tasks, there are still some teams working on different technologies that manage their own build, test and deployment systems at different maturity levels. Managing a varied build and deploy ecosystems brings their own challenges.</p>
+
+<p><strong>Build challenges</strong></p>
+
+<ul>
+  <li>Broken external dependencies.</li>
+  <li>Non-reproducible builds due to changes in AMI, configuration keys and other build parameters.</li>
+  <li>Missing security permissions between different repositories.</li>
+</ul>
+
+<p><strong>Deployment challenges</strong></p>
+
+<ul>
+  <li>Varied deployment environments necessitating a bigger learning curve.</li>
+  <li>Managing the underlying infrastructure as code.</li>
+  <li>Higher downtime when bringing the systems up after a scale down event.</li>
+</ul>
+
+<p>Grab’s appetite for customer obsession and quality drives the engineering teams to innovate and deliver value rapidly. The time that the team spends in fixing build issues or deployment-related tasks has a direct impact on the time they spend on delivering business value.</p>
+
+<h2 id="introduction-to-containerisation">Introduction to containerisation</h2>
+
+<p>Using the Container architecture helps the team deploy and run multiple applications, isolated from each other, on the same virtual machine or server and with much less overhead.</p>
+
+<p>At Grab, both the platform and the core engineering teams wanted to move to the containerisation architecture to achieve the following goals:</p>
+
+<ul>
+  <li>Support to build and push container images during the CI process.</li>
+  <li>Create a standard virtual machine image capable of running container workloads. The AMI is maintained by a central team and comes with Grab infrastructure components such as (DataDog, Filebeat, Vault, etc.).</li>
+  <li>A deployment experience which allows existing services to migrate to container workload safely by initially running both types of workloads concurrently.</li>
+</ul>
+
+<p>The core engineering teams wanted to adopt container workloads to achieve the following benefits:</p>
+
+<ul>
+  <li>Provide a containerised version of the service that can be run locally and on different cloud providers without any dependency on Grab’s internal (runtime) tooling.</li>
+  <li>Allow reuse of common Grab tools in different projects by running the zero dependency version of the tools on demand whenever needed.</li>
+  <li>Allow a more flexible staging/dev/shadow deployment of new features.</li>
+</ul>
+
+<h2 id="adoption-of-containerisation">Adoption of containerisation</h2>
+
+<p>Engineering teams at Grab use the containerisation model to build and deploy services at scale. Our containerisation effort helps the development teams move faster by:</p>
+
+<ul>
+  <li>Providing a consistent environment across development, testing and production</li>
+  <li>Deploying software efficiently</li>
+  <li>Reducing infrastructure cost</li>
+  <li>Abstracting OS dependency</li>
+  <li>Increasing scalability between cloud vendors</li>
+</ul>
+
+<p>When we started using containers we realised that building smaller containers had some benefits over bigger containers. For example, smaller containers:</p>
+
+<ul>
+  <li>Include only the needed libraries and therefore are more secure.</li>
+  <li>Build and deploy faster as they can be pulled to the running container cluster quickly.</li>
+  <li>Utilise disk space and memory efficiently.</li>
+</ul>
+
+<p>During the course of containerising our applications, we noted that some service binaries appeared to be bigger (<em>~110 MB</em>) than they should be. For a statically-linked Golang binary, that’s pretty big! So how do we figure out what’s bloating the size of our binary?</p>
+
+<h2 id="go-binary-size-visualisation-tool">Go binary size visualisation tool</h2>
+
+<p>In the course of poking around for tools that would help us analyse the symbols in a Golang binary, we found <a href="https://github.com/knz/go-binsize-viz">go-binsize-viz</a> based on <a href="https://www.cockroachlabs.com/blog/go-file-size/">this article</a>. We particularly liked this tool, because it utilises the existing Golang toolchain (specifically, <a href="https://golang.org/cmd/nm/">Go tool nm</a>) to analyse imports, and provides a straightforward mechanism for traversing through the symbols present via treemap. We will briefly outline the steps that we did to analyse a Golang binary here.</p>
+
+<ol>
+  <li>
+    <p>First, build your service using the following command (important for consistency between builds):</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ go build -a -o service_name ./path/to/main.go
+</code></pre></div>    </div>
+  </li>
+  <li>Next, copy the binary over to the cloned directory of <code class="highlighter-rouge">go-binsize-viz</code> repository.</li>
+  <li>
+    <p>Run the following script that covers the steps in the <a href="https://github.com/knz/go-binsize-viz/blob/master/README.md">go-binsize-viz README</a>.</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/usr/bin/env bash</span>
+<span class="c">#</span>
+<span class="c"># This script needs more input parsing, but it serves the needs for now.</span>
+<span class="c">#</span>
+<span class="nb">mkdir </span>dist
+<span class="c"># step 1</span>
+go tool nm <span class="nt">-size</span> <span class="nv">$1</span> | c++filt <span class="o">&gt;</span> dist/<span class="nv">$1</span>.symtab
+<span class="c"># step 2</span>
+python3 tab2pydic.py dist/<span class="nv">$1</span>.symtab <span class="o">&gt;</span> dist/<span class="nv">$1</span><span class="nt">-map</span>.py
+<span class="c"># step 3</span>
+<span class="c"># must be data.js</span>
+python3 simplify.py dist/<span class="nv">$1</span><span class="nt">-map</span>.py <span class="o">&gt;</span> dist/<span class="nv">$1</span><span class="nt">-data</span>.js
+<span class="nb">rm </span>data.js
+<span class="nb">ln</span> <span class="nt">-s</span> dist/<span class="nv">$1</span><span class="nt">-data</span>.js data.js
+</code></pre></div>    </div>
+
+    <p>Running this script creates a dist folder where each intermediate step is deposited, and a <code class="highlighter-rouge">data.js</code> symlink in the top-level directory which points to the consumable <code class="highlighter-rouge">.js</code> file by treemap.html.</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># top-level directory
+$ ll
+-rw-r--r--   1 stan.halka  staff   1.1K Aug 20 09:57 README.md
+-rw-r--r--   1 stan.halka  staff   6.7K Aug 20 09:57 app3.js
+-rw-r--r--   1 stan.halka  staff   1.6K Aug 20 09:57 cockroach_sizes.html
+lrwxr-xr-x   1 stan.halka  staff        65B Aug 25 16:49 data.js -&gt; dist/v2.0.709356.segments-paxgroups-macos-master-go1.13-data.js
+drwxr-xr-x   8 stan.halka  staff   256B Aug 25 16:49 dist
+...
+# dist folder
+$ ll dist
+total 71728
+drwxr-xr-x   8 stan.halka  staff   256B Aug 25 16:49 .
+drwxr-xr-x  21 stan.halka  staff   672B Aug 25 16:49 ..
+-rw-r--r--   1 stan.halka  staff   4.2M Aug 25 16:37 v2.0.709356.segments-paxgroups-macos-master-go1.13-data.js
+-rw-r--r--   1 stan.halka  staff   3.4M Aug 25 16:37 v2.0.709356.segments-paxgroups-macos-master-go1.13-map.py
+-rw-r--r--   1 stan.halka  staff    11M Aug 25 16:37 v2.0.709356.segments-paxgroups-macos-master-go1.13.symtab
+</code></pre></div>    </div>
+
+    <p>As you can probably tell from the file names, these steps were explored on the <em>segments-paxgroups</em> service, which is a microservice used for segment information at Grab. You can ignore the versioning metadata, branch name, and Golang information embedded in the name.</p>
+  </li>
+  <li>
+    <p>Finally, run a local python3 server to visualise the binary components.</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ python3 -m http.server
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+</code></pre></div>    </div>
+
+    <p>So now that we have a methodology to consistently generate a service binary, and a way to explore the symbols present, let’s dive in!</p>
+  </li>
+  <li>
+    <p>Open your browser and visit <a href="http://localhost:8000">http://localhost:8000/treemap_v3.html</a>:</p>
+
+    <p>Of the 103MB binary produced, 81MB are recognisable, with 66MB recognised as Golang (UNKNOWN is present, and also during parsing there were a fair number of warnings. Note that we haven’t spent enough time with the tool to understand why we aren’t able to recognise and index all the symbols present).</p>
+
+    <div class="post-image-section"><figure>
+  <img src="/img/one-small-step-closer-to-containerising-service-binaries/image1.png" alt="Treemap" />
+</figure></div>
+
+    <p>The next step is to figure out where the symbols are coming from. There’s a bunch of Grab-internal stuff that for the sake of this blog isn’t necessary to go into, and it was reasonably easy to come to the right answer based on the intuitiveness of the <code class="highlighter-rouge">go-binsize-viz</code> tool.</p>
+
+    <p>This visualisation shows us the source of how 11 MB of symbols are sneaking into the <em>segments-paxgroups</em> binary.</p>
+
+    <div class="post-image-section"><figure>
+  <img src="/img/one-small-step-closer-to-containerising-service-binaries/image2.png" alt="Visualisation" />
+</figure></div>
+
+    <p>Every message format for any service that reads from, or writes to, streams at Grab is included in every service binary! Not cloud native!</p>
+  </li>
+</ol>
+
+<h2 id="how-did-this-happen">How did this happen?</h2>
+
+<p>The short answer is that Golang doesn’t import only the symbols that it requires, but rather all the symbols defined within an imported directory and transitive symbols as well. So, when we think we’re importing just one directory, if our code structure doesn’t follow principles of encapsulation or isolation, we end up importing 11 MB of symbols that we don’t need! In our case, this occurred because a generic Message interface was included in the same directory with all the auto-generated code you see in the pretty picture above.</p>
+
+<p>The Streams team did an awesome job of restructuring the code, which when built again, led to this outcome:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$$ ll | grep paxgroups
+-rwxr-xr-x   1 stan.halka  staff   110M Aug 21 14:53 v2.0.709356.segments-paxgroups-macos-master-go1.12
+-rwxr-xr-x   1 stan.halka  staff   103M Aug 25 16:34 v2.0.709356.segments-paxgroups-macos-master-go1.13
+-rwxr-xr-x   1 stan.halka  staff        80M Aug 21 14:53 v2.0.709356.segments-paxgroups-macos-tinkered-go1.12
+-rwxr-xr-x   1 stan.halka  staff        78M Aug 25 16:34 v2.0.709356.segments-paxgroups-macos-tinkered-go1.13
+</code></pre></div></div>
+
+<p>Not a bad reduction in service binary size!</p>
+
+<h2 id="lessons-learnt">Lessons learnt</h2>
+
+<p>The <code class="highlighter-rouge">go-binsize-viz</code> utility offers a treemap representation for imported symbols, and is very useful in determining what symbols are contributing to the overall size.</p>
+
+<p>Code architecture matters: Keep binaries as small as possible!</p>
+
+<p>To reduce your binary size, follow these best practices:</p>
+
+<ul>
+  <li>Structure your code so that the interfaces and common classes/utilities are imported from different locations than auto-generated classes.</li>
+  <li>Avoid huge, flat directory structures.</li>
+  <li>If it’s a platform offering and has too many interwoven dependencies, try to decouple the actual platform offering from the company specific instantiations. This fosters creating isolated, minimalistic code.</li>
+</ul>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
+
+<p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
+
+    </article>
+    <div>
+      
+        <div class="post-tags">
+  
+  
+    <a href="/tags#backend" class="label tags-label">Backend</a>
+  
+    <a href="/tags#cloud-native-transformations" class="label tags-label">Cloud-Native Transformations</a>
+  
+    <a href="/tags#containerisation" class="label tags-label">Containerisation</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#golang" class="label tags-label">Golang</a>
+  
+    <a href="/tags#kubernetes" class="label tags-label">Kubernetes</a>
+  
+</div>
+
+      
+      <br>
+    </div>
+    <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=One small step closer to containerising service binaries&url=https://engineering.grab.com/reducing-your-go-binary-size&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/reducing-your-go-binary-size" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/reducing-your-go-binary-size&title=One small step closer to containerising service binaries
+&summary=Learn how Grab is investigating and reducing service binary size for Golang projects.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+    <hr class="section-divider">
+    <div class="panel panel-default hiring-panel">
+      <div class="panel-body">
+        <div class="row">
+          <div class="col-sm-6">
+            <h4 class="hiring-tagline">Want to work with us? Grab is hiring!</h4>
+          </div>
+          <div class="col-sm-6 hiring-btn-container">
+            <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+          </div>
+        </div>
+      </div>
+    </div>
+    <br/>
+    
+      <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/reducing-your-go-binary-size';
+    this.page.identifier = '/reducing-your-go-binary-size';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+    
+  </div>
+</div>
+
+    </div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-facebook-square fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-twitter fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+      </div>
+      <div class="col-sm-6 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+  </div>
+</footer>
+
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
