@@ -1,7 +1,7 @@
 ---
 layout: post
 id: deep-dive-into-ios-automation-at-grab-integration-testing
-title: Deep Dive Into iOS Automation At Grab - Integration Testing
+title: Deep Dive into iOS Automation at Grab - Integration Testing
 date: 2017-04-18 18:43:40
 authors: [sun-xiangxin]
 categories: [Engineering]
@@ -10,19 +10,19 @@ comments: true
 excerpt: "This is the first part of our series \"Deep Dive Into iOS Automation At Grab\", where we will cover testing automation in the iOS team. Over the past two years at Grab, the iOS passenger app team has grown from 3 engineers in Singapore to 20 globally. Back then, each one of us was busy shipping features and had no time to set up a proper automation process."
 ---
 
-This is the first part of our series "Deep Dive Into iOS Automation At Grab", where we will cover testing automation in the iOS team. The second article is available [here](/deep-dive-into-ios-automation-at-grab-continuous-delivery).
+This is the first part of our series "Deep Dive into iOS Automation at Grab", where we will cover testing automation in the iOS team. The second article is available [here](/deep-dive-into-ios-automation-at-grab-continuous-delivery).
 
 Over the past two years at Grab, the iOS passenger app team has grown from 3 engineers in Singapore to 20 globally. Back then, each one of us was busy shipping features and had no time to set up a proper automation process. It was common to hear these frustrations from the team:
 
-#### Travis failed again but it passes in my local
+#### Travis Failed Again But it Passes in My Local
 
 There was a time when iOS 9 came out and Travis failed for us for every single integration. We tried emailing their support but the communication took longer than we would have liked, and ultimately we didn't manage to fix the issue in time.
 
-#### Fastlane chose the wrong provisioning profile again
+#### Fastlane Chose the Wrong Provisioning Profile Again
 
-We relied on [Fastlane](https://fastlane.tools/) for quite some time and it is a brilliant tool. There was a time, however, that some of us had issues with provisioning profiles constantly. Why and how we moved away from Fastlane will be explained later.
+We relied on [Fastlane](https://fastlane.tools/) for quite some time and it is a brilliant tool. However, there was a time when some of us had issues with provisioning profiles constantly. Why and how we moved away from Fastlane will be explained later.
 
-#### Argh, if more people tested in production before the release, this crash might have been caught
+#### Argh, if More People Tested in Production Before the Release, This Crash Might have been Caught
 
 Prior to the app release, we do regression testing in a production environment. In the past, this was done almost entirely by our awesome QA team via Testflight distributions exclusively. That meant it was hard to cover all combinations of OSes, device models, locations and passenger account settings. We had prior incidents that only happened to a particular phone model, operating system, etc. Those gave us motivation to install a company-wide dogfooding program.
 
@@ -34,13 +34,13 @@ Testing and distribution are two aspects that we put a lot of effort in automati
 
 Besides being a complete Apple fan myself, there are a couple of other reasons why we chose Xcode Server over [Travis](https://travis-ci.org/) and [Bitrise](https://www.bitrise.io/) (which our Android team uses) to run our tests.
 
-#### Faster integration
+#### Faster Integration
 
-Unlike most cloud services where every test is run in a random box from a macOS farm, at Grab, we have complete control of what machine we connect to. Provisioning a server (pretty much downloading Xcode, a macOS server, combined with some extremely simple steps) is a one-time affair and does not have to be repeated during each integration. e.g. Installing correct version of Cocoapod and command line libraries.
+Unlike most cloud services where every test is run in a random box from a macOS farm, at Grab, we have complete control of what machine we connect to. Provisioning a server (pretty much downloading Xcode, a macOS server, combined with some extremely simple steps) is a one-time affair and does not have to be repeated during each integration. e.g. Installing correct version of CocoaPods and command line libraries.
 
 Instead of fresh cloning a repository, Xcode Server simply checks out the branch and pulls the latest code. That can save time especially when you have a long commit history.
 
-#### Native native native
+#### Native Native Native
 
 It is a lot more predictable. It guarantees that it's the same OS, same Xcode version, same Swift version. If the tests passes on your Xcode, and on your teammates' Xcodes, it will pass on the server's Xcode.
 
@@ -108,7 +108,7 @@ Apple doesn't have a lot of documentation on this. For a list of Xcode Server AP
 
 We have been happy with the server most of the time. However, along the way we did discover several downsides:
 
-- The simulator that the Xcode Server spins up does not necessarily have customized location enabled. You probably want to mock your locations in code in testing environment.
+- The simulator that the Xcode Server spins up does not necessarily have customised location enabled. You probably want to mock your locations in code in testing environment.
 - Installed builds are being updated during each integration and reused. There might be cache issues from previous integrations. Hence, deleting the app in your pre-integration script can be a good idea:
 
   ~~~sh

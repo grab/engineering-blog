@@ -49,7 +49,7 @@ The report should make any engineer reading it feel empowered in helping out wit
 
 <u>Blameless</u> - Reports are supposed to be beneficial to the overall ops efficiency. Nothing demoralises an engineer as quickly as having his name tagged to an issue for eternity.
 
-<u>Educational</u> - Reports should act as a tutorial guide to solving production problems. Most people know how to grep logs, but only those with experience know what exactly to grep. A step by step display of how problems are diagnosed and the conclusions they lead to, should be recorded.
+<u>Educational</u> - Reports should act as a tutorial guide to solving production problems. Most people know how to grep logs, but only those with experience know exactly what to grep. A step by step display of how problems are diagnosed and the conclusions they lead to, should be recorded.
 
 ### Solutions
 

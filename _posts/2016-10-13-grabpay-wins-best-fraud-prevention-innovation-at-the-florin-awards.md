@@ -1,7 +1,7 @@
 ---
 layout: post
 id: grabpay-wins-best-fraud-prevention-innovation-at-the-florin-awards
-title: GrabPay Wins Best Fraud Prevention Innovation At The Florin Awards
+title: GrabPay Wins Best Fraud Prevention Innovation at the Florin Awards
 date: 2016-10-12 18:43:40
 authors: [foo-wui-ngiap]
 tags: [User Trust]
@@ -19,6 +19,6 @@ User Trust and Safety is paramount to Grab -- we uphold the industry's highest s
 
 To top that, Grab is now one of the most frequently used mobile platforms in the region with up to 1.5 million bookings daily. The app has been downloaded more than 23 million times!
 
-With the strong growth story in mind, and the drive to enable a seamless and ubiquitous transaction experience across the region, we at Grab have made it our mandate to provide full protection for all GrabPay transactions to our drivers and passengers -- we cover any unauthorised fraudulent transactions on GrabPay. This is a testament and commitment from Grab that we place our users' trust and security front and centre, and will do what it takes to ensure a seamless and safe transaction experience.
+With the strong growth story in mind and the drive to enable a seamless and ubiquitous transaction experience across the region, we at Grab have made it our mandate to provide full protection for all GrabPay transactions to our drivers and passengers -- we cover any unauthorised fraudulent transactions on GrabPay. This is a testament and commitment from Grab that we place our users' trust and security front and centre, and will do what it takes to ensure a seamless and safe transaction experience.
 
 We have big aspirations for GrabPay and will continue to provide our customers greater accessibility, ubiquity and convenience in making safe and secure cashless payments in Southeast Asia. We'd like to thank all GrabPay users who have been on this journey with us, and for the exciting road ahead.

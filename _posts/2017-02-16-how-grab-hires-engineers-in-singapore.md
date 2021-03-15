@@ -1,7 +1,7 @@
 ---
 layout: post
 id: how-grab-hires-engineers-in-singapore
-title: How Grab Hires Engineers In Singapore
+title: How Grab Hires Engineers in Singapore
 date: 2017-02-16 18:43:40
 authors: [daniel-tay]
 categories: [Engineering]
@@ -41,7 +41,7 @@ First up, a ride-hailing company that has <a href="https://www.techinasia.com/co
 
 Not surprisingly, they experience a high volume of inbound candidates for some of their more popular roles, but few make it to the final stage. “On average, it could be as low as 3 to 5 per cent of candidates who start the interview process to reach to offer stage, as our bar for engineering talent is set really high – for good reason!” Rachel explains.
 
-From start to end, the number of interview rounds highly depends on the role in question, and how senior the position is. A 100offer user who recently joined Grab tells us that his journey took between three to four weeks , during which he went through the following interview rounds: one phone screen interview with a Human Resources representative, one online coding round, and two rounds of technical tests.
+From start to end, the number of interview rounds highly depends on the role in question, and how senior the position is. A 100offer user who recently joined Grab tells us that his journey took between three to four weeks, during which he went through the following interview rounds: one phone screen interview with a Human Resources representative, one online coding round, and two rounds of technical tests.
 
 The final technical round was conducted with three Grab software engineers in quick succession.
 
@@ -97,7 +97,7 @@ Beyond that, Rachel and her colleagues tend to quiz candidates on their career a
 
 For senior candidates, Rachel will "often ask them their views on their hiring philosophy - how they would hire a good engineer, as well as how they would build a strong, cohesive and high-performing team."
 
-"It is critical that we understand a senior candidate's management style," she emphasizes.
+"It is critical that we understand a senior candidate's management style," she emphasises.
 
 For junior candidates, she would ask questions that help give a sense of their sense of responsibility and interest in being a team owner and manager, as well as their commitment to building a long and successful career with Grab.
 
@@ -107,7 +107,7 @@ For junior candidates, she would ask questions that help give a sense of their s
 
 According to Rachel, there are many opportunities to relocate and work at Grab's Research & Development Centres in Beijing, Seattle, and Singapore. When relocating candidates, though, she is careful to assess their ability to adapt to a new environment.
 
-"I recognize that their entire life can change!" she explains. "For those keen to explore an overseas work opportunity with Grab, do take time to consider and research about living in Singapore. Singapore is a great place for tech talent, as it comes with plenty of opportunities in the tech industry."
+"I recognise that their entire life can change!" she explains. "For those keen to explore an overseas work opportunity with Grab, do take time to consider and research about living in Singapore. Singapore is a great place for tech talent, as it comes with plenty of opportunities in the tech industry."
 
 Indeed, she's extremely optimistic about the prospects of those keen on moving to Singapore, where Grab chose to <a href="http://www.channelnewsasia.com/news/business/singapore/grabtaxi-opens-s-136m-r-d/1772932.html" target="_blank" rel="noopener noreferrer">open its US$100 million R&D centre</a> - right in the heart of the Central Business District.
 

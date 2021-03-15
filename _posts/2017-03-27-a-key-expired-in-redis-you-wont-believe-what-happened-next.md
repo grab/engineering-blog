@@ -1,7 +1,7 @@
 ---
 layout: post
 id: a-key-expired-in-redis-you-wont-believe-what-happened-next
-title: A Key Expired In Redis, You Won't Believe What Happened Next
+title: A Key Expired in Redis, You Won't Believe What Happened Next
 date: 2017-03-27 18:43:40
 authors: [karan-kamath]
 categories: [Engineering]
@@ -26,7 +26,7 @@ Unicorns are in popular demand and change infrequently, and as a result, Grab Un
 
 Considering that our Common Data Service (CDS) server cache (5 minutes), CDS client cache (1 minute), Grab API cache (5 minutes), and mobile cache (varies, but insignificant) together accounted for at most ~11 minutes of Unicorn change propagation time, this was a rather perplexing find. (Also, we should really consider an inter-service cache invalidation strategy for this [^2].)
 
-### How We Cache Unicorns At The API Level
+### How We Cache Unicorns at the API Level
 
 Subsequently, we investigated why the Unicorns returned from the API were up to 45 minutes stale, as tested on production. Before we share our findings, let's go through a quick overview of what the Unicorn API's ElastiCache Redis looks like.
 
@@ -65,11 +65,11 @@ This finding, together with the fact that we don't read from the master branch, 
 
 To understand this better, we needed to [RTFM](https://en.wikipedia.org/wiki/RTFM). More precisely, we need two key pieces of information.
 
-#### How EXPIREs Are Managed Between Master And Slave Nodes On Redis 2.x
+#### How EXPIREs are Managed Between Master and Slave Nodes on Redis 2.x
 
 To "maintain consistency", slaves aren't allowed to expire keys unless they receive a DEL from the master branch, even if they know the key is expired. The only exception is when a slave becomes master [^4]. So basically, if the master doesn't send a DEL to the slave, the key (which might have been set with a TTL using the Redis API contract), is not guaranteed to respect the TTL it was set with. This is when you scale to have read slaves, which, apparently, is a shocking requirement in production systems.
 
-#### How EXPIREs Are Managed For Keys That Aren't "gotten from master"
+#### How EXPIREs are Managed for Keys that aren't "Gotten from Master"
 
 Since every key needs to be deleted on master first, and some of our keys were expired correctly, there had to be a "passive" manner in which Redis was deleting expired keys that didn't involve an explicit GET command from the client. The manual [^5]:
 
@@ -91,7 +91,7 @@ Since every key needs to be deleted on master first, and some of our keys were e
 
 So that's 200 keys tested for expiry each second on the master branch, and about 25% of your keys on the slaves guaranteed to be serving dead Unicorns, because they didn't get the memo.
 
-While 200 keys/s might be enough to make it through a hackathon project blazingly fast, it certainly isn't fast enough at our scale, to expire 25% of our 5594518 keys in time for Unicorn updates.
+While 200 keys might be enough to make it through a hackathon project blazingly fast, it certainly isn't fast enough at our scale, to expire 25% of our 5594518 keys in time for Unicorn updates.
 
 #### Doing The Math
 

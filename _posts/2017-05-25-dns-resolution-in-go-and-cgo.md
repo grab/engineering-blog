@@ -215,7 +215,7 @@ astrolabe elb resolved to 172.21.1.97  172.21.1.152  172.21.2.108  172.21.2.144
 
 And from the results, you can see that it has no impact on the native Go DNS resolver but both the Cgo and C DNS resolvers are starting to return the IP addresses in a random order, as expected from our learnings in [part one](/troubleshooting-unusual-aws-elb-5xx-error).
 
-#### Ok, disabling IPv6 and using Cgo/C works, now what?
+#### Ok, Disabling IPv6 and Using Cgo/C Works, Now What?
 
 Now that we have established that disabling IPv6 does indeed solve the problem for us in Cgo and C (both use the same underlying `getaddrinfo` function in glibc), it is time for us to explore the Go source code to see if there is anything that stands out in its implementation of a DNS resolver.
 
@@ -247,7 +247,7 @@ Finally understanding how it works in glibc, we modify the Go source code and to
 
 ### Summary
 
-To summarize, in the first part of the series, we walked through our process investigating why we were receiving ELB HTTP 5xx alerts on Astrolabe (our driver location processing service) and how we fixed it by forcing Go to use the Cgo DNS resolver while IPv6 was disabled. In the second part of the series, we dived deeper into the problem to figure out why our solution in part 1 worked. In the end, it turns out that it was because of some undocumented behaviour in glibc that allowed the internet to continue working as it did.
+To summarise, in the first part of the series, we walked through our process investigating why we were receiving ELB HTTP 5xx alerts on Astrolabe (our driver location processing service) and how we fixed it by forcing Go to use the Cgo DNS resolver while IPv6 was disabled. In the second part of the series, we dived deeper into the problem to figure out why our solution in part 1 worked. In the end, it turns out that it was because of some undocumented behaviour in glibc that allowed the internet to continue working as it did.
 
 A couple of takeaways that we had from this investigation:
 

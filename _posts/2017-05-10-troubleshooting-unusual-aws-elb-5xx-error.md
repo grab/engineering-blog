@@ -10,7 +10,7 @@ comments: true
 excerpt: "This article is part one of a two-part series. In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution."
 ---
 
-*This article is part one of a two-part series ([part two](/dns-resolution-in-go-and-cgo)). In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution.*
+*This article is part one of a two-part series ([part two](/dns-resolution-in-go-and-cgo)). In this article, we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution.*
 
 **Triggered: [Gothena] Astrolabe failed (Warning)**, an alert from Datadog that we have been seeing very often in our `#tech-operations` slack channel. This alert basically tells us that Gothena [^1] is receiving ELB [^2] HTTP 5xx [^3] errors when calling Astrolabe [^4]. Because of how frequently we update our driver location data, losing one or two updates of a single driver has never really been an issue for us at Grab. It was only when this started creating a lot of noise for our on call engineers, we decided that it was time to dig into it and fix it once and for all.
 
@@ -74,7 +74,7 @@ If you have ever taken a look at the AWS ELB dashboards, you will know that it s
 
 <br/>
 
-Few interesting points worth noting in above metrics:
+There are a few interesting points worth noting in above metrics:
 
 - There are no errors from backend i.e. no 5XX or 4XX errors.
 - Healthy and unhealthy instance count do not change i.e. all backend instances are healthy and serving the ELB.
@@ -83,7 +83,7 @@ Few interesting points worth noting in above metrics:
 
 By jumping into the more detailed CloudWatch metrics, we are able to further confirm from our side that there is an uneven distribution of requests across the two different AZs. When we reach out to AWS' tech support, they confirm that one of the many ELB nodes is somehow preferred and is causing a load imbalance across ELB nodes that in turn causes a single ELB node to occasionally fail and results in the ELB 5xx errors that we are seeing.
 
-### What is happening?
+### What is Happening?
 
 Having confirmation of the issue from AWS is a start. Now we can confidently say that our monitoring systems are working correctly – something that is always good to know. After some internal discussions, we then came up with some probable causes:
 
@@ -98,7 +98,7 @@ Moving on to the second item on the list – ELB configurations. When configurin
 
 Having eliminated the possibility of a misconfiguration on the ELB, we move on to see if Gothena itself is doing some sort of IP caching or if there is some sort DNS resolution misconfiguration that is happening on the service itself. While doing this investigation, we notice the same pattern in all other services that are calling Astrolabe (we record all outgoing connections from our services on Datadog). It just so happens that because Gothena is responsible for the bulk of the requests to Astrolabe that the problem is more prominent here than on other services. Knowing this, allows us to narrow the scope down to either a library that is used by all these services or some sort of server configuration that we were applying across the board. This is where things start to get a lot more interesting.
 
-### A misconfigured server? Is it Ubuntu? Is it Go?
+### A Misconfigured Server? Is it Ubuntu? Is it Go?
 
 Here at Grab, all of our servers are running on AWS with Ubuntu installed on them and almost all our services are written in Go, which means that we have a lot of common setup and code between services.
 
@@ -112,7 +112,7 @@ $ dig +short astrolabe.grab.com
 172.18.1.37
 ~~~
 
-Then we proceed with running the netstat command to get connection counts from the Gothena instance to each of the ELB IPs retrieved above.
+Then, we proceed with running the netstat command to get connection counts from the Gothena instance to each of the ELB IPs retrieved above.
 
 ~~~sh
 netstat | grep 172.18.2.38 | wc -l; netstat | grep 172.18.2.209 | wc -l; netstat | grep 172.18.1.10 | wc -l; netstat | grep 172.18.1.37 | wc -l;

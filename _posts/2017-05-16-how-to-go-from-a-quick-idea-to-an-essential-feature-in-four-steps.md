@@ -14,15 +14,15 @@ How do you work within a startup team and build a quick idea into a key feature 
 
 Software engineer Huang Da and data scientist Tan Sien Yi can explain just that. Huang Da and his team first came up with the idea for a chat function in the Grab app in early 2016 and since the official roll out of GrabChat, the first messaging tool in a ride-hailing app, more than 78 million messages have been exchanged across the region. Here's their story on how this feature evolved from a quick idea to an essential feature.
 
-### 1. Identify the problem
+### 1. Identify the Problem
 
 **Huang Da:** Southeast Asia is a pretty challenging place for an app. We have countries with vastly different internet conditions and infrastructural capabilities. You don't always have access to Wi-Fi. A lot of people are still using 2G, which has limited bandwidth, slow speeds and the high probability of data packets dropping due to congestion or interference affecting the Wi-Fi signal.
 
 With that context in mind, in January 2016, we first started thinking of a new, safe and automated way for drivers and passengers to communicate better. Cities in Southeast Asia change so fast, so being able to communicate makes a big difference if you're trying to find your driver or passenger.
 
-In discussing the problem with my team, one idea jumped out: why don't we build an in-app chat solution? It's the safest and most anonymized way to allow passengers and drivers to communicate. Also, if there's one thing we know, it's that people in Southeast Asia love to chat, with applications such as WhatsApp, Facebook Messenger and Line being ubiquitous.
+In discussing the problem with my team, one idea jumped out: why don't we build an in-app chat solution? It's the safest and most anonymised way to allow passengers and drivers to communicate. Also, if there's one thing we know, it's that people in Southeast Asia love to chat, with applications such as WhatsApp, Facebook Messenger and Line being ubiquitous.
 
-### 2. Build an MVP solution
+### 2. Build an MVP Solution
 
 **Huang Da:** Once we decided to build GrabChat, we started with a prototype. We could have integrated it with third parties, but building it yourself allows more flexibility and options, as well as the opportunity to scale up down the line.
 
@@ -54,7 +54,7 @@ Data scientist Sien Yi evaluated the impact of GrabChat to give the engineering 
 
 We approached testing the hypothesis from two sides.
 
-#### Comparing non-chat vs chat bookings of individual passengers
+#### Comparing Non-chat vs Chat Bookings of Individual Passengers
 
 As a first line of enquiry, we looked at a sample size of 20,000 passengers who had done a significant number of bookings before GrabChat and continued making a significant number of bookings after GrabChat was introduced.
 
@@ -70,7 +70,7 @@ There were still some remaining issues with this analysis though:
 1. There might be a selection bias in that we necessarily sample passengers with more experience on the Grab platform in order to measure meaningful differences between their Chat and non-Chat bookings.
 1. We haven't accounted for driver cancels.
 
-#### Using the cancellation prediction model
+#### Using the Cancellation Prediction Model
 
 This is where the cancellation prediction model came in. With the data science team, we've been building a model that predicts how likely an allocated booking will be cancelled. We trained the model on GrabCar data for September in Singapore (before GrabChat was ever used), and then ran the model on October data (after GrabChat was adopted).
 

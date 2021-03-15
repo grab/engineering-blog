@@ -1,7 +1,7 @@
 ---
 layout: post
 id: curious-case-of-the-phantom-instance
-title: The Curious Case of The Phantom Instance
+title: The Curious Case of the Phantom Instance
 date: 2015-12-28 04:39:00
 authors: [lian-yuanlin]
 categories: [Engineering]
@@ -23,7 +23,7 @@ Upon first look, the usual reflex conclusion for the step waveforms would be an 
 
 According to the graph shown, the values have jumped between 48 and 72 counts/min (Above dashboard collates in 10-minute intervals). The grab_attention ASG usually consists of 2 instances. 72 / 48 = 1.5, therefore there should have been an ASG scale up event at roughly 22 Dec 2015, 1610 hours.
 
-Now here's the weird part. Our ASG activity history, interestingly, did not match up with the observed data:
+Now, here's the weird part. Our ASG activity history, interestingly, did not match up with the observed data:
 
 ![Grab Attention Auto Scaling Group](/img/phantom-instance/ga-asg.png)
 
@@ -106,7 +106,7 @@ In essence, contrary to a typical ASG scaling event where instances are launched
 
 A series of coincidental ELB scaling events strictly involving node replacements had occurred, leading us to believe that a phantom instance had been spun up.
 
-#### What we can learn from this
+#### What We can Learn from This
 
 It might be wise to separate dependency health checks within the instances from the ELB health checks, since it actually doubles the number of requests.
 

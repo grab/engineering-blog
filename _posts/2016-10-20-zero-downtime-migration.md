@@ -61,7 +61,7 @@ A key concern for us was the tripling of the HTTP request redirects for each end
 
 We identified 2 ways to solve this.
 
-The first was to implement service discovery into our gRPC setup, either by Zookeeper or etcd for client side load balancing. The second, which we adopted and deem the easier way albeit more hackish, was to have a script slowly restart all the Go instances every time there was an ASG scaling event on the Rails Clone cluster to force a redistribution of connections. It may seem unwieldy, but it got the job done without distracting our team further.
+The first was to implement service discovery into our gRPC setup, either by Zookeeper or etcd for client side load balancing. The second, which we adopted and deemed the easier way albeit more hackish, was to have a script slowly restart all the Go instances every time there was an ASG scaling event on the Rails Clone cluster to force a redistribution of connections. It may seem unwieldy, but it got the job done without distracting our team further.
 
 Grab API team then discovered that the gRPC RubyGem we were using in our Rails clone server had a memory leak issue. It required us to create a rake task to periodically restart the instances when memory usage reached a certain threshold. Our engineers went through the RubyGem's C++ code and submitted a pull request to get it fixed.
 
@@ -73,7 +73,7 @@ Interestingly, converting Ruby code to Go did not pose many issues, although we 
 
 ### Load Testing
 
-Before receiving actual, real world traffic, our team performed load testing by dumping all the day logs with the highest traffic in the past month. We proceeded to create a script that would parse the logs and send actual HTTP requests to our endpoint hosted on our staging servers. This ensured that our configurations were adequate for every anticipated traffic, and to verify that our new endpoints were maintaining the Service Level Agreement (SLA).
+Before receiving actual real world traffic, our team performed load testing by dumping all the day logs with the highest traffic in the past month. We proceeded to create a script that would parse the logs and send actual HTTP requests to our endpoint hosted on our staging servers. This ensured that our configurations were adequate for every anticipated traffic, and to verify that our new endpoints were maintaining the Service Level Agreement (SLA).
 
 ### Shadow Testing
 
@@ -127,8 +127,8 @@ This will provide more leeway in increasing RPS during shadow or roll out.
 
 ### Roll Out
 
-Similar to shadowing of endpoints, it was necessary to roll out discrete endpoints with traffic control. Simply changing DNS for roll out would require the migrated Go API server to be coded, tested and configured with perfect foresight to instantly take over 100% traffic of all passenger app requests across all 30 over endpoints. By adopting the same method used in shadowing, we could turn on a single endpoint at the RPS we want. The Go server will then be able to gradually take over the traffic before the final DNS switch.
+Similar to shadowing endpoints, it was necessary to roll out discrete endpoints with traffic control. Simply changing DNS for roll out would require the migrated Go API server to be coded, tested and configured with perfect foresight to instantly take over 100% traffic of all passenger app requests across all 30 over endpoints. By adopting the same method used in shadowing, we could turn on a single endpoint at the RPS we want. The Go server will then be able to gradually take over the traffic before the final DNS switch.
 
-### Final Word
+### Final Words
 
 We hope this post will be useful for those planning to undertake migrations with similar scale and reliability requirements. If this type of challenges interest you, [join our Engineering team](https://grab.careers/)!
