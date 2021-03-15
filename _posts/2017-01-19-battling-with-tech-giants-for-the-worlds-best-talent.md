@@ -11,7 +11,7 @@ cover_photo: /img/battling-with-tech-giants/user-trust-offsite-group-photo.jpg
 excerpt:
 ---
 
-Grab steadily attracts a diverse set of engineers from around the world in its three R&D centres in Singapore, Seattle, and Beijing. Right now, half of Grab’s top leadership team is made up of women and we have attracted people from five continents to work together on solving the biggest challenges for Southeast Asia.
+Grab steadily attracts a diverse set of engineers from around the world in its three R&D centres: Singapore, Seattle, and Beijing. Right now, half of Grab’s top leadership team is made up of women and we have attracted people from five continents to work together on solving the biggest challenges for Southeast Asia.
 
 30-year-old Grab engineer Brandon Gao was recently approached by a Seattle-based tech giant. Instead of jumping at the chance to relocate and work for this blue chip company, he turned them down immediately. Having worked in Grab for about two years, he understands what makes this company special and recognises the huge impact he could still make within this unicorn start-up.
 

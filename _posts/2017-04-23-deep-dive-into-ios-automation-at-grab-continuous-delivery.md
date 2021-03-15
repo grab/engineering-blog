@@ -1,7 +1,7 @@
 ---
 layout: post
 id: deep-dive-into-ios-automation-at-grab-continuous-delivery
-title: Deep Dive Into iOS Automation At Grab - Continuous Delivery
+title: Deep Dive into iOS Automation at Grab - Continuous Delivery
 date: 2017-04-23 18:43:40
 authors: [sun-xiangxin, paul-meng]
 categories: [Engineering]
@@ -17,7 +17,7 @@ As a common solution to the limitations of an Apple developer account's device w
 
 **Adhoc QA -** Most frequently distributed builds for mobile devs and QAs whose devices present in the ad hoc provisioning profile.
 
-**Hot Dogfood -** Similar to Adhoc QA (both have debug options to connect to a staging environment) but signed under an enterprise account. This build is meant for backend devs to test out their APIs on staging.
+**Hot Dogfood -** Similar to adhoc QA (both have debug options to connect to a staging environment) but signed under an enterprise account. This build is meant for backend devs to test out their APIs on staging.
 
 **Dogfood -** Company-wide beta testing that includes both the online and offline team. This is often released when new features are ready or accepted by QA. It can also be a release candidate before we submit to the App Store.
 
@@ -39,7 +39,7 @@ The app integrates with [SlackKit](https://github.com/pvzig/SlackKit.git) using 
   <img alt="Iris Slack" src="/img/ios-automation/iris-slack.png" width="50%">
 </div>
 
-`Irisbot` is a Swift class that conforms to `messageEventsDelegate` protocol offered by SlackKit. When it receives a message, we parse the message and enqueue a job into a customized serialized `DispatchQueue`. Here are a few lines of the main logic.
+`Irisbot` is a Swift class that conforms to `messageEventsDelegate` protocol offered by SlackKit. When it receives a message, we parse the message and enqueue a job into a customised serialised `DispatchQueue`. Here are a few lines of the main logic.
 
 ~~~swift
 func received(_ message: Message, client: Client) {
@@ -119,6 +119,6 @@ Screwed up? `cap production deploy:rollback` will rescue.
 
 ### Conclusion
 
-What Grab has now, isn't the most mature setup (there is still a lot to consider. e.g. scaling, authorization, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience in the comments below.
+What Grab has now, isn't the most mature setup (there is still a lot to consider. e.g. scaling, authorisation, better logging etc.), but it serves our needs at the moment. Setting up a basic working environment is not hard at all, it took an engineer slightly over a week. Every team and product has its unique needs and preferences, so do what works for you! We hope this article has given you some insights on some of the decisions made by the iOS team at Grab. We would love to hear about your experience in the comments below.
 
 Happy automating!

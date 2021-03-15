@@ -12,7 +12,7 @@ excerpt: "Grab is organising our first ever Grab Vietnam Careers Week in Ho Chi 
 
 Grab is organising our first ever <a href="https://grb.to/vn-careers">Grab Vietnam Careers Week</a> in Ho Chi Minh City, Vietnam, from 22 to 26 October 2016. We are eager to have more engineers join our ranks to make a difference to improving transportation and reducing congestion in Southeast Asia. We are now on 23 million mobile devices supported by 460,000 drivers in the region, but we're only started and have much more to achieve! To find out more about Grab, take a look at our corporate profile at the end of this post.
 
-We have a lot of Vietnamese talent delivering features that delight our users on our flagship mobile apps. Read the Q&A with iOS engineer Hai Pham and Android engineer Son Nguyen from our Singapore R&D centre with their perspectives on what it's like working at Grab. There are even tips for our future Vietnamese Grabbers!
+We have a lot of Vietnamese talent delivering features that delight our users on our flagship mobile apps. Read the Q&A with iOS engineer Hai Pham and Android engineer Son Nguyen from our Singapore R&D centre for their perspectives on what it's like working at Grab. There are even tips for our future Vietnamese Grabbers!
 
 <div class="post-image-section">
   <img alt="Grab Friends Forever" src="/img/grab-vietnam-careers-week/son-hai.jpg">
