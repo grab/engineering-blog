@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>A Key Expired In Redis, You Won't Believe What Happened Next</title>
+    <title>A Key Expired in Redis, You Won't Believe What Happened Next</title>
     <meta name="description" content="One of Grab's more popular caching solutions is Redis (often in the flavour of the misleadingly named ElastiCache), and for most cases, it works. Except for that time it didn't. Follow our story as we investigate how Redis deals with consistency on key expiration.">
     <meta name="viewport" content="width=device-width initial-scale=1" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
     <!-- Open Graph -->
     <meta property="og:url" content="https://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next">
-    <meta property="og:title" content="A Key Expired In Redis, You Won't Believe What Happened Next">
+    <meta property="og:title" content="A Key Expired in Redis, You Won't Believe What Happened Next">
     <meta property="og:description" content="One of Grab's more popular caching solutions is Redis (often in the flavour of the misleadingly named ElastiCache), and for most cases, it works. Except for that time it didn't. Follow our story as we investigate how Redis deals with consistency on key expiration.">
     <meta property="og:site_name" content="Grab Tech">
     <meta property="og:type" content="article">
@@ -109,7 +109,7 @@
         
       </div>
       <br>
-      <h1 class="post-title text-center">A Key Expired In Redis, You Won't Believe What Happened Next</h1>
+      <h1 class="post-title text-center">A Key Expired in Redis, You Won't Believe What Happened Next</h1>
       
       <div class="post-meta">
         27 Mar 2017
@@ -153,7 +153,7 @@
 
 <p>Considering that our Common Data Service (CDS) server cache (5 minutes), CDS client cache (1 minute), Grab API cache (5 minutes), and mobile cache (varies, but insignificant) together accounted for at most ~11 minutes of Unicorn change propagation time, this was a rather perplexing find. (Also, we should really consider an inter-service cache invalidation strategy for this <sup id="fnref:2"><a href="#fn:2" class="footnote">2</a></sup>.)</p>
 
-<h3 id="how-we-cache-unicorns-at-the-api-level">How We Cache Unicorns At The API Level</h3>
+<h3 id="how-we-cache-unicorns-at-the-api-level">How We Cache Unicorns at the API Level</h3>
 
 <p>Subsequently, we investigated why the Unicorns returned from the API were up to 45 minutes stale, as tested on production. Before we share our findings, let’s go through a quick overview of what the Unicorn API’s ElastiCache Redis looks like.</p>
 
@@ -202,11 +202,11 @@
 
 <p>To understand this better, we needed to <a href="https://en.wikipedia.org/wiki/RTFM">RTFM</a>. More precisely, we need two key pieces of information.</p>
 
-<h4 id="how-expires-are-managed-between-master-and-slave-nodes-on-redis-2x">How EXPIREs Are Managed Between Master And Slave Nodes On Redis 2.x</h4>
+<h4 id="how-expires-are-managed-between-master-and-slave-nodes-on-redis-2x">How EXPIREs are Managed Between Master and Slave Nodes on Redis 2.x</h4>
 
 <p>To “maintain consistency”, slaves aren’t allowed to expire keys unless they receive a DEL from the master branch, even if they know the key is expired. The only exception is when a slave becomes master <sup id="fnref:4"><a href="#fn:4" class="footnote">4</a></sup>. So basically, if the master doesn’t send a DEL to the slave, the key (which might have been set with a TTL using the Redis API contract), is not guaranteed to respect the TTL it was set with. This is when you scale to have read slaves, which, apparently, is a shocking requirement in production systems.</p>
 
-<h4 id="how-expires-are-managed-for-keys-that-arent-gotten-from-master">How EXPIREs Are Managed For Keys That Aren’t “gotten from master”</h4>
+<h4 id="how-expires-are-managed-for-keys-that-arent-gotten-from-master">How EXPIREs are Managed for Keys that aren’t “Gotten from Master”</h4>
 
 <p>Since every key needs to be deleted on master first, and some of our keys were expired correctly, there had to be a “passive” manner in which Redis was deleting expired keys that didn’t involve an explicit GET command from the client. The manual <sup id="fnref:5"><a href="#fn:5" class="footnote">5</a></sup>:</p>
 
@@ -232,7 +232,7 @@
 
 <p>So that’s 200 keys tested for expiry each second on the master branch, and about 25% of your keys on the slaves guaranteed to be serving dead Unicorns, because they didn’t get the memo.</p>
 
-<p>While 200 keys/s might be enough to make it through a hackathon project blazingly fast, it certainly isn’t fast enough at our scale, to expire 25% of our 5594518 keys in time for Unicorn updates.</p>
+<p>While 200 keys might be enough to make it through a hackathon project blazingly fast, it certainly isn’t fast enough at our scale, to expire 25% of our 5594518 keys in time for Unicorn updates.</p>
 
 <h4 id="doing-the-math">Doing The Math</h4>
 
@@ -322,9 +322,9 @@
     </div>
     <div class="sharing-links text-right">
   Share on &nbsp;
-  <a href="https://twitter.com/intent/tweet?text=A Key Expired In Redis, You Won't Believe What Happened Next&url=https://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://twitter.com/intent/tweet?text=A Key Expired in Redis, You Won't Believe What Happened Next&url=https://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
   <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
-  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next&title=A Key Expired In Redis, You Won't Believe What Happened Next
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/a-key-expired-in-redis-you-wont-believe-what-happened-next&title=A Key Expired in Redis, You Won't Believe What Happened Next
 &summary=One of Grab's more popular caching solutions is Redis (often in the flavour of the misleadingly named ElastiCache), and for most cases, it works. Except for that time it didn't. Follow our story as we investigate how Redis deals with consistency on key expiration.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
 </div>
 <script>
