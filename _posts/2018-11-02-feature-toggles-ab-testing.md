@@ -8,24 +8,24 @@ categories: [Engineering]
 tags: [Experiment, Back End, Front End, Feature Toggle, A/B Testing]
 comments: true
 cover_photo: /img/feature-toggles-ab-testing/cover.png
-excerpt: "Grab’s feature toggle SDK provides a dynamic feature toggle capability to our engineering, data, product, and even business teams. Feature toggles also let teams modify system behavior without changing code. Developers use the feature flags to keep new features hidden until product and marketing teams are ready to share and to run experiments (A/B tests) by dynamically changing feature toggles for specific users, rides, etc."
+excerpt: "Grab’s feature toggle SDK provides a dynamic feature toggle capability to our engineering, data, product, and even business teams. Feature toggles also let teams modify system behaviour without changing code. Developers use the feature flags to keep new features hidden until product and marketing teams are ready to share and to run experiments (A/B tests) by dynamically changing feature toggles for specific users, rides, etc."
 ---
 
-Imagine this scenario. You're on one of several teams working on a sophisticated ride allocation service. Your team is responsible for the core booking allocation engine. You’re tasked with increasing the efficiency of the booking allocation algorithm for allocating drivers to passengers. You know this requires a fairly large overhaul of the implementation which will take several weeks. Meanwhile other team members need to continue ongoing work on related areas of the codebase. You need to be able to ship this algorithm in an incomplete state, but dynamically enable it in the testing environment while keeping it disabled in the production environment. 
+Imagine this scenario. You're on one of several teams working on a sophisticated ride allocation service. Your team is responsible for the core booking allocation engine. You’re tasked with increasing the efficiency of the booking allocation algorithm for allocating drivers to passengers. You know this requires a fairly large overhaul of the implementation which will take several weeks. Meanwhile other team members need to continue ongoing work on related areas of the codebase. You need to be able to ship this algorithm in an incomplete state, but dynamically enable it in the testing environment while keeping it disabled in the production environment.
 
-How do you control releasing a new feature like this, or hide a feature still in development? The answer is *[feature toggling](https://martinfowler.com/articles/feature-toggles.html)*. 
+How do you control releasing a new feature like this, or hide a feature still in development? The answer is *[feature toggling](https://martinfowler.com/articles/feature-toggles.html)*.
 
-Grab’s Product Insights & Experimentation platform provides a dynamic feature toggle capability to our engineering, data, product, and even business teams. Feature toggles also let teams modify system behavior without changing code. 
+Grab’s Product Insights & Experimentation platform provides a dynamic feature toggle capability to our engineering, data, product, and even business teams. Feature toggles also let teams modify system behaviour without changing code.
 
 Grab uses feature toggles to:
 
-1. Gate **feature deployment** in production to keep new features hidden until product and marketing teams are ready to share. 
+1. Gate **feature deployment** in production to keep new features hidden until product and marketing teams are ready to share.
 
 2. Run **experiments (A/B tests)** by dynamically changing feature toggles for specific users, rides, etc. For example, a feature can appear only to a particular group of people while running an experiment (treatment group).
 
 ![](/img/feature-toggles-ab-testing/image_0.png)
 
-Feature toggles, for both experiments and rollouts, let Grab substantially mitigate the risk of releasing immature functionality and try new features safely. If a release has a negative impact, we roll it back. If it’s doing well, we keep rolling it out. 
+Feature toggles, for both experiments and rollouts, let Grab substantially mitigate the risk of releasing immature functionality and try new features safely. If a release has a negative impact, we roll it back. If it’s doing well, we keep rolling it out.
 
 Product and marketing teams then use a web portal to turn features on/off, set up user targeting rules, set various configurations, perform percentage rollouts, and test in production.
 
@@ -33,7 +33,7 @@ Engineers use our solution to run experiments in their server-side application l
 
 With experiments, you can perform tests to find out which changes actually work:
 
-* **A/B tests** to determine which of two or more variations, usually minor improvements, produces the best results.
+* **A/B tests** to determine which out of two or more variations, usually minor improvements, produces the best results.
 
 * **Feature tests** to safely test a significant change, such as trying out a new feature on a limited audience.
 
@@ -59,11 +59,11 @@ Our legacy feature toggling system was essentially a library shipped with all of
 sitevar.GetFeatureFlagOrDefault("someFeatureFlagKey", 10, false)
 ~~~
 
-## Design goals of our SDK
+## Design Goals of Our SDK
 
-**Note**: We call a specific feature toggle a *variable*. In this section, the word "variable" refers to a feature toggle. 
+**Note**: We call a specific feature toggle a *variable*. In this section, the word "variable" refers to a feature toggle.
 
-To overcome these challenges, we designed an SDK with capabilities to: 
+To overcome these challenges, we designed an SDK with capabilities to:
 
 * Retrieve values of variables dynamically
 
@@ -85,7 +85,7 @@ type Client interface {
 
 We started the design of the entire platform by designing the APIs first. We wanted to make it simple to use for developers without requiring them to change code each time experiment conditions change or have to move from testing to rollout, and so on. Making the API simple was also crucial as our engineering team grew significantly and the code needed to be very simple to read and understand.
 
-We have also introduced a concept of "facets" which is essentially a set of well-defined attributes used for many different purposes within the platform, from making decisions to tracking and analysing metrics. 
+We have also introduced a concept of "facets" which is essentially a set of well-defined attributes used for many different purposes within the platform, from making decisions to tracking and analysing metrics.
 
 ~~~go
 Passenger  int64  // The passenger identifier
@@ -100,13 +100,13 @@ Tag        string // The user-defined tag
 ...
 ~~~
 
-## Making sub-microsecond decisions
+## Making Sub-microsecond Decisions
 
 The retrieval of feature toggles is done using the **GetVariable()** method of the client which takes few parameters:
 
 * The **name of the variable** to retrieve. This is essentially the feature toggle name that uniquely identifies a specific product feature or a configuration.
 
-* The **facets** representing contextual information about this event and are sent to our data pipeline. In fact, every time GetVariable() is called, an event is automatically generated and reported. 
+* The **facets** representing contextual information about this event and are sent to our data pipeline. In fact, every time GetVariable() is called, an event is automatically generated and reported.
 
 ~~~go
 threshold :=  client.GetVariable(ctx, "myFeature", sdk.NewFacets().
@@ -123,13 +123,13 @@ From the code above, note there's a second step required to actually retrieve th
 
     * the experiment or rollout are not valid or do not match constraints or
 
-    * some errors occurred. 
+    * some errors occurred.
 
 It is important to note that no network I/O happens during the **GetVariables()** call, as everything is done in the client. The variable tracking is done behind the scenes. The analyst sees it being reflected directly in our data lake, which consists of Simple Storage Service (S3) & Presto.
 
-To make sure no network I/O happens on each **GetVariable()**, we made our SDK intelligent and formalised both dynamic configurations (we call them rollouts) and experiments. The SDK periodically fetches configurations from S3 and constructs internal, in-memory models to execute. 
+To make sure no network I/O happens on each **GetVariable()**, we made our SDK intelligent and formalised both dynamic configurations (we call them rollouts) and experiments. The SDK periodically fetches configurations from S3 and constructs internal, in-memory models to execute.
 
-Let’s start with a rollout definition example. It’s essentially a JSON document with a set of constraints the SDK can evaluate. 
+Let’s start with a rollout definition example. It’s essentially a JSON document with a set of constraints the SDK can evaluate.
 
 ~~~json
 {
@@ -210,13 +210,13 @@ Similarly, we have an experiment configuration with more advanced features such 
 
 Similar to the formalisation of feature toggles, we formalised our experiments as JSON files and configured through our configuration store. Everything is done asynchronously and reliably as our services only depend on a Tier-0 AWS Simple Storage Service (S3). Our goal was to keep everything simple and reliable.
 
-## Embracing the binary
+## Embracing the Binary
 
 As mentioned earlier, our users need the ability to track things. In the SDK, GetVariable() tracks its specified variable value whenever it's called.
 
 The experimentation platform SDK provides an easy way to track any variable from the code and directly surface it in the presto table for data analysts. Use the client’s **Track()** method which takes several parameters:
 
-* The **name of the event**, which gets prefixed by the service name. 
+* The **name of the event**, which gets prefixed by the service name.
 
 * The **value of the event**, which currently can be only a numeric value.
 
@@ -232,13 +232,12 @@ client.Track(ctx, "myEvent", 42, sdk.NewFacets().
 
 We use tracking for reporting when a decision is made. For example, when **GetVariable()** is called, we need to report whether control or treatment was applied to a particular passenger or booking code. Since there’s no direct network call to get a variable, we internally track every decision and send it to our data pipeline periodically and asynchronously. We also use tracking for capturing important metrics such as the duration of taxi pickup, whether a promotion applied, etc.
 
-When designing tracking, a major goal was to minimise network traffic while keeping performance impact of event reporting small. While this isn’t very important for backend services, we also use the same design for our mobile and web applications. In South East Asia, mobile networks may not be great. Also, data can be expensive for our drivers who cannot afford the fastest network plan and the latest iPhone. These business needs must be translated in the design. 
+When designing tracking, a major goal was to minimise network traffic while keeping performance impact of event reporting small. While this isn’t very important for backend services, we also use the same design for our mobile and web applications. In South East Asia, mobile networks may not be great. Also, data can be expensive for our drivers who cannot afford the fastest network plan and the latest iPhone. These business needs must be translated in the design.
 
-So how do we design an efficient protocol for telemetry transmission which keeps both CPU and network use down? We kept it simple, embracing the binary and batch events. We use variable size integer encoding and a minimisation technique for each batch, where once a string is written, it is assigned to an auto-incremented integer value and is written only once to the batch. 
+So how do we design an efficient protocol for telemetry transmission which keeps both CPU and network use down? We kept it simple, embracing the binary and batch events. We use variable size integer encoding and a minimisation technique for each batch, where once a string is written, it is assigned to an auto-incremented integer value and is written only once to the batch.
 
 This technique did miracles for us and kept network overhead at bay while still keeping our encoding algorithm relatively simple and efficient. It was more efficient than using generic serialisations such as Protocol Buffers, Avro, or JSON.
 
 ## Results
 
 We have described our feature toggles SDK, but what benefits have we seen? We’ve seen fast adoption of the platform in the company, product managers rolling out features, and data scientists/analysts able to run experiments autonomously. Engineers are happy and things move faster inside the company. This makes us more competitive as an organisation and focused on our customer’s needs, instead of spending time in meetings and on communication.
-

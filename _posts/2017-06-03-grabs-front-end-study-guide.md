@@ -21,7 +21,7 @@ To keep up with Grab’s phenomenal growth, our web team and web platforms have 
 
 <br>
 
-*The original post can be found on [Github](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟*
+*The original post can be found on [GitHub](https://github.com/grab/front-end-guide). Future updates to the study guide will be made there. If you like what you are reading, give the repository a [star](https://github.com/grab/front-end-guide)! 🌟*
 
 [Grab](https://www.grab.com) is Southeast Asia (SEA)'s leading transportation platform and our mission is to drive SEA forward, leveraging on the latest technology and the talented people we have in the company. As of May 2017, we handle [2.3 million rides daily](https://www.bloomberg.com/news/videos/2017-05-11/tans-says-company-has-more-than-850-000-drivers-video) and we are growing and hiring at a rapid scale.
 
@@ -158,7 +158,7 @@ React is a library, not a framework, and does not deal with the layers below the
   <img alt="Redux Logo" src="/img/grabs-front-end-study-guide/redux-logo.svg" width="256px" />
 </div>
 
-As your app grows bigger, you may find that the app structure becomes a little messy. Components throughout the app may have to share and display common data but there is no elegant way to handle that in React. After all, React is just the view layer, it does not dictate how you structure the other layers of your app, such as the model and the controller, in traditional MVC paradigms. In an effort to solve this, Facebook invented Flux, an app architecture that complements React's composable view components by utilizing a unidirectional data flow. Read more about how Flux works [here](https://facebook.github.io/flux/docs/in-depth-overview.html). In summary, the Flux pattern has the following characteristics:
+As your app grows bigger, you may find that the app structure becomes a little messy. Components throughout the app may have to share and display common data but there is no elegant way to handle that in React. After all, React is just the view layer, it does not dictate how you structure the other layers of your app, such as the model and the controller, in traditional MVC paradigms. In an effort to solve this, Facebook invented Flux, an app architecture that complements React's composable view components by utilising a unidirectional data flow. Read more about how Flux works [here](https://facebook.github.io/flux/docs/in-depth-overview.html). In summary, the Flux pattern has the following characteristics:
 
 - **Unidirectional data flow** - Makes the app more predictable as updates can be tracked easily.
 - **Separation of concerns** - Each part in the Flux architecture has clear responsibilities and are highly decoupled.
@@ -246,7 +246,7 @@ Code is read more frequently than it is written. This is especially true at Grab
   <img alt="Jest Logo" src="/img/grabs-front-end-study-guide/jest-logo.svg" width="164px" />
 </div>
 
-[Jest](http://facebook.github.io/jest/) is a testing library by Facebook that aims to make the process of testing pain-free. As with Facebook projects, it provides a great development experience out of the box. Tests can be run in parallel for faster speed and during watch mode, only the tests for the changed files are run. One particular feature we like is "Snapshot Testing". Jest can save the generated output of your React component and Redux state and save it as serialized files, so you wouldn't have to manually come up with the expected output yourself. Jest also comes with built-in mocking, assertion and test coverage. One library to rule them all!
+[Jest](http://facebook.github.io/jest/) is a testing library by Facebook that aims to make the process of testing pain-free. As with Facebook projects, it provides a great development experience out of the box. Tests can be run in parallel for faster speed and during watch mode, only the tests for the changed files are run. One particular feature we like is "Snapshot Testing". Jest can save the generated output of your React component and Redux state and save it as serialised files, so you wouldn't have to manually come up with the expected output yourself. Jest also comes with built-in mocking, assertion and test coverage. One library to rule them all!
 
 React comes with some testing utilities, but [Enzyme](http://airbnb.io/enzyme/) by Airbnb makes it easier to generate, assert, manipulate and traverse your React components' output with a jQuery-like API. It is recommended that Enzyme be used to test React components.
 
@@ -274,7 +274,7 @@ The documentation for Jest and Enzyme are pretty concise, and it should be suffi
   <img alt="ESLint Logo" src="/img/grabs-front-end-study-guide/eslint-logo.svg" width="256px" />
 </div>
 
-A linter is a tool to statically analyze code and finds problems with them, potentially preventing bugs/runtime errors and at the same time, enforcing a coding style. Time is saved during pull request reviews when reviewers do not have to leave nitpicky comments on coding style. [ESLint](http://eslint.org/) is a tool for linting JavaScript code that is highly extensible and customizable. Teams can write their own lint rules to enforce their custom styles. At Grab, we use Airbnb's [`eslint-config-airbnb`](https://www.npmjs.com/package/eslint-config-airbnb) preset, that has already been configured with the common good coding style in the [Airbnb JavaScript style guide](https://github.com/airbnb/javascript).
+A linter is a tool to statically analyse code and finds problems with them, potentially preventing bugs/runtime errors and at the same time, enforcing a coding style. Time is saved during pull request reviews when reviewers do not have to leave nitpicky comments on coding style. [ESLint](http://eslint.org/) is a tool for linting JavaScript code that is highly extensible and customisable. Teams can write their own lint rules to enforce their custom styles. At Grab, we use Airbnb's [`eslint-config-airbnb`](https://www.npmjs.com/package/eslint-config-airbnb) preset, that has already been configured with the common good coding style in the [Airbnb JavaScript style guide](https://github.com/airbnb/javascript).
 
 For the most part, using ESLint is as simple as tweaking a configuration file in your project folder. There's nothing much to learn about ESLint if you're not writing new rules for it. Just be aware of the errors when they surface and Google it to find out the recommended style.
 
@@ -326,7 +326,7 @@ One downside of stylelint is that the autofix feature is not fully mature yet, a
 
 Static typing brings about many benefits when writing apps. They can catch common bugs and errors in your code early. Types also serve as a form of documentation for your code and improves the readability of your code. As a code base grows larger, we see the importance of types as they gives us greater confidence when we do refactoring. It is also easier to onboard new members of the team to the project when it is clear what kind of values each object holds and what each function expects.
 
-Adding types to your code comes with the trade-off of increased verbosity and a learning curve of the syntax. But this learning cost is paid upfront and amortized over time. In complex projects where the maintainability of the code matters and the people working on it change over time, adding types to the code brings about more benefits than disadvantages.
+Adding types to your code comes with the trade-off of increased verbosity and a learning curve of the syntax. But this learning cost is paid upfront and amortised over time. In complex projects where the maintainability of the code matters and the people working on it change over time, adding types to the code brings about more benefits than disadvantages.
 
 The two biggest contenders in adding static types to JavaScript are [Flow](https://flow.org/) (by Facebook) and [TypeScript](https://www.typescriptlang.org/) (by Microsoft). As of date, there is no clear winner in the battle. For now, we have made the choice of using Flow. We find that Flow has a lower learning curve as compared to TypeScript and it requires relatively less effort to migrate an existing code base to Flow. Being built by Facebook, Flow has better integration with the React ecosystem out of the box. Anyway, it is not extremely difficult to move from Flow to TypeScript as the syntax and semantics are quite similar, and we will re-evaluate the situation in time to come. After all, using one is better than not using any at all.
 
@@ -351,7 +351,7 @@ Flow recently revamped their documentation site and it's pretty neat now!
 
 This part will be kept short as setting up webpack can be a tedious process and might be a turn-off to developers who are already overwhelmed by the barrage of new things they have to learn for front end development. In a nutshell, [webpack](https://webpack.js.org/) is a module bundler that compiles a front end project and its dependencies into a final bundle to be served to users. Usually, projects will already have the webpack configuration set up and developers rarely have to change it. Having an understanding of webpack is still a good to have in the long run. It is due to webpack that features like hot reloading and CSS modules are made possible.
 
-We have found the [webpack walkthrough](https://survivejs.com/webpack/foreword/) by SurviveJS to be the best resource on learning webpack. It is a good complement to the official documentation and we recommend following the walkthrough first and referring to the documentation later when the need for further customization arises.
+We have found the [webpack walkthrough](https://survivejs.com/webpack/foreword/) by SurviveJS to be the best resource on learning webpack. It is a good complement to the official documentation and we recommend following the walkthrough first and referring to the documentation later when the need for further customisation arises.
 
 **Estimated Duration: 2 days (Optional).**
 
@@ -375,9 +375,9 @@ If you take a peek into your `node_modules` directory, you will be appalled by t
 
 There was also the problem of non-determinism in the installed packages via `npm install`. Some of our CI builds fail because at the point of time when the CI server installs the dependencies, it pulled in minor updates to some packages that contained breaking changes. This would not have happened if library authors respected [semver](http://semver.org/) and engineers assumed that API contracts are respected all the time.
 
-[Yarn](https://yarnpkg.com/) solves these problems. The issue of non-determinism of installed packages via a `yarn.lock` file and it ensures that every install results in the exact same file structure in `node_modules` across all machines. Yarn utilizes a global cache directory within your machine, and packages that have been downloaded before do not have to be downloaded again. This also enables offline installation of dependencies!
+[Yarn](https://yarnpkg.com/) solves these problems. The issue of non-determinism of installed packages via a `yarn.lock` file and it ensures that every install results in the exact same file structure in `node_modules` across all machines. Yarn utilises a global cache directory within your machine, and packages that have been downloaded before do not have to be downloaded again. This also enables offline installation of dependencies!
 
-The most common Yarn commands can be found [here](https://yarnpkg.com/en/docs/usage). Most other yarn commands are similar to the `npm` equivalents and it is fine to use the `npm` versions instead. One of our favorite commands is `yarn upgrade-interactive` which makes updating dependencies a breeze especially when the modern JavaScript project requires so many dependencies these days. Do check it out!
+The most common Yarn commands can be found [here](https://yarnpkg.com/en/docs/usage). Most other yarn commands are similar to the `npm` equivalents and it is fine to use the `npm` versions instead. One of our favourite commands is `yarn upgrade-interactive` which makes updating dependencies a breeze especially when the modern JavaScript project requires so many dependencies these days. Do check it out!
 
 npm@5.0.0 was [released in May 2017](https://github.com/npm/npm/releases/tag/v5.0.0) and it seems to address many of the issues that Yarn aims to solve. Do keep an eye on it!
 

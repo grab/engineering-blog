@@ -11,9 +11,9 @@ cover_photo: /img/grabbing-growth-a-growth-hacking-story/cover.png
 excerpt: "Disrupt or be disrupted - that was exactly the spirit in which the Growth Hacking team was created this year. This was a deliberate decision to nurture our scrappy DNA, and ensure that we had a dedicated space to experiment and enable intelligent risk-taking."
 ---
 
-**Disrupt or be disrupted** - that was exactly the spirit in which the Growth Hacking team was created this year (also a Grab principle that is recognised on the [2017 CNBC Disruptor 50 list](https://www.cnbc.com/2017/05/16/the-2017-cnbc-disruptor-50-list-of-companies.html)). This was a deliberate decision to nurture our scrappy DNA, and ensure that we had a dedicated space to experiment and enable intelligent risk-taking. 
+**Disrupt or be disrupted** - that was exactly the spirit in which the Growth Hacking team was created this year (also a Grab principle that is recognised on the [2017 CNBC Disruptor 50 list](https://www.cnbc.com/2017/05/16/the-2017-cnbc-disruptor-50-list-of-companies.html)). This was a deliberate decision to nurture our scrappy DNA, and ensure that we had a dedicated space to experiment and enable intelligent risk-taking.
 
-Focusing on initiatives with the highest impact to unlock exponential scaling, our lean and nimble Growth Hacking team tackles challenges considered either too niched or high-risk by business teams. We do this by delivering *growth loops* to Grab, with the ultimate aim to outserve our 68 million customers across the region. 
+Focusing on initiatives with the highest impact to unlock exponential scaling, our lean and nimble Growth Hacking team tackles challenges considered either too niched or high-risk by business teams. We do this by delivering *growth loops* to Grab, with the ultimate aim to outserve our 68 million customers across the region.
 
 *What is a growth loop?*
 
@@ -31,13 +31,13 @@ A typical growth loop follows this path:
   </div>
 </div>
 
-In order to create the most scalable and impactful growth loops, we chose to house our Growth Hacking team within our Technology organisation (instead of its traditional home: Marketing). This enables us to leverage our engineering expertise to increase the speed and scale of our experiments , A/B test frequently and deploy across different markets simultaneously. 
+In order to create the most scalable and impactful growth loops, we chose to house our Growth Hacking team within our Technology organisation (instead of its traditional home: Marketing). This enables us to leverage our engineering expertise to increase the speed and scale of our experiments , A/B test frequently and deploy across different markets simultaneously.
 
 *What results has the Growth team delivered since its inception?*
 
-Since its formation earlier this year, we have completed several experiments across the Grab platform, testing the effects of gamification, multi-level marketing and local culture on user behaviour. 
+Since its formation earlier this year, we have completed several experiments across the Grab platform, testing the effects of gamification, multi-level marketing and local culture on user behaviour.
 
-We measure our success against a single metric, the Growth Factor: defined as increase in rides / increase in costs. 
+We measure our success against a single metric, the Growth Factor: defined as increase in rides / increase in costs.
 
 <div class="post-image-section">
   <img alt="formula" src="/img/grabbing-growth-a-growth-hacking-story/formula.png">
@@ -49,7 +49,7 @@ Being a data-driven business, we’re focused on how we can best define successf
 
 A successful Growth projects is our Spin-to-Win experiment. We started formulating this experiment by asking, *"How can we better engage with drivers?"*
 
-We knew that gamification is a proven growth strategy and wanted to leverage this concept to drive viral engagement on our platform. In particular, we were inspired by an experiment conducted by psychologist and behaviourist B.F Skinner in the 1960s. Skinner put pigeons in a box that issued a pellet of food when they pushed a lever. However, he altered the box, such that pellets were delivered randomly. This incentivised the pigeons to press the lever more often. This experiment created the "variable ratio enforcement" proof: 
+We knew that gamification is a proven growth strategy and wanted to leverage this concept to drive viral engagement on our platform. In particular, we were inspired by an experiment conducted by psychologist and behaviourist B.F Skinner in the 1960s. Skinner put pigeons in a box that issued a pellet of food when they pushed a lever. However, he altered the box, such that pellets were delivered randomly. This incentivised the pigeons to press the lever more often. This experiment created the "variable ratio enforcement" proof:
 
 With too little reward, people (or pigeons!) will disengage.
 
@@ -118,11 +118,10 @@ We developed an A/B test within three weeks and offered both monetary and mercha
   </tr>
 </table>
 
-To increase engagement, we sent reminders to drivers regularly. We also celebrated every win of the driver to encourage continual participation. 
+To increase engagement, we sent reminders to drivers regularly. We also celebrated every win of the driver to encourage continual participation.
 
 <div class="post-image-section">
   <img alt="result" src="/img/grabbing-growth-a-growth-hacking-story/result.png">
 </div>
 
-As we continue to experiment across the region, we take into account additional lenses, including driver acceptance, cancellation and driver ratings to further refine our results. And hopefully, this is something all of our drivers can enjoy very soon! 
-
+As we continue to experiment across the region, we take into account additional lenses, including driver acceptance, cancellation and driver ratings to further refine our results. And hopefully, this is something all of our drivers can enjoy very soon!

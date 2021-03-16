@@ -17,15 +17,15 @@ If you are in a fast growing tech startup, you're probably actively interviewing
 
 My question to you is, what hiring strategy are you using when interviewing engineering warriors?
 
-This post explores some intriguing concepts that are formed behind hiring processes for engineers and how these concepts shape processes to increase your probability of hiring that **One Good Engineer**.
+This post explores some intriguing concepts that are formed behind hiring processes for engineers and how these concepts shape processes to increase your probability of hiring that **one good engineer**.
 
-I have spoken with more than a hundred engineering leaders in tech companies about how they hire. I've asked them to share their thoughts with me on the most important factors that they look for when hiring a Good Engineer.
+I have spoken with more than a hundred engineering leaders in tech companies about how they hire. I've asked them to share their thoughts with me on the most important factors that they look for when hiring a good engineer.
 
 This is what I found.
 
 ### 1. Technical fit vs Cultural fit
 
-> “An Engineer's technical fit can be around 80% for our 'on the job' requirement. It can be difficult to find a 100% fit, and, for those engineers who have some gaps, it's personally motivating for me to have this opportunity to help the engineer achieve, and close the gaps”
+> “An engineer's technical fit can be around 80% for our 'on the job' requirement. It can be difficult to find a 100% fit, and for those engineers who have some gaps, it's personally motivating for me to have this opportunity to help the engineer achieve, and close the gaps”
 >
 > *- From a 15 years experienced senior leader in tech who has managed teams of up to 30*
 
@@ -37,12 +37,12 @@ However, there are many different reasons to why an engineer who isn't a perfect
 >
 > *- From an Engineering leader for backend teams in an on-demand, media streaming platform*
 
-Ultimately a good engineer is someone who is excited by things they do not know and is willing to learn. These engineers typically share some of these abilities:
+Ultimately a good engineer is someone who is excited by things they do not know and is willing to learn. These engineers typically have the ability to:
 
-- The ability to step forward without letting overthinking and overanalysis bite you... to not get distracted and mired by obstacles.
-- The ability to iterate code, fast (bias for action that is scalable and proves to be so, over time, as opposed to quick-fixes).
-- The ability to produce nice, clean, readable and debuggable code.
-- The ability to (sometimes) take a deep breath and see the full picture .
+- Step forward without letting overthinking and over-analysis bite you... to not get distracted and mired by obstacles.
+- Iterate code, fast (bias for action that is scalable and proves to be so, over time, as opposed to quick-fixes).
+- Produce nice, clean, readable and debuggable code.
+- (Sometimes) take a deep breath and see the full picture.
 
 So which is better, technical ability or cultural fit? In reality it's about finding the best balance for you and your team.
 

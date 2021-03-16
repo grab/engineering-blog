@@ -17,7 +17,7 @@ excerpt: "For the longest time, security has been at the center of our prioritie
 
 For the longest time, security has been at the center of our priorities. There’s nothing more self-evident about the trust our millions of driving partners and customers put in Grab. We strive everyday to build the best tools available to ensure their data stays secure.
 
-For this reason, we launched our private bug bounty program one year ago, allowing security researchers to scrutinize our code and flag vulnerabilities for handsome rewards. Over the past twelve months, we have been able to work with more than 350 talented researchers and have awarded nearly 200 bug reports. We would like to take this opportunity to thank everyone who submitted reports and helped us become more secure. As much as we have received some exceptional reports, we are looking for more!
+For this reason, we launched our private bug bounty program one year ago, allowing security researchers to scrutinise our code and flag vulnerabilities for handsome rewards. Over the past twelve months, we have been able to work with more than 350 talented researchers and have awarded nearly 200 bug reports. We would like to take this opportunity to thank everyone who submitted reports and helped us become more secure. As much as we have received some exceptional reports, we are looking for more!
 
 **Today, we are excited to officially announce our public bug bounty program!**
 
@@ -34,4 +34,3 @@ Visit <https://hackerone.com/grab> for complete guidelines, details, terms and c
 Happy hacking!
 
 *Grab Security Team*
-
