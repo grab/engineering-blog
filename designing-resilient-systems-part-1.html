@@ -146,11 +146,11 @@
 <p>In this series we will take a close look at both approaches and their use cases, to help you make an informed decision regarding if and when to apply each method. But let’s start by looking at the common reasons for failures. With our services communicating with numerous external resources, failures can be caused by:</p>
 
 <ul>
-  <li>networking issues</li>
-  <li>system overload</li>
-  <li>resource starvation (e.g. out of memory)</li>
-  <li>bad deployment/configuration</li>
-  <li>bad request (e.g. lack of authentication credentials, missing request data)</li>
+  <li>Networking issues</li>
+  <li>System overload</li>
+  <li>Resource starvation (e.g. out of memory)</li>
+  <li>Bad deployment/configuration</li>
+  <li>Bad request (e.g. lack of authentication credentials, missing request data)</li>
 </ul>
 
 <p>But rather than thinking of all the ways a call to an upstream service could fail, it is often easier to  consider what a successful request is. It should be <strong>timely</strong>, in the <strong>expected format</strong>, and contain the <strong>expected data</strong>. If we go by this definition, then everything else is therefore some kind of failure, whether it’s:</p>
@@ -162,11 +162,11 @@
   <li>a response that does not contain the expected data</li>
 </ul>
 
-<p>In planning for failures, we should strive to be able to handle each of these errors, just as we should try to prevent our service from emitting them. So lets start looking at the different techniques for addressing these errors.</p>
+<p>In planning for failures, we should strive to be able to handle each of these errors, just as we should try to prevent our service from emitting them. So let’s start looking at the different techniques for addressing these errors.</p>
 
 <p>(Note: All the examples and tools mentioned in this article are in Go. However, prior knowledge of Go is not required, only advantageous.)</p>
 
-<h2 id="introducing-the-circuit-breaker">Introducing the circuit breaker</h2>
+<h2 id="introducing-the-circuit-breaker">Introducing the Circuit Breaker</h2>
 
 <p>Has your electricity ever shorted out? Perhaps you switched on a faulty appliance, plunging your entire house into darkness. Darkness may be inconvenient, but it’s certainly better than things catching fire or getting electrocuted!</p>
 
@@ -207,9 +207,9 @@
 <p>In fallback processing, using an estimated value instead of the real value not the only option, other common options include:</p>
 
 <ul>
-  <li>retrying the request using a different upstream service</li>
-  <li>scheduling the request for some later time</li>
-  <li>loading potentially <em>out of date</em> data from a cache</li>
+  <li>Retrying the request using a different upstream service</li>
+  <li>Scheduling the request for some later time</li>
+  <li>Loading potentially <em>out of date</em> data from a cache</li>
 </ul>
 
 <p>There are, of course, cases where there is no reasonable fallback. But even in these situations, using a circuit breaker is still beneficial.</p>
@@ -218,7 +218,7 @@
 
 <p>All of these costs are avoided when the circuit is open, as the request is not made but instead immediately failed. While returning an error to our users is not ideal, returning the fastest possible error is the <em>best worst option</em>.</p>
 
-<h3 id="should-the-circuit-breaker-track-all-errors">Should the circuit breaker track all errors?</h3>
+<h3 id="should-the-circuit-breaker-track-all-errors">Should the Circuit Breaker Track All Errors?</h3>
 
 <p>The short answer is no. We should only track errors that are not caused by the user (i.e. HTTP error codes 400 and 401), but by the network or infrastructure (i.e. HTTP error codes 503 and 500).</p>
 
@@ -382,13 +382,13 @@
 
 <p>Therefore, even though having one circuit per endpoint results in circuits that are slightly slower to open, it is my recommended approach. It is better to make as many successful requests as possible than inappropriately open the circuit.</p>
 
-<h3 id="one-circuit-per-service">One circuit per service</h3>
+<h3 id="one-circuit-per-service">One Circuit Per Service</h3>
 
 <p>We have talked about upstream services as if they are a single destination, and when dealing with databases or caches, they might be. But when dealing with APIs/services, this will seldom be the case.</p>
 
-<p>But why does this matter? Think back to our earlier discussions regarding how a service can fail. If the machine running our upstream service has a resource issue (out of memory, out of CPU, or disk full), these are issues that are localized to that particular machine. So, if one machine is resource-starved, this does not mean that all of the other machines supporting that service will have the same issue.</p>
+<p>But why does this matter? Think back to our earlier discussions regarding how a service can fail. If the machine running our upstream service has a resource issue (out of memory, out of CPU, or disk full), these are issues that are localised to that particular machine. So, if one machine is resource-starved, this does not mean that all of the other machines supporting that service will have the same issue.</p>
 
-<p>When we have one circuit breaker for all calls to a particular resource or service, we are using the circuit breaker in a “per service” model. Let’s look at some examples to examine how this affects the circuit breaker’s behavior.</p>
+<p>When we have one circuit breaker for all calls to a particular resource or service, we are using the circuit breaker in a “per service” model. Let’s look at some examples to examine how this affects the circuit breaker’s behaviour.</p>
 
 <p>Firstly, when we only have 1 destination, as is typically the case for databases:</p>
 
@@ -420,7 +420,7 @@
   <li>Circuit breakers in a “per service” configuration should only have an open circuit when most (or all) of the destination hosts are unhealthy</li>
 </ul>
 
-<h3 id="one-circuit-per-host">One circuit per host</h3>
+<h3 id="one-circuit-per-host">One Circuit Per Host</h3>
 
 <p>As we have seen above, it is possible for one bad host to impact your circuit, so you might then consider having one circuit for each upstream destination host.</p>
 
@@ -436,11 +436,11 @@
 
 <p>With our new configuration, we have incurred some additional complexity, relating to client-side load balancing, and we have also gone from 1 circuit to 6. These additional 5 circuits also incur some amount of resource (i.e. memory) cost. In this example, it might not seem like a lot, but as we adopt additional upstream services and the numbers of these upstream hosts grow, the cost does multiply.</p>
 
-<p>The last thing we should consider is how this configuration will influence our ability to fulfill requests. When the host first <em>goes bad</em>, our request error rate will be the same as before: 1 bad host / 6 total hosts = 16.66% error rate</p>
+<p>The last thing we should consider is how this configuration will influence our ability to fulfil requests. When the host first <em>goes bad</em>, our request error rate will be the same as before: 1 bad host / 6 total hosts = 16.66% error rate</p>
 
 <p>However, after sufficient errors have occurred to open the circuit to our bad host, then we will be able to avoid making requests to that host, and we would resume having a 0% error rate.</p>
 
-<h3 id="final-thoughts-on-per-service-vs-per-host">Final thoughts on per service vs per host</h3>
+<h3 id="final-thoughts-on-per-service-vs-per-host">Final Thoughts on Per Service vs Per Host</h3>
 
 <p>Based on the discussion above, you may want to rush off and convert all of your circuits to per host. However, the additional complexity of doing so should not be underestimated.</p>
 
@@ -450,7 +450,7 @@
 
 <p>My advice is to consider how and why your upstream service could fail and then use the simplest possible configuration for your situation.</p>
 
-<h2 id="up-next-retries">Up next, Retries…</h2>
+<h2 id="up-next-retries">Up Next, Retries…</h2>
 
 <p>So we’ve taken a look at the first common mechanism used in designing for reliability, which is <em>Circuit Breakers</em>. I hope you have enjoyed this post and found it useful. Comments, corrections, and even considered disagreements are always welcome.</p>
 
