@@ -1,7 +1,7 @@
 ---
 layout: post
 id: marionette-enabling-e2e-user-scenario-simulation
-title: Marionette - Enabling E2E user-scenario simulation
+title: Marionette - Enabling E2E User-scenario Simulation
 date: 2019-12-23 21:00:00
 authors: [anish-jha, biju-jacob, phuc-lam-nguyen, vineet-nair, yiwei-yeo]
 categories: [Engineering]
@@ -13,10 +13,9 @@ excerpt: "Do you know how we get early feedback on any breaking changes? Read th
 
 ## Introduction
 
-A plethora of interconnected microservices is what powers the Grab’s app. The microservices work behind the scenes to delight millions of our customers in Southeast Asia. It is a no-brainer that we emphasize on strong testing tools, so our app performs flawlessly to continuously meet our customers’ needs.
+A plethora of interconnected microservices is what powers the Grab’s app. The microservices work behind the scenes to delight millions of our customers in Southeast Asia. It is a no-brainer that we emphasise on strong testing tools, so our app performs flawlessly to continuously meet our customers’ needs.
 
 ## Background
-
 
 We have a microservices-based architecture, in which microservices are interconnected to numerous other microservices. Each passing day sees teams within Grab updating their microservices, which in turn enhances the overall app. If any of the microservices fail after changes are rolled out, it may lead to the whole app getting into an unstable state or worse. This is a major risk and that’s why we stress on conducting “end-to-end (E2E) testing” as an integral part of our software test life-cycle.
 
@@ -44,7 +43,7 @@ Some major challenges in writing E2E tests for the microservices-based apps are:
 
 Though there are several challenges, we had to find a way to overcome them and test workflows from the beginning to the end in our app.
 
-## Our approach to overcome challenges
+## Our Approach to Overcome Challenges
 
 We knew what our challenges were and what we wanted to achieve from E2E testing, so we started thinking about how to develop a platform for E2E tests. To begin with, we determined that the scope of E2E testing that we’re going to primarily focus on is Grab’s transport domain — the microservices powering the driver and passenger apps.
 
@@ -55,7 +54,7 @@ We wanted to create a single platform that multiple teams could use to set up th
 ## Introducing Marionette
 
 
-Marionette enables Grabbers (developers and QAs) to run E2E user-scenario simulations without depending on the actual passenger and driver apps. Grabbers can set up data as well as configure data such as drivers, passengers, taxi types, etc to mimic the real-world behavior.
+Marionette enables Grabbers (developers and QAs) to run E2E user-scenario simulations without depending on the actual passenger and driver apps. Grabbers can set up data as well as configure data such as drivers, passengers, taxi types, etc to mimic the real-world behaviour.
 
 Let’s look at the overall architecture to understand Marionette better:
 
@@ -66,24 +65,24 @@ Let’s look at the overall architecture to understand Marionette better:
 
 Grabbers can interact with Marionette through three channels: UI, SDK, and through RESTful API endpoints in their test scripts. All requests are routed through a load balancer to the Marionette platform. The Marionette platform in turn talks to the required microservices to create test data and to run the simulations.
 
-## The benefits
+## The Benefits
 
 With Marionette, Grabbers now have the ability to:
 
-*   Simulate the whole booking flow including customer and driver behavior as well as transition through the booking life cycle including pick-up, drop-off, cancellation, etc. For example, developers can make passenger booking from the UI and configure pick-up points, drop-off points, taxi types, and other parameters easily. They can define passenger behaviour such as “make bookings after a specified time interval”, “cancel each booking”, etc. They can also set driver locations, define driver behaviour such as “always accept booking manually”, “decline received bookings”, etc.
+*   Simulate the whole booking flow including customer and driver behaviour as well as transition through the booking life cycle including pick-up, drop-off, cancellation, etc. For example, developers can make passenger booking from the UI and configure pick-up points, drop-off points, taxi types, and other parameters easily. They can define passenger behaviour such as “make bookings after a specified time interval”, “cancel each booking”, etc. They can also set driver locations, define driver behaviour such as “always accept booking manually”, “decline received bookings”, etc.
 *   Simulate bookings in all cities where Grab operates. Further, developers can run simulations for multiple Grab taxi types such as JustGrab, GrabShare, etc.
-*   Visualize passengers, drivers, and ride transitions on the UI, which lets them easily test their workflows.
+*   Visualise passengers, drivers, and ride transitions on the UI, which lets them easily test their workflows.
 *   Save efforts and time spent on installing third-party android or iOS emulators, troubleshooting or debugging `.apk` installation files, etc before testing workflows.
 *   Conduct E2E testing without real mobile devices and installed apps.
 *   Run automatic simulations, in which a particular set of scenarios are run continuously, thus helping developers with exploratory testing.
 
-## How we isolated simulations among users
+## How We Isolated Simulations Among Users
 
 It is important to have independent simulations for each user. Otherwise, simulations don’t yield correct results. This was one of the challenges we faced when we first started running simulations on Marionette.
 
 To resolve this issue, we came up with the idea of “cohorts”. A cohort is a logical group of passengers and drivers who are located in a particular city. Each simulation on Marionette is run using a “cohort” containing the number of drivers and passengers required for that simulation. When a passenger/driver needs to interact with other passengers/drivers (such as for ride bookings), Marionette ensures that the interaction is constrained to resources within the cohort. This ensures that drivers and passengers are not shared in different test cases/simulations, resulting in more consistent test runs.
 
-## How to interact with Marionette
+## How to Interact with Marionette
 
 Let’s take a look at how to interact with Marionette starting with its user interface first.
 
@@ -98,7 +97,7 @@ Generally, the UI is used in the following scenarios:
 *   To simulate functionality of other teams within Grab - the passenger app developers can simulate the driver app for their testing and vice versa. Usually, teams work independently and the ability to simulate the dependent app for testing allows developers to work independently.
 *   To perform E2E testing (such as by QA teams) without writing any test scripts.
 
-The Marionette UI also allows Grabbers to create and set up data. All that needs to be done is to specify the necessary resources such as number of drivers, number of passengers, city to run the simulation, etc. Running E2E simulations involves just the click of a button after data set up. Reports generated at the end of running simulations provide a graphical visualization of the results. Visual reports save developers’ time, which otherwise is spent on browsing through logs to ascertain errors.
+The Marionette UI also allows Grabbers to create and set up data. All that needs to be done is to specify the necessary resources such as number of drivers, number of passengers, city to run the simulation, etc. Running E2E simulations involves just the click of a button after data set up. Reports generated at the end of running simulations provide a graphical visualisation of the results. Visual reports save developers’ time, which otherwise is spent on browsing through logs to ascertain errors.
 
 ### SDK
 
@@ -108,15 +107,15 @@ It lets developers:
 
 *   Create resources such as passengers, drivers, and cohorts for simulating booking flows.
 *   Create booking simulations in both staging and production.
-*   Set bookings to specific states as needed for simulation through customizable driver and passenger behaviour.
+*   Set bookings to specific states as needed for simulation through customisable driver and passenger behaviour.
 *   Make HTTP requests and receive responses that matter in tests.
 *   Run load tests by scaling up booking requests to match the required workload (QPS).
 
 Let’s look at a high-level booking test case example to understand the simulation workflow.
 
-Assume we want to run an E2E booking test with this driver behavior type — “accepts passenger bookings and transits between booking states according to defined behavior parameters”. This is just one of the driver behavior types in Marionette; other behavior types are also supported. Similarly, passengers also have behaviour types.
+Assume we want to run an E2E booking test with this driver behaviour type — “accepts passenger bookings and transits between booking states according to defined behaviour parameters”. This is just one of the driver behaviour types in Marionette; other behaviour types are also supported. Similarly, passengers also have behaviour types.
 
-To write the E2E test for this example case, we first define the driver behavior in a function like this:
+To write the E2E test for this example case, we first define the driver behaviour in a function like this:
 
 <div class="post-image-section">
   <img alt="Overall Architecture" src="/img/marionette-enabling-e2e-user-scenario-simulation/code1.png">
@@ -139,21 +138,21 @@ To ensure that passengers and drivers are isolated in our test, we need to group
 </div>
 <p></p>
 
-In summary, we have defined the driver's behavior, created the booking request, created the SDK client and associated the driver and passenger to a cohort. Now, we just have to trigger the E2E test from our IDE. It’s just that simple and easy!
+In summary, we have defined the driver's behaviour, created the booking request, created the SDK client and associated the driver and passenger to a cohort. Now, we just have to trigger the E2E test from our IDE. It’s just that simple and easy!
 
 Previously, developers had to write boilerplate code to make HTTP requests and parse returned HTTP responses. With the Marionette SDK in place, developers don't have to write any boilerplate code saving significant time and effort in E2E testing.
 
-### RESTful APIs in test scripts
+### RESTful APIs in Test Scripts
 
 Marionette provides several RESTful API endpoints that cover different simulation areas such as resource or data creation APIs, driver APIs, passenger APIs, etc. APIs are particularly suitable for scripted testing. Developers can directly call these APIs in their test scripts to facilitate their own tests such as load tests, integration tests, E2E tests, etc.
 
 Developers use these APIs with their preferred programming languages to run simulations. They don’t need to worry about any underlying complexities when using the APIs. For example, developers in Grab have created custom libraries using Marionette APIs in Python, Java, and Bash to run simulations.
 
-## What’s next
+## What’s Next
 
 Currently, we cover E2E tests for our transport domain (microservices for the passenger and driver apps) through Marionette. The next phase is to expand into a full-fledged platform that can test microservices in other Grab domains such as Food, Payments, and so on. Going forward, we are also looking to further simplify the writing of E2E tests and running them as a part of the CD pipeline for seamless testing before deployment.
 
-## In conclusion
+## In Conclusion
 
 We had an idea of creating a simulation platform that can run and facilitate E2E testing of microservices. With Marionette, we have achieved this objective. Marionette has helped us understand how end users use our apps, allowing us to make improvements to our services. Further, Marionette ensures there are no breaking changes and provides additional visibility into potential bugs that might be introduced as a result of any changes to microservices.
 

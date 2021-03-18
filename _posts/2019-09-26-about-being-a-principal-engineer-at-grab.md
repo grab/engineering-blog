@@ -71,7 +71,7 @@ You also need to be able to **drive meetings and discussions** without wasting 
 
 ## Teaching and Learning
 
-<div align="center" style="font-style:italic"><font color="A9A9A9">“You educate other engineers, both at an individual level and at scale: keeping the engineering community up to date on advanced technical issues, technologies, and trends. Examples include onboarding bootcamps for new hires, interns, specific skill-gap training development, and sharing specialized knowledge to raise the technical bar for other engineers/teams/dev centers.”</font></div>
+<div align="center" style="font-style:italic"><font color="A9A9A9">“You educate other engineers, both at an individual level and at scale: keeping the engineering community up to date on advanced technical issues, technologies, and trends. Examples include onboarding bootcamps for new hires, interns, specific skill-gap training development, and sharing specialised knowledge to raise the technical bar for other engineers/teams/dev centers.”</font></div>
 <p>&nbsp;</p>
 
 A principal engineer is a technical leader and as a leader you have the responsibility to **mentor**, coach fellow engineers, regardless of their level. In addition to code-reviews, you can organise office hours in your team and knowledge sharing sessions where everyone could present something. You could also help with bootcamps and help new hires in getting up-to-speed.

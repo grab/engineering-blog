@@ -1,7 +1,7 @@
 ---
 layout: post
 id: poi-entrances-venues-door-to-door
-title: Guiding you Door-to-Door via our Super App!
+title: Guiding You Door-to-Door via Our Super App!
 date: 2019-04-12 02:08:12
 authors: [neeraj-mishra, lara-pureum-yim, sufyan-selamet, nagur-hassan, summit-saurav]
 categories: [Product]
@@ -15,7 +15,7 @@ Remember landing at an airport or going to your favourite mall and the hassle of
 
 Rolling out across South East Asia  is a brand new booking experience from Grab, designed  to make it easier for you to make a booking at large venues like airports, shopping centers, and tourist destinations! With the new booking flow, it will not only be easier to select one of the pre-designated Grab pickup points, you can also find text and image directions to help you navigate your way through the venue for a smoother rendezvous with your driver!
 
-## Inspiration behind the work
+## Inspiration Behind the Work
 
 Finding your pick-up point closest to you, let alone predicting it, is incredibly challenging, especially when you are inside huge buildings or in crowded areas. Neeraj Mishra, Product Owner for Places at Grab explains: “We rely on GPS-data to understand user’s location which can be tricky when you are indoors or surrounded by skyscrapers. Since the satellite signal has to go through layers of concrete and steel, it becomes weak which adds to the inaccuracy. Furthermore, ensuring that passengers and drivers have the same pick-up point in mind can be tricky, especially with venues that have multiple entrances. ”  
 
@@ -31,11 +31,11 @@ To solve this issue, Grab launched “Entrances” (the green dots on the map) l
   <img alt="Decreasing rendezvous distance across region" src="/img/poi-entrances-venues-door-to-door/image2.png">
 </div>
 
-## One problem remained
+## One Problem Remained
 
 But there was still one common pain-point to be solved. Just because a passenger has selected the pick-up point closest to them, doesn’t mean it’s easy for them to find it. This is particularly challenging at very large venues like airports and shopping centres, and especially difficult if the passenger is unfamiliar with the venue, for example - a tourist landing at Jakarta Airport for the very first time. To deliver an even smoother booking and pick-up experience, Grab has rolled out a new feature called Venues - the first in the region - that will give passengers in-app photo and text directions to the pick-up point closest to them.
 
-## Let’s break it down! How does it work?
+## Let’s Break it Down! How Does it Work?
 
 Whether you are a local or a foreigner on holiday or business trip, fret not if you are not too familiar with the place that you are in!
 
@@ -65,9 +65,9 @@ Step 4: Follow the landmarks and walking instructions and you’ve arrived at yo
   <img alt="Directions to pick-up point at Changi Airport" src="/img/poi-entrances-venues-door-to-door/image4.jpg">
 </div>
 
-## Curious about how we got this done?
+## Curious About How We Got This Done?
 
-### Data-Driven Decisions
+### Data-driven Decisions
 
 Based on a thorough data analysis of historical bookings, Grab identified key venues across our markets in Southeast Asia. Then we dispatched our Operations team to the ground, to identify all pick up points and perform detailed on-ground survey of the venue.
 
@@ -79,6 +79,6 @@ Nagur Hassan, Operations Manager at Grab, explains the process: “For the venue
 
 Once the data is collected, our in-house team checks the quality of the images and data. We also mask people's faces and number plates of the vehicles to hide any identity-related information. As of today, we have collected 3400+ images for 1900+ pick up points belonging to 600 key venues! This effort took more than 3000 man-hours in total! And we aim to cover more than 10,000 such venues across the region in the next few months.
 
-## This is only the beginning
+## This is Only the Beginning
 
 We're constantly striving to improve the location accuracy of our passengers by using advanced Machine Learning and constant feedback mechanism. We understand GPS may not always be the most accurate determination of your current location, especially in crowded areas and skyscraper districts. This is just the beginning and we're planning to launch some very innovative features in the coming months! So stay tuned for more!

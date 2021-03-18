@@ -16,7 +16,7 @@ Introduction
 
 Grab’s unwavering ambition is to be the best Super App in Southeast Asia that adds value to the everyday for our customers. In order to achieve that, the customer experience must be flawless for each and every Grab service. Let’s take our frequently used ride-hailing service as an example. We want fair pricing for both drivers and passengers, accurate estimation of ETAs, effective detection of fraudulent activities, and ensured ride safety for our customers. The key to perfecting these customer journeys is artificial intelligence (AI).
 
-Grab has a tremendous amount of data that we can leverage to solve complex problems such as fraudulent user activity, and to provide our customers personalized experiences on our products. One of the tools we are using to make sense of this data is machine learning (ML).
+Grab has a tremendous amount of data that we can leverage to solve complex problems such as fraudulent user activity, and to provide our customers personalised experiences on our products. One of the tools we are using to make sense of this data is machine learning (ML).
 
 As Grab made giant strides towards increasingly using machine learning across the organization, more and more teams were organically building model serving solutions for their own use cases. Unfortunately, these model serving solutions required data scientists to understand the infrastructure underlying them. Moreover, there was a lot of overlap in the effort it took to build these model serving solutions.
 
@@ -63,7 +63,7 @@ There are a number of ML model serving platforms in the market right now. We cho
 2.  Highly available. It has a model versioning system to make sure there is always a healthy version being served while loading a new version into its memory
 3.  Actively maintained by the developer community and backed by Google
 
-Even though, by default, Tensorflow Serving only supports models built with Tensorflow, this is not a constraint, though, because Grab is actively moving toward using Tensorflow.
+Even though, by default, Tensorflow Serving only supports models built with Tensorflow, this is not a constraint though, because Grab is actively moving toward using Tensorflow.
 
 How are we using Tensorflow Serving?
 ------------------------------------
@@ -86,7 +86,7 @@ The only interface to data scientists is a path to their model folder in the S3 
 
 Well, not really…
 
-Imagine youare going to run Tensorflow Serving to serve one model in a cloud provider, which means you  need a compute resource from a cloud provider to run it. Running it on one box doesn’t provide high availability, so you need another box running the same model. Auto scaling is also needed in order to scale out based on the traffic. On top of these many boxes lies a load balancer. The load balancer evenly spreads incoming traffic to all the boxes, thus ensuring that there is a single point of entry for any clients, which can be abstracted away from the horizontal scaling. The load balancer also exposes an HTTP endpoint to external users. As a result, we form a Tensorflow Serving cluster that is ready to serve.
+Imagine you are going to run Tensorflow Serving to serve one model in a cloud provider, which means you  need a compute resource from a cloud provider to run it. Running it on one box doesn’t provide high availability, so you need another box running the same model. Auto scaling is also needed in order to scale out based on the traffic. On top of these many boxes lies a load balancer. The load balancer evenly spreads incoming traffic to all the boxes, thus ensuring that there is a single point of entry for any clients, which can be abstracted away from the horizontal scaling. The load balancer also exposes an HTTP endpoint to external users. As a result, we form a Tensorflow Serving cluster that is ready to serve.
 
 Next, imagine you have more models to deploy. You have three options
 
@@ -96,18 +96,18 @@ Next, imagine you have more models to deploy. You have three options
 
 The first option would not scale, because it’s just not possible to load all models into one cluster as the cluster has limited resources.
 
-The second option will definitely work but it doesn’t sound like an effective process, as you need to create a set of resources every time you have a new model to deploy. Additionally, how do you optimize the usage of resources, e.g., there might be unutilized resources in your clusters that could potentially be shared by the rest.
+The second option will definitely work but it doesn’t sound like an effective process, as you need to create a set of resources every time you have a new model to deploy. Additionally, how do you optimise the usage of resources, e.g., there might be unutilised resources in your clusters that could potentially be shared by the rest.
 
-The third option looks promising, you can manually choose the cluster to deploy each of your new models into so that all the clusters’ resource utilization is optimal. The problem is you have to manuallymanage it. Managing 100 models using 25 clusters can be a challenging task. Furthermore, running multiple models in a cluster can also cause a problem as different models usually have different resource utilization patterns and can interfere with each other. For example, one model might use up all the CPU and the other model won’t be able to serve anymore.
+The third option looks promising, you can manually choose the cluster to deploy each of your new models into so that all the clusters’ resource utilisation is optimal. The problem is you have to manually manage it. Managing 100 models using 25 clusters can be a challenging task. Furthermore, running multiple models in a cluster can also cause a problem as different models usually have different resource utilisation patterns and can interfere with each other. For example, one model might use up all the CPU and the other model won’t be able to serve anymore.
 
-Wouldn’t it be better if we had a system that automatically orchestrates model deployments based on resource utilization patterns and prevents them from interfering with each other? Fortunately, that  is exactly what Kubernetes is meant to do!
+Wouldn’t it be better if we had a system that automatically orchestrates model deployments based on resource utilisation patterns and prevents them from interfering with each other? Fortunately, that  is exactly what Kubernetes is meant to do!
 
-So what is Kubernetes?
+So What is Kubernetes?
 ----------------------
 
 Kubernetes abstracts a cluster of physical/virtual hosts (such as EC2) into a cluster of logical hosts (pods in Kubernetes terms). It provides a container-centric management environment. It orchestrates computing, networking, and storage infrastructure on behalf of user workloads.
 
-Let’s look at some of the definitions of Kubernetes resources
+Let’s look at some of the definitions of Kubernetes resources:
 
 <div class="post-image-section">
   <img alt="Tensorflow Serving Diagram" src="/img/catwalk-serving-machine-learning-models-at-scale/image2.png">
@@ -130,13 +130,13 @@ In this section, we will walk you through how we deploy Tensorflow Serving in Ku
 
 We used a managed Kubernetes service, to create a Kubernetes cluster and manually provisioned compute resources as nodes. As a result, we have a Kubernetes cluster with nodes that are ready to run applications.
 
-An application to serve one model consists of
+An application to serve one model consists of:
 
 1.  Two or more Tensorflow Serving pods that serves a model with an autoscaler to scale pods based on resource consumption
 2.  A load balancer to evenly spread incoming traffic to pods
 3.  An exposed HTTP endpoint to external users
 
-In order to deploy the application, we need to
+In order to deploy the application, we need to:
 
 1.  Deploy a deployment resource specifying
 2.  Number of pods of Tensorflow Serving
@@ -146,7 +146,7 @@ In order to deploy the application, we need to
 
 Kubernetes then allocates Tensorflow Serving pods to the cluster with the number of pods according to the value defined in deployment resource. Pods can be allocated to any node inside the cluster, Kubernetes makes sure that the node it allocates a pod into has sufficient resources that the pod needs. In case there is no node that has sufficient resources, we can easily scale out the cluster by adding new nodes into it.
 
-In order for the rules defined inthe ingressresource to work, the cluster must have an ingress controller running, which is what guided our choice of [the load balancer](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/). What an ingress controller does is simple: it keeps checking the ingressresource, creates a load balancer and defines rules based on rules in the ingressresource. Once the load balancer is configured, it will be able to redirect incoming requests to the Tensorflow Serving pods.
+In order for the rules defined inthe ingressresource to work, the cluster must have an ingress controller running, which is what guided our choice of [the load balancer](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/). What an ingress controller does is simple: it keeps checking the ingress resource, creates a load balancer and defines rules based on rules in the ingress resource. Once the load balancer is configured, it will be able to redirect incoming requests to the Tensorflow Serving pods.
 
 That’s it! We have a scalable Tensorflow Serving application that serves a model through a load balancer! In order to serve another model, all we need to do is to deploy the same set of resources but with the model’s S3 url and HTTP endpoint.
 
@@ -202,7 +202,7 @@ And logs that we put in place:
 Benefits Gained from Catwalk
 ============================
 
-Catwalk has become the go-to, centralized system to serve machine learning models. Data scientists are not required to take care of the serving infrastructure hence they can focus on what matters the most: come up with models to solve customer problems. They are only required to provide exported model files and estimation of expected traffic in order to prepare sufficient resources to run their model. In return, they are presented with an endpoint to make inference calls to their model, along with all necessary tools for monitoring and debugging. Updating the model version is self-service, and the model improvement cycle is much shorter than before. We used to count in days, we now count in minutes.
+Catwalk has become the go-to, centralised system to serve machine learning models. Data scientists are not required to take care of the serving infrastructure hence they can focus on what matters the most: come up with models to solve customer problems. They are only required to provide exported model files and estimation of expected traffic in order to prepare sufficient resources to run their model. In return, they are presented with an endpoint to make inference calls to their model, along with all necessary tools for monitoring and debugging. Updating the model version is self-service, and the model improvement cycle is much shorter than before. We used to count in days, we now count in minutes.
 
 Future Plans
 ============
@@ -210,14 +210,14 @@ Future Plans
 Improvement on Automation
 -------------------------
 
-Currently, the first deployment of any model will still need some manual task from the platform team. We aim to automate this processentirely. We’ll work with our awesome CI/CD team who is making the best use of [Spinnaker](https://www.spinnaker.io/).
+Currently, the first deployment of any model will still need some manual task from the platform team. We aim to automate this process entirely. We’ll work with our awesome CI/CD team who is making the best use of [Spinnaker](https://www.spinnaker.io/).
 
-Model serving on mobile devices
+Model Serving on Mobile Devices
 -------------------------------
 
 As a platform, we are looking at setting standards for model serving across Grab. This includes model serving on mobile devices as well. Tensorflow Serving also provides a [Lite](https://www.tensorflow.org/lite) version to be used on mobile devices. It is a whole new paradigm with vastly different tradeoffs for machine learning practitioners. We are quite excited to set some best practices in this area.
 
-gRPC support
+gRPC Support
 ------------
 
 Catwalk currently supports HTTP/1.1. We’ll hook Grab’s service discovery mechanism to open gRPC traffic, which TFS already supports.

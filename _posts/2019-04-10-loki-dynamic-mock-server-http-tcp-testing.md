@@ -16,7 +16,7 @@ Background
 
 In a previous article we introduced [Mockers - an innovative tool for local box testing at Grab](https://engineering.grab.com/mockers). Mockers used a [Shift Left testing strategy](https://en.wikipedia.org/wiki/Shift_left_testing), making testing more effective and cheaper for development teams. Mockers’ popularity and success motivated us to create Loki - a one-stop dynamic mock server for local box testing of mobile apps.
 
-There are some unique challenges in mobile apps testing at Grab. End-to-end testing of an app is difficult due to high dependency on backend services and other apps. Staging environment, which hosts a plethora of backend services, is tough to manage and maintain. Issues such as staging downtime, configuration mismatches, and data corruption can affect staging adding to the testing woes. Moreover, our apps are fairly complex, utilizing multiple transport protocols such as HTTP, HTTPS, TCP for various business flows.
+There are some unique challenges in mobile apps testing at Grab. End-to-end testing of an app is difficult due to high dependency on backend services and other apps. Staging environment, which hosts a plethora of backend services, is tough to manage and maintain. Issues such as staging downtime, configuration mismatches, and data corruption can affect staging adding to the testing woes. Moreover, our apps are fairly complex, utilising multiple transport protocols such as HTTP, HTTPS, TCP for various business flows.
 
 The business flows are also complex, requiring exhaustive set up such as credit card payments set up, location spoofing, etc resulting in high maintenance costs for automated testing. Loki simulates these flows and developers can easily test use cases that take longer to set up in a real backend staging.
 
@@ -34,7 +34,7 @@ Loki acts as a mock backend service when the real backend is still evolving. It 
 
 In a one week regression-and-release scenario, testing time is limited. However, the application UI rendering and functionality still needs reasonable testing. Loki lets developers concentrate on testing in the available time instead of fixing dependencies on backend services.
 
-Loki - Grab's solution to simplify mobile apps testing
+Loki - Grab's Solution to Simplify Mobile Apps Testing
 ======================================================
 
 At Grab, we have multiple mobile apps that are dependent on each other. For example, our Passenger and Driver apps are two sides of a coin; the driver gets a job card only when a passenger requests a booking. These apps are developed by different teams, each with its own release cycle. This can make it tricky to confidently and repeatedly test the whole business flow across apps. Apps also depend on multiple backend services to execute a booking or food order and communicate over different protocols.
@@ -55,14 +55,14 @@ The Loki architecture looks like this:
 </div>
 
 
-The technical challenges we had to overcome
+The Technical Challenges We Had to Overcome
 ===========================================
 
 We wanted a comprehensive mocking solution so that teams don’t need to integrate multiple tools to achieve independent testing. It turned out that mocking TCP was most challenging because:
 
 *   It is a long running client-server connection, and it doesn’t follow an HTTP-like request/response pattern.
 *   Messages can be sent to the app without an incoming request as well, hence we had to expose a way via Loki to set a mock expectation which can send messages to the app without any request triggering it.
-*   As TCP is a long running connection, we needed a way to delimit incoming requests so we know when we can truncate and deserialize the incoming request into JSON.
+*   As TCP is a long running connection, we needed a way to delimit incoming requests so we know when we can truncate and deserialise the incoming request into JSON.
 
 We engineered the Loki backend to support both HTTP and TCP protocols on different ports. Yet, the mock expectations are set up using RESTful APIs over HTTP for both protocols. A single point of entry for setting expectations made it more intuitive for our developers.
 
@@ -84,7 +84,7 @@ Loki uses  an HTTP API `“httpTimesAndOrder”` for this feature. For example
 
 Now, let’s look at how to use Loki to mock HTTP requests and TCP events.
 
-Mocking HTTP requests
+Mocking HTTP Requests
 =====================
 
 To mock HTTP requests, developers first point their app to send requests to the Loki mock server. Then, they set up expectations for all requests sent to the Loki mock server.
@@ -115,7 +115,7 @@ Request Body :
 }
 ```
 
-Workflow for setting expectations and receiving responses
+Workflow for Setting Expectations and Receiving Responses
 ---------------------------------------------------------
 
 <div class="post-image-section">
@@ -123,7 +123,7 @@ Workflow for setting expectations and receiving responses
 </div>
 
 
-Mocking TCP events
+Mocking TCP Events
 ==================
 
 Developers point their app to Loki over a TCP connection and set up the TCP expectations. Loki then generates scheduled events such as sending push messages (job cards, notifications, etc) to the apps pointing at Loki.
@@ -159,7 +159,7 @@ Request Body :
 }
 ```
 
-Workflow for scheduling a push message over TCP
+Workflow for Scheduling a Push Message Over TCP
 -----------------------------------------------
 
 ![](images/image1.png)
@@ -167,15 +167,15 @@ Workflow for scheduling a push message over TCP
   <img alt="Workflow for scheduling a push message over TCP" src="/img/loki-dynamic-mock-server-http-tcp-testing/image1.png">
 </div>
 
-Some example use cases
+Some Sample Use Cases
 ======================
 
-Now that you know about Loki, let’s look at some example use cases.
+Now that you know about Loki, let’s look at some sample use cases.
 
-Generating a custom response at runtime
+Generating a Custom Response at Runtime
 ---------------------------------------
 
-Our first example is customizing a runtime response for both HTTP and TCP requests. This is helpful when developers need dynamic responses to requests. For example, you can add parameters from the request URL or request body to the runtime response.
+Our first example is customising a runtime response for both HTTP and TCP requests. This is helpful when developers need dynamic responses to requests. For example, you can add parameters from the request URL or request body to the runtime response.
 
 It’s simple to implement this with a JavaScript function. Assume you want to embed a message parameter in the request URL to the response. To do this, you first use a POST method to set up the expectation (in JSON format) for the request on Loki:
 
@@ -221,7 +221,7 @@ But, after using the JavaScript function to add the URL parameter, the dynamic r
 
 Similarly, you can use JavaScript to add other dynamic responses such as modifying the response’s JSON array, adding parameters to push messages, etc.
 
-Defining a response sequence for mocked API endpoints
+Defining a Response Sequence for Mocked API Endpoints
 -----------------------------------------------------
 
 Here’s another interesting example - defining the response sequence for API endpoints.
@@ -265,7 +265,7 @@ Request Body :
 }
 ```
 
-In conclusion
+In Conclusion
 =============
 
 Since Loki’s inception, we have set up a full range CI with proper end-to-end app UI tests and, to a great extent, decoupled our app releases from the staging backend. This improved delivery cycles, and we did faster bug catching and more exhaustive testing. Moreover, both developers and QAs can easily play with apps to perform exploratory testing as well as manual functional validations. Teams are also using Loki to run automated scripts (Espresso and XCUItests) for validating the mobile app pages.

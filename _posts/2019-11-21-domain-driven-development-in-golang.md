@@ -17,22 +17,22 @@ That’s why we launched GrabPlatform last year. To make it easier for partners 
 
 In view of that, part of the GrabPlatform’s team mission is to make it easy for partners to integrate with Grab services. These partners are external companies that would like to offer Grab's services such as ride-booking through their own websites or applications. To do that, we decided to build a website that will serve as a one-stop-shop that would allow them to self-service these integrations.
 
-### The challenges we faced with the conventional approach
+### The Challenges We Faced with the Conventional Approach
 
-In the process of building this website, our team noticed that the majority of the functions and responsibilities were added to files without proper segregation. A single file would contain more than 500 lines of code. Each of these files were  imported from different collections of source codes, resulting in an unstructured codebase. Any changes to the existing functions risked breaking existing functionality; we realized then that we needed to proactively plan for the future. Hence, we decided to use the principles of [Domain-Driven Design (DDD)](https://airbrake.io/blog/software-design/domain-driven-design) and [idiomatic Go](https://golang.org/doc/effective_go.html). This blog aims to demonstrate the process of how we leveraged those concepts to design a modern application.
+In the process of building this website, our team noticed that the majority of the functions and responsibilities were added to files without proper segregation. A single file would contain more than 500 lines of code. Each of these files were  imported from different collections of source codes, resulting in an unstructured codebase. Any changes to the existing functions risked breaking existing functionality; we realised then that we needed to proactively plan for the future. Hence, we decided to use the principles of [Domain-Driven Design (DDD)](https://airbrake.io/blog/software-design/domain-driven-design) and [idiomatic Go](https://golang.org/doc/effective_go.html). This blog aims to demonstrate the process of how we leveraged those concepts to design a modern application.
 
-### How we implemented DDD in our codebase
+### How We Implemented DDD in Our Codebase
 
 Here's how we went about solving our unstructured codebase using DDD principles.
 
-#### Step 1: Gather domain (business) knowledge
+#### Step 1: Gather Domain (Business) Knowledge
 We collaborated closely with our domain experts (in our case, this was our product team) to identify functionality and flow. From them, we discovered the following key points:
 
 *   After creating a project, developers are added to the project.
 *   The domain experts wanted an ability to add other products (e.g. Pricing service, ETA service, GrabPay service) to their projects.
 *   They wanted the ability to create multiple authentication clients to access the above products.
 
-#### Step 2: Break down domain knowledge into bounded context
+#### Step 2: Break Down Domain Knowledge into Bounded Context
 Now that we had gathered the required domain knowledge (i.e. what our code needed to reflect to our partners), it was time to use the DDD strategic tool _Bounded Context_ to break down problems into subcontexts. Here is a graphical representation of how we converted the problem into smaller units.
 
 <div class="post-image-section">
@@ -45,7 +45,7 @@ We identified several dependencies on each of the units involved in the project.
 
 What this means is a product can exist independent of the project, but a project will have no significance without any product. In the same way, a project is dependent on the developers, but developers can exist whether or not they belong to a project.
 
-#### Step 3: Identify value objects or entity (lowest layer)
+#### Step 3: Identify Value Objects or Entities (Lowest Layer)
 Looking at the above bounded contexts, we figured out the building blocks (i.e. value objects or entity) to break down the above functionality and flow.
 
 ~~~go
@@ -95,7 +95,7 @@ type ProductProjectDAO struct {
 
 All the objects shown above have `ID` as a field and can be identifiable, hence they are identified as **entities** and not as **value objects**. But if we apply domain knowledge, `DeveloperProjectDAO` and `ProductProjectDAO` are actually not independent entities. Project object is the aggregate root since it must exist before the child fields, `DevProjectDAO` and `ProdcutProjectDAO`, can exist.
 
-#### Step 4: Create the repositories
+#### Step 4: Create the Repositories
 As stated above, we created an interface to abstract the working logic of a particular domain (i.e. Repository). Here is an example of how we designed the repositories:
 
 ~~~go
@@ -201,14 +201,14 @@ func (e *EventHandler) Handle(event interface{}) interface{} {
   <img alt="Domain Event" src="/img/domain-driven-development-in-golang/image1.jpg" style="width:50%">
 </div>
 
-### Some common mistakes to avoid when implementing DDD in your codebase:
+### Some Common Mistakes to Avoid When Implementing DDD in Your Codebase
 
 *   Not engaging with domain experts. Not interacting with domain experts is a common mistake when using DDD. Talking to domain experts to get an understanding of the problem domain from their perspective is at the core of DDD. Starting with schemas or data modelling instead of talking to domain experts may create code based on a relational model instead of it built around a domain model.
 *   Ignoring the language of the domain experts. Creating a ubiquitous language shared with domain experts is also a core DDD practice. This common language must be used in all discussions as well as in the code, e.g. in class and method names.
 *   Not identifying bounded contexts. A common approach to solving a complex problem is breaking it down into smaller parts. Creating [bounded contexts](http://martinfowler.com/bliki/BoundedContext.html) is breaking down a large domain into smaller ones, each handling one cohesive part of the domain.
 *   Using an anaemic domain model. This is a common sign that a team is not doing DDD and often a symptom of a failure in the modelling process. At first, an [anaemic domain model](http://www.martinfowler.com/bliki/AnemicDomainModel.html) often looks like a real domain model with correct names, but the classes lack functionalities. They contain only the `Get` and `Set` methods.
 
-## How the DDD model improved our software development
+## How the DDD Model Improved Our Software Development
 
 Thanks to this brand new clean up, we achieved the following:
 

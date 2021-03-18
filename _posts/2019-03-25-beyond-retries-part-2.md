@@ -19,9 +19,9 @@ _Bulkheading_ is a fundamental pattern which underpins many other resiliency te
 
 Bulkheads also help to prevent single points of failure, by reducing the impact of any failures so services can maintain some level of service.
 
-### Level of bulkheads
+### Level of Bulkheads
 
-It is important to note that bulkheads can be applied at multiple levels in software architecture. The two highest levels of bulkheads are at the infrastructure level, and the first is _hardware isolation_. In a cloud environment, this usually means isolating regions or availability zones. The second is isolating the operating system, which has become a widespread technique with the popularity of virtual machines and now _containerization_. Previously, it was common for multiple applications to run on a single (very powerful) dedicated server. Unfortunately, this meant that a rogue application could wreak havoc on the entire system in a number of ways, from filling the disk with logs to consuming memory or other resources.
+It is important to note that bulkheads can be applied at multiple levels in software architecture. The two highest levels of bulkheads are at the infrastructure level, and the first is _hardware isolation_. In a cloud environment, this usually means isolating regions or availability zones. The second is isolating the operating system, which has become a widespread technique with the popularity of virtual machines and now _containerisation_. Previously, it was common for multiple applications to run on a single (very powerful) dedicated server. Unfortunately, this meant that a rogue application could wreak havoc on the entire system in a number of ways, from filling the disk with logs to consuming memory or other resources.
 
 <div class="post-image-section">
   <img alt="Isolation can be achieved by applying bulkheading at multiple levels" src="/img/beyond-retries-part-2/image2.png">
@@ -34,11 +34,11 @@ This article focuses on resiliency from the application perspective, so below th
 
 At the lowest level, and perhaps the most common form of bulkheading to software engineers, are the concepts of _connection pooling_ and _thread pools_. While these techniques are commonly employed for performance reasons (reusing resources is cheaper than acquiring new ones), they also help to put a finite limit on the number of connections or concurrent threads that an operation is allowed to consume. This ensures that if the load of a particular operation suddenly increases unexpectedly (such as due to external load or downstream latency), the impact is contained to only a partial failure.
 
-### Bulkheading support in the Hystrix library
+### Bulkheading Support in the Hystrix Library
 
 The Hystrix library for Go supports a form of bulkheading through its `MaxConcurrentRequests` parameter. This is conveniently tied to the circuit name, meaning that different levels of isolation can be achieved by choosing an appropriate circuit name. A good rule of thumb is to use a different circuit name for each operation or API call. This ensures that if just one particular endpoint of a remote service is failing, the other circuits are still free to be used for the remaining healthy endpoints, achieving failure isolation.
 
-## Load balancing
+## Load Balancing
 
 <div class="post-image-section">
   <img alt="Global rate-limiting with a central server" src="/img/beyond-retries-part-2/image3.jpg">
@@ -69,7 +69,7 @@ There are four main types of load balancer to choose from, each with their own p
 
 <p>&nbsp;</p>
 
-### Grab’s load-balancing implementation
+### Grab’s Load-balancing Implementation
 
 At Grab, we have built our own internal client-side solution called CSDP, which uses the distributed key-value store [etcd](https://etcd.io/) as its backend store.
 
@@ -79,27 +79,27 @@ There are scenarios when simply retrying a failed API call doesn't work. If the 
 
 One such mitigation strategy is _fallbacks_. This is a broad topic with many different sub-strategies, but here are a few of the most common:
 
-### Fail silently
+### Fail Silently
 
 Starting with the easiest to implement, one basic fallback strategy is _fail silently_. This means returning an empty or null response when an error is encountered, as if the call had succeeded. If the data being requested is not critical functionality then this can be considered: missing part of a UI is less noticeable than an error page! For example, UI bubbles showing unread notifications are a common feature. But if the service providing the notifications is failing and the bubble shows 0 instead of N notifications, the user's experience is unlikely to be significantly affected.
 
-### Local computation
+### Local Computation
 
 A second fallback strategy when a downstream dependency is failing could be to _compute the value locally_ instead. This could mean either returning a default (static) value, or using a simple formula to compute the response. For example, a marketplace application might have a service to calculate shipping costs. If it is unavailable, then using a default price might be acceptable. Or even $0 - users are unlikely to complain about errors that benefit them, and it's better than losing business!
 
-### Cached values
+### Cached Values
 
-Similarly, _cached values_ are often used as fallbacks. If the service isn't available to calculate the most up to date value, returning a stale response might be better than returning nothing. If an application is already caching the value with a short expiration to optimize performance, it can be reused as a fallback cache by setting two expiration times: one for normal circumstances, and another when the service providing the response has failed.
+Similarly, _cached values_ are often used as fallbacks. If the service isn't available to calculate the most up to date value, returning a stale response might be better than returning nothing. If an application is already caching the value with a short expiration to optimise performance, it can be reused as a fallback cache by setting two expiration times: one for normal circumstances, and another when the service providing the response has failed.
 
-### Backup service
+### Backup Service
 
 Finally, if the response is too complex to compute locally or if major functionality of the application is required to have a fallback, then an entirely new service can act as a fallback; a _backup service_. Such a service is a big investment, so to make it worthwhile some trade-offs must be accepted. The backup service should be considerably simpler than the service it is intended to replace; if it is too complex then it will require constant testing and maintenance, not to mention documentation and training to make sure it is well understood within the engineering team. Also, a complex system is more likely to fail when activated. Usually such systems will have very few or no dependencies, and certainly should not depend on any parts of the original system, since they could have failed, rendering the backup system useless.
 
-### Grab’s fallback implementation
+### Grab’s Fallback Implementation
 
 At Grab, we make use of various fallback strategies in our services. For example, our microservice framework [Grab-Kit](https://engineering.grab.com/introducing-grab-kit) has built-in support for returning cached values when a downstream service is unresponsive. We've even built a backup service to replicate our core functionality, so we can continue to serve customers despite severe technical difficulties!
 
-## Up next, Architecture Patterns and Chaos Engineering...
+## Up Next, Architecture Patterns and Chaos Engineering...
 
 We’ve covered various techniques in designing reliable and resilient systems in the previous articles. I hope you found them useful. Comments are always welcome.
 

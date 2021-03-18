@@ -39,14 +39,14 @@ Logs in today's world have varying formats and features.
 *   **Causal Ordering**: Logs might or might not preserve the exact time in which they are written. This is important, as how exact the time is dictates how accurately we can predict the sequence of events via logs.
 *   **Log Correlation**: We serve countless requests from our backend services. Being able to see all the logs relevant to a particular request or a particular event helps us drill down to relevant  information for a specific request (e.g. for a specific passenger trying to book a ride).
 
-Combine this with the plethora of logging libraries available and you easily have a developer who is holding his head in confusion, unable to decide what to use. Also, each library has their own set of advantages and disadvantages, so the discussion might quickly become subjective and polarized - therefore it is crucial that you choose the appropriate library and backend pair for your applications.
+Combine this with the plethora of logging libraries available and you easily have a developer who is holding his head in confusion, unable to decide what to use. Also, each library has their own set of advantages and disadvantages, so the discussion might quickly become subjective and polarised - therefore it is crucial that you choose the appropriate library and backend pair for your applications.
 
 We at Grab use different types of logging libraries. However, as requirements changed  - we also found ourselves re-evaluating our logging strategy.
 
 The State of Logging at Grab
 ----------------------------
 
-The number of Golang services at Grab has continuously grown. Most services used syslog-style key-value format logs, recognized as the most common format of logs for server-side applications due to its simplicity and ease for reading and writing. All these logs were made possible by a handful of common libraries, which were directly imported and used by different services.
+The number of Golang services at Grab has continuously grown. Most services used syslog-style key-value format logs, recognised as the most common format of logs for server-side applications due to its simplicity and ease for reading and writing. All these logs were made possible by a handful of common libraries, which were directly imported and used by different services.
 
 We used a cloud-based SaaS vendor as a frontend for these logs, where application-emitted logs were routed to files and sent to our logging vendor, making it possible to view and query them in real time. Things were pretty great and frictionless for a long time.
 
@@ -80,7 +80,7 @@ Why Change?
 As mentioned, we knew there were issues with how we were logging. To best approach the problem and be able to solve it as much as possible without affecting existing infrastructure and services, it was decided to bootstrap a new library from the ground up. This library would solve known issues, as well as contain features which would not have been possible by modifying existing libraries. For a recap, here's what we wanted to solve:
 
 *   Improve levelled logging
-*   Leverate structure in logs better
+*   Leverage structure in logs better
 *   Easily integrate with Elastic stack
 *   Encourage usage of best practices
 *   Make log correlation easier and better
@@ -95,9 +95,9 @@ Keeping our previous problems and requirements in mind, we bootstrapped a librar
 
 ### Dynamic Log Levels
 
-This allows us to change our initialized log levels at runtime from a configuration management system - something which was not possible and encouraged before.
+This allows us to change our initialised log levels at runtime from a configuration management system - something which was not possible and encouraged before.
 
-This makes the log levels actually more meaningful now -  developers can now deploy with the usual WARN or INFO log levels, and when things go wrong, just with a configuration change they can update the log level to DEBUG and make their services output more logs when debugging. This also helps us keep our logging costs in check. We made support for integrating this with our configuration management system easy and straightforward.
+This makes the log levels actually more meaningful now - developers can now deploy with the usual WARN or INFO log levels, and when things go wrong, just with a configuration change they can update the log level to DEBUG and make their services output more logs when debugging. This also helps us keep our logging costs in check. We made support for integrating this with our configuration management system easy and straightforward.
 
 ### Consistent Structure in Logs
 
@@ -112,9 +112,9 @@ For addressing this, we built a utility that allows us to add structure to our l
 
 
 
-### Plug and Play support with Grab-Kit
+### Plug and Play Support with Grab-Kit
 
-We made the initialization and use easy and out-of-the-box with our in-house support for [Grab-Kit](https://engineering.grab.com/introducing-grab-kit), so developers can just use it without making any drastic changes. Also, as part of this integration, we added automatic log correlation based on request IDs present in traces, which ensured that all the logs generated for a particular request already have that trace ID.
+We made the initialisation and use easy and out-of-the-box with our in-house support for [Grab-Kit](https://engineering.grab.com/introducing-grab-kit), so developers can just use it without making any drastic changes. Also, as part of this integration, we added automatic log correlation based on request IDs present in traces, which ensured that all the logs generated for a particular request already have that trace ID.
 
 ### Configurable Log Format
 
@@ -122,11 +122,11 @@ Our primary requirement was building a logger expressive and consistent enough t
 
 ### Support for Multiple Writes with Different Formats
 
-As part of extending the library's functionality, we needed enough configurability to be able to send different logs to different places at different settings. For example, sending FATAL logs to Slack asynchronously in some readable format, while sending all the usual logs to our Elastic stack backend. This library includes support for chaining such "cores" to any arbitrary degree possible - making sure that this logger can be used in such highly specialized cases as well.
+As part of extending the library's functionality, we needed enough configurability to be able to send different logs to different places at different settings. For example, sending FATAL logs to Slack asynchronously in some readable format, while sending all the usual logs to our Elastic stack backend. This library includes support for chaining such "cores" to any arbitrary degree possible - making sure that this logger can be used in such highly specialised cases as well.
 
 ### Production-like Logging Environment in Development
 
-Developers have been seeing console logs since the dawn of time, however having structured JSON logs which are only meant for production logs and are more searchable provides more power. To leverage this power in development better and allow developers to directly see their logs in Kibana, we provide a dockerized version of Kibana which can be spun up locally to accept structured logs. This allows developers to directly use the structured logs and see their logs in Kibana - just like production!
+Developers have been seeing console logs since the dawn of time, however having structured JSON logs which are only meant for production logs and are more searchable provides more power. To leverage this power in development better and allow developers to directly see their logs in Kibana, we provide a dockerised version of Kibana which can be spun up locally to accept structured logs. This allows developers to directly use the structured logs and see their logs in Kibana - just like production!
 
 Having this library enabled us to do logging in a much better way. The most noticeable impact was that our simple access logs can now be queried better - with more filters and conditions.
 
@@ -138,7 +138,7 @@ Having this library enabled us to do logging in a much better way. The most noti
 
 ### Causal Ordering
 
-Having an exact history of events makes debugging issues in production systems easier - as one can just look at the history and quickly hypothesize what's wrong and fix it. To this end, the structured logging library adds the exact write timestamp in nanoseconds in the logger. This combined with the structured JSON-like format makes it possible to sort all the logs by this field - so we can see logs in the exact order as they happened - achieving causal ordering in logs. This is an underplayed but highly powerful feature that makes debugging easier.
+Having an exact history of events makes debugging issues in production systems easier - as one can just look at the history and quickly hypothesise what's wrong and fix it. To this end, the structured logging library adds the exact write timestamp in nanoseconds in the logger. This combined with the structured JSON-like format makes it possible to sort all the logs by this field - so we can see logs in the exact order as they happened - achieving causal ordering in logs. This is an underplayed but highly powerful feature that makes debugging easier.
 
 <div class="post-image-section">
   <img alt="Figure 4: Causal ordering of logs with Y'ALL" src="/img/structured-logging/image2.png">
@@ -155,13 +155,13 @@ On the outset, having logs well-defined and structured (like JSON) has multiple 
 *   **Better root cause analysis**: With structured logs, we can ingest and perform more powerful queries which won't be possible with simple unstructured logs. Developers can do more informative queries on finding the logs which are relevant to the situation. Not only this, log correlation and causal ordering make it possible to gain a better understanding of the distributed logs. Unlike unstructured data, where we are only limited to full-text or a handful of log types, structured logs take the possibility to a whole new level.
 *   **More transparency or better observability**: With structured logs, you increase the visibility of what is happening with your system - since now you can log information in a better, more expressive way. This enables you to have a more transparent view of what is happening in the system and makes your systems easier to maintain and debug over longer periods of time.
 *   **Better consistency**: With structured logs, you increase the structure present in your logs - and in turn, make your logs more consistent as the systems evolve. This allows us to index our logs in a system like Elastic stack more easily as we can be sure that we are sticking to some structure. Also with the adoption of a common schema, we can be rest assured that we are all using the same structure.
-*   **Better standardization**: Having a single, well-defined, structured way to do logging allows us to standardize logging - which reduces cognitive overhead of figuring out what happened in systems via logs and allows easier adoption. Instead of going through 100 different types of logs, you instead would only have a single format. This is also one of the goals of the library - standardizing the usage of the library across Golang backend services.
+*   **Better standardisation**: Having a single, well-defined, structured way to do logging allows us to standardise logging - which reduces cognitive overhead of figuring out what happened in systems via logs and allows easier adoption. Instead of going through 100 different types of logs, you instead would only have a single format. This is also one of the goals of the library - standardising the usage of the library across Golang backend services.
 
 We get some additional benefits as well:
 
 *   **Dynamic Log Levels**: This allows us to have meaningful log levels in our code - where we can deploy with baseline warning settings and switch to lower levels (debug logs) only when we need them. This helps keep our logging costs low, as well as reduces the noise that developers usually need to go through when debugging.
 *   **Future-proof Consistency in Logs**: With the adoption of a common schema, we make sure that we stick with the same structure, even if say tomorrow our logging infrastructure changes - making us future-ready. Instead of manually specifying what to log, we can simply expose a function in our loggers.
-*   **Production-Like Logging Environment in Development**: The dockerized Kibana allows developers to enjoy the same benefits as the production Kibana. This also encourages developers to use Elastic stack more and explore its features such as building dashboards based on the log data, having better watchers, and so on.
+*   **Production-Like Logging Environment in Development**: The dockerised Kibana allows developers to enjoy the same benefits as the production Kibana. This also encourages developers to use Elastic stack more and explore its features such as building dashboards based on the log data, having better watchers, and so on.
 
 I hope you have enjoyed this article and found it useful. Comments and corrections are always welcome.
 

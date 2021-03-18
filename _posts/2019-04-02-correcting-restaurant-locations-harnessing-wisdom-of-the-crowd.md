@@ -11,7 +11,7 @@ cover_photo: /img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd
 excerpt: "We questioned some of the estimates that our algorithm for calculating restaurant wait times was making, and found that the \"errors\" were actually useful to discover restaurants whose locations had been incorrectly registered in our system. By combining such error signals across multiple orders, we were able to identify correct restaurant locations and amend them to improve the experience for our customers."
 ---
 
-While studying GPS ping data to understand how long our driver-partners needed to spend at restaurants during a GrabFood delivery, we came across an interesting observation. We realized that there was a significant proportion of restaurants where our driver-partners were waiting for abnormally short durations, often for just seconds.
+While studying GPS ping data to understand how long our driver-partners needed to spend at restaurants during a GrabFood delivery, we came across an interesting observation. We realised that there was a significant proportion of restaurants where our driver-partners were waiting for abnormally short durations, often for just seconds.
 
 Considering that it typically takes a driver a few minutes to enter the restaurant, pick up the order and then leave, we decided to dig further into this phenomenon. What we uncovered was that these super short pit stops were restaurants that were registered at incorrect coordinates within the system due to reasons such as the restaurant had moved to a new location, or human error during onboarding the restaurants. Incorrectly registered locations within our system impact all involved parties - eaters may not see the restaurant because it falls outside their delivery radius or they may see an incorrect ETA, drivers may have trouble finding the restaurant and may end up having to cancel the order, and restaurants who may get fewer orders without really knowing why. 
 
@@ -43,7 +43,7 @@ Extending this across multiple orders and drivers, we can form a cluster of pick
 
 **Fraction of the orders where the pick-up location was not "at" the restaurant**: This fraction indicates the number of orders with a pick-up location not near the registered restaurant location (with near being defined both spatially and temporally as above). A higher value indicates a higher likelihood of the restaurant not being in the registered location subject to order volume
 
-**Median distance between registered and estimated locations**: This factor is used to rank restaurants by a notion of "importance". A restaurant which is just outside the fixed radius from above can be addressed after another restaurant which is a kilometer away. 
+**Median distance between registered and estimated locations**: This factor is used to rank restaurants by a notion of "importance". A restaurant which is just outside the fixed radius from above can be addressed after another restaurant which is a kilometre away. 
 
 This ranked list of restaurants is then passed on to our mapping operations team to verify. The team checks various sources to verify if the restaurant is incorrectly located which is then fed back to the GrabFood system and the locations updated accordingly.
 
@@ -120,7 +120,7 @@ Examining this on Google Maps, we noticed that both locations oddly seemed to ha
   <img alt="Waroeng Steak and Shake map location on Google Maps" src="/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image11.png">
 </div>
 
-By looking at Google Reviews (credit to my colleague Kenneth Loh for the idea), we realized that  the restaurant seemed to have changed its location, and this is what our system was picking up on. 
+By looking at Google Reviews (credit to my colleague Kenneth Loh for the idea), we realised that the restaurant seemed to have changed its location, and this is what our system was picking up on. 
 
 <div class="post-image-section">
   <img alt="Waroeng Steak and Shake Google Maps reviews" src="/img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/image12.png">
@@ -131,7 +131,7 @@ In summary, the system was able to respond to a change in location for the resta
 What’s Next?
 ------------
 
-Going forward, we are looking to automate some aspects of this workflow. Currently, the validation part is handled by our mapping operations team and we are looking to feedback their validation and actions taken so that we can finetune various hyperparameters in our system (registered location radii, normalization factors, etc) and/or train more advanced models that are cognizant of different geo and driver characteristics in different markets.
+Going forward, we are looking to automate some aspects of this workflow. Currently, the validation part is handled by our mapping operations team and we are looking to feedback their validation and actions taken so that we can fine-tune various hyperparameters in our system (registered location radii, normalisation factors, etc) and/or train more advanced models that are cognizant of different geo and driver characteristics in different markets.
 
 Additionally while we know that we should expect poor results for some scenarios (e.g. inside malls due to poor GPS quality and often approximate registered locations), we can extract such information (restaurant is inside a mall in this case) through a combination of manual feedback from operations teams and drivers, as well as automated NLP techniques such as name and address parsing and entity recognition. 
 

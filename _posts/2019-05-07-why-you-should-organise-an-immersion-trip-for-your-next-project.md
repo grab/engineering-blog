@@ -23,7 +23,7 @@ Grab Ventures is where exciting initiatives are birthed in Grab. From strategic 
 
 In my role as Design Lead for Grab Ventures, I juggle between both sides of the coin and whether it’s a partnership or exploratory concept, I ask myself:
 
-# “How do I know who my customers are, and what are their pain points?”
+# “How do I Know Who My Customers are, and What are Their Pain Points?”
 
 So I like to answer that question by starting with traditional research methods like desktop research and surveys, just to name a few. At Grab, it’s usually not enough to answer those questions.
 
@@ -42,7 +42,7 @@ For designers and researchers in Singapore, it plucks you out of your everyday r
 
 > Fun fact: In 2018, I spent about 100 days in Indonesia. That means roughly 30% of 2018 was spent on the ground, observing, shadowing, interviewing people (and getting stuck in traffic) and loving it.
 
-## Why immersions?
+## Why Immersions?
 
 Understanding one’s country, culture and her people is something that gets me excited as I continuously build empathy visit upon a visit, interview after interview.
 
@@ -71,11 +71,11 @@ An immersion trip is an excellent opportunity to learn about our customers and t
 
 Now that I’ve sold you on this idea, here are some tips on how to plan and execute effective immersion trips, share your findings and turn them into actionable insights for your team and stakeholders.
 
-## Pro tip #1 - Generate a hypothesis
+## Pro Tip #1 - Generate a Hypothesis
 
 Generating a hypothesis is a valuable exercise. It enables you to focus on the “wants vs. needs” and to validate your assumptions beyond desktop research. Be sure to get your core team members together, including Business, Ops and Tech, to generate a hypothesis. I’ll give an example below.
 
-## Pro tip #2 - Have short immersion days with a debrief at the end for everyone
+## Pro Tip #2 - Have Short Immersion Days with a Debrief at the End for Everyone
 
 Scheduling really depends on your project. I have planned for trips that are from a few hours to up to fourteen days long. Be sure not to have too many locations in a single day and spread them out evenly in case there are unexpected roadblocks such as traffic jams that might contribute to rushed research.
 
@@ -88,15 +88,15 @@ Do include Brief and Debrief sessions into your schedule. I’d recommend shorte
 
 <p>&nbsp;</p>
 
-## Pro tip #3 - Recce locations beforehand
+## Pro Tip #3 - Recce Locations Beforehand
 
 Once you’ve nailed down the locations, it is essential for you to get a local resident to recce the places first. In Southeast Asia, more often than so would you realise that information found online is unreliable and misleading, so doing a physical recce will save you a lot of time.
 
-I had experienced a few time-wasting incidents when we did not expect specific locations to be what was intended. For example, while on our grocery-run, we wanted to visit a local wet market that opens only very early in the morning. We got up at 5 am, drove about 1.5 hours and only to realize the wet market is not open to the public and we eventually got chased out by the security guards.
+I had experienced a few time-wasting incidents when we did not expect specific locations to be what was intended. For example, while on our grocery-run, we wanted to visit a local wet market that opens only very early in the morning. We got up at 5 am, drove about 1.5 hours and only to realise the wet market is not open to the public and we eventually got chased out by the security guards.
 
-## Pro tip #4 - Never assume a customer’s journey
+## Pro Tip #4 - Never Assume a Customer’s Journey
 
-(even though you’ve experienced it before as a customer)
+(Even though you’ve experienced it before as a customer)
 
 One of the most important processes throughout a product life cycle is to understand a customer’s journey. It’s particularly important to understand the journey if we are not familiar with the actual environment. Take our GrabFresh service as an example. It’s a complex journey that happens behind the scenes. Desktop research might not be enough to fully validate the journey hence, an immersion trip that allows you to be on the field will ensure you go through the lifecycle of the entire process to observe and note all the phases that happen in the real environment.
 
@@ -106,7 +106,7 @@ One of the most important processes throughout a product life cycle is to unders
 
 <p>&nbsp;</p>
 
-## Pro tip #5 - Be 100% sure of your open-ended, non-leading questions that will validate your hypothesis.
+## Pro Tip #5 - Be 100% Sure of Your Open-ended, Non-leading Questions that will Validate Your Hypothesis
 
 This part is an essential piece to the quality of your immersion outcome. Not spending enough time crafting or vetting the questions thoroughly might end up with skewed insights and could jeopardise your entire immersion. Please be sure your questions links up with your hypothesis and provide backup questions to support your assumptions.
 
@@ -116,7 +116,7 @@ Bad: “Why do you like this supermarket? Cheap? Convenient?”
 
 Good: “Tell me why you chose this particular supermarket?”
 
-## Pro tip #6 - Break into smaller groups of 2 to 3. Dress comfortably and like a local. Keep your expensive belongings out of sight.
+## Pro Tip #6 - Break into Smaller Groups of 2 to 3. Dress Comfortably and Like a Local. Keep Your Expensive Belongings Out of Sight.
 
 During my recent trip, I visited a lot of places that unknowingly had very tight security. One of the mistakes I made was going as a group of 6 (foreign-looking, and - okay -  maybe a little touristy with our appearances and expensive gadgets).
 
@@ -124,11 +124,11 @@ Out of nowhere, once we started approaching customers for interviews, and snappi
 
 As luck would have it, we eyed a few customers and approached them when they were further away from the original location. Success!
 
-## Pro tip #7 - Find translators with people skills and interview experience.
+## Pro Tip #7 - Find Translators with People Skills and Interview Experience.
 
-Most of my immersion trips are overseas, where English is not the main language. I get annoyed at myself for not being able to interview non-English speaking customers. Having seasoned, outgoingtranslators does help a lot! If you feel awkward standing around waiting for a translated answer, feel free to step away and let the translator interview the customer without feeling pressured. Be sure it’s all recorded for transcription later.
+Most of my immersion trips are overseas, where English is not the main language. I get annoyed at myself for not being able to interview non-English speaking customers. Having seasoned, outgoing translators does help a lot! If you feel awkward standing around waiting for a translated answer, feel free to step away and let the translator interview the customer without feeling pressured. Be sure it’s all recorded for transcription later.
 
-## Insights + Action plan= Strategy
+## Insights + Action Plan = Strategy
 
 **Findings are significant, it's the basis of everything that you do while you are in immersion. But what’s more important is the ability to connect those dots and extract value from them. It’s similar to how we can amass tons of raw data but entirely pointless if nothing is done with it.**
 

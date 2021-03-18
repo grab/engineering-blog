@@ -12,11 +12,11 @@ excerpt: "This blog post describes Grab’s post-mortem findings for the outage 
 ---
 # Introduction
 
-On Feb 15th, 2019, a slave node in Redis, an in-memory data structure storage, failed requiring a replacement. During this period, roughly only 1 in 21 calls to Apollo, a primary transport booking service, succeeded. This brought Grab rides down significantly for the one minute it took the Redis Cluster to self-recover. This behavior was totally unexpected and completely breached our intention of having multiple replicas.
+On Feb 15th, 2019, a slave node in Redis, an in-memory data structure storage, failed requiring a replacement. During this period, roughly only 1 in 21 calls to Apollo, a primary transport booking service, succeeded. This brought Grab rides down significantly for the one minute it took the Redis Cluster to self-recover. This behaviour was totally unexpected and completely breached our intention of having multiple replicas.
 
 This blog post describes Grab’s outage post-mortem findings.
 
-# Understanding the infrastructure
+# Understanding the Infrastructure
 
 With Grab's continuous growth, our services must handle large amounts of data traffic involving high processing power for reading and writing operations. To address this significant growth, reduce handler latency, and improve overall performance, many of our services use _Redis_ - a common in-memory data structure storage - as a cache, database, or message broker. Furthermore, we use a _Redis Cluster_, a distributed implementation of Redis, for shorter latency and higher availability.
 
@@ -46,7 +46,7 @@ Ideally, this Redis Cluster configuration would not cause issues even if a maste
 
 Let’s start by discussing how to construct a local Redis Cluster step by step, then try and replicate the outage. We’ll look at the reasons behind the outage and provide suggestions on how to use a Redis Cluster client in Go.
 
-# How to set up a local Redis Cluster
+# How to Set Up a Local Redis Cluster
 
 1\. Download and install Redis from [here](https://redis.io/download&sa=D&ust=1557136452324000).
 
@@ -146,7 +146,7 @@ S: bc56b2960018032d0707307725766ec81e7d43d9 127.0.0.1:6008
 $PATH/redis-4.0.9/src/redis-cli -c -p 6001 hset driverID 100 state available updated_at 11111
 ```
 
-# What happens when nodes become unreachable?
+# What Happens When Nodes Become Unreachable?
 
 ## Redis Cluster Server
 
@@ -266,7 +266,7 @@ func (w *goRedisWrapperImpl) getResultFromCommands(cmds []goredis.Cmder) ([]gred
 }
 ```
 
-Our next question was, “Why did it take almost one minute for Apollo to recover?”.  The Redis Cluster broadcasts instantly to its other nodes when one node is unreachable. So we looked at how the client assigns jobs.
+Our next question was, “Why did it take almost one minute for Apollo to recover?”. The Redis Cluster broadcasts instantly to its other nodes when one node is unreachable. So we looked at how the client assigns jobs.
 
 When the Redis Cluster client loads the node states, it only refreshes the state once a minute. So there’s a maximum one minute delay of state changes between the client and server. Within that minute, the Redis client kept sending queries to that unreachable slave node.
 
@@ -286,7 +286,7 @@ func (c *clusterStateHolder) Get() (*clusterState, error) {
 
 What happened to the write queries? Did we lose new data during that one min gap? That’s a very good question! The answer is no since all write queries only went to the master nodes and the Redis Cluster client with a watcher for the master nodes. So, whenever any master node becomes unreachable, the client is not oblivious to the change in state and is well aware of the current state. See the [Watcher code](https://github.com/go-redis/redis/blob/9ecae37814bc6623672ec8967e2b322b23fd4540/cluster.go%23L825).
 
-# How to use Go Redis safely?
+# How to Use Go Redis Safely?
 
 ## Redis Cluster Client
 
@@ -336,7 +336,7 @@ type ReplyPair struct {
         Err   error
 }
 ```
-Instead of returning nil or an error message when `err != nil`, we could check for errors for each result so successful queries are not affected. This might have minimized the outage’s business impact.
+Instead of returning nil or an error message when `err != nil`, we could check for errors for each result so successful queries are not affected. This might have minimised the outage’s business impact.
 
 ## Go Redis Cluster Library
 
@@ -344,4 +344,4 @@ One way to fix the Redis Cluster library is to reload nodes’ status when an er
 
 # In Conclusion
 
-We’ve shown how to build a local Redis Cluster server, explained how Redis Clusters work, and identified its potential risks and solutions. Redis Cluster is a great tool to optimize service performance, but there are potential risks when using it. Please carefully consider our points about how to best use it. If you have any questions, please ask them in the comments section.
+We’ve shown how to build a local Redis Cluster server, explained how Redis Clusters work, and identified its potential risks and solutions. Redis Cluster is a great tool to optimise service performance, but there are potential risks when using it. Please carefully consider our points about how to best use it. If you have any questions, please ask them in the comments section.

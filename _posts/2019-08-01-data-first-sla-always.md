@@ -17,7 +17,7 @@ Introducing Trailblazer, the Data Engineering team’s solution to implementing 
 
 ## Context
 
-Our mission as Grab’s Data Engineering team is to fulfill 100% of SLAs for data availability to our downstream users. Our 40 person team is responsible for providing accurate and reliable data to data analysts and data scientists so that they can produce actionable reports that will help Grab’s leadership team make data-driven decisions. We maintain data for a variety of business intelligence tools such as Tableau, Presto and Holistics as well as predictive algorithms for all of Grab.
+Our mission as Grab’s Data Engineering team is to fulfil 100% of SLAs for data availability to our downstream users. Our 40 person team is responsible for providing accurate and reliable data to data analysts and data scientists so that they can produce actionable reports that will help Grab’s leadership team make data-driven decisions. We maintain data for a variety of business intelligence tools such as Tableau, Presto and Holistics as well as predictive algorithms for all of Grab.
 
 We ingest data from multiple upstream sources, such as relational databases, Kafka or third party applications such as Salesforce or Zendesk. The majority of these source data exists in MySQL and we run ETL pipelines to mirror any updates into our data lake. These pipelines are triggered on an hourly or daily basis and are powered by an in-house Loader application which performs Spark batch ingestion and loading of data from source to sink.
 
@@ -35,7 +35,7 @@ When assessing the issue, we discovered that there were hundreds of tables runni
 
 The team urgently needed a new approach to ETL. Our Loader application was highly coupled to upstream table characteristics. We needed to find solutions that were truly scalable, which meant decoupling our pipelines from the upstream.
 
-## Change data capture (CDC)
+## Change Data Capture (CDC)
 
 Much like event sourcing, any log change to the database is captured and streamed out for downstream applications to consume. This process is lightweight since any row level update to the table is instantly captured by a real time processor, avoiding the need for large chunked queries on the table. In addition, CDC works regardless of upstream table definition, so we do not need to worry about missing updated columns impacting our data migration process.
 
@@ -43,7 +43,7 @@ Binary Logs (binlogs) are the CDC agents of MySQL. All updates, insertions or de
 
 In order to persist all binlogs generated upstream, our team created a Spark Structured Streaming application called Trailblazer. Trailblazer streams all MySQL binlogs to our data lake. These binlogs serve as a foundation for us to build Presto tables for data auditing and help to remove the direct dependency of our batch ETL jobs to the source MySQL.
 
-Trailblazer is an amalgamation of various data streaming stacks. Binlogs are captured by Debezium which runs on Kafka connect clusters. All binlogs are sent to our Kafka cluster, which is managed by the Data Engineering Infrastructure team and are streamed out to a real time bucket via a Spark structured streaming application. Hourly or daily ETL compaction jobs ingests the change logs from the real time bucket to materialize tables for downstream users to consume.
+Trailblazer is an amalgamation of various data streaming stacks. Binlogs are captured by Debezium which runs on Kafka connect clusters. All binlogs are sent to our Kafka cluster, which is managed by the Data Engineering Infrastructure team and are streamed out to a real time bucket via a Spark structured streaming application. Hourly or daily ETL compaction jobs ingests the change logs from the real time bucket to materialise tables for downstream users to consume.
 
 <div class="post-image-section">
   <img alt="CDC in action where binlogs are streamed to Kafka via Debezium before being consumed by Trailblazer streaming & compaction services" src="/img/data-first-sla-always/image2.png">
@@ -51,11 +51,11 @@ Trailblazer is an amalgamation of various data streaming stacks. Binlogs are cap
 </div>
 <p>&nbsp;</p>
 
-## Some statistics
+## Some Statistics
 
-To date, we are streaming hundreds oftables across 60 Spark streaming jobs and with the constant increase in Grab’s database instances, the numbers are expected to keep growing.
+To date, we are streaming hundreds of tables across 60 Spark streaming jobs and with the constant increase in Grab’s database instances, the numbers are expected to keep growing.
 
-## Designing Trailblazer streams
+## Designing Trailblazer Streams
 
 We built our streaming application using Spark structured streaming 2.3. Structured streaming was designed to remove the technical aspects of provisioning streams. Developers can focus on perfecting business logic without worrying about fundamentals such as checkpoint management or reading and writing to data sources.
 
@@ -67,7 +67,7 @@ We built our streaming application using Spark structured streaming 2.3. Structu
 
 In the design phase, we made sure to follow several key principles that helped in managing our streams.
 
-### Checkpoints have to be externally managed
+### Checkpoints Have to be Externally Managed
 
 Structured streaming manages checkpoints both in a local directory and in a ‘\_metadata’ directory on S3 buckets, such that the state of the stream can be restored in the event of failure and restart.
 
@@ -91,7 +91,7 @@ Value
 
 Fortunately, structured streaming provides the [StreamQueryListener class](https://jaceklaskowski.gitbooks.io/spark-structured-streaming/spark-sql-streaming-StreamingQueryListener.html) which we can use to register checkpoints after the completion of each microbatch.
 
-### Streams must handle 0, 1 or 1 million data
+### Streams Must Handle 0, 1 or 1 Million Data
 
 Scalability is at the heart of all well-designed applications. Spark streaming jobs are built for scalability in the face of varying data volumes.
 
@@ -101,20 +101,20 @@ Scalability is at the heart of all well-designed applications. Spark streaming j
 </div>
 <p>&nbsp;</p>
 
-There are a few settings that we can configure to influence the degree of scalability for a streaming app
+There are a few settings that we can configure to influence the degree of scalability for a streaming app:
 
 *   _spark.dynamicAllocation.enabled=true_ gives spark autonomy to provision / revoke executors to suit the workload
 *   _[spark.dynamicAllocation.maxExecutors](https://jaceklaskowski.gitbooks.io/mastering-apache-spark/spark-dynamic-allocation.html%23spark.dynamicAllocation.minExecutors)_ controls the maximum job parallelism
 *   _maxOffsetsPerTrigger_ controls the maximum number of messages ingested from Kafka per microbatch
 *   _trigger_ controls the duration between microbatchs and is a property of the DataStreamWriter class
 
-### Data as key health indicator
+### Data as Key Health Indicator
 
-Scaling the number of streaming jobs without prior collection of performance metrics is a bad idea. There is a high chance that you will discover a dead stream when checking your stream hours after initialization. I’ll cite Murphy's law as proof.
+Scaling the number of streaming jobs without prior collection of performance metrics is a bad idea. There is a high chance that you will discover a dead stream when checking your stream hours after initialisation. I’ll cite Murphy's law as proof.
 
 Thus we vigilantly monitored our data streams. We used tools such as Datadog for metric monitoring, Slack for oncall issue reporting, PagerDuty for urgent cases and our inhouse data auditor as a service (DASH) for counts discrepancy reporting between streamed and source data. More details on monitoring will be discussed in the later part.
 
-### Streams are ephemeral
+### Streams are Ephemeral
 
 Streams may die due to a hundred and one reasons so don’t blame yourself or your programming insecurities. Issues with upstream dependencies, such as a node within your Kafka cluster running out of disk space, could lead to partition unavailability which would crash the application. On one occasion, our streaming application was unable to resolve DNS when writing to AWS S3 storage. This amounted to multiple failures within our Spark job that eventually culminated in the termination of the stream.
 
@@ -122,11 +122,11 @@ In this case, allow the stream to  shutdown gracefully, send out your alerts an
 
 If you have had experience with large scale management of streams, please leave a comment so we can continue this discussion!
 
-## Monitoring data streams
+## Monitoring Data Streams
 
 Here are some key features that were set up to monitor our streams.
 
-### Running : Active jobs ratio
+### Running : Active Jobs Ratio
 
 The number of streaming jobs could increase in the future, thus becoming a challenge for the oncall team to track all jobs that are supposed to be up and running.
 
@@ -138,21 +138,21 @@ One proposal  is  to track the number of jobs in production against the number
 </div>
 <p>&nbsp;</p>
 
-### Microbatch runtime
+### Microbatch Runtime
 
 We define a 30 second window for each microbatch and track the actual runtime using metrics reported by the query listener. A runtime that exceeds the designated window is a potential indicator that the streaming job is deprived of resources and needs to be scaled up.
 
-### Job liveliness
+### Job Liveliness
 
 Each job reports its health by emitting a count of 1 heartbeat. This heartbeat is created at the end of every microbatch via a query listener. This process is useful in detecting stale jobs (jobs that are registered as RUNNING in YARN but are actually hung).
 
-### Kafka offset divergence
+### Kafka Offset Divergence
 
 In order to ensure that the message output rate to the consumer exceeds the message input rate from the producer, we sum up all presently ingested topic-partition offsets and compare that value to the sum of all topic-partition end offsets in Kafka. We then add an alerting logic on top of these metrics to inform the oncall team if the difference between the two values grows too big.
 
 It is important to track the offset divergence parameter as streams can be lagging. Should the rate of consumption fall below the rate of message production, we would run the risk of falling short of Kafka’s retention window, leading to data losses.
 
-### Hourly data checks
+### Hourly Data Checks
 
 DASH runs hourly and serves as our first line of defence to detect any data quality issues within the streams. We issue queries to the source database and our streaming layer to confirm that the ID counts of data created within the last hour match.
 
@@ -168,22 +168,22 @@ DASH helps in the early detection of upstream issues. We have noticed cases wher
 </div>
 <p>&nbsp;</p>
 
-## Materializing tables through compaction
+## Materialising Tables Through Compaction
 
 Having CDC data in our data lake does not conclude our responsibilities. Batched compaction allows us to apply all captured CDC, to be available as Presto tables for downstream consumption. The job is set to trigger hourly and process all changes to the database within the past hour.  For example, changes to a record are visible in real-time, but the latest state of the record will not be reflected until the next time a batch job runs. We addressed several issues with streaming during this phase.
 
-### Deduplication of data
+### Deduplication of Data
 
 Trailblazer was not built to deliver exactly once guarantees. We ensure that the issues regarding duplicated CDCs are addressed during compaction.
 
-### Availability of all data until certain hour
+### Availability of All Data Until a Certain Hour
 
 We want to make sure that downstream pipelines use output data of the hourly batch job only when the pipeline has all records for that hour. In case there is an event that is processed late by streaming, the current pipeline will wait until the data is completed. In this case, we are consciously choosing consistency over availability for our downstream users. For example, missing a few insert booking records in peak hours due to consumer processing delay can generate the wrong downstream results leading to miscalculation in revenue. We want to start  downstream processes only when the data for the hour or day is complete.
 
-### Need for latest state of each event
+### Need for the Latest State of Each Event
 
-Our compaction job performs upserts on the data to ensure that our downstream users can consume  records in their latest state.  
+Our compaction job performs upserts on the data to ensure that our downstream users can consume records in their latest state.  
 
-## Future applications
+## Future Applications
 
-Trailblazer is a milestone for the Data Engineering team as it represents our commitment to achieve large scale data streams to reduce latencies for our end users. Moving ahead, our team will be exploring how we can further optimize streaming jobs by analysing data trends over time and to build applications such as snapshot tables on top of the CDCs being streamed in our data lake.
+Trailblazer is a milestone for the Data Engineering team as it represents our commitment to achieve large scale data streams to reduce latencies for our end users. Moving ahead, our team will be exploring how we can further optimise streaming jobs by analysing data trends over time and to build applications such as snapshot tables on top of the CDCs being streamed in our data lake.

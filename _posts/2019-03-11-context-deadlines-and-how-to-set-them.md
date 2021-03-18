@@ -12,7 +12,7 @@ excerpt: "This blog post explains from the ground up a strategy for configuring 
 ---
 
 
-At Grab, our microservice architecture involves a huge amount of network traffic and inevitably, network issues will sometimes occur, causing API calls to fail or take longer than expected. We strive to make such incidents a non-event, by designing with the expectation of such incidents in mind. With the aid of Go’s [context package](https://blog.golang.org/context), we have improved upon basic timeouts by passing timeout information along the request path. However, this introduces extra complexity, and care must be taken to ensure timeouts are configured in a way that is efficient and does not worsen problems. This article explains from the ground up a strategy for configuring timeouts and using context deadlines correctly, drawing from our experience developing microservices in a large scale and often turbulent network environment.
+At Grab, our microservice architecture involves a huge amount of network traffic and inevitably, network issues will sometimes occur, causing API calls to fail or take longer than expected. We strive to make such incidents a non-event by designing with the expectation of such incidents in mind. With the aid of Go’s [context package](https://blog.golang.org/context), we have improved upon basic timeouts by passing timeout information along the request path. However, this introduces extra complexity, and care must be taken to ensure timeouts are configured in a way that is efficient and does not worsen problems. This article explains from the ground up a strategy for configuring timeouts and using context deadlines correctly, drawing from our experience developing microservices in a large scale and often turbulent network environment.
 
 ## Timeouts
 
@@ -29,7 +29,7 @@ Timeouts allow a program to continue where it otherwise might hang, providing a 
 
 While they may sound like a panacea, timeouts must be configured carefully to be effective: too short a timeout will result in increased errors from a resource which could still be working normally, and too long a timeout will risk consuming excess resources and a poor user experience. Furthermore, timeouts have evolved over time with new concepts such as Go's [context](https://golang.org/pkg/context/) package, and the trend towards distributed systems has raised the stakes: timeouts are more important, and can cause more damage if misused!
 
-### Why timeouts are useful
+### Why Timeouts are Useful
 
 In the context of microservices, timeouts are useful as a defensive measure against misbehaving or faulty dependencies. It is a guarantee that no matter how badly the dependency is failing, your call will never take longer than the timeout setting (for example 1 second). With so many other things to worry about, that's a really nice thing to have! So there's an instant benefit to your service's resiliency, even if you do nothing more than set the timeout.
 
@@ -43,7 +43,7 @@ At Grab, our services tend towards using retries wherever possible, to make min
 
 The main advantage of timeouts is that they give your service _time to do something else_, and this should be kept in mind when considering a good timeout value: not only do you want to allow the remote call time to complete (or not), but you need to allow enough time to handle the potential timeout as well.
 
-### Different types of timeouts
+### Different Types of Timeouts
 
 Not all timeouts are the same. There are different types of timeouts with crucial differences in semantics, and you should check the behaviour of the timeout settings in the library or resource you're using before configuring them for production use.
 
@@ -53,7 +53,7 @@ In Go, there are three common classes of timeouts:
 *   **Context timeouts**: Context is discussed [later in this article](#contexttimeout), but for now just note that these timeouts are propagated to the server. Since the server is aware of the timeout, it can avoid wasted effort by abandoning computation after the timeout is reached.
 *   **Asynchronous timeouts**: These occur when a goroutine is executed and abandoned after some time. This does **not** automatically cancel the goroutine (you can't really cancel goroutines without extra handling), so it risks leaking the goroutine and other resources. This approach should be avoided in production unless combined with some other measures to provide cancellation or avoid leaking resources.
 
-### Dangers of poor timeout configuration for microservice calls
+### Dangers of Poor Timeout Configuration for Microservice Calls
 
 The benefits of using timeouts are enticing, but there's no free lunch: relying on timeouts too heavily can lead to disastrous _cascading failure_ scenarios. Worse, the effects of a poor timeout configuration often don't become evident until it's too late: it's peak hour, traffic just reached an all-time high and... all your services froze up at the same time. Not good.
 
@@ -72,7 +72,7 @@ This resource leak can soon be catastrophic, though: since the calls from B to A
 
 The same thing happens if B is healthy but C is experiencing problems: B's calls to C will build up and cause B to become overloaded and fail too. This is a common cause of cascading failure.
 
-### How to set a good timeout
+### How to Set a Good Timeout
 
 Given the importance of correctly configuring timeout values, the question remains as to how to decide upon a 'correct' timeout value. If the timeout is for an API call to another service, a good place to start would be that service's service-level agreements (SLAs). Often SLAs are based on latency _percentiles_, which is a value below which a given percentage of latencies fall. For example, a system might have a 99th percentile (also known as _P99_) latency of 300ms; this would mean that 99% of latencies are below 300ms. A high-order percentile such as P99 or even P99.9 can be used as a ballpark _worst-case_ value.
 
@@ -106,7 +106,7 @@ Chance of timeout after retry = 1% \* 50% = 0.5%
 
 This would still cut off the top 1% of latencies, while optimistically making another attempt for the median latency. This way, even for the 1% of calls that encounter a timeout, our service would still expect to return a successful response within 650ms more than half the time, for an overall success rate of 99.5%.
 
-## Context propagation
+## Context Propagation
 
 Go officially introduced the concept of [context in Go 1.7](https://golang.org/doc/go1.7%23context), as a way of passing request-scoped information across server boundaries. This includes deadlines, cancellation signals and arbitrary values. Let's ignore the last part for now and focus on deadlines and cancellations. Often, when setting a regular timeout on a remote call, the server side is unaware of the timeout. Even if the server is notified indirectly when the client closes the connection, it's still not necessarily clear whether the client timed out or encountered another issue. This can lead to wasted resources, because without knowing the client timed out, the server often carries on regardless. Context aims to solve this problem by propagating the timeout and context information across API boundaries.
 
@@ -127,15 +127,15 @@ The server must still listen for the 'context done' signal and implement cancell
 
 Context can be seen as 'distributed timeouts' - an improvement to the concept of timeouts by propagating them. But while they achieve the same goal, they introduce other issues that must be considered.
 
-### Context propagation and timeout configuration
+### Context Propagation and Timeout Configuration
 
 When propagating timeout information via context, there is no longer a static 'timeout' setting per call. This can complicate debugging: even if the client has correctly configured their own timeout as above, a context timeout could mean that either the remote downstream server is slow, or that an upstream client was slow and there was insufficient time remaining in the propagated context!
 
 Let's revisit the scenario from earlier, and assume that service A has set a context timeout of 1 second. If B is still taking 800ms, then the call to C will time out after 200ms. This changes things completely: although there is no longer the resource leak (because both B and C will terminate the call once the context timeout is exceeded), B will have an increase in errors whereas previously it would not (at least until it became overloaded). This may be worse than completing the request after A has given up, depending on the circumstances. There is also a dangerous interaction with _circuit breakers_ which we will discuss in the next section.
 
-If allowing the request to complete is preferable than cancelling it even in the event of a client timeout, the request should be made with a new context decoupled from the parent (ie. `context.Background()`). This will ensure that the timeout is not propagated to the remote service. When doing this, it is still a good idea to set a timeout, to avoid waiting indefinitely for it to complete.
+If allowing the request to complete is preferable to cancelling it even in the event of a client timeout, the request should be made with a new context decoupled from the parent (ie. `context.Background()`). This will ensure that the timeout is not propagated to the remote service. When doing this, it is still a good idea to set a timeout, to avoid waiting indefinitely for it to complete.
 
-### Context and circuit-breakers
+### Context and Circuit-breakers
 
 A circuit-breaker is a software library or function which monitors calls to external resources with the aim of preventing calls which are likely to fail, 'short-circuiting' them (hence the name). It is a good practice to use a circuit-breaker for all outgoing calls to dependencies, especially potentially unreliable ones. But when combined with context propagation, that raises an important question: should context timeouts or cancellation cause the circuit to open?
 
@@ -171,7 +171,7 @@ Cons:
 
 Note that the above only applies to propagated contexts. If the context only spans a single individual call, then it is equivalent to a static request timeout, and such errors _should_ cause circuits to open.
 
-## <a name="contexttimeout"></a>How to set context deadlines
+## <a name="contexttimeout"></a>How to Set Context Deadlines
 
 Let's recap some of the concepts covered in this article so far:
 
@@ -209,7 +209,7 @@ A possible alternative would be to rely on context cancellation: allow A to set 
 
 A second reason not to set shorter timeouts is that it could lead to unexpected errors on the downstream services. Even if B and C are healthy, a shorter context timeout could lead to errors if A has timed out. Besides the problem of having to handle the cancelled requests, the errors could create noise in the logs, and more importantly could have been avoided. If the downstream services are healthy and responding within their SLA, there is no point in timing out earlier. An exception might be for the edge server (A) to allow for only 1 attempt or fewer retries than the downstream service actually performs. But this is tricky to configure and weakens the resiliency. If it is desirable to shorten the timeouts to decrease latency, it is better to start adjusting the timeouts of the downstream resources first, starting from the innermost service outwards.
 
-## A model implementation for using context timeouts in calls between microservices
+## A Model Implementation for Using Context Timeouts in Calls Between Microservices
 
 We've touched on several useful concepts for improving resiliency in distributed systems: timeouts, context, circuit-breakers and retries. It is desirable to use all of them together in a good resiliency strategy. However, the actual implementation is far from trivial; finding the right order and configuration to use them effectively can seem like searching for the holy grail, and many teams go through a long process of trial and error, continuously improving their implementation. Let's try to formally put together an ideal implementation, step by step.
 

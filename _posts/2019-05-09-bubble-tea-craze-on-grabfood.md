@@ -13,7 +13,7 @@ excerpt: "Bubble Tea’s popularity on GrabFood has captured our attention and w
 
 ## Bigger and More Bubble Tea!
 
-Bubble tea orders on GrabFood has been constantly and dramatically increasing with an impressive regional average growth rate of 3,000% in the year of 2018!  Just look at the percentage increase over the year of 2018, across all countries!
+Bubble tea orders on GrabFood has been constantly and dramatically increasing with an impressive regional average growth rate of 3,000% in the year of 2018! Just look at the percentage increase over the year of 2018, across all countries!
 
 <table class="table">
   <thead>
@@ -68,9 +68,9 @@ If this stat doesn’t stick, here is a map to show you how much bubble tea orde
 
 And here is a little shoutout to our star merchants including Chatime, Coco Fresh Tea & Juice, Macao Imperial Tea, Ochaya, Koi Tea, Cafe Amazon, The Alley, iTEA, Gong Cha, and Serenitea.
 
-## Just how much do you drink?
+## Just How Much do You Drink?
 
-On average, Southeast Asians drink  4 cups of bubble tea per person per month on GrabFood. Thai consumers top the regional average by 2 cups, consuming about six cups of bubble tea per person per month. This is closely followed by Filipino consumers who drink an average of 5 cups per person per month.
+On average, Southeast Asians drink 4 cups of bubble tea per person per month on GrabFood. Thai consumers top the regional average by 2 cups, consuming about six cups of bubble tea per person per month. This is closely followed by Filipino consumers who drink an average of 5 cups per person per month.
 
 <div class="post-image-section">
   <img alt="Average bubble tea consumption by cups per person per month" src="/img/bubble-tea-craze-on-grabfood/image7.png">
@@ -92,7 +92,7 @@ Let’s break it down by the country that GrabFood serves, and see who likes whi
 
 ## Top the Toppings!
 
-Pearl seems to be the unbeatable best topping of most of the countries, except Vietnam whose No. 1 topping turned out to be Cheese Pudding! Top 3 toppings that topped your favorite bubble tea are:
+Pearl seems to be the unbeatable best topping of most of the countries, except Vietnam whose No. 1 topping turned out to be Cheese Pudding! Top 3 toppings that topped your favourite bubble tea are:
 
 <div class="post-image-section">
   <img alt="Top list of toppings" src="/img/bubble-tea-craze-on-grabfood/image5.png">
@@ -100,7 +100,7 @@ Pearl seems to be the unbeatable best topping of most of the countries, except V
 
 ## Best Time for Bubble Tea!
 
-Don’t we all need a cup of sweet Bubble Tea in the afternoon to get us through the day?  Across Southeast Asia, GrabFood’s data reveals that most people order bubble tea to accompany their meals at lunch, or as a  perfect midday energizer!
+Don’t we all need a cup of sweet Bubble Tea in the afternoon to get us through the day?  Across Southeast Asia, GrabFood’s data reveals that most people order bubble tea to accompany their meals at lunch, or as a  perfect midday energiser!
 
 <div class="post-image-section">
   <img alt="Times of the day when most people order bubble tea" src="/img/bubble-tea-craze-on-grabfood/image1.png">
