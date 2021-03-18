@@ -19,11 +19,11 @@ In this first article of a two-part series, we will begin to introduce and compa
 
 In this series we will take a close look at both approaches and their use cases, to help you make an informed decision regarding if and when to apply each method. But let's start by looking at the common reasons for failures. With our services communicating with numerous external resources, failures can be caused by:
 
-*   networking issues
-*   system overload
-*   resource starvation (e.g. out of memory)
-*   bad deployment/configuration
-*   bad request (e.g. lack of authentication credentials, missing request data)
+*   Networking issues
+*   System overload
+*   Resource starvation (e.g. out of memory)
+*   Bad deployment/configuration
+*   Bad request (e.g. lack of authentication credentials, missing request data)
 
 But rather than thinking of all the ways a call to an upstream service could fail, it is often easier to  consider what a successful request is. It should be **timely**, in the **expected format**, and contain the **expected data**. If we go by this definition, then everything else is therefore some kind of failure, whether it's:
 
@@ -32,12 +32,12 @@ But rather than thinking of all the ways a call to an upstream service could fai
 *   a response in the wrong format
 *   a response that does not contain the expected data
 
-In planning for failures, we should strive to be able to handle each of these errors, just as we should try to prevent our service from emitting them. So lets start looking at the different techniques for addressing these errors.
+In planning for failures, we should strive to be able to handle each of these errors, just as we should try to prevent our service from emitting them. So let's start looking at the different techniques for addressing these errors.
 
 (Note: All the examples and tools mentioned in this article are in Go. However, prior knowledge of Go is not required, only advantageous.)
 
 
-## Introducing the circuit breaker
+## Introducing the Circuit Breaker
 
 Has your electricity ever shorted out? Perhaps you switched on a faulty appliance, plunging your entire house into darkness. Darkness may be inconvenient, but it's certainly better than things catching fire or getting electrocuted!
 
@@ -82,9 +82,9 @@ If things are working as they should, we would call the "distance calculator ser
 
 In fallback processing, using an estimated value instead of the real value not the only option, other common options include:
 
-*   retrying the request using a different upstream service
-*   scheduling the request for some later time
-*   loading potentially _out of date_ data from a cache
+*   Retrying the request using a different upstream service
+*   Scheduling the request for some later time
+*   Loading potentially _out of date_ data from a cache
 
 There are, of course, cases where there is no reasonable fallback. But even in these situations, using a circuit breaker is still beneficial.
 
@@ -93,7 +93,7 @@ Consider the cost of making and waiting for a request that eventually fails. The
 All of these costs are avoided when the circuit is open, as the request is not made but instead immediately failed. While returning an error to our users is not ideal, returning the fastest possible error is the _best worst option_.
 
 
-### Should the circuit breaker track all errors?
+### Should the Circuit Breaker Track All Errors?
 
 The short answer is no. We should only track errors that are not caused by the user (i.e. HTTP error codes 400 and 401), but by the network or infrastructure (i.e. HTTP error codes 503 and 500).
 
@@ -272,13 +272,13 @@ However, this approach assumes that our upstream service cannot fail in such a w
 Therefore, even though having one circuit per endpoint results in circuits that are slightly slower to open, it is my recommended approach. It is better to make as many successful requests as possible than inappropriately open the circuit.
 
 
-### One circuit per service
+### One Circuit Per Service
 
 We have talked about upstream services as if they are a single destination, and when dealing with databases or caches, they might be. But when dealing with APIs/services, this will seldom be the case.
 
-But why does this matter? Think back to our earlier discussions regarding how a service can fail. If the machine running our upstream service has a resource issue (out of memory, out of CPU, or disk full), these are issues that are localized to that particular machine. So, if one machine is resource-starved, this does not mean that all of the other machines supporting that service will have the same issue.
+But why does this matter? Think back to our earlier discussions regarding how a service can fail. If the machine running our upstream service has a resource issue (out of memory, out of CPU, or disk full), these are issues that are localised to that particular machine. So, if one machine is resource-starved, this does not mean that all of the other machines supporting that service will have the same issue.
 
-When we have one circuit breaker for all calls to a particular resource or service, we are using the circuit breaker in a "per service" model. Let's look at some examples to examine how this affects the circuit breaker's behavior.
+When we have one circuit breaker for all calls to a particular resource or service, we are using the circuit breaker in a "per service" model. Let's look at some examples to examine how this affects the circuit breaker's behaviour.
 
 Firstly, when we only have 1 destination, as is typically the case for databases:
 
@@ -312,7 +312,7 @@ There are a few things we can derive from this expanded example:
 *   Circuit breakers in a "per service" configuration should only have an open circuit when most (or all) of the destination hosts are unhealthy
 
 
-### One circuit per host
+### One Circuit Per Host
 
 As we have seen above, it is possible for one bad host to impact your circuit, so you might then consider having one circuit for each upstream destination host.
 
@@ -329,12 +329,12 @@ To be able to perform _client-side load balancing_, our service must track the e
 
 With our new configuration, we have incurred some additional complexity, relating to client-side load balancing, and we have also gone from 1 circuit to 6. These additional 5 circuits also incur some amount of resource (i.e. memory) cost. In this example, it might not seem like a lot, but as we adopt additional upstream services and the numbers of these upstream hosts grow, the cost does multiply.
 
-The last thing we should consider is how this configuration will influence our ability to fulfill requests. When the host first _goes bad_, our request error rate will be the same as before: 1 bad host / 6 total hosts = 16.66% error rate
+The last thing we should consider is how this configuration will influence our ability to fulfil requests. When the host first _goes bad_, our request error rate will be the same as before: 1 bad host / 6 total hosts = 16.66% error rate
 
 However, after sufficient errors have occurred to open the circuit to our bad host, then we will be able to avoid making requests to that host, and we would resume having a 0% error rate.
 
 
-### Final thoughts on per service vs per host
+### Final Thoughts on Per Service vs Per Host
 
 Based on the discussion above, you may want to rush off and convert all of your circuits to per host. However, the additional complexity of doing so should not be underestimated.
 
@@ -345,7 +345,7 @@ It is possible to use both per service and per host at the same time (although I
 My advice is to consider how and why your upstream service could fail and then use the simplest possible configuration for your situation.
 
 
-## Up next, Retries...
+## Up Next, Retries...
 
 So we've taken a look at the first common mechanism used in designing for reliability, which is _Circuit Breakers_. I hope you have enjoyed this post and found it useful. Comments, corrections, and even considered disagreements are always welcome.
 

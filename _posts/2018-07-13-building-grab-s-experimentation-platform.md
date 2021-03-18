@@ -13,11 +13,11 @@ excerpt: "At Grab, we continuously strive to improve the user experience of our 
 
 # ExP Overview
 
-At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver partners. 
+At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver partners.
 
 To do that, we’re constantly experimenting, and in fact, many of the improvements we roll out  to the Grab app are a direct result of successful experiments.
 
-However, running many experiments at the same time can be a messy, complicated and expensive process. That is why we created the Grab  experimentation platform (ExP), to provide clean and simple ways to identify opportunities, create prototypes, perform experiments, refine, and launch products. Before rolling out new Grab features, ExP enables us to run controlled experiments to test the effectiveness of the new feature. The goal of ExP is to make sure  that new features roll out without any hiccups and causal relationships are analysed correctly. 
+However, running many experiments at the same time can be a messy, complicated and expensive process. That is why we created the Grab  experimentation platform (ExP), to provide clean and simple ways to identify opportunities, create prototypes, perform experiments, refine, and launch products. Before rolling out new Grab features, ExP enables us to run controlled experiments to test the effectiveness of the new feature. The goal of ExP is to make sure  that new features roll out without any hiccups and causal relationships are analysed correctly.
 
 Experimentation helps development teams determine if they’re building the right product. It allows the team to scrap an idea early on if it doesn’t make a positive impact. This avoids wastage of precious resources. By adopting experimentation, teams eliminate uncertainty and guesswork from their product  development process; thus avoiding long development cycles. By introducing a new version of our app to only a select group of customers, teams can quickly assess if their new updates are improvements or regressions. This allows for better recovery and damage control if necessary.
 
@@ -28,7 +28,7 @@ Experimentation helps development teams determine if they’re building the righ
 
 # Why We Built ExP
 
-In the early days experiments were performed on a small scale that allowed users to define metrics, and then compute and surface those metrics for a small set of experiments. The process around experimentation was rather painful. When product managers wanted to run an experiment, they set up a meeting with product analysts, data scientists, and engineers. Experiments were designed, custom logging pipelines were built and services were modified to support each new experiment. It was an expensive and time-consuming process.
+In the early days, experiments were performed on a small scale that allowed users to define metrics, and then compute and surface those metrics for a small set of experiments. The process around experimentation was rather painful. When product managers wanted to run an experiment, they set up a meeting with product analysts, data scientists, and engineers. Experiments were designed, custom logging pipelines were built and services were modified to support each new experiment. It was an expensive and time-consuming process.
 
 To overcome these challenges, we wanted to build a platform with the following goals in mind:
 
@@ -42,13 +42,13 @@ To overcome these challenges, we wanted to build a platform with the following g
 
 * Enable a fully **automated data pipeline** where experimental data is streamed out in real-time, then tagged and stored in S3
 
-* Create platform for plugging in custom analysis modules 
+* Create platform for plugging in custom analysis modules
 
-* **Create Event Triggers/Alerts** set up on important business metrics to identify adverse effects of a change 
+* **Create Event Triggers/Alerts** set up on important business metrics to identify adverse effects of a change
 
-* **Design single centralized online UI** for creating and managing the experiments, which is constantly being improved - long term vision is to allow anyone in the organization to create and run experiments
+* **Design single centralised online UI** for creating and managing the experiments, which is constantly being improved - long term vision is to allow anyone in the organization to create and run experiments
 
-Since implementing ExP, we have seen the number of experiments grow from just a handful to about 25 running concurrently. More impressively, the number of metrics computed per day has grown exponentially to ~2500 distinct metrics per day and roughly 50,000 distinct experiment/metric combinations. 
+Since implementing ExP, we have seen the number of experiments grow from just a handful to about 25 running concurrently. More impressively, the number of metrics computed per day has grown exponentially to ~2500 distinct metrics per day and roughly 50,000 distinct experiment/metric combinations.
 
 With this scale comes some issues we needed to address. Here is the architectural approach we have taken to address them:
 
@@ -78,7 +78,7 @@ Grab’s ExP allows internal users (engineers, product managers, analysts, and o
 
 Our rollout process consists of deploying a feature first to a small portion of users and then gradually ramping up in stages to larger groups. Eventually, we reach 100 percent of all users that fall under a target specification (for instance, geographic location, which can be as small as a district of a city.
 
-The goal of a feature rollout is to make the deployment of new features as stable and reliable as possible by controlling user exposure in the early stages and monitoring the impact of the feature on key business metrics at each stage. 
+The goal of a feature rollout is to make the deployment of new features as stable and reliable as possible by controlling user exposure in the early stages and monitoring the impact of the feature on key business metrics at each stage.
 
 **Groups**
 
@@ -90,7 +90,7 @@ At Grab, we have formalised an "experiment definition" which is essentially a ti
 
 It is important to highlight that having a formal experiment definition actually brings several benefits to the table:
 
-1. Machines can understand it and can automatically and autonomously execute experiments, even in distributed systems. 
+1. Machines can understand it and can automatically and autonomously execute experiments, even in distributed systems.
 
 2. Communication between teams (engineering, product and data science) is simplified as formal documents to ensure everyone is on the same page.
 
@@ -98,7 +98,7 @@ It is important to highlight that having a formal experiment definition actually
 
 With a formalised experiment definition, we then provide Android, iOS and Golang SDKs which consume experiment definitions and apply experiments.
 
-![Structured Experimental Design](/img/building-grab-s-experimentation-platform/image_3.png) 
+![Structured Experimental Design](/img/building-grab-s-experimentation-platform/image_3.png)
 
 Experiment definitions allow our SDKs to intelligently apply experiments without actually doing any costly network calls. Experiments get delivered to the SDKs through our configuration management platform, which supports dynamic reconfiguration.
 
@@ -110,15 +110,15 @@ Overall, we support two major and frequently used strategies:
 
 * Time-sliced experiments where control and treatment(s) are split by time (for example, 10 minutes control, then 10 minutes for treatment).
 
-# Example Experiment
+# Sample Experiment
 
-Since its rollout, the ExP and its staged rollout framework has proven indispensable to many feature deployments at Grab. 
+Since its rollout, ExP and its staged rollout framework have proven to be indispensable to many Grab feature deployments.
 
-Take the GrabChat feature for example. Booking cancellations were a key problem and the team believed that with the right interventions in place, some cancellations could be prevented. 
+Take the GrabChat feature, for example. Booking cancellations were a key problem and the team believed that with the right interventions in place, some cancellations could be prevented.
 
 One of the ideas we had was to use GrabChat to establish a conversation between the driver and the passenger by sending automated messages. This transforms the service from a mere transaction to something more human and personal. By adding this human touch to the service, it reduced perceived waiting time, making passengers and driver partners more patient and accepting of any unavoidable delays that might arise.
 
-When we deployed this new feature for app users in a specific geographic area, we noticed a drop in their cancellations. To validate this, we conducted a series of iterative experiments using ExP. Check out this blog to find out more: https://engineering.grab.com/experiment-chat-booking-cancellations
+When we deployed this new feature for app users in a specific geographic area, we noticed a drop in cancellations. To validate this, we conducted a series of iterative experiments using ExP. Check out this blog to find out more: https://engineering.grab.com/experiment-chat-booking-cancellations
 
 Lastly, we used the platform to perform a staged rollout of this functionality to different users in different countries across South East Asia.
 

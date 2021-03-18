@@ -17,7 +17,7 @@ A couple of weeks ago, we had a production outage for one of our internal Ruby o
 
 [ActiveRecord](http://guides.rubyonrails.org/active_record_basics.html) is the canonical ORM for Rails to access a database. Different requests are handled on different threads, so a connection pool is necessary to maintain a limited set of connections to the database and also to skip the additional latency of establishing a TCP connection.
 
-> A connection pool synchronizes thread access to a limited number of database connections. The basic idea is that each thread checks out a database connection from the pool, uses that connection, and checks the connection back in.
+> A connection pool synchronises thread access to a limited number of database connections. The basic idea is that each thread checks out a database connection from the pool, uses that connection, and checks the connection back in.
 
 > It will also handle cases in which there are more threads than connections: if all connections have been checked out, and a thread tries to checkout a connection anyway, then ConnectionPool will wait until some other thread has checked in a connection.
 
@@ -62,7 +62,7 @@ This is loosely translated from the [source code](https://github.com/rails/rails
 
 Let’s try to replicate the problem in a small Rails application. We will create a new Rails application, connect it to a database, run it in a Docker container and finally run some experiments to replicate the problem. In production, we use [Puma](https://github.com/puma/puma) to run our Rails server and connect to a few MySQL databases managed by [Amazon Relational Database Service (RDS)](https://aws.amazon.com/rds/), so we will try to follow that on our local setup.
 
-### Step 1: Create a new Rails Application
+### Step 1: Create a New Rails Application
 
 First, we will scaffold a fresh Rails application and connect it to two databases that we will call as `db_main` and `db_other`:
 
@@ -96,7 +96,7 @@ GET /drivers/1
 GET /passengers/1
 ~~~
 
-Now we will run our Rails server with the following environment variables
+Now, we will run our Rails server with the following environment variables:
 
 ~~~ bash
 export RAILS_ENV=production
@@ -200,9 +200,9 @@ Let’s perform some experiments to better understand how `connect_timeout` and 
 + read_timeout: 5
 ~~~
 
-In the following section we will perform two experiments.
+In the following section, we will perform two experiments.
 
-#### Experiment 1: Application has no Existing Connections before Database Failure
+#### Experiment 1: Application has No Existing Connections before Database Failure
 
 1. Stop data transmission to `db_other`
 1. Start Rails
@@ -217,7 +217,7 @@ We first block data to `db_other` , so that on the first ActiveRecord call to re
 1. Stop data transmission to `db_other`
 1. `GET /passengers`
 
-We've started Rails and make a call to `GET /passengers`. A connection to the database is established to retrieve the data, and checked back into the pool as an available connection after the request.
+We've started Rails and made a call to `GET /passengers`. A connection to the database is established to retrieve the data, and checked back into the pool as an available connection after the request.
 
 Now, when the proxy stops sending data to `db_other`, ActiveRecord does not know that the database is unavailable and believes that the previously checked in connection is available for use with the second `GET /passengers`.
 
@@ -236,7 +236,7 @@ State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
 ESTAB  0       0       172.18.0.4:54304    172.18.0.3:3306   users:(("ruby",pid=11683,fd=13))
 ~~~
 
-Now we stop the database, and make another call to `GET /passengers`. We run `ss` when the request is in flight, and observe another TCP connection for the request to the port Rails listens on, port `3000`.
+Now, we stop the database and make another call to `GET /passengers`. We run `ss` when the request is in flight, and observe another TCP connection for the request to the port Rails listens on, port `3000`.
 
 ~~~ bash
 $ ss -tnp

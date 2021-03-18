@@ -17,27 +17,27 @@ As we evolved from a single monolithic application to a microservices-based arch
 
 Here is what we came up with.
 
-## A framework to solve it all
+## A Framework to Solve it All
 
 Our Grab Developer Experience team came up with the following solution: Grab-Kit - a framework for building Go microservices. Grab-Kit is designed to create a fully functional microservice scaffolding in seconds, allowing engineers to focus on the business logic straight away!
 
-Grab-Kit provides abstraction from all aspects of distributed system design by simplifying the creation and operation of microservices through scaffolding, using smart library configuration defaults, automatic initialization, context propagation, and runtime framework configuration. Moreover, it provides standardization of communication across services.
+Grab-Kit provides abstraction from all aspects of distributed system design by simplifying the creation and operation of microservices through scaffolding, using smart library configuration defaults, automatic initialisation, context propagation, and runtime framework configuration. Moreover, it standardises communication across services.
 
 ![Grab-kit create command](/img/introducing-grab-kit/grab-kit_create.png)
 
-We no longer need to spend long hours generating boilerplate code, initializing common libraries, creating dashboards and alarms, or creating Data Access Objects (DAOs). Instead, we can concentrate on delivering scalable and agile services that are essential for the success of our engineers and in turn delight our customers.
+We no longer need to spend long hours generating boilerplate code, initialising common libraries, creating dashboards and alarms, or creating Data Access Objects (DAOs). Instead, we can concentrate on delivering scalable and agile services that are essential for the success of our engineers and in turn delight our customers.
 
-## The heart of Grab-Kit
+## The Heart of Grab-Kit
 
 The inspiration behind the Grab-Kit framework is [Go-Kit](https://gokit.io/). However, Grab-Kit goes beyond the ideas proposed by Go-Kit, for example, our Grab-Kit has added automatic code generation, which saves efforts required in writing boilerplate code for both server and client service sides. While Go-Kit proposes techniques for microservices, there is still a lot of manual work involved in implementing them. In contrast, Grab-Kit actually helps us focus on the business logic by doing this work for us while codifying all best engineering practices around distributed service design.
 
 Continue reading to see what we love most about Grab-Kit.
 
-### Standardization
+### Standardisation
 
 The underlying intention of Grab-Kit is to gain consistency across services in the following components:
 
-#### Service definitions
+#### Service Definitions
 
 **Problems**
 
@@ -53,7 +53,7 @@ Grab-Kit automatically generates a ``.proto`` file when we run `Grab-Kit create 
 
 ![Protobuf File](/img/introducing-grab-kit/proto_file.png)
 
-#### Middleware stack
+#### Middleware Stack
 
 **Problems**
 
@@ -74,7 +74,7 @@ Grab-Kit wraps endpoints with a standard middleware for logging and stats. It al
 
 In addition, the consistent middleware stack automatically starts the CPU profile and trace for each endpoint on developer mode.
 
-#### Automated dashboard generation
+#### Automated Dashboard Generation
 
 **Problems**
 
@@ -96,18 +96,18 @@ Following is an example workflow for creating dashboards and updating existing o
 
 ![Automated Dashboard Generation Flow](/img/introducing-grab-kit/dashboard_flow.png)
 
-We’ve gone with the modular approach because not all libraries -are relevant to a particular service. This means that Grab-Kit can selectively publish graphs from just the libraries used by the service. For example, if service X doesn’t use elasticsearch, then it doesn’t need the elasticsearch metrics.
+We’ve gone with the modular approach because not all libraries -are relevant to a particular service. This means that Grab-Kit can selectively publish graphs from just the libraries used by the service. For example, if service X doesn’t use Elasticsearch, then it doesn’t need the Elasticsearch metrics.
 
 There is a group of ‘core’ metrics included by default, and additional ones can be selected by the service owner.
 
 ## Final thoughts
 
-With Grab-Kit’s out-of-the-box support for microservice features such as authentication and authorization, throttling, client-side load balancing, logging, metering, and so on, we’ve seen a huge increase in our productivity. Our friends in the GrabFood team now save up to 70% development time on creating a new service. We have also recorded improvements in stability and availability of our services.
+With Grab-Kit’s out-of-the-box support for microservice features such as authentication and authorisation, throttling, client-side load balancing, logging, metering, and so on, we’ve seen a huge increase in our productivity. Our friends in the GrabFood team now save up to 70% development time on creating a new service. We have also recorded improvements in stability and availability of our services.
 
 More and more teams have adopted Grab-Kit since the Grab Developer Experience team released it in November 2017. We see a marginal growth in adoption every month as illustrated in the following chart:
 
 ![Grab-kit Adoption](/img/introducing-grab-kit/adoption_chart.png)
 
-At Grab, we are on a never-ending journey to deliver robust services that meet our customers’ requirements. We  continue to standardize and streamline our engineering best practices around distributed service design through Grab-Kit. The future is in Grab-Kit!
+At Grab, we are on a never-ending journey to deliver robust services that meet our customers’ requirements. We continue to standardise and streamline our engineering best practices around distributed service design through Grab-Kit. The future is in Grab-Kit!
 
 Should you have any questions or require more details about Grab-Kit, please don’t hesitate to leave a comment.
