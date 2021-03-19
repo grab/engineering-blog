@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-10-13-optimally-scaling-kafka-consumer-applications
-title: Optimally scaling Kafka consumer applications
+title: Optimally Scaling Kafka Consumer Applications
 date: 2020-10-13 02:13:54
 authors: [shubham-badkur]
 categories: [Engineering]
@@ -11,7 +11,7 @@ cover_photo: /img/optimally-scaling-kafka-consumer-applications/cover.png
 excerpt: "Read this deep dive on our Kubernetes infrastructure setup for Grab's stream processing framework."
 ---
 
-Earlier this year, we took you on a journey on how we built and deployed our event sourcing and stream processing framework at Grab. We're happy to share that we're able to reliably maintain our uptime and continue to service close to 400 billion events a week. We haven't stopped there though. To ensure that we can scale our framework as the Grab business continuously grows, we have spent efforts optimizing our infrastructure.
+Earlier this year, we took you on a journey on how we built and deployed our event sourcing and stream processing framework at Grab. We're happy to share that we're able to reliably maintain our uptime and continue to service close to 400 billion events a week. We haven't stopped there though. To ensure that we can scale our framework as the Grab business continuously grows, we have spent efforts optimising our infrastructure.
 
 In this article, we will dive deeper into our Kubernetes infrastructure setup for our [stream processing framework](https://engineering.grab.com/plumbing-at-scale). We will cover why and how we focus on optimal scalability and availability of our infrastructure.
 
@@ -23,7 +23,7 @@ In this article, we will dive deeper into our Kubernetes infrastructure setup fo
     </figure>
 </div>
 
-The Coban platform provides lightweight [Golang plugin](https://medium.com/learning-the-go-programming-language/writing-modular-go-programs-with-plugins-ec46381ee1a9) architecture-based data processing pipelines running in Kubernetes. These are essentially Kafka consumer pods that consume data, process it, and then materialize the results into various sinks (RDMS, other Kafka topics).
+The Coban platform provides lightweight [Golang plugin](https://medium.com/learning-the-go-programming-language/writing-modular-go-programs-with-plugins-ec46381ee1a9) architecture-based data processing pipelines running in Kubernetes. These are essentially Kafka consumer pods that consume data, process it, and then materialise the results into various sinks (RDMS, other Kafka topics).
 
 ## Anatomy of a Processing Pod
 
@@ -66,7 +66,7 @@ We saw a _~45%_ reduction in our total resource usage vs resource requested afte
 
 ### Managing Availability
 
-We broadly classify our workloads as latency sensitive (critical) and latency tolerant (non-critical). As a result, we could optimize scheduling and cost efficiency using [priority classes](https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption) and [overprovisioning](https://github.com/kubernetes-sigs/cluster-proportional-autoscaler) on heterogeneous node types on AWS.
+We broadly classify our workloads as latency sensitive (critical) and latency tolerant (non-critical). As a result, we could optimise scheduling and cost efficiency using [priority classes](https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption) and [overprovisioning](https://github.com/kubernetes-sigs/cluster-proportional-autoscaler) on heterogeneous node types on AWS.
 
 ## Kubernetes Priority Classes
 
@@ -94,7 +94,7 @@ Evolution is an ongoing process. In the next few months, we plan to work on cust
 
 ---
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

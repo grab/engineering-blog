@@ -25,7 +25,7 @@ As custodians and builders of the streaming platform at Grab operating at massiv
 Streaming systems are often at the heart of event-driven architectures, and what starts as a need for a simple message bus for asynchronous processing of events quickly evolves into one that requires a more sophisticated stream processing paradigms.
 Earlier this year, we saw common patterns of event processing emerge across our Go backend ecosystem, including:
 - Filtering and mapping stream events of one type to another
-- Aggregating events into time windows and materializing them back to the event log or to various types of transactional and analytics databases
+- Aggregating events into time windows and materialising them back to the event log or to various types of transactional and analytics databases
 
 Generally, a class of problems surfaced which could be elegantly solved through an event sourcing[^1] platform with a stream processing framework built over it, similar to the Keystone platform at Netflix[^2].
 
@@ -47,7 +47,7 @@ Event sourcing is an architectural pattern where changes to an application state
 Event sourcing is a building block on which architectural patterns such as Command Query Responsibility Segregation[^3], serverless systems, and stream processing pipelines are built.
 
 ## The Case For Stream Processing
-Below are some use cases serviced by stream processing, built on event sourcing.
+Here are some use cases serviced by stream processing, built on event sourcing.
 
 #### Asynchronous State Management
 A pub-sub system allows for change events from one service to be fanned out to multiple interested subscribers without letting any one subscriber block the progress of others. Abstracting the event log and centralising it democratises access to this log to all back-end services. It enables the back-end services to apply changes from this centralised log to their own state, independent of downstream services, and/or publish their state changes to it.
@@ -73,8 +73,8 @@ Stream/Event Processing pipelines need to be elastic and responsive to changes i
 #### NoOps
 For a platform team, it’s important that users can easily onboard and manage their pipeline lifecycles, at their preferred cadence. To scale effectively, the process of scaffolding, configuring, and deploying pipelines needs to be standardised, and infrastructure managed. Both the platform and users are able to leverage common standards of telemetry, configuration, and deployment strategies, and users benefit from a lack of infrastructure management overhead.
 
-#### Multi-Tenancy
-Our platform has quickly scaled to support hundreds of pipelines. Workload isolation, independent processing uptime guarantees, and resource allocation and cost audit are important requirements necessitating multi-tenancy, which help amortize platform overhead costs.
+#### Multi-tenancy
+Our platform has quickly scaled to support hundreds of pipelines. Workload isolation, independent processing uptime guarantees, and resource allocation and cost audit are important requirements necessitating multi-tenancy, which help amortise platform overhead costs.
 
 #### Resiliency
 Whether latency sensitive or latency tolerant, all workloads have certain expectations on processing uptime. From a user’s perspective, there must be guarantees on pipeline uptimes and data completeness, upper bounds on processing delays, instrumentation for alerting, and self-healing properties of the platform for remediation.
@@ -104,7 +104,7 @@ Some capabilities built into the framework include:
 - **Rewind:** The ability to rewind the processing logic by a few hours through configuration.
 - **Replay:** The ability to replay archived data into the same or a separate pipeline via configuration.
 - **Sinks:** A number of connectors to standard Grab stores are provided, with concerns of auth, telemetry, etc. managed in the runtime.
-- **Error Handling:** Providing an easy way to indicate whether to wait, skip, and/or retry in case of upstream failures is an important tuning parameter that users need for making sensible tradeoffs in dimensions of backpressure, latency, correctness, etc.
+- **Error Handling:** Providing an easy way to indicate whether to wait, skip, and/or retry in case of upstream failures is an important tuning parameter that users need for making sensible tradeoffs in dimensions of back pressure, latency, correctness, etc.
 
 ## Architecture
 <div class="post-image-section">
@@ -131,7 +131,7 @@ Each stream processing pod (the smallest unit of a pipeline’s deployment) has 
 
 
 - **Triggers:** An interface that connects directly to the source of the data and converts it into an event channel.
-- **Runtime:** This is the app’s entrypoint and the orchestrator of the pod. It manages the worker pools, triggers, event channels, and lifecycle events.
+- **Runtime:** This is the app’s entry point and the orchestrator of the pod. It manages the worker pools, triggers, event channels, and lifecycle events.
 - **The Pipeline plugin:** The plugin is provided by the user, and conforms to a contract that the platform team publishes. It contains the domain logic for the pipeline and houses the pipeline orchestration defined by a user based on our Stream Processing Framework.
 
 ### Deployment Infrastructure
@@ -171,7 +171,7 @@ Zezhou Yu, Ryan Ooi, Hui Yang, Yuguang Xiao, Ling Zhang, Roy Kim, Matt Hino, Jum
 
 ---
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

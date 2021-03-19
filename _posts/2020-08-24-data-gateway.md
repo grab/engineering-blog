@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-08-24-data-gateway
-title: Securing and managing multi-cloud Presto Clusters with Grab’s DataGateway
+title: Securing and Managing Multi-cloud Presto Clusters with Grab’s DataGateway
 date: 2020-08-24 08:12:56
 authors: [vinnson-lee]
 categories: [Engineering, Data Science]
@@ -19,9 +19,9 @@ Grab’s Data Engineering (DE) team is responsible for maintaining the data plat
 
 In 2016, we started the DataGateway project to enable us to manage data access for the hundreds of Grabbers who needed access to [Presto](https://aws.amazon.com/big-data/what-is-presto/) for their work. Since then, DataGateway has grown to become much more than just an access control mechanism for Presto. In this blog, we want to share what we’ve achieved since the initial launch of the project.
 
-## The problems we wanted to solve
+## The Problems We Wanted to Solve
 
-As we were reviewing the key challenges around data access in Grab and assessing possible solutions, we came up with this prioritized list of user requirements we wanted to work on:
+As we were reviewing the key challenges around data access in Grab and assessing possible solutions, we came up with this prioritised list of user requirements we wanted to work on:
 
 *   Use a single endpoint to serve everyone.
 *   Manage user access to clusters, schemas, tables, and fields.
@@ -35,7 +35,7 @@ DataGateway is a service that sits between clients and Presto clusters. It is es
 1.  Parse incoming SQL statements to get requested schemas, tables, and fields.
 2.  Manage user Access Control List (ACL) to limit users' data access by checking against the SQL parsing results.
 3.  Manage users' cluster access.
-4.  Redirect users' traffic to the authorized clusters.
+4.  Redirect users' traffic to the authorised clusters.
 5.  Show meaningful error messages to users whenever the query is rejected or exceptions from clusters are encountered.
 
 ## Anatomy of DataGateway
@@ -58,15 +58,15 @@ We leveraged Kubernetes to run all these components as microservices.
 
 ### API Service
 
-This is the component that manages all users and cluster-facing processes. We integrated this service with the Presto API, which means it appears to be the same as a Presto cluster to a client. It accepts query requests from clients, gets the parsing result and runs authorization from the SQL Parser and the Auth Framework.
+This is the component that manages all users and cluster-facing processes. We integrated this service with the Presto API, which means it appears to be the same as a Presto cluster to a client. It accepts query requests from clients, gets the parsing result and runs authorisation from the SQL Parser and the Auth Framework.
 
 If everything is good to go, the API Service forwards queries to the assigned clusters and continues the entire query process.
 
 ### Auth Framework
 
-This handles both authentication and authorization requests. It stores the ACL of users and communicates with the API Service and the SQL Parser to run the entire authentication process. But why is it a microservice instead of a module in API Service, you ask? It's because we keep evolving the security checks at Grab to ensure that everything is compliant with our security requirements, especially when dealing with data.
+This handles both authentication and authorisation requests. It stores the ACL of users and communicates with the API Service and the SQL Parser to run the entire authentication process. But why is it a microservice instead of a module in API Service, you ask? It's because we keep evolving the security checks at Grab to ensure that everything is compliant with our security requirements, especially when dealing with data.
 
-We wanted to make it flexible to fulfill ad-hoc requests from the security team without affecting the API Service. Furthermore, there are different authentication methods out there that we might need to deal with (OAuth2, SSO, you name it). The API Service supports multiple authentication frameworks that enable different authentication methods for different users.
+We wanted to make it flexible to fulfil ad-hoc requests from the security team without affecting the API Service. Furthermore, there are different authentication methods out there that we might need to deal with (OAuth2, SSO, you name it). The API Service supports multiple authentication frameworks that enable different authentication methods for different users.
 
 ### SQL Parser
 
@@ -76,7 +76,7 @@ This is a SQL parsing engine to get schema, tables, and fields by reading SQL st
 
 This is a UI for Presto administrators to manage clusters and user access, as well as to select an authentication framework, making it easier for the administrators to deal with the entire ecosystem.
 
-## How we deployed DataGateway using Kubernetes
+## How We Deployed DataGateway Using Kubernetes
 
 In the past couple of years, we’ve had significant growth in workloads from analysts and data scientists. As we were very enthusiastic about Kubernetes, DataGateway was chosen as one of the earliest services for deployment in Kubernetes. DataGateway in Kubernetes is known to be highly available and fully scalable to handle traffic from users and systems.
 
@@ -93,7 +93,7 @@ We also tested the [HPA feature of Kubernetes](https://kubernetes.io/docs/tasks/
 
 This section highlights some of the ways we use DataGateway to manage our Presto ecosystem efficiently.
 
-### Restrict users based on Schema/Table level access
+### Restrict Users Based on Schema/Table Level Access
 
 In a setup where a Presto cluster is deployed on [AWS Amazon Elastic MapReduce (EMR)](https://aws.amazon.com/emr) or [Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks), we configure an [IAM](https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html) role and attach it to the EMR or EKS nodes. The IAM role is set to limit the access to S3 storage. However, the IAM only provides bucket-level and file-level control; it doesn't meet our requirements to have schema, table, and column-level ACLs. That’s how DataGateway is found useful in such scenarios.
 
@@ -111,7 +111,7 @@ As shown in the Figure 3, user A is trying run a SQL statement `select * from lo
 
 The above flow shows an access denied result because the user doesn’t have the appropriate permissions.
 
-### Seamless User Experience during the EMR migration
+### Seamless User Experience During the EMR Migration
 
 We use AWS EMR to deploy Presto as an SQL query engine since deployment is really easy. However, without DataGateway, any EMR operations such as terminations, new cluster deployment, config changes, and version upgrades, would require quite a bit of user involvement. We would sometimes need users to make changes on their side. For example, request users to change the endpoints to connect to suitable clusters.
 
@@ -130,7 +130,7 @@ We executed the migration of our entire Presto platform from an AWS EMR instance
 
 In most cases, users didn’t have to make any changes on their end, they just continued using Presto as usual while we made the changes in the background.
 
-### Multi-Cloud Data Lake/Presto Cluster maintenance
+### Multi-cloud Data Lake/Presto Cluster Maintenance
 
 Recently, we started to build and maintain data lakes not just in one cloud, but two - in AWS and Azure. Since most end-users are AWS-based, and each team has their own AWS sub-account to run their services and workloads, it would be a nightmare to bridge all the connections and access routes between these two clouds from end-to-end, sub-account by sub-account.
 
@@ -179,7 +179,7 @@ Looking forward, we’ve more and more ideas for our Presto ecosystem, such Spar
 
 ---
 
-## Join us
+## Join Us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.

@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2021-02-23-one-small-step-closer-to-containerising-service-binaries
-title: One small step closer to containerising service binaries
+title: One Small Step Closer to Containerising Service Binaries
 date: 2021-02-23 00:12:23
 authors: [stan-halka, samuel-thomas]
 categories: [Engineering]
@@ -29,7 +29,7 @@ __Deployment challenges__
 
 Grab’s appetite for customer obsession and quality drives the engineering teams to innovate and deliver value rapidly. The time that the team spends in fixing build issues or deployment-related tasks has a direct impact on the time they spend on delivering business value.
 
-## Introduction to containerisation
+## Introduction to Containerisation
 
 Using the Container architecture helps the team deploy and run multiple applications, isolated from each other, on the same virtual machine or server and with much less overhead.
 
@@ -45,9 +45,9 @@ The core engineering teams wanted to adopt container workloads to achieve the fo
 *   Allow reuse of common Grab tools in different projects by running the zero dependency version of the tools on demand whenever needed.
 *   Allow a more flexible staging/dev/shadow deployment of new features.
 
-## Adoption of containerisation
+## Adoption of Containerisation
 
-Engineering teams at Grab use the containerisation model to build and deploy services at scale. Our containerisation effort helps the development teams move faster by:
+Engineering teams at Grab use the containerisation model to build and deploy services at scale. Our containerisation efforts help the development teams move faster by:
 
 *   Providing a consistent environment across development, testing and production
 *   Deploying software efficiently
@@ -63,7 +63,7 @@ When we started using containers we realised that building smaller containers ha
 
 During the course of containerising our applications, we noted that some service binaries appeared to be bigger (_~110 MB_) than they should be. For a statically-linked Golang binary, that’s pretty big! So how do we figure out what’s bloating the size of our binary?
 
-## Go binary size visualisation tool
+## Go Binary Size Visualisation Tool
 
 In the course of poking around for tools that would help us analyse the symbols in a Golang binary, we found [go-binsize-viz](https://github.com/knz/go-binsize-viz) based on [this article](https://www.cockroachlabs.com/blog/go-file-size/). We particularly liked this tool, because it utilises the existing Golang toolchain (specifically, [Go tool nm](https://golang.org/cmd/nm/)) to analyse imports, and provides a straightforward mechanism for traversing through the symbols present via treemap. We will briefly outline the steps that we did to analyse a Golang binary here.
 
@@ -143,7 +143,7 @@ In the course of poking around for tools that would help us analyse the symbols 
 
     Every message format for any service that reads from, or writes to, streams at Grab is included in every service binary! Not cloud native!
 
-## How did this happen?
+## How did This Happen?
 
 The short answer is that Golang doesn't import only the symbols that it requires, but rather all the symbols defined within an imported directory and transitive symbols as well. So, when we think we’re importing just one directory, if our code structure doesn’t follow principles of encapsulation or isolation, we end up importing 11 MB of symbols that we don’t need! In our case, this occurred because a generic Message interface was included in the same directory with all the auto-generated code you see in the pretty picture above.
 
@@ -159,7 +159,7 @@ $$ ll | grep paxgroups
 
 Not a bad reduction in service binary size!
 
-## Lessons learnt
+## Lessons Learnt
 
 The `go-binsize-viz` utility offers a treemap representation for imported symbols, and is very useful in determining what symbols are contributing to the overall size.
 

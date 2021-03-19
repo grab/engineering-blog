@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-05-29-go-module-a-guide-for-monorepos-part-1
-title: Go Modules- A guide for monorepos (Part 1)
+title: Go Modules- A Guide for monorepos (Part 1)
 date: 2020-05-29 11:34:40
 authors: [michael-cartmell]
 categories: [Engineering]
@@ -17,13 +17,13 @@ At Grab, we have a large monorepo and changing from our existing monorepo struct
 
 To fully appreciate Grab’s journey in using Go Modules, it’s important to learn about the beginning of our vendoring process.
 
-## Native support for vendoring using the vendor folder
+## Native Support for Vendoring Using the Vendor Folder
 
 With Go 1.5 came the concept of the `vendor` folder, a new package discovery method, providing native support for vendoring in Go for the first time.
 
 With the `vendor` folder, projects influenced the lookup path simply by copying packages into a `vendor` folder nested at the project root. Go uses these packages before traversing the `GOPATH` root, which allows a monorepo structure to vendor packages within the same repo as if they were 3rd-party libraries. This enabled `go build` to work consistently without any need for extra scripts or env var modifications.
 
-### Initial obstacles
+### Initial Obstacles
 
 There was no official command for managing the `vendor` folder, and even copying the files in the `vendor` folder manually was common.
 
@@ -37,17 +37,17 @@ At Grab, different teams took different approaches. This meant that we had multi
 
 As a result of the multiple versions and lock files, the vendor directory was not reproducible, and we couldn’t be sure what versions we had in there.
 
-### Temporary relief
+### Temporary Relief
 
-We eventually settled on using [Glide](https://github.com/Masterminds/glide), and standardized our vendoring process. Glide gave us a reproducible, verifiable `vendor` folder for our dependencies, which worked up until we switched to Go modules.
+We eventually settled on using [Glide](https://github.com/Masterminds/glide), and standardised our vendoring process. Glide gave us a reproducible, verifiable `vendor` folder for our dependencies, which worked up until we switched to Go modules.
 
-## Vendoring using Go modules
+## Vendoring Using Go Modules
 
 I first heard about Go modules from Russ Cox’s talk at [GopherCon Singapore](https://2018.gophercon.sg) in 2018, and soon after started working on adopting modules at Grab, which was to manage our existing `vendor` folder.
 
 This allowed us to align with the official Go toolchain and familiarise ourselves with Go modules while the feature matured.
 
-### Switching to go mod
+### Switching to Go Modules
 
 Go modules introduced a `go mod vendor` command for exporting all dependencies from `go.mod` into `vendor`. We didn’t plan to enable Go modules for builds at this point, so our builds continued to run exactly as before, indifferent to the fact that the vendor directory was created using `go mod`.
 
@@ -60,17 +60,17 @@ The initial task to switch to `go mod vendor` was relatively straightforward as 
 
 The change was extremely large (due to differences in how glide and `go mod` handled the pruning of unused code), but equivalent in terms of Go code. However, there were some additional changes needed besides porting the version file.
 
-### Addressing incompatible dependencies
+### Addressing Incompatible Dependencies
 
 Some of our dependencies were not yet compatible with Go modules, so we had to use Go module’s replace directive to substitute them with a working version.
 
 A more complex issue was that parts of our codebase relied on nested vendor directories, and had dependencies that were incompatible with the top level. The `go mod vendor` command attempts to include all code nested under the root path, whether or not they have used a sub-vendor directory, so this led to conflicts.
 
-#### Problematic paths
+#### Problematic Paths
 
 Rather than resolving all the incompatibilities, which would’ve been a major undertaking in the monorepo, we decided to exclude these paths from Go modules instead. This was accomplished by [placing an empty go.mod file](https://github.com/golang/go/wiki/Modules%23can-an-additional-gomod-exclude-unnecessary-content-do-modules-have-the-equivalent-of-a-gitignore-file) in the problematic paths.
 
-#### Nested modules
+#### Nested Modules
 
 The empty `go.mod` file worked. This brought us to an important rule of Go modules, which is central to understanding many of the issues we encountered:
 
@@ -80,7 +80,7 @@ The empty `go.mod` file worked. This brought us to an important rule of Go modul
 
 This means that although the modules are within the same repository, Go modules treat them as though they are completely independent. When running `go mod` commands in the root of the monorepo, Go doesn’t even ‘see’ the other modules nested within.
 
-### Tackling maintenance issues
+### Tackling Maintenance Issues
 
 After completing the initial migration of our vendor directory to go mod vendor however, it opened up a different set of problems related to maintenance.
 
@@ -88,7 +88,7 @@ With Glide, we could guarantee that the Glide files and vendor directory would n
 
 There are two frequent cases that cause the `go.mod` file to need updates: _dependency inheritance_ and _implicit updates_.
 
-#### Dependency inheritance
+#### Dependency Inheritance
 
 Dependency inheritance is a consequence of Go modules [version selection](https://github.com/golang/go/wiki/Modules%23is-gosum-a-lock-file-why-does-gosum-include-information-for-module-versions-i-am-no-longer-using). If one of the monorepo’s dependencies uses Go modules, then the monorepo inherits those version requirements as well.
 
@@ -98,7 +98,7 @@ To solve this issue, we wrote a quick script to copy the dependency versions fro
 
 One key learning here is to have other modules use the monorepo’s versions, and if any updates are needed then the monorepo should be updated first.
 
-#### Implicit updates
+#### Implicit Updates
 
 Implicit updates are a more subtle problem. The typical Go modules [workflow](https://github.com/golang/go/wiki/Modules%23daily-workflow) is to use standard Go commands: `go build`, `go test`, and so on, and they will automatically update the `go.mod` file as needed. However, this was sometimes surprising, and it wasn’t always clear why the `go.mod` file was being updated. Some of the reasons we found were:
 
@@ -108,7 +108,7 @@ Implicit updates are a more subtle problem. The typical Go modules [workflow](ht
 
 This means that simply _creating_ a tag in an external repository is sometimes enough to affect the `go.mod` file, if you already have a broken import in the codebase.
 
-### Resolving unexpected dependencies using graphs
+### Resolving Unexpected Dependencies Using Graphs
 
 To investigate the unexpected dependencies, the command `go mod graph` proved the most useful.
 
@@ -132,11 +132,11 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
 </figure></div>
 
 
-## Stay tuned for more
+## Stay Tuned for More
 I hope you have enjoyed this article. In our next post, we’ll cover the other solutions we have for catching unexpected changes to the `go.mod` file and addressing dependency issues.
 
 
-## Join us
+## Join Us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
