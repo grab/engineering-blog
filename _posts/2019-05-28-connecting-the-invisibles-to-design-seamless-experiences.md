@@ -14,7 +14,7 @@ excerpt: "Much of the work done by the service design team at Grab revolves arou
 
 <div class="post-image-section">
   <img alt="Leonardo Da Vinci's Vitruvian Man" src="/img/connecting-the-invisibles-to-design-seamless-experiences/image2.jpg">
-  <small class="post-image-caption">Leonardo Da Vinci's Vitruvian Man (Source: <a href="https://www.google.com/url?q=http://commons.wikimedia.org/wiki/File:Vitruvian.jpg&sa=D&ust=1559122791757000">Public Doman @Wikicommons</a>)</small>
+  <small class="post-image-caption">Leonardo Da Vinci's Vitruvian Man (Source: <a href="http://commons.wikimedia.org/wiki/File:Vitruvian.jpg">Public Doman @Wikicommons</a>)</small>
 </div>
 
 ## Before We Begin, What is Service Design Anyway?

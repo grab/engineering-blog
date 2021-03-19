@@ -112,7 +112,7 @@ The concept of the critical path introduced a number of action items, which we p
 
 #### Project’s Scale Factor
 
-To implement the conceptually easy action items, we ran a Grab-wide program. The program has impacted almost every mobile team at Grab and involved **200+ engineers** to some degree. The whole implementation took 6 months to complete.
+To implement the conceptually easy action items, we ran a Grab-wide program. The programme has impacted almost every mobile team at Grab and involved **200+ engineers** to some degree. The whole implementation took 6 months to complete.
 
 During this period of time, we assigned engineers who were responsible to review the changes, provide support to the engineers across Grab, and monitor the results.
 

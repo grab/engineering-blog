@@ -99,7 +99,7 @@ The good engineer you hire eventually, ends up being 5x or 10x more productive i
 
 It is important to start off with the right concepts, if your first few hires are not good engineers, you may eventually end up with a team of 100 no-good engineers.
 
-Good engineers are able to debug problems better, think of solutions better, understand a program faster and assess potential impact and implications faster. They also will be likely to write bug-free code, consistently.
+Good engineers are able to debug problems better, think of solutions better, understand a programme faster and assess potential impact and implications faster. They also will be likely to write bug-free code, consistently.
 
 Overall, they will help us to figure out how to make others on their team better engineers.
 
