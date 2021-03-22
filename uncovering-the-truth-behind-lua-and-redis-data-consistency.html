@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Uncovering the truth behind Lua and Redis data consistency</title>
+    <title>Uncovering the Truth Behind Lua and Redis Data Consistency</title>
     <meta name="description" content="Redis does not guarantee the consistency between master and its replica nodes when Lua scripts are used. Read more to find out why and how to guarantee data consistency.">
     <meta name="viewport" content="width=device-width initial-scale=1" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
     <!-- Open Graph -->
     <meta property="og:url" content="https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency">
-    <meta property="og:title" content="Uncovering the truth behind Lua and Redis data consistency">
+    <meta property="og:title" content="Uncovering the Truth Behind Lua and Redis Data Consistency">
     <meta property="og:description" content="Redis does not guarantee the consistency between master and its replica nodes when Lua scripts are used. Read more to find out why and how to guarantee data consistency.">
     <meta property="og:site_name" content="Grab Tech">
     <meta property="og:type" content="article">
@@ -109,7 +109,7 @@
         
       </div>
       <br>
-      <h1 class="post-title text-center">Uncovering the truth behind Lua and Redis data consistency</h1>
+      <h1 class="post-title text-center">Uncovering the Truth Behind Lua and Redis Data Consistency</h1>
       
       <div class="post-meta">
         7 Sep 2020
@@ -149,9 +149,9 @@
 
 <p>Did you know the encoding of Hash objects on the master and the replica are different even if the writing operations are exactly the same and in the same order? Read on to find out why.</p>
 
-<h2 id="the-problem">The problem</h2>
+<h2 id="the-problem">The Problem</h2>
 
-<p>The following graph shows the CPU utilization of the master vs. the replica immediately after our service is deployed.</p>
+<p>The following graph shows the CPU utilisation of the master vs. the replica immediately after our service is deployed.</p>
 
 <div class="post-image-section"><figure>
   <img src="/img/uncovering-the-truth-behind-lua-and-redis-data-consistency/cpuUtilization.png" alt="Architecture diagram" />
@@ -166,7 +166,7 @@
   <li>Get’s back to normal after a reboot.</li>
 </ul>
 
-<h2 id="cursory-investigation">Cursory investigation</h2>
+<h2 id="cursory-investigation">Cursory Investigation</h2>
 
 <p>Because the spike occurs only when we deploy our service, we scrutinised all the scripts that were triggered immediately after the deployment. Lua monitor script was identified as a possible suspect. The script redistributes inactive service instances’ messages in the queue to active service instances so that messages can be processed by other healthy instances.</p>
 
@@ -181,13 +181,13 @@
 
 <p>During replica reboots, the data gets synced and consistent again, which is why the CPU usage gets to normal values after rebooting.</p>
 
-<h2 id="diving-deeper-on-hgetall">Diving deeper on HGETALL</h2>
+<h2 id="diving-deeper-on-hgetall">Diving Deeper on HGETALL</h2>
 
 <p>We knew that the keys of a hash are not ordered and we should not rely on the order. But it still puzzled us that the order is different even when the writing sequence is the same between the master and the replica. Plus the fact that the orders are always the same in our local environment with a similar setup made us even more curious.</p>
 
 <p>So to better understand the underlying magic of Redis and to avoid similar bugs in the future, we decided to hammer on and read the Redis source code to get more details.</p>
 
-<h2 id="hgetall-command-handling-code">HGETALL command handling code</h2>
+<h2 id="hgetall-command-handling-code">HGETALL Command Handling Code</h2>
 
 <p>The <code class="highlighter-rouge">HGETALL</code> command is handled by the function <code class="highlighter-rouge">genericHgetallCommand</code> and it further calls <code class="highlighter-rouge">hashTypeNext</code> to iterate through the Hash object. A snippet of the code is shown as follows:</p>
 
@@ -219,7 +219,7 @@ int hashTypeNext(hashTypeIterator *hi) {
   <li>If either limit is exceeded, Redis converts the list to a <a href="https://github.com/antirez/redis/blob/3.2/src/t_hash.c#L40">hashtable</a>, and this is irreversible. That is, Redis won’t convert the hashtable back to a list again, even if the entries/size falls below the limit.</li>
 </ul>
 
-<h2 id="eureka-moment">Eureka moment</h2>
+<h2 id="eureka-moment">Eureka Moment</h2>
 
 <p>Based on this understanding, we checked the encoding of the problematic hash in staging.</p>
 
@@ -234,7 +234,7 @@ stg-bookings-qu-001.pcxebj.0001.apse1.cache.amazonaws.com:6379&gt; object encodi
 
 <p>Now that we have identified the root cause, we were still curious about the difference in encoding between the master and the replica.</p>
 
-<h3 id="how-could-the-underlying-representations-be-different">How could the underlying representations be different?</h3>
+<h3 id="how-could-the-underlying-representations-be-different">How Could the Underlying Representations be Different?</h3>
 
 <p>We reasoned, “<em>If the master and its replica’s writing operations are exactly the same and in the same order, why are the underlying representations still different?</em>”</p>
 
@@ -268,7 +268,7 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
 
 <p>We were able to verify this behaviour in our local setup as well.</p>
 
-<h3 id="how-did-we-fix-it">How did we fix it?</h3>
+<h3 id="how-did-we-fix-it">How did We Fix it?</h3>
 
 <p>We could use the following two approaches to address this issue:</p>
 
@@ -286,7 +286,7 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
 
 <p>After the fix, the CPU usage of the replica remained in range after each deployment. This also prevented the Redis cluster from being destroyed in the event of a master failover.</p>
 
-<h2 id="key-takeaways">Key takeaways</h2>
+<h2 id="key-takeaways">Key Takeaways</h2>
 
 <p>In addition to writing clear and maintainable code, it’s equally important to understand the underlying storage layer that you are dealing with to produce efficient and bug-free code.</p>
 
@@ -298,7 +298,7 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
   <li>To save memory, Redis uses different representations for Hash. Your Hash object could be stored as a list in memory or a hashtable. This is not guaranteed to be the same across the master and its replicas.</li>
 </ul>
 
-<h2 id="join-us">Join us</h2>
+<h2 id="join-us">Join Us</h2>
 
 <p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
 
@@ -325,9 +325,9 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
     </div>
     <div class="sharing-links text-right">
   Share on &nbsp;
-  <a href="https://twitter.com/intent/tweet?text=Uncovering the truth behind Lua and Redis data consistency&url=https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://twitter.com/intent/tweet?text=Uncovering the Truth Behind Lua and Redis Data Consistency&url=https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
   <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
-  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency&title=Uncovering the truth behind Lua and Redis data consistency
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/uncovering-the-truth-behind-lua-and-redis-data-consistency&title=Uncovering the Truth Behind Lua and Redis Data Consistency
 &summary=Redis does not guarantee the consistency between master and its replica nodes when Lua scripts are used. Read more to find out why and how to guarantee data consistency.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
 </div>
 <script>

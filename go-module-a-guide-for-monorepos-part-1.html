@@ -2,14 +2,14 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Go Modules- A guide for monorepos (Part 1)</title>
+    <title>Go Modules- A Guide for monorepos (Part 1)</title>
     <meta name="description" content="This post is the first in a series of blogs about Grab’s experience with Go modules in a multi-module monorepo. Here, we discuss the challenges we faced along the way and the solutions we came up with.">
     <meta name="viewport" content="width=device-width initial-scale=1" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
     <!-- Open Graph -->
     <meta property="og:url" content="https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1">
-    <meta property="og:title" content="Go Modules- A guide for monorepos (Part 1)">
+    <meta property="og:title" content="Go Modules- A Guide for monorepos (Part 1)">
     <meta property="og:description" content="This post is the first in a series of blogs about Grab’s experience with Go modules in a multi-module monorepo. Here, we discuss the challenges we faced along the way and the solutions we came up with.">
     <meta property="og:site_name" content="Grab Tech">
     <meta property="og:type" content="article">
@@ -109,7 +109,7 @@
         
       </div>
       <br>
-      <h1 class="post-title text-center">Go Modules- A guide for monorepos (Part 1)</h1>
+      <h1 class="post-title text-center">Go Modules- A Guide for monorepos (Part 1)</h1>
       
       <div class="post-meta">
         29 May 2020
@@ -149,13 +149,13 @@
 
 <p>To fully appreciate Grab’s journey in using Go Modules, it’s important to learn about the beginning of our vendoring process.</p>
 
-<h2 id="native-support-for-vendoring-using-the-vendor-folder">Native support for vendoring using the vendor folder</h2>
+<h2 id="native-support-for-vendoring-using-the-vendor-folder">Native Support for Vendoring Using the Vendor Folder</h2>
 
 <p>With Go 1.5 came the concept of the <code class="highlighter-rouge">vendor</code> folder, a new package discovery method, providing native support for vendoring in Go for the first time.</p>
 
 <p>With the <code class="highlighter-rouge">vendor</code> folder, projects influenced the lookup path simply by copying packages into a <code class="highlighter-rouge">vendor</code> folder nested at the project root. Go uses these packages before traversing the <code class="highlighter-rouge">GOPATH</code> root, which allows a monorepo structure to vendor packages within the same repo as if they were 3rd-party libraries. This enabled <code class="highlighter-rouge">go build</code> to work consistently without any need for extra scripts or env var modifications.</p>
 
-<h3 id="initial-obstacles">Initial obstacles</h3>
+<h3 id="initial-obstacles">Initial Obstacles</h3>
 
 <p>There was no official command for managing the <code class="highlighter-rouge">vendor</code> folder, and even copying the files in the <code class="highlighter-rouge">vendor</code> folder manually was common.</p>
 
@@ -168,17 +168,17 @@
 
 <p>As a result of the multiple versions and lock files, the vendor directory was not reproducible, and we couldn’t be sure what versions we had in there.</p>
 
-<h3 id="temporary-relief">Temporary relief</h3>
+<h3 id="temporary-relief">Temporary Relief</h3>
 
-<p>We eventually settled on using <a href="https://github.com/Masterminds/glide">Glide</a>, and standardized our vendoring process. Glide gave us a reproducible, verifiable <code class="highlighter-rouge">vendor</code> folder for our dependencies, which worked up until we switched to Go modules.</p>
+<p>We eventually settled on using <a href="https://github.com/Masterminds/glide">Glide</a>, and standardised our vendoring process. Glide gave us a reproducible, verifiable <code class="highlighter-rouge">vendor</code> folder for our dependencies, which worked up until we switched to Go modules.</p>
 
-<h2 id="vendoring-using-go-modules">Vendoring using Go modules</h2>
+<h2 id="vendoring-using-go-modules">Vendoring Using Go Modules</h2>
 
 <p>I first heard about Go modules from Russ Cox’s talk at <a href="https://2018.gophercon.sg">GopherCon Singapore</a> in 2018, and soon after started working on adopting modules at Grab, which was to manage our existing <code class="highlighter-rouge">vendor</code> folder.</p>
 
 <p>This allowed us to align with the official Go toolchain and familiarise ourselves with Go modules while the feature matured.</p>
 
-<h3 id="switching-to-go-mod">Switching to go mod</h3>
+<h3 id="switching-to-go-modules">Switching to Go Modules</h3>
 
 <p>Go modules introduced a <code class="highlighter-rouge">go mod vendor</code> command for exporting all dependencies from <code class="highlighter-rouge">go.mod</code> into <code class="highlighter-rouge">vendor</code>. We didn’t plan to enable Go modules for builds at this point, so our builds continued to run exactly as before, indifferent to the fact that the vendor directory was created using <code class="highlighter-rouge">go mod</code>.</p>
 
@@ -193,17 +193,17 @@
 
 <p>The change was extremely large (due to differences in how glide and <code class="highlighter-rouge">go mod</code> handled the pruning of unused code), but equivalent in terms of Go code. However, there were some additional changes needed besides porting the version file.</p>
 
-<h3 id="addressing-incompatible-dependencies">Addressing incompatible dependencies</h3>
+<h3 id="addressing-incompatible-dependencies">Addressing Incompatible Dependencies</h3>
 
 <p>Some of our dependencies were not yet compatible with Go modules, so we had to use Go module’s replace directive to substitute them with a working version.</p>
 
 <p>A more complex issue was that parts of our codebase relied on nested vendor directories, and had dependencies that were incompatible with the top level. The <code class="highlighter-rouge">go mod vendor</code> command attempts to include all code nested under the root path, whether or not they have used a sub-vendor directory, so this led to conflicts.</p>
 
-<h4 id="problematic-paths">Problematic paths</h4>
+<h4 id="problematic-paths">Problematic Paths</h4>
 
 <p>Rather than resolving all the incompatibilities, which would’ve been a major undertaking in the monorepo, we decided to exclude these paths from Go modules instead. This was accomplished by <a href="https://github.com/golang/go/wiki/Modules%23can-an-additional-gomod-exclude-unnecessary-content-do-modules-have-the-equivalent-of-a-gitignore-file">placing an empty go.mod file</a> in the problematic paths.</p>
 
-<h4 id="nested-modules">Nested modules</h4>
+<h4 id="nested-modules">Nested Modules</h4>
 
 <p>The empty <code class="highlighter-rouge">go.mod</code> file worked. This brought us to an important rule of Go modules, which is central to understanding many of the issues we encountered:</p>
 
@@ -213,7 +213,7 @@
 
 <p>This means that although the modules are within the same repository, Go modules treat them as though they are completely independent. When running <code class="highlighter-rouge">go mod</code> commands in the root of the monorepo, Go doesn’t even ‘see’ the other modules nested within.</p>
 
-<h3 id="tackling-maintenance-issues">Tackling maintenance issues</h3>
+<h3 id="tackling-maintenance-issues">Tackling Maintenance Issues</h3>
 
 <p>After completing the initial migration of our vendor directory to go mod vendor however, it opened up a different set of problems related to maintenance.</p>
 
@@ -221,7 +221,7 @@
 
 <p>There are two frequent cases that cause the <code class="highlighter-rouge">go.mod</code> file to need updates: <em>dependency inheritance</em> and <em>implicit updates</em>.</p>
 
-<h4 id="dependency-inheritance">Dependency inheritance</h4>
+<h4 id="dependency-inheritance">Dependency Inheritance</h4>
 
 <p>Dependency inheritance is a consequence of Go modules <a href="https://github.com/golang/go/wiki/Modules%23is-gosum-a-lock-file-why-does-gosum-include-information-for-module-versions-i-am-no-longer-using">version selection</a>. If one of the monorepo’s dependencies uses Go modules, then the monorepo inherits those version requirements as well.</p>
 
@@ -231,7 +231,7 @@
 
 <p>One key learning here is to have other modules use the monorepo’s versions, and if any updates are needed then the monorepo should be updated first.</p>
 
-<h4 id="implicit-updates">Implicit updates</h4>
+<h4 id="implicit-updates">Implicit Updates</h4>
 
 <p>Implicit updates are a more subtle problem. The typical Go modules <a href="https://github.com/golang/go/wiki/Modules%23daily-workflow">workflow</a> is to use standard Go commands: <code class="highlighter-rouge">go build</code>, <code class="highlighter-rouge">go test</code>, and so on, and they will automatically update the <code class="highlighter-rouge">go.mod</code> file as needed. However, this was sometimes surprising, and it wasn’t always clear why the <code class="highlighter-rouge">go.mod</code> file was being updated. Some of the reasons we found were:</p>
 
@@ -243,7 +243,7 @@
 
 <p>This means that simply <em>creating</em> a tag in an external repository is sometimes enough to affect the <code class="highlighter-rouge">go.mod</code> file, if you already have a broken import in the codebase.</p>
 
-<h3 id="resolving-unexpected-dependencies-using-graphs">Resolving unexpected dependencies using graphs</h3>
+<h3 id="resolving-unexpected-dependencies-using-graphs">Resolving Unexpected Dependencies Using Graphs</h3>
 
 <p>To investigate the unexpected dependencies, the command <code class="highlighter-rouge">go mod graph</code> proved the most useful.</p>
 
@@ -265,10 +265,10 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
   <figcaption align="middle"><i>Diagram generated using modgraphviz</i></figcaption>
 </figure></div>
 
-<h2 id="stay-tuned-for-more">Stay tuned for more</h2>
+<h2 id="stay-tuned-for-more">Stay Tuned for More</h2>
 <p>I hope you have enjoyed this article. In our next post, we’ll cover the other solutions we have for catching unexpected changes to the <code class="highlighter-rouge">go.mod</code> file and addressing dependency issues.</p>
 
-<h2 id="join-us">Join us</h2>
+<h2 id="join-us">Join Us</h2>
 <p>Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.</p>
 
 <p>If you share our vision of driving South East Asia forward, <a href="https://grab.careers/jobs/">apply</a> to join our team today.</p>
@@ -299,9 +299,9 @@ google.golang.org/grpc@v1.19.0 cloud.google.com/go@v0.26.0
     </div>
     <div class="sharing-links text-right">
   Share on &nbsp;
-  <a href="https://twitter.com/intent/tweet?text=Go Modules- A guide for monorepos (Part 1)&url=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://twitter.com/intent/tweet?text=Go Modules- A Guide for monorepos (Part 1)&url=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
   <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
-  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1&title=Go Modules- A guide for monorepos (Part 1)
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/go-module-a-guide-for-monorepos-part-1&title=Go Modules- A Guide for monorepos (Part 1)
 &summary=This post is the first in a series of blogs about Grab’s experience with Go modules in a multi-module monorepo. Here, we discuss the challenges we faced along the way and the solutions we came up with.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
 </div>
 <script>
