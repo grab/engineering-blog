@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-09-07-uncovering-the-truth-behind-lua-and-redis-data-consistency
-title: Uncovering the truth behind Lua and Redis data consistency
+title: Uncovering the Truth Behind Lua and Redis Data Consistency
 date: 2020-9-07 08:43:40
 authors: [allen-wang]
 categories: [Engineering]
@@ -19,9 +19,9 @@ Did you know that Redis master/replica can become inconsistent in certain scenar
 
 Did you know the encoding of Hash objects on the master and the replica are different even if the writing operations are exactly the same and in the same order? Read on to find out why.
 
-## The problem
+## The Problem
 
-The following graph shows the CPU utilization of the master vs. the replica immediately after our service is deployed.
+The following graph shows the CPU utilisation of the master vs. the replica immediately after our service is deployed.
 
 <div class="post-image-section"><figure>
   <img src="/img/uncovering-the-truth-behind-lua-and-redis-data-consistency/cpuUtilization.png" alt="Architecture diagram">
@@ -34,7 +34,7 @@ From the graph, you can see the following CPU usage trends. Replica’s CPU usag
 - Spikes higher than the master after a certain time.
 - Get’s back to normal after a reboot.
 
-## Cursory investigation
+## Cursory Investigation
 
 Because the spike occurs only when we deploy our service, we scrutinised all the scripts that were triggered immediately after the deployment. Lua monitor script was identified as a possible suspect. The script redistributes inactive service instances' messages in the queue to active service instances so that messages can be processed by other healthy instances.
 
@@ -47,13 +47,13 @@ Due to the above reasons, the script causes data inconsistencies between the mas
 
 During replica reboots, the data gets synced and consistent again, which is why the CPU usage gets to normal values after rebooting.
 
-## Diving deeper on HGETALL
+## Diving Deeper on HGETALL
 
 We knew that the keys of a hash are not ordered and we should not rely on the order. But it still puzzled us that the order is different even when the writing sequence is the same between the master and the replica. Plus the fact that the orders are always the same in our local environment with a similar setup made us even more curious.
 
 So to better understand the underlying magic of Redis and to avoid similar bugs in the future, we decided to hammer on and read the Redis source code to get more details.
 
-## HGETALL command handling code
+## HGETALL Command Handling Code
 
 The `HGETALL` command is handled by the function `genericHgetallCommand` and it further calls `hashTypeNext` to iterate through the Hash object. A snippet of the code is shown as follows:
 
@@ -82,7 +82,7 @@ A bit of research online helped us understand that, to save memory, Redis choose
 - By default, Redis stores the Hash object as a [zipped list](https://redis.io/topics/memory-optimization) when the hash has less than 512 entries and when each element's size is smaller than 64 bytes.
 - If either limit is exceeded, Redis converts the list to a [hashtable](https://github.com/antirez/redis/blob/3.2/src/t_hash.c#L40), and this is irreversible. That is, Redis won't convert the hashtable back to a list again, even if the entries/size falls below the limit.
 
-## Eureka moment
+## Eureka Moment
 
 Based on this understanding, we checked the encoding of the problematic hash in staging.
 
@@ -98,7 +98,7 @@ stg-bookings-qu-001.pcxebj.0001.apse1.cache.amazonaws.com:6379> object encoding 
 
 Now that we have identified the root cause, we were still curious about the difference in encoding between the master and the replica.
 
-### How could the underlying representations be different?
+### How Could the Underlying Representations be Different?
 
 We reasoned, “*If the master and its replica's writing operations are exactly the same and in the same order, why are the underlying representations still different?*”
 
@@ -131,7 +131,7 @@ So, if you have a Redis Hash object encoded as a `hashtable` with its length les
 
 We were able to verify this behaviour in our local setup as well.
 
-### How did we fix it?
+### How did We Fix it?
 
 We could use the following two approaches to address this issue:
 
@@ -145,7 +145,7 @@ We chose the latter approach because:
 
 After the fix, the CPU usage of the replica remained in range after each deployment. This also prevented the Redis cluster from being destroyed in the event of a master failover.
 
-## Key takeaways
+## Key Takeaways
 
 In addition to writing clear and maintainable code, it's equally important to understand the underlying storage layer that you are dealing with to produce efficient and bug-free code.
 
@@ -155,7 +155,7 @@ The following are some of the key learnings on Redis:
 - Redis replicates the whole Lua script instead of the resulting commands to the replica. However, this is the default behaviour and you can disable it.
 - To save memory, Redis uses different representations for Hash. Your Hash object could be stored as a list in memory or a hashtable. This is not guaranteed to be the same across the master and its replicas.
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

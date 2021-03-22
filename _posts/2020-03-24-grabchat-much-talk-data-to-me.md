@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-03-24-grabchat-much-talk-data-to-me
-title: GrabChat Much? Talk Data to me!
+title: GrabChat Much? Talk Data to Me!
 date: 2020-03-24 05:02:55
 authors: [jason-lee, lara-pureum-yim]
 categories: [Data Science]
@@ -88,7 +88,7 @@ Aside from images, Grab also introduced two other features: templates and audio 
 
 <div class="post-image-section"><figure>
   <img src="/img/grabchat-much-talk-data-to-me/image7.png" alt="Templates and audio features used by driver-partners, and a reduced number of typed texts by driver-partners per booking">
-  <figcaption align="middle"><i>Templates and audio features used by driver-partners, and a reduced number of typed texts by driver-partners per bookin</i></figcaption>
+  <figcaption align="middle"><i>Templates and audio features used by driver-partners, and a reduced number of typed texts by driver-partners per booking</i></figcaption>
 </figure></div>
 
 “Templates” (pre-populated phrases) allowed driver-partners to send templated messages with just a quick tap. In our recent data analysis, we discovered that almost 50% of driver-partner texts comprised of templates.
@@ -125,7 +125,7 @@ Just like in Shakespeare’s *Much Ado about Nothing*, ample information can be 
 
 This is just the first page of the book. The amount of information lurking between every page is endless. So stay tuned for more interesting insights about our GrabChat platform!
 
-## Join us
+## Join Us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.

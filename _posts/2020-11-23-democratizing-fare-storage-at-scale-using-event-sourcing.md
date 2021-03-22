@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-11-23-democratizing-fare-storage-at-scale-using-event-sourcing
-title: Democratizing Fare Storage at scale using Event Sourcing
+title: Democratizing Fare Storage at Scale Using Event Sourcing
 date: 2020-11-23 06:21:00
 authors: [sourabh-suman]
 categories: [Engineering]
@@ -31,7 +31,7 @@ In our legacy architecture, we stored all the booking and fare-related informati
 
 The need to store the fare information and metadata for every additional feature along with other booking information resulted in a bloated booking entity. With millions of bookings created every day at Grab, this posed a scaling and stability threat to our booking service storage. Moreover, the legacy storage only tracked the latest value of fare and lacked a holistic view of all the modifications to the fare. So, debugging the fare was also a massive chore for our Engineering and Tech Operations teams.
 
-## Drafting a solution
+## Drafting a Solution
 
 The shortcomings of our legacy system led us to explore options for decoupling the fare and its metadata storage from the booking details. We wanted to build a platform that can store and provide access to both fare and its audit trail.
 
@@ -48,7 +48,7 @@ Non-functional requirements for the fare store were:
 *   Handle concurrent updates to the fare gracefully.
 *   Detect duplicate events for a booking for the same transaction.
 
-## Storing change sequence with Event Sourcing
+## Storing Change Sequence with Event Sourcing
 
 Our legacy storage solution used a defined schema and only stored the latest state of the fare. We needed an audit trail-based storage system with fast querying capabilities that can store and retrieve changes in chronological order.
 
@@ -92,19 +92,19 @@ The diagram below describes the overall fare life cycle from creation, modificat
   <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image5.png" alt="Overall Fare Life Cycle">
 </figure></div>
 
-## Architecture overview
+## Architecture Overview
 
 <div class="post-image-section"><figure>
   <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image6.jpg" alt="Fare Cycle Architecture">
 </figure></div>
 
-Clients interact with the Fare LifeCycle service through an SDK. The SDK offers various features such as metadata serialization, deserialization, retries, and timeouts configurations, some of which are discussed later.
+Clients interact with the Fare LifeCycle service through an SDK. The SDK offers various features such as metadata serialisation, deserialisation, retries, and timeouts configurations, some of which are discussed later.
 
 The _Fare LifeCycle Store_ service uses DynamoDB as Event Store to persist and read the fare change events backed by a cache for eventually consistent reads. For further processing, such as archiving and generation of receipts, the successfully updated events are streamed out to a message queue system.
 
-## Ensuring the integrity of the fare sequence
+## Ensuring the Integrity of the Fare Sequence
 
-Democratizing the responsibility of fare modification means that multiple services might try to update the fare in parallel without prior synchronization. Concurrent fare updates for the same booking might result in a race condition. Concurrency and consistency problems are always highlights of distributed storage systems.
+Democratising the responsibility of fare modification means that multiple services might try to update the fare in parallel without prior synchronisation. Concurrent fare updates for the same booking might result in a race condition. Concurrency and consistency problems are always highlights of distributed storage systems.
 
 Let’s understand why the ordering of fare updates are important. Business rules for different cities and countries regulate the pricing features based on local market conditions and prevailing laws. For example, in some scenarios, _Tolls_ and _Waiting Fees_ may not be eligible for discounts or promotions. The service applying discounts needs to consider this information while applying a discount. Therefore, updates to the fare are not independent of the previous fare events.
 
@@ -124,7 +124,7 @@ The logic to calculate the fare/surcharge is coupled with the business logic of 
 
 To achieve _Optimistic Locking_, we store a fare version and increment it on every successful update. The client must pass the version they read to modify the fare. Should there be a version mismatch between the update query and the current fare, the update is rejected. On version mismatches, the clients read the updated checksum(version) and retry with the recalculated fare.
 
-## Idempotency of event updates
+## Idempotency of Event Updates
 
 The next challenge we came across was how to handle client retries - ensuring that we do not duplicate the same event for the booking. Clients might encounter sporadic errors as a result of network-related issues, although the update was successful. Under such circumstances, clients retry to update the same event, resulting in duplicate events. Duplicate events not only result in an extra space requirement, but it also impairs the clients' understanding on whether we've taken an action multiple times on the fare.
 
@@ -140,26 +140,26 @@ To handle the duplicate events, we associate each event with a unique UUID (`tra
 
 For unique `transactionIDs`, we append it to the list of transactionIDs and save it to the Event Store along with the event.
 
-## Schema-less metadata
+## Schema-less Metadata
 
 Metadata are the breakdowns associated with the fare. We require the metadata for specific fee/fare calculation for the generation of receipts and debugging purposes. Thus, for the storage system and multiple clients, they need not know the metadata definition of all events.
 
 One goal for our data store was to give our clients the flexibility to add new fields to existing metadata or to define new metadata without changing the API. We adopted an SDK-based approach for metadata, where clients interact with the Fare LifeCycle service via SDK. The SDK has the following responsibilities for metadata:
 
-1.  Serialize the metadata into bytes before making an API call to the Fare LifeCycle service.
-2.  Deserialize the bytes metadata returned from the Fare LifeCycle service into a Go struct for client access.
+1.  Serialise the metadata into bytes before making an API call to the Fare LifeCycle service.
+2.  Deserialise the bytes metadata returned from the Fare LifeCycle service into a Go struct for client access.
 
 <div class="post-image-section"><figure>
   <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image7.jpg" alt="Fare LifeCycle SDK">
 </figure></div>
 
-Serializing and deserializing the metadata on the client-side decoupled it from the Fare LifeCycle Store API. This helped teams update the metadata without deploying the storage service each time.
+Serialising and deserialising the metadata on the client-side decoupled it from the Fare LifeCycle Store API. This helped teams update the metadata without deploying the storage service each time.
 
 For reading the breakdown, the clients pass the metadata bytes to the SDK along with the Event Type, and then it converts them back into the corresponding proto schema. With this approach, clients can update the metadata without changing the Data Store Service.
 
 ## Conclusion
 
-The Fare LifeCycle service enabled us to revolutionize the fare storage at scale for Grab’s ecosystem of services. Further benefits realized with the system are:
+The Fare LifeCycle service enabled us to revolutionise the fare storage at scale for Grab’s ecosystem of services. Further benefits realised with the system are:
 
 *   The feature agnostic platform helped us to reduce the time-to-market for our hyper-local features so that we can further outserve our customers and driver-partners.
 *   Decoupling the fare information from the booking information also helped us to achieve a better separation of concerns between services.
@@ -175,7 +175,7 @@ We hope this post helped you to have a closer look at how we used the Event Sour
 
 ---
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

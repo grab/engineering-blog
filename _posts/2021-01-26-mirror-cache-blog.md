@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2021-01-26-mirror-cache-blog
-title: Serving driver-partners data at scale using mirror cache
+title: Serving Driver-partners Data at Scale Using Mirror Cache
 date: 2021-01-26 00:23:00
 authors: [indrajit-sarkar]
 categories: [Engineering]
@@ -11,11 +11,11 @@ cover_photo: /img/mirror-cache-blog/mirror-cache-blog-cover.png
 excerpt: "Find out how a team at Grab used Mirror Cache, an in-memory local caching solution, to serve driver-partners data efficiently."
 ---
 
-Since the early beginnings, driver-partners have been the centerpiece of the wide-range of  services or features provided by the Grab platform. Over time, many backend microservices were developed to support our driver-partners such as earnings, ratings, insurance, etc. All of these different microservices require certain information, such as name, phone number, email, active car types, and so on, to curate the services provided to the driver-partners.
+Since the early beginnings, driver-partners have been the centrepiece of the wide-range of  services or features provided by the Grab platform. Over time, many backend microservices were developed to support our driver-partners such as earnings, ratings, insurance, etc. All of these different microservices require certain information, such as name, phone number, email, active car types, and so on, to curate the services provided to the driver-partners.
 
 We built the **Drivers Data service** to provide drivers-partners data to other microservices. The service attracts a high QPS and handles 10K requests per second during peak hours. Over the years, we have tried different strategies to serve driver-partners data in a resilient and cost-effective manner, while accounting for low response time. In this blog post, we talk about **mirror cache**, an in-memory local caching solution built to serve driver-partners data efficiently.
 
-## What we started with
+## What We Started With
 
 <div class="post-image-section"><figure>
   <img src="/img/mirror-cache-blog/image3.png" alt="Figure 1. Drivers Data service architecture"> <figcaption align="middle"><i>Figure 1. Drivers Data service architecture</i></figcaption>
@@ -44,7 +44,7 @@ While low frequency per driver over time impacts the Redis cache hit rate, high 
 
 Making in-memory cache available on every instance while the data is in active use, we could greatly increase the in-memory cache hit rate, and that’s what we did.
 
-## Mirror cache design goals
+## Mirror Cache Design Goals
 
 We set the following design goals:
 *   Support a local least recently used (LRU) cache use-case.
@@ -53,7 +53,7 @@ We set the following design goals:
 *   Support async data replication across nodes to ensure updates for the same key happens only with more recent data. For any older updates, the current data in the cache is ignored. The ordering of cache updates is not guaranteed due to the async replication.
 *   Ability to handle auto-scaling.
 
-## The building blocks
+## The Building Blocks
 
 <div class="post-image-section"><figure>
   <img src="/img/mirror-cache-blog/image5.png" alt="Figure 4. Mirror cache"> <figcaption align="middle"><i>Figure 4. Mirror cache</i></figcaption>
@@ -61,7 +61,7 @@ We set the following design goals:
 
 The mirror cache library runs alongside the Drivers Data service inside each of the EC2 instances of the cluster. The two main components are in-memory cache and replicator.
 
-### In-memory cache
+### In-memory Cache
 The in-memory cache is used to store multiple key/value pairs in RAM. There is a TTL associated with each key/value pair. We wanted to use a cache that can provide high hit ratio, memory bound, high throughput, and concurrency. After evaluating several options, we went with dgraph’s open-source concurrent caching library [Ristretto](https://github.com/dgraph-io/ristretto) as our in-memory local cache. We were particularly impressed by its use of the TinyLFU admission policy to ensure a high hit ratio.
 
 ### Replicator
@@ -79,7 +79,7 @@ Each service (Drivers Data) node runs a single instance of mirror cache. So effe
 *   Propagate the batch updates among all the nodes in the same AZ as itself.
 *   Send the batch updates to exactly one notifier (node) in different AZs who, in turn, are responsible for updating all the nodes in their own AZs with the latest batch of data. This communication technique helps to reduce cross AZ data transfer overheads.
 
-In the case of auto-scaling, there is a warm-up period during which the notifier doesn’t notify the other nodes in the cluster. This is done to minimize duplicate data propagation. The warm-up period is configurable.
+In the case of auto-scaling, there is a warm-up period during which the notifier doesn’t notify the other nodes in the cluster. This is done to minimise duplicate data propagation. The warm-up period is configurable.
 
 #### gRPC Server
 An exclusive gRPC server runs for mirror cache. The different nodes of the Drivers Data service use this server to receive new cache updates from the other nodes in the cluster.
@@ -110,14 +110,14 @@ The server first checks if the local cache should update this new value or not. 
 
 If the replicationType is _Nothing_, then the mirror cache stops further replication. In case the replicationType is _SameRZ_ then the mirror cache tries to propagate this cache update among all the nodes in the same AZ as itself.
 
-## Run at scale
+## Run at Scale
 
 <div class="post-image-section"><figure>
   <img src="/img/mirror-cache-blog/image2.png" alt="Figure 5. Drivers Data Service new architecture"> <figcaption align="middle"><i>Figure 5. Drivers Data Service new architecture</i></figcaption>
 </figure></div>
 
 
-The behavior of the service hasn't changed and the requests are being served in the same manner as before. The only difference here is the replacement of the standalone local cache in each of the nodes with mirror cache. It is the responsibility of mirror cache to replicate any cache updates to the other nodes in the cluster.
+The behaviour of the service hasn't changed and the requests are being served in the same manner as before. The only difference here is the replacement of the standalone local cache in each of the nodes with mirror cache. It is the responsibility of mirror cache to replicate any cache updates to the other nodes in the cluster.
 
 After mirror cache was fully rolled out to production, we rechecked our metrics related to the response source and saw a huge improvement. The graph showed that during peak hours __~75% of the response was from in-memory local cache__. About __15% of the response was served by MySQL DB__ and a further __10% via Redis__.
 
@@ -128,7 +128,7 @@ The local cache hit ratio was at __0.75__, a jump of 0.5 from before and there w
 </figure></div>
 
 
-## Limitations and future improvements
+## Limitations and Future Improvements
 
 Mirror cache is [eventually consistent](https://en.wikipedia.org/wiki/Eventual_consistency#:~:text=Eventual%20consistency%20is%20a%20consistency,return%20the%20last%20updated%20value), so it is not a good choice for systems that need strong consistency.
 
@@ -148,7 +148,7 @@ We also extended mirror cache in some other services and found similar promising
 
 ---
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

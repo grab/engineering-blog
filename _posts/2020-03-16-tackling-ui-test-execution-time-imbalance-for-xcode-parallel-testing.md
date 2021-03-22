@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-03-16-tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing
-title: Tackling UI test execution time imbalance for Xcode parallel testing
+title: Tackling UI Test Execution Time Imbalance for Xcode Parallel Testing
 date: 2020-03-16 08:13:20
 authors: [ngoc-thuyen-trinh]
 categories: [Engineering]
@@ -19,7 +19,7 @@ Apart from splitting tests into subsets and running each of them in a CI job, we
 
 ## Background
 
-### Xcode parallel testing
+### Xcode Parallel Testing
 
 The parallel testing feature was shipped as part of the [Xcode 10 release](https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes). This support enables us to easily configure test setup:
 
@@ -37,7 +37,7 @@ However, *the distribution logic under the hood is a black-box*. We do not reall
 
 It is worth mentioning that even without the Xcode parallel testing support, we can still achieve similar improvements by running subsets of tests in different child processes. But it takes more effort to dispatch tests to each child process in an efficient way, and to handle the output from each test process appropriately.
 
-### Test time imbalance
+### Test Time Imbalance
 
 Generally, a *parallel execution system* is at its best efficiency if each parallel task executes in roughly the same duration and ends at roughly the same time.
 
@@ -56,7 +56,7 @@ max(t<sub>i</sub>) - min(t<sub>i</sub>)
 
 For the example above, the test time imbalance is 13 mins - 7 mins = 6 mins.
 
-### Contributing factors in test time imbalance
+### Contributing Factors in Test Time Imbalance
 
 There are several factors causing test time imbalance. The top two prominent factors are:
 
@@ -69,7 +69,7 @@ However, this issue, in general, does not matter that much because long-time-exe
 
 Regarding the second factor, there is no official Apple documentation that explicitly states this constraint. When [Apple first introduced parallel testing support in Xcode 10](https://developer.apple.com/documentation/xcode_release_notes/xcode_10_release_notes), they only mentioned that test classes are distributed across runner processes:
 
-> “Test parallelization occurs by **distributing the test classes in a target across multiple runner processes**. Use the test log to see how your test classes were parallelized. You will see an entry in the log for each runner process that was launched, and below each runner you will see the list of classes that it executed.”
+> “Test parallelisation occurs by **distributing the test classes in a target across multiple runner processes**. Use the test log to see how your test classes were parallelised. You will see an entry in the log for each runner process that was launched, and below each runner you will see the list of classes that it executed.”
 
 For example, we have a test class `JobFlowTests` that includes five tests and another test class `TutorialTests` that has only one single test.
 
@@ -95,9 +95,9 @@ When executing the two tests with two simulators running in parallel, the actual
 </figure></div>
 
 
-## Diving deep into Xcode parallel testing
+## Diving Deep into Xcode Parallel Testing
 
-### Demystifying Xcode scheduling log
+### Demystifying Xcode Scheduling Log
 
 As mentioned above, Xcode distributes tests to simulators/workers in a black-box manner. However, by looking at the scheduling log generated when running tests, we can understand how Xcode parallel testing works.
 
@@ -153,13 +153,13 @@ Looking at the log below, we know that once a test class is dispatched or distri
 )} to worker: 0x7fe6a684c4e0 [4985: Clone 1 of DaxIOS-XC10-1-iP7-1 (3D082B53-3159-4004-A798-EA5553C873C4)]
 ```
 
-Even when we customize a test suite (by swizzling some `XCTestSuite` class methods or variables), to split a test suite into multiple suites, it does not work because the made-up test suite is only initialized after tests are dispatched to a given worker.
+Even when we customise a test suite (by swizzling some `XCTestSuite` class methods or variables), to split a test suite into multiple suites, it does not work because the made-up test suite is only initialised after tests are dispatched to a given worker.
 
 Therefore, ***any hook to bypass this constraint must be done early on***.
 
-### Passing the -only-testing argument to xcodebuild command
+### Passing the -only-testing Argument to xcodebuild Command
 
-Now we pass tests (instead of test classes) to the `-only-testing` argument.
+Now, we pass tests (instead of test classes) to the `-only-testing` argument.
 
 ```
 $ xcodebuild -workspace Driver/Driver.xcworkspace \
@@ -196,11 +196,11 @@ But still, the scheduling log shows that ***tests are grouped by test class befo
 ......
 ```
 
-## Overcoming grouping logic in Xcode parallel testing
+## Overcoming Grouping Logic in Xcode Parallel Testing
 
-### Tweaking the -only-testing argument values
+### Tweaking the -only-testing Argument Values
 
-Based on our observation, we can imagine how Xcode runs tests in parallel. See below.
+Based on our observation, we can imagine how Xcode runs tests in parallel. See the example below.
 
 ```py
 Step 1.   tests = detect_tests_to_run() # parse -only-testing arguments
@@ -249,9 +249,9 @@ After that, looking at the scheduling log, we will see that the trick can bypass
 
 ```
 
-### Handling tweaked test names
+### Handling Tweaked Test Names
 
-When a worker/simulator receives a request to run a test, the app (could be the runner app or the hosting app) initializes an `XCTestSuite` corresponding to the test name. In order for the test suite to be properly made up, we need to remove the inserted token.
+When a worker/simulator receives a request to run a test, the app (could be the runner app or the hosting app) initialises an `XCTestSuite` corresponding to the test name. In order for the test suite to be properly made up, we need to remove the inserted token.
 
 This could be done easily by swizzling the [`XCTestSuite.init(forTestCaseWithName:)`](https://developer.apple.com/documentation/xctest/xctestsuite/1500897-init). Inside that swizzled function, we remove the token and then call the original init function.
 
@@ -275,7 +275,7 @@ extension XCTestSuite {
   <figcaption align="middle"><i>Swizzle function to run tests properly</i></figcaption>
 </figure></div>
 
-### Test class discovery
+### Test Class Discovery
 
 In order to adopt this tip, we need to know which test classes we need to run in advance. Although Apple does not provide an API to obtain the list before running tests, this can be done in several ways. One approach we can use is to generate test classes using [Sourcery](https://github.com/krzysztofzablocki/Sourcery). Another alternative is to parse the binaries inside `.xctest` bundles (in build products) to look for symbols related to tests.
 
@@ -285,7 +285,7 @@ In this article, we identified some factors causing test execution time imbalanc
 
 We also looked into how Xcode distributes tests in parallel testing. We also try to mitigate a constraint in which tests within the same class run on the same simulator. The trick not only reduces the imbalance but also gives us more confidence in adding more tests to a class without caring about whether it affects our CI infrastructure.
 
-Below is the metric about test time imbalance recorded when running UI tests. After adopting the trick, we saw a decrease in the metric (which is a good sign). As of now, the metric stabilizes at around 0.4 mins.
+Below is the metric about test time imbalance recorded when running UI tests. After adopting the trick, we saw a decrease in the metric (which is a good sign). As of now, the metric stabilises at around 0.4 mins.
 
 <div class="post-image-section"><figure>
   <img src="/img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/image4.png" alt="Tracking data of UI test time imbalance (in minutes) in our project, collected by multiple runs">
@@ -293,7 +293,7 @@ Below is the metric about test time imbalance recorded when running UI tests. Af
 </figure></div>
 
 
-## Join us
+## Join Us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.

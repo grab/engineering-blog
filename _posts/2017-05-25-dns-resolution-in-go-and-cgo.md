@@ -28,7 +28,7 @@ During the early days of Go, Cgo was introduced as a way for Go programs to embe
 
 Now that we have fixed the problem on our production systems by forcing the use of the Cgo DNS resolver and disabling IPv6, we are able to comfortably explore the problem and figure out why the unintuitive solution of using Cgo and disabling IPv6 works. Seeing how the Go source code in general has decent documentation, we decide to investigate that first. From the section titled "Name Resolution" of the [documentation of the net package](https://golang.org/pkg/net/), we can see that by default, Go uses the Go DNS Resolver. In cases where it is not supported, it falls back to Cgo or some other implementation that is the default on the OS. In our case, our production servers run on Ubuntu so the default DNS resolver is the native Go DNS Resolver and if we were to enable Cgo, we will be either using the `getaddrinfo` or `getnameinfo` functions in glibc.
 
-Being armed with that knowledge, we write up a small Go program that calls the `net.LookupHost` function and a simple C program that calls `getaddrinfo` to make sure that our understanding is accurate and to test out the behaviour of both these programs in different situations.
+Being armed with that knowledge, we write up a small Go programme that calls the `net.LookupHost` function and a simple C programme that calls `getaddrinfo` to make sure that our understanding is accurate and to test out the behaviour of both these programs in different situations.
 
 ~~~go
 

@@ -51,7 +51,7 @@ These figures meant that, on average, it took 10 business days between each serv
 
 With an increased focus on Engineering efficiency, in 2018 we started an internal initiative to address frictions in deployments that became known as Conveyor. To build Conveyor with a small team of engineers, we had to rely on an already mature platform which exhibited properties that are desirable to us to achieve our mission.
 
-### Hands-off deployments
+### Hands-off Deployments
 
 Deployments should be an afterthought. Engineers should be as removed from the process as possible, and whenever possible, decisions should be taken early, during the code review process. The machine will do the heavy lifting, and only when it can't decide for itself, should the engineer be involved. Notifications can be leveraged to ensure that engineers are only informed when something goes wrong and a human decision is required.
 
@@ -67,26 +67,26 @@ Deployments should be an afterthought. Engineers should be as removed from the p
 
 Grab's focus on gathering internal Engineering NPS feedback helped us collect valuable metrics. One of the metrics we cared about was our engineers' confidence in their production deployments. A team's entire deployment process to production could last for more than a day and may extend up to a week for teams with large infrastructures running critical services. The possibility of losing progress in deployments when individual steps may last for hours is detrimental to the improvement of Engineering efficiency in the organisation. The deployment automation platform is the bedrock of that confidence. If the platform itself fails regularly or does provide a path of upgrade that is transparent to end-users, any features built on top of it would suffer from these downtimes and ultimately erode confidence in deployments.
 
-### Tailored To Most But Extensible For The Few
+### Tailored to Most But Extensible for the Few
 
-Our backend engineering teams are working on diverse stacks, and so are their deployment processes. Right from the start, we wanted our product to benefit the largest population of engineers that had adopted the same process, so as to maximize returns on our investments. To ease adoption, we decided to tailor a deployment pipeline such that:
+Our backend engineering teams are working on diverse stacks, and so are their deployment processes. Right from the start, we wanted our product to benefit the largest population of engineers that had adopted the same process, so as to maximise returns on our investments. To ease adoption, we decided to tailor a deployment pipeline such that:
 
 1.  It would model the exact sequence of manual processes followed by this population of engineers.
 2.  Switching to use that pipeline should require as little work as possible by service teams.
 
-However, in cases where this model would not fit a team's specific process, our deployment platform should be open and extensible and support new customizations even when they are not originally supported by the product's ecosystem.
+However, in cases where this model would not fit a team's specific process, our deployment platform should be open and extensible and support new customisations even when they are not originally supported by the product's ecosystem.
 
-### Cloud-Agnosticity
+### Cloud-agnosticity
 
 While we were going to target a specific process and team, to ensure that our solution would stand the test of time, we needed to ensure that our solution would support the variety of environments currently used in production. This variety was also likely to increase, and we wanted a platform that would mature together with the rest of our ecosystem.
 
 ## Overview Of Conveyor
 
-### Setting Sail With Spinnaker
+### Setting Sail with Spinnaker
 
 Conveyor is based on [Spinnaker](https://spinnaker.io/&usg=AOvVaw1a93_1MJmR_1SZQ0mlu4Ow), an open-source, multi-cloud continuous delivery platform. We've chosen Spinnaker over other platforms because it is a mature deployment platform with no single point of failure, supports complex workflows (referred to as pipelines in Spinnaker), and already supports a large array of cloud providers. Since Spinnaker is open-source and extensible, it allowed us to add the features we needed for the specificity of our ecosystem.
 
-To further ease adoption within our organization, we built a tailored  user interface and created our own domain-specific language (DSL) to manage its pipelines as code.
+To further ease adoption within our organization, we built a tailored user interface and created our own domain-specific language (DSL) to manage its pipelines as code.
 
 <div class="post-image-section">
   <figure>
@@ -95,7 +95,7 @@ To further ease adoption within our organization, we built a tailored  user int
   </figure>
 </div>
 
-### Onboarding To A Simpler Interface
+### Onboarding to a Simpler Interface
 
 Spinnaker comes with its own interface, it has all the features an engineer would want from an advanced continuous delivery system. However, Spinnaker interface is vastly different from Jenkins and makes for a steep learning curve.
 
@@ -138,7 +138,7 @@ Several parameters are required for our deployments and their values are selecte
 </div>
 
 
-### Ease Of Adoption With Our Pipeline-As-Code DSL
+### Ease of Adoption with Our Pipeline-as-code DSL
 
 Ease of adoption for the team is not simply about the learning curve of the new tools. We needed to make it easy for teams to configure their services to deploy with Conveyor. Since we focused on automating tasks that were already performed manually, we needed only to configure the layer that would enable the integration.
 
@@ -176,7 +176,7 @@ Once the build is completed, teams can log in to Conveyor and start manual deplo
 
 Thanks to the simplicity of this minimal configuration file, we were able to generate these configuration files for all existing services of our monorepository. This resulted in the automatic onboarding of a large number of teams and was a major contributing factor to the adoption of Conveyor throughout our organisation.
 
-## Our Journey To Engineering Efficiency (for backend services)
+## Our Journey to Engineering Efficiency (for Backend Services)
 
 The sections below relate some of the improvements in engineering efficiency we've delivered since Conveyor's inception. They were not made precisely in this order but for readability, they have been mapped to each step of the software development lifecycle.
 
@@ -348,7 +348,7 @@ In the sequel to this blog post, we'll dive into the improvements that we've mad
 ---
 
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

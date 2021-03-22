@@ -25,7 +25,7 @@ Timeouts are a fundamental concept in computer networking. Almost every kind of 
 
 <p>&nbsp;</p>
 
-Timeouts allow a program to continue where it otherwise might hang, providing a better experience to the end user. Often the default way for programs to handle timeouts is to return an error, but this doesn't have to be the case: there are several better alternatives for handling timeouts which we'll cover later.
+Timeouts allow a programme to continue where it otherwise might hang, providing a better experience to the end user. Often the default way for programs to handle timeouts is to return an error, but this doesn't have to be the case: there are several better alternatives for handling timeouts which we'll cover later.
 
 While they may sound like a panacea, timeouts must be configured carefully to be effective: too short a timeout will result in increased errors from a resource which could still be working normally, and too long a timeout will risk consuming excess resources and a poor user experience. Furthermore, timeouts have evolved over time with new concepts such as Go's [context](https://golang.org/pkg/context/) package, and the trend towards distributed systems has raised the stakes: timeouts are more important, and can cause more damage if misused!
 

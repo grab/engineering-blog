@@ -184,7 +184,7 @@ And just to make sure that we did not just end up with a random outcome, we ran 
 
 The next thing to do now is to dive into the code itself. And to do that, we spin up a new EC2 instance in a **different subnet** (this is important later on) but with the same configuration as the other servers to run some tests.
 
-To help narrow down the problem points, we do some tests using cURL and a program in Go, Python and Ruby to try out the different scenarios and check consistency. While running the programs, we also capture the DNS TCP packets (by using the `tcpdump` command below) to understand how many DNS queries are being made by each of the program. This helps us to understand if any DNS caching is happening.
+To help narrow down the problem points, we do some tests using cURL and a programme in Go, Python and Ruby to try out the different scenarios and check consistency. While running the programs, we also capture the DNS TCP packets (by using the `tcpdump` command below) to understand how many DNS queries are being made by each of the program. This helps us to understand if any DNS caching is happening.
 
 ~~~sh
 $ tcpdump -l -n port 53
@@ -340,7 +340,7 @@ Well, that is disappointing, no new insights to preen from that. Having spent th
 
 Coming in fresh from having a good night's sleep, the issue managed to get the attention of even more Grab engineers that happily jumped in to help investigate the issue together. Then the magical clue happened, someone with an eye for networking spotted that the requests were always going to the ELB node that has the same subnet as the client that was initiating the request. Another engineer then quickly found RFC 3484 that talked about sorting of source and destination IP addresses. That was it! The IP addresses were always being sorted and that resulted in one ELB node getting more traffic than the rest.
 
-Then an article surfaced that suggests disabling IPv6 for C-based applications. We quickly try that with our Go program which does not work. But when we then try running the same code with Cgo [^9] enabled as the DNS resolver it leads to success! The request count to the different ELB nodes is now properly balanced. Hooray!
+Then an article surfaced that suggests disabling IPv6 for C-based applications. We quickly try that with our Go programme which does not work. But when we then try running the same code with Cgo [^9] enabled as the DNS resolver it leads to success! The request count to the different ELB nodes is now properly balanced. Hooray!
 
 If you have been following this post, you would have figured that the issue is impacting all of our internal services. But as stated earlier, the load on the other ELBs is not high as Astrolabe. So we do not see any issues with the other services, The traffic to Astrolabe has been steadily increasing over the past few months, which might have hit some ELB limits and causing 5XX errors.
 
