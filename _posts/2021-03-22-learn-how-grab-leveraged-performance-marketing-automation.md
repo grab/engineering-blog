@@ -11,9 +11,6 @@ cover_photo: /img/learn-how-grab-leveraged-performance-marketing-automation/cove
 excerpt: "Learn how Grab is investigating and reducing service binary size for Golang projects."
 ---
 
-
-Learn How Grab Leveraged Performance Marketing Automation to Improve Conversion Rates by 30%
-
 Grab, Southeast Asia's leading superapp, is a hyperlocal 3-sided marketplace that operates across hundreds of cities in Southeast Asia. Grab started out as a taxi hailing company back in 2012 and in less than a decade, the business has evolved tremendously and now offers a diverse range of services for consumers’ everyday needs.
 
 To fuel our business growth in newer service offerings such as GrabFood, GrabMart and GrabExpress, user acquisition efforts play a pivotal role in ensuring we create a sustainable Grab ecosystem that balances the marketplace dynamics between our consumers, driver partners and merchant partners.
@@ -58,13 +55,14 @@ With these in mind, we incorporated them in our requirements for the custom crea
 
 To solve this, we relied on a standardised creative naming convention, using key attributes in the file name to map an asset to a specific campaign and ad group based on:
 
-      * Market
-      * City
-      * Service type
-      * Language
-      * Creative theme
-      * Asset type
-      * Campaign optimisation goal
+    - Market
+    - City
+    - Service type
+    - Language
+    - Creative theme
+    - Asset type
+    - Campaign optimisation goal
+
 
 *   __Inclusivity__ - to address coverage of future service offerings and interoperability with existing ad-tech vendors, we designed and built our tool conforming to many industry API and platform standards.
 
