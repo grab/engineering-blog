@@ -14,7 +14,7 @@ excerpt: "This blog post describes how we used React Native to optimize the Grab
 
 It wasn’t too long ago that Grab formed a new team, GrabPay, to improve the cashless experience in Southeast Asia and to venture into the promising mobile payments arena. To support the work, Grab also decided to open a new R&D center in Bangalore.
 
-It was an exciting journey for our team from the very beginning, as it gave us the opportunity to experiment with new cutting edge technologies. Our first release was the [GrabPay Merchant App](https://itunes.apple.com/sg/app/grabpay-merchant/id1343620481?mt%3D8), the first all React Native Grab app. Its success gave us the confidence to use React Native to optimize the Grab Passenger app.
+It was an exciting journey for our team from the very beginning, as it gave us the opportunity to experiment with new cutting edge technologies. Our first release was the [GrabPay Merchant App](https://itunes.apple.com/sg/app/grabpay-merchant/id1343620481?mt%3D8), the first all React Native Grab app. Its success gave us the confidence to use React Native to optimise the Grab Passenger app.
 
 React Native is an open source mobile application framework. It lets developers use React (a JavaScript library for building user interfaces) with native platform capabilities. Its two big advantages are:
 
@@ -26,7 +26,7 @@ This post describes our work on developing React Native components for Grab apps
 Before embarking on our work with React Native, these were the goals we set out. We wanted to:
 
 *   Have a reusable code between Android and iOS as well as across various Grab apps (Driver app, Merchant app, etc.).
-*   Have a single codebase to minimize the effort needed to modify and maintain our code long term.
+*   Have a single codebase to minimise the effort needed to modify and maintain our code long term.
 *   Match the performance and standards of existing Grab apps.
 *   Use as few Engineering resources as possible.
 
@@ -95,7 +95,7 @@ We selected particularly useful components from the Merchant app codebase such a
 
 ### API Calls
 
-We used to make API calls using [axios](https://github.com/axios/axios) (now deprecated). We now make calls from the Native side using bridges that return a promise and make API calls using an existing framework. This helped us remove the dependency for getting an access token from Native-Android or Native-iOS to make the calls. Also it helped us optimize the API requests, as suggested by [Parashuram](https://hasgeek.com/reactfoo/2019/proposals/building-react-native-8TGxsthFUN4CJi2B82zDxd) from Facebook’s React Native team.
+We used to make API calls using [axios](https://github.com/axios/axios) (now deprecated). We now make calls from the Native side using bridges that return a promise and make API calls using an existing framework. This helped us remove the dependency for getting an access token from Native-Android or Native-iOS to make the calls. Also it helped us optimise the API requests, as suggested by [Parashuram](https://hasgeek.com/reactfoo/2019/proposals/building-react-native-8TGxsthFUN4CJi2B82zDxd) from Facebook’s React Native team.
 
 ### Locale
 

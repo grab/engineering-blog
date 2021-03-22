@@ -11,9 +11,9 @@ cover_photo: /img/grab-everyday-super-app/cover.png
 excerpt: "To excel in a heavily diversified market like Southeast Asia, we leverage on the depth of our data to understand what sorts of information users want to see on our Feed and when they should see them. In this article we will discuss Grab Feed’s recommendation logic and strategies, as well as its future roadmap."
 ---
 
-Grab is [Southeast Asia’s leading superapp](https://www.grab.com/sg/blog/welcome-to-our-everyday-super-app/), providing highly-used daily services such as ride-hailing, food delivery, payments, and more. Our goal is to give people better access to the services that matter to them, with more value and convenience, so we’ve been expanding our ecosystem to include bill payments, hotel bookings, trip planners, and videos - with more to come. We want to outserve our customers - not just by packing the Grab app with useful features and services, but by making the whole experience a unique and personalized one for each of them.
+Grab is [Southeast Asia’s leading superapp](https://www.grab.com/sg/blog/welcome-to-our-everyday-super-app/), providing highly-used daily services such as ride-hailing, food delivery, payments, and more. Our goal is to give people better access to the services that matter to them, with more value and convenience, so we’ve been expanding our ecosystem to include bill payments, hotel bookings, trip planners, and videos - with more to come. We want to outserve our customers - not just by packing the Grab app with useful features and services, but by making the whole experience a unique and personalised one for each of them.
 
-To realize our super app ambitions, we work with [partners](https://www.grab.com/sg/press/consumers-drivers/grab-introduces-four-new-services-in-singapore-in-its-super-app/) who, like us, want to help drive Southeast Asia forward.
+To realise our super app ambitions, we work with [partners](https://www.grab.com/sg/press/consumers-drivers/grab-introduces-four-new-services-in-singapore-in-its-super-app/) who, like us, want to help drive Southeast Asia forward.
 
 A lot of the collaborative work we do with our partners can be seen in the Grab Feed. This is where we broadcast various types of content about Grab and our partners in an aggregated manner, adding value to the overall user experience. Here's what the feed looks like:
 
@@ -27,7 +27,7 @@ As we continue to add more cards, services, and chunks of content into Grab Feed
 
 To excel in a heavily diversified market like Southeast Asia, we leverage on the depth of our data to understand what sorts of information users want to see and when they should see them. In this article we will discuss Grab Feed’s recommendation logic and strategies, as well as its future roadmap.
 
-Start your Engines
+Start Your Engines
 ------------------
 
 <div class="post-image-section">
@@ -49,7 +49,7 @@ To solve this, we have built a recommendation engine, which is a system that sug
 Using signals from all these factors, we build a model that returns a ranked set of cards to the user. More on this in the next few sections.
 
 
-Understanding our User
+Understanding Our User
 ----------------------
 
 <div class="post-image-section">
@@ -73,7 +73,7 @@ Building a viable recommendation engine requires several phases. Working iterati
 
 1.  **Popularity**. This strategy is better known as trending recommendations. We capture online clickstream events over a rolling time window and aggregate the events to show the user what's popular to everyone at that point in time. Listening to the crowds is generally an effective strategy, but this particular strategy also helps us address the cold start problem by providing recommendations for new feed users.
 2.  **User Favourites**. We understand that our users have different tastes and that users will have content that they engage with more than other users would.  In this strategy, we capture that personal engagement and the user’s evolving preferences.
-3.  **Collaborative Filtering**.A key goal in building our everyday super app is to let users experience different services. To allow discoverability, we study similar users to uncover a s et ofsimilar preferences they may have, which we can then use to guide what we show other users.
+3.  **Collaborative Filtering**.A key goal in building our everyday super app is to let users experience different services. To allow discoverability, we study similar users to uncover a s et of similar preferences they may have, which we can then use to guide what we show other users.
 4.  **Habitual Behaviour**. There will be times where users only want to do a specific thing, and we wouldn't want them to scroll all the way down just to do it. We've built in habitual recommendations to address this. So if users always use the feed to scroll through food choices at lunch or to take a peek at ride peaks (pun intended) on Sunday morning, we've still got them covered.
 5.  **Deep Recommendations**. We've shown you how we use Feed data to drive usage across the platform. But what about using the platform data to drive the user feed behaviour? By embedding users’ activities from across our multiple businesses, we're also able to leverage this data along with clickstream to determine the content preferences for each user.
 
@@ -84,7 +84,7 @@ Always Learning
 
 We’re constantly learning and relearning about our users. There are a lot of ways to understand behaviour and a lot of different ways to incorporate different strategies, so we're always iterating on these to deliver the most personal experience on the app.
 
-To identify a user's preferences and optimal strategy exposure, we capitalise on our[ Experimentation Platform](https://engineering.grab.com/building-grab-s-experimentation-platform) to expose different configurations of our Recommendation Engine to different users. To monitor the quality of our recommendations, we measure the impact with online metrics such as interaction, clickthrough, and engagement rates and offline metrics like Recall@Kand Normalized Discounted Cumulative Gain (NDCG).
+To identify a user's preferences and optimal strategy exposure, we capitalise on our[ Experimentation Platform](https://engineering.grab.com/building-grab-s-experimentation-platform) to expose different configurations of our Recommendation Engine to different users. To monitor the quality of our recommendations, we measure the impact with online metrics such as interaction, clickthrough, and engagement rates and offline metrics like Recall@K and Normalised Discounted Cumulative Gain (NDCG).
 
 Future Work
 -----------

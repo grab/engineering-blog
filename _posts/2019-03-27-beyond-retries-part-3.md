@@ -13,7 +13,7 @@ excerpt: "This post is the third of a three-part series on going beyond retries 
 
 _This post is the third of a three-part series on going beyond retries and circuit breakers to improve system resiliency. This whole series covers techniques and architectures that can be used as part of a strategy to improve resiliency. In this article, we will focus on architecture patterns and chaos engineering to reduce, prevent, and test resiliency._
 
-## Reducing failure through architecture patterns
+## Reducing Failure Through Architecture Patterns
 
 Resiliency is all about preparing for and handling failure. So the most effective way to improve resiliency is undoubtedly to reduce the possible ways in which failure can occur, and several architectural patterns have emerged with this aim in mind. Unfortunately these are easier to apply when designing new systems and less relevant to existing ones, but if resiliency is still an issue and no other techniques are helping, then refactoring the system is a good approach to consider.
 
@@ -31,31 +31,31 @@ If an operation has side-effects but cannot distinguish unique calls with its cu
 <p>&nbsp;</p>
 
 
-### Asynchronous responses
+### Asynchronous Responses
 
 A second pattern is making use of asynchronous responses. Rather than relying on a successful call to a dependency which may fail, a service may complete its own work and return a successful or partial response to the client. The client would then have to receive the response in an alternate way, either by polling ('pull') until the result is ready or the response being 'pushed' from the server when it completes.
 
 From a resiliency perspective, this guarantees that the downstream errors do not affect the endpoint. Furthermore, the risk of the dependency causing latency or consuming resources goes away, and it can be retried in the background until it succeeds. The disadvantage is that this works against the 'fail fast' principle, since the call might be retried indefinitely without ever failing. It might not be clear to the client what to do in this case.
 
-Not all endpoints have to be made asynchronous, and the decision to be synchronous or not could be made by the endpoint dynamically, depending on the service health. Work that can be made asynchronous is known as _deferrable work_, and utilizing this information can save resources and allow the more critical endpoints to complete. For example, a fraud system may decide whether or not a newly registered user should be allowed to use the application, but such decisions are often complex and costly. Rather than slow down the registration process for every user and create a poor first impression, the decision can be made asynchronously. When the fraud-decision system is available, it picks up the task and processes it. If the user is then found to be fraudulent, their account can be deactivated at that point.
+Not all endpoints have to be made asynchronous, and the decision to be synchronous or not could be made by the endpoint dynamically, depending on the service health. Work that can be made asynchronous is known as _deferrable work_, and utilising this information can save resources and allow the more critical endpoints to complete. For example, a fraud system may decide whether or not a newly registered user should be allowed to use the application, but such decisions are often complex and costly. Rather than slow down the registration process for every user and create a poor first impression, the decision can be made asynchronously. When the fraud-decision system is available, it picks up the task and processes it. If the user is then found to be fraudulent, their account can be deactivated at that point.
 
-## Preventing disaster through chaos engineering
+## Preventing Disaster Through Chaos Engineering
 
 It is famously understood that disaster recovery is worthless unless it's tested regularly. There are dozens of stories of employees diligently performing backups every day only to find that when they actually needed to restore from it, the backups were empty. The same thing applies to resiliency, albeit with less spectacular consequences.
 
 The emerging best practice for testing resiliency is _chaos engineering_. This practice, made famous by Netflix's [Chaos Monkey](https://medium.com/netflix-techblog/the-netflix-simian-army-16e57fbab116), is the idea of deliberately causing parts of a system to fail in order to test (and subsequently improve) its resiliency. There are many different kinds of chaos engineering that vary in scope, from simulating an outage in an entire AWS region to injecting latency into a single endpoint. A chaos engineering strategy may include multiple types of failure, to build confidence in the ability of various parts of the system to withstand failure.
 
-Chaos engineering has evolved since its inception, ironically becoming less 'chaotic', despite the name. Shutting off parts of a system without a clear plan is unlikely to provide much value, but is practically guaranteed to frustrate your customers - and upper management! Since it is recommended to experiment on production, minimizing the _blast radius_ of chaos experiments, at least at the beginning, is crucial to avoid unnecessary impact to the system.
+Chaos engineering has evolved since its inception, ironically becoming less 'chaotic', despite the name. Shutting off parts of a system without a clear plan is unlikely to provide much value, but is practically guaranteed to frustrate your customers - and upper management! Since it is recommended to experiment on production, minimising the _blast radius_ of chaos experiments, at least at the beginning, is crucial to avoid unnecessary impact to the system.
 
-### Chaos experiment process
+### Chaos Experiment Process
 
 The basic process for conducting a chaos experiment is as follows:
 
 1.  Define how to measure a 'steady state', in order to confirm that the system is currently working as expected.
 2.  Decide on a 'control group' (which does not change) and an 'experiment group' from the pool of backend servers.
-3.  Hypothesize that the steady state will not change during the experiment.
+3.  Hypothesise that the steady state will not change during the experiment.
 4.  Introduce a failure in one component or aspect of the system in the control group, such as the network connection to the database.
-5.  Attempt to disprove the hypothesis by analyzing the difference in metrics between the control and experiment groups.
+5.  Attempt to disprove the hypothesis by analysing the difference in metrics between the control and experiment groups.
 
 If the hypothesis is disproved, then the parts of the system which failed are candidates for improvement. After making changes, the experiments are run again, and gradually confidence in the system should improve.
 

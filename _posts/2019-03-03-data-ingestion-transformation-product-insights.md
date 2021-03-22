@@ -16,18 +16,18 @@ Introduction
 
 As Grab grew from a small startup to an organisation serving millions of customers and driver partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.
 
-Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab scale it is a non-trivial task. We had to prepare for two key scenarios:
+Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab's scale, it is a non-trivial task. We had to prepare for two key scenarios:
 
 *   Business growth, including organic growth over time and expected [seasonality](https://en.wikipedia.org/wiki/Seasonality) effects.
 *   Any unexpected peaks due to unforeseen circumstances. Our systems have to be [horizontally scalable](https://en.wikipedia.org/wiki/Scalability).
 
 We could ingest data in batches, in real time, or a combination of the two. When you ingest data in batches, you can import it at regularly scheduled intervals or when it reaches a certain size. This is very useful when processes run on a schedule, such as reports that run daily at a specific time. Typically, batched data is useful for offline analytics and data science.
 
-On the other hand, real-time ingestion has significant [business value](https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/#459fc6d61220), such as with [reactive systems](https://www.reactivemanifesto.org/). For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note when information is very time-sensitive, you must continuously monitor its data.
+On the other hand, real-time ingestion has significant [business value](https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/#459fc6d61220), such as with [reactive systems](https://www.reactivemanifesto.org/). For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note that when information is very time-sensitive, you must continuously monitor its data.
 
 This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.
 
-Building the system without reinventing the wheel
+Building the System Without Reinventing the Wheel
 =================================================
 
 The data ingestion system:
@@ -64,7 +64,7 @@ We separated the data ingestion system into 3 layers: collection, transformation
 
 Our first design might seem complex, but we used battle-tested and common tools such as Apache [Kafka](https://kafka.apache.org/uses) and [Spark Streaming](https://spark.apache.org/streaming/). This let us get an end-to-end solution up and running quickly.
 
-### Collection layer
+### Collection Layer
 
 Our collection layer had two sub-layers:
 
@@ -73,13 +73,13 @@ Our collection layer had two sub-layers:
 
 Since it’s robust and battle-tested, we chose Kafka as our queueing solution. It perfectly met our requirements, such as high throughput and low latency. Although Kafka takes some operational effort such as self-hosting and monitoring, Grab has a proficient and dedicated team managing our Kafka cluster.
 
-### Transformation layer
+### Transformation Layer
 
 There are many options for real-time data processing, including [Spark](https://spark.apache.org/docs/latest/streaming-programming-guide.html)[ Streaming](https://spark.apache.org/docs/latest/streaming-programming-guide.html), [Flink](https://flink.apache.org/), and [Storm](http://storm.apache.org/). Since we use Spark for all our batch processing, we decided to use Spark Streaming.
 
-We deployed a Golang processing service between Kafka and Spark Streaming. This service converts the data from [Protobuf](https://developers.google.com/protocol-buffers/) to [Avro](https://avro.apache.org/docs/current/). Instead of pointing Spark Streaming directly to Kafka, we used this processing service as an intermediary. This was because our Spark Streaming job was written in Python and Spark doesn’t natively support [protobuf](https://developers.google.com/protocol-buffers/) decoding.  We used Avro format, since Grab historically used it for archiving streaming data. Each raw event was enriched and batched together with other events. Batches were then uploaded to S3.
+We deployed a Golang processing service between Kafka and Spark Streaming. This service converts the data from [Protobuf](https://developers.google.com/protocol-buffers/) to [Avro](https://avro.apache.org/docs/current/). Instead of pointing Spark Streaming directly to Kafka, we used this processing service as an intermediary. This was because our Spark Streaming job was written in Python and Spark doesn’t natively support [protobuf](https://developers.google.com/protocol-buffers/) decoding. We used Avro format, since Grab historically used it for archiving streaming data. Each raw event was enriched and batched together with other events. Batches were then uploaded to S3.
 
-### Storage layer
+### Storage Layer
 
 [TalariaDB](https://engineering.grab.com/big-data-real-time-presto-talariadb) is a Grab-built time-series database. It ingests events as columnar ORC files, indexing them by event name and time. We use the same ORC format files for batch processing. TalariaDB also implements the Presto Thrift connector interface, so our users could query certain event types by time range. They did this by connecting a Presto to a TalariaDB hosting distributed cluster.
 
@@ -90,11 +90,11 @@ Building and deploying our data pipeline’s [MVP](https://en.wikipedia.org/wiki
 
 This prompted us to develop more features on top of our platform-collected real-time data. Very soon our QA engineers and the product analytics team used more and more of the real-time data processing system. They started [instrumenting](https://en.wikipedia.org/wiki/Instrumentation_(computer_programming)) various mobile applications so more data started flowing in. However, as our ingested data increased, so did our problems. These were mostly related to operational complexity and the increased latency.
 
-### Operational complexity
+### Operational Complexity
 
-Only a few team members could operate Spark Streaming and EMR. With more data and variable rates, our streaming jobs had scaling issues and failed occasionally. This was due to checkpoint issues when the cluster was under heavy load. Increasing the cluster size helped, but adding more nodes also increased the likelihood of losing more cluster nodes. When we lost nodes,our latency went up and added more work for our already busy on-call engineers.
+Only a few team members could operate Spark Streaming and EMR. With more data and variable rates, our streaming jobs had scaling issues and failed occasionally. This was due to checkpoint issues when the cluster was under heavy load. Increasing the cluster size helped, but adding more nodes also increased the likelihood of losing more cluster nodes. When we lost nodes, our latency went up and added more work for our already busy on-call engineers.
 
-### Supporting native Protobuf
+### Supporting Native Protobuf
 
 To simplify the architecture, we initially planned to bypass our Golang-written processing service for the real-time data pipeline. Our plan was to let Spark directly talk to the Kafka queue and send the output to S3. This required packaging the decoders for our protobuf messages for Python Spark jobs, which was cumbersome. We thought about rewriting our job in Scala, but we didn’t have enough experience with it.
 
@@ -103,11 +103,11 @@ Also, we’d soon hit some streaming limits from S3. Our Spark streaming job was
 ![](img/data-ingestion-transformation-product-insights/image1.png)
 
 
-### Processing lag
+### Processing Lag
 
 On average, the time from our system ingesting an event to when it was available on the Presto was 4 to 6 minutes. We call that processing lag, as it happened due to our data processing. It was substantially worse under heavy loads, increasing to 8 to 13 minutes. While that wasn’t bad at this scale (a few TBs of data), it made some use cases impossible, such as monitoring. We needed to do better.
 
-Simplifying the architecture and rewriting in Golang
+Simplifying the Architecture and Rewriting in Golang
 ----------------------------------------------------
 
 After completing the MVP phase development, we noticed the Spark Streaming functionality we actually used was relatively trivial. In the Spark Streaming job, we only:
@@ -122,7 +122,7 @@ To mitigate the problems mentioned above, we tried re-implementing the features 
 
 One key problem we addressed was implementing a robust event partitioner with a large write throughput and low read latency. Fortunately, Golang has a nice [concurrent map](https://golang.org/pkg/sync/#Map) package. To further reduce the lock contention, we added [sharding](https://www.openmymind.net/Shard-Your-Hash-table-to-reduce-write-locks/).
 
-We made the changes, deployed the service to production,and discovered our service was now [memory-bound](https://en.wikipedia.org/wiki/Memory_bound_function) as we buffered data for 1 minute. We did thorough benchmarking and profiling on heap allocation to improve memory utilization. By iteratively reducing inefficiencies and contributing to a lower CPU consumption, we made our data transformation more efficient.
+We made the changes, deployed the service to production, and discovered our service was now [memory-bound](https://en.wikipedia.org/wiki/Memory_bound_function) as we buffered data for 1 minute. We did thorough benchmarking and profiling on heap allocation to improve memory utilisation. By iteratively reducing inefficiencies and contributing to a lower CPU consumption, we made our data transformation more efficient.
 
 ![](img/data-ingestion-transformation-product-insights/image2.png)
 

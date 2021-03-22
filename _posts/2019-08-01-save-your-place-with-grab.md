@@ -15,7 +15,7 @@ Do you find it tedious to type and search for your destination or have a hard ti
 
 With Saved Places, you can save an address and also add a label like “Home”, “Work”, “Gym”, etc which makes finding and selecting an address for booking a ride or ordering your favourite food a breeze!
 
-## Never forget your addresses again!
+## Never Forget Your Addresses Again!
 
 To use the feature, fire up your Grab app, head to the “Saved Places” section on the app navigation bar and start adding all your favourite destinations such as your home, your office, your favourite mall or the airport and you are done with the hassle of typing them again.
 
@@ -26,11 +26,11 @@ To use the feature, fire up your Grab app, head to the “Saved Places” sectio
 
 Hola! your saved addresses are just a click away to order a ride or your favourite meal.
 
-## Inspiration behind the work
+## Inspiration Behind the Work
 
 We at Grab continuously engage with our customers to understand how we can outserve them better. Difficulty in choosing the correct address was one of the key feedback shared by our customers. Our drivers shared funny stories about places that have similar names but outrightly different locations e.g. Sime Road is in Bukit Timah but Simei Road is in Simei almost 20 km away, Nicoll Highway is in Kallang but Nicoll Drive is in Changi almost 20 km away. In this case, even though the users use the address frequently, there remains scope for misselection.
 
-### Data-Driven Decisions
+### Data-driven Decisions
 
 Our vast repository of data and insights has helped us identify and solve some challenging problems. Our analysis of millions of transport bookings and food orders revealed that customers usually visit five to seven unique locations and order food at one or two addresses.
 
@@ -45,9 +45,9 @@ This insight also motivated us to test out the concept of user created labels wh
 
 A group of cross functional teams - Analytics, Product, Design, Engineering etc came together, worked backwards from the customer, brainstormed multiple ideas, and finalised a product approach. We then went on to conduct in depth user research and usability testing to ensure that the final product met user expectations and was easy to understand and use.
 
-## And users love it!
+## And Users Love it!
 
-Since the launch, we have seen significant user adoption for the feature. More than 14 Million users have saved close to 45 Million saved places. That’s ~3 places per user!
+Since the launch, we have seen significant user adoption for the feature. More than 14 million users have saved close to 45 Million saved places. That’s ~3 places per user!
 
 Customers from Singapore and Myanmar tend to save around 3 addresses each whereas customers from Indonesia, Malaysia, Philippines, Thailand, Vietnam and Cambodia save 2 addresses each. A customer from Indonesia has saved a whopping 1,191 addresses!
 
@@ -67,6 +67,6 @@ Another observation, as someone may have guessed, is regarding cluster of home a
 </div>
 <p>&nbsp;</p>
 
-## This is only the beginning
+## This is Only the Beginning
 
 We're constantly striving to improve the user experience with Grab and make it as seamless as possible. We have only taken the first steps with Saved Places and the path forward involves deeper understanding of user behaviour with the help of saved places data to create a more personalised experience. This is just the beginning and we're planning to launch some very innovative features in the coming months.

@@ -49,7 +49,7 @@ Let’s look deeper into the tourist translation statistics for each country wit
 Tap for Templates!
 ------------------
 
-GrabChat also provides achat template feature. Templates are prewritten messages that you can send with just one tap! Did we mention that they are translated automatically too? Passengers and drivers can have a fast, simple, and translated conversation with each other without typing a single word- and sometimes, templates are really all you need.
+GrabChat also provides a chat template feature. Templates are prewritten messages that you can send with just one tap! Did we mention that they are translated automatically too? Passengers and drivers can have a fast, simple, and translated conversation with each other without typing a single word- and sometimes, templates are really all you need.
 
 <div class="post-image-section">
   <img alt="Examples of chat templates, as they appear in GrabChat!" src="/img/tourist-chat-data-story/image6.png">
@@ -79,7 +79,7 @@ In our analysis, we found an interesting insight! There was a positive correlat
   <img alt="Template vs completed bookings" src="/img/tourist-chat-data-story/image4.png">
 </div>
 
-Picture this: a hassle-free experience
+Picture This: a Hassle-free Experience
 --------------------------------------
 
 A picture says a thousand words, and for tourists using GrabChat’s image feature, those thousand words don’t even need to be translated. Instead of typing out a description of where they are standing for pickup, they can just click, snap, and send an image!
@@ -90,7 +90,7 @@ Our data revealed that GrabChat’s image functionality is most frequently used 
   <img alt="Pickup locations" src="/img/tourist-chat-data-story/image7.png">
 </div>
 
-If we take it a step further and look at the actual areas  within the cities where images were sent the most, we see that our initial hypothesis still holds fast.
+If we take it a step further and look at the actual areas within the cities where images were sent the most, we see that our initial hypothesis still holds fast.
 
 <div class="post-image-section">
   <img alt="Pickup locations" src="/img/tourist-chat-data-story/image1.png">
@@ -99,29 +99,29 @@ If we take it a step further and look at the actual areas  within the cities w
 
 <p>&nbsp;</p>
 
-In Singapore, we see the most images being sent out at the Downtown Core area- this area contains the majestic Marina Bay Sands, the Merlion statue, and the Esplanade, amongst other iconic attractions.
+In Singapore, we see the most images being sent out at the Downtown Core area - this area contains the majestic Marina Bay Sands, the Merlion statue, and the Esplanade, amongst other iconic attractions.
 
 In Malaysia, the highest image usage occurs at none other than the Kuala Lumpur City Centre (KLCC) itself. This area includes the Twin Towers, a plethora of malls and hotels, Bukit Bintang (a bustling and lively night-life zone), and even an aquarium.
 
 Indonesia’s top location for image chats is Kuta. A beach village in Bali, Kuta is a tourist hotspot with surfing, water parks, bars, budget-friendly yet delicious food, and numerous cultural attractions.
 
-Speak up!
+Speak Up!
 ---------
 
 Allowing for two-way communication via GrabChat empowers both passengers and drivers to improve their journeys by divulging useful information, and asking clarifying questions: how many bags do you have? Does your car accommodate my pet dog? I’m standing by the lobby with my two kids- these are the sorts of things that are talked about in GrabChat messages.
 
 During the analysis of our multitudes of wide-ranging GrabChat conversations, we picked up some pro-tips for you to get a Grab ride with even more convenience and ease, whether you’re a tourist or not:
 
-#### Tip #1: Did some shopping on your trip? Swamped with bags? Send a message to your driver to let them know how many pieces of luggage you have with you.
+#### Tip #1: Did Some Shopping on Your Trip? Swamped with Bags? Send a Message to Your Driver to Let Them Know How Many Pieces of Luggage You Have with You.
 
 As one might expect, chats that have keywords such as “luggage” or “baggage” (or any other related term) occur the most when riders are going to, or leaving, an airport. Most of the tourists on GrabChat asked the drivers if there was space for all of their things in the car. Interestingly, some of them also told the drivers how to recognise them for pickup based off of the descriptions of their bags!
 
-#### Tip #2: Your children make good landmarks! If you're in a crowded spot and you're worried your driver can't find you, drop them a message to let them know you're that family with a baby and a little girl in pigtails.
+#### Tip #2: Your Children Make Good Landmarks! If You're in a Crowded Spot and You're Worried Your Driver Can't Find You, Drop Them a Message to Let Them Know You're that Family with a Baby and a Little Girl in Pigtails.
 
 When it comes to children, we found that passengers mainly use them to help identify themselves to the driver. Messages like “I’m with my two kids” or “We are a family with a baby” came up numerous times, and served as descriptions to facilitate fast pickup. These sorts of chats were the most prevalent in crowded areas like airports and shopping centres.
 
 
-#### Tip #3: Don’t get caught off guard- be sure your furry friends have a seat!
+#### Tip #3: Don’t Get Caught Off Guard - Be Sure Your Furry Friends Have a Seat!
 
 Taking a look at pet related chats, we learned that our tourists have used GrabChat to ask clarifying questions to the driver. Passengers have likely considered that not every driver or vehicle is accommodating towards animals. The most common type of message was about whether pets are allowed in the vehicle. For example: “Is it okay if I bring a puppy?” or “I have a dog with me in a carrier, is that alright?”. Better safe than sorry! Alternatively, if you’re travelling with a pet, why not see if GrabPet is available in your country?
 

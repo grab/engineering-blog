@@ -23,7 +23,7 @@ We’re glad to share that, as of 15th March 2019, we’ve successfully resolved
 
 So, how did we achieve automating the ERP fare calculation for our drivers-partners? How did we manage to reduce the number of trips where drivers would forget to enter ERP fare to almost zero? Read on!
 
-## How we approached the Problem
+## How We Approached the Problem
 
 The question we wanted to solve was - how do we create an impactful feature to make sure that driver -partners have one less thing to handle when they drive?
 
@@ -37,7 +37,7 @@ We started by looking at the problem at hand. ERP fares in Singapore are very dy
 
 We wanted to create a system which can identify the dynamic ERP fares at any given time and location, while simultaneously identifying when a driver-partner has passed through any of these gantries.
 
-However, that wasn’t enough. We wanted this feature to be scalable to every country where Grab is in - like Indonesia, Thailand, Malaysia, Philippines, Vietnam. We started studying the ERP (or tolls - as it is known locally) system in other countries. We realized that every country has its own style of calculating toll. While in Singapore ERP charges for cars and taxis are the same, Malaysia applies different charges for cars and taxis. Similarly, Vietnam has different tolls for 4-seaters and 7-seaters. Indonesia and Thailand have couple gantries where you pay only at one of the gantries.Suppose A and B are couple gantries, if you passed through A, you won't need to pay at B and vice versa. This is where our Ops team came to the rescue!
+However, that wasn’t enough. We wanted this feature to be scalable to every country where Grab is in - like Indonesia, Thailand, Malaysia, Philippines, Vietnam. We started studying the ERP (or tolls - as it is known locally) system in other countries. We realised that every country has its own style of calculating toll. While in Singapore ERP charges for cars and taxis are the same, Malaysia applies different charges for cars and taxis. Similarly, Vietnam has different tolls for 4-seaters and 7-seaters. Indonesia and Thailand have couple gantries where you pay only at one of the gantries.Suppose A and B are couple gantries, if you passed through A, you won't need to pay at B and vice versa. This is where our Ops team came to the rescue!
 
 ## Boots on the Ground!
 
@@ -61,13 +61,13 @@ Upon submission of the output, stack engineers would perform higher level qualit
 
 Lastly, we worked with a local team of driver-partners who volunteered to make sure the new system is fully operational and the prices are correct. Inconsistencies observed were reported by these driver-partners, and then corrected in our system.
 
-## Closing the loop
+## Closing the Loop
 
-Creating a strong dataset did help us in predicting correct fares, but we needed something which allows us to handle the dynamic behavior of the changing toll status too. For example, Singapore government revises ERP fare every quarter, while there could also be ad-hoc changes like activating or deactivating of gantries on an on-going basis.
+Creating a strong dataset did help us in predicting correct fares, but we needed something which allows us to handle the dynamic behaviour of the changing toll status too. For example, Singapore government revises ERP fare every quarter, while there could also be ad-hoc changes like activating or deactivating of gantries on an on-going basis.
 
 Garvee Garg, Product Manager for this feature explains: “Creating a system that solves the current problem isn’t sufficient. Your product should be robust enough to handle all future edge case scenarios too. Hence we thought of building a feedback mechanism with drivers.”
 
-In case our ERP fare estimate isn’t correct or there are changes in ERPs on-ground, our driver-partners can provide feedback to us. These feedback directly flow to Customer Experience teamwho does the initial investigation, and from there to our Ops team. A dedicated person from Ops team checks the validity of the feedback, and recommends updates. It only takes 1 day on average to update the data from when we receive the feedback from the driver-partner.
+In case our ERP fare estimate isn’t correct or there are changes in ERPs on-ground, our driver-partners can provide feedback to us. These feedback directly flow to Customer Experience team, who does the initial investigation, and from there to our Ops team. A dedicated person from Ops team checks the validity of the feedback, and recommends updates. It only takes 1 day on average to update the data from when we receive the feedback from the driver-partner.
 
 However, validating the driver feedback was a time consuming process. We needed a tool which can ease the life of Ops team by helping them in de-bugging each and every case.
 
@@ -75,7 +75,7 @@ Hence the ERP Workflow tool came into the picture.
 
 99% of the time, feedback from our driver-partners are about error cases. When feedback comes in, this tool would allow the Ops team to check the entire ride history of the driver and map driver’s ride trajectory with all the underlying ERP gantries at that particular point of time. The Ops team  would then be able to identify if ERP fare calculated by our system or as said by driver is right or wrong.
 
-## This is only the beginning
+## This is Only the Beginning
 
 By creating a system that can automatically calculate and key in ERP fares for each trip, Grab is proud to say that our driver-partners can now drive with less hassle and focus more on the road which will bring the ride experience and safety for both the driver and the passengers to a new level!
 

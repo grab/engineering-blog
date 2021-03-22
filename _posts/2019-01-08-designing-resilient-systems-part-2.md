@@ -40,14 +40,14 @@ Secondly, while our request succeeded, it required more resources (CPU and time)
 
 Lastly, unlike the circuit breaker (discussed in Part 1), we are not tracking the results of our requests. We are, therefore, not doing anything to prevent ourselves from making requests to the broken host in the future. Additionally, in our example, our second request was routed to the working host. This will not always be the case, given that there will be multiple concurrent requests from our service and potentially even requests from other services. As such, we are not guaranteed to get a working host on the second attempt. In fact, the chance for us to get a working host is equal to the number of working hosts divided by the total hosts, in this case 50%.
 
-Digging a little deeper, we had a 50% chance to get a bad host on the first request, and a 50% chance on the retry.  By extension we therefore have a 50% x 50% = 25% chance to fail even after 1 retry. If we were to retry twice, this becomes 12.5%
+Digging a little deeper, we had a 50% chance to get a bad host on the first request, and a 50% chance on the retry. By extension we therefore have a 50% x 50% = 25% chance to fail even after 1 retry. If we were to retry twice, this becomes 12.5%.
 
 Understanding this concept will help you determine your **max retries** setting.
 
 
-### Should we retry for all errors?
+### Should We Retry for All Errors?
 
-The short answer is no. We should consider retrying the request if it has any chance of succeeding (i.e. error codes 503 - Service Unavailable and 500 - Internal Server Error). For example, for error code 503, a retry may work if the retry resulted in a call to a host that was not overloaded.   Conversely, for errors like 401 - Unauthorized or 400 - Bad Request, retrying these wastes resources as they will never work without the user changing their request.
+The short answer is no. We should consider retrying the request if it has any chance of succeeding (i.e. error codes 503 - Service Unavailable and 500 - Internal Server Error). For example, for error code 503, a retry may work if the retry resulted in a call to a host that was not overloaded. Conversely, for errors like 401 - Unauthorised or 400 - Bad Request, retrying these wastes resources as they will never work without the user changing their request.
 
 There are two key points to consider: Firstly, the upstream service must return sensible and informative errors and secondly, our retry mechanism must be configured to react to different types of errors differently.
 
@@ -71,7 +71,7 @@ Please do not take the above example to imply that only read operations can be r
 
 A _reserve a ticket_ operation is almost always going to involve some finite amount of tickets, and in such a situation it is imperative that 1 request only results in 1 reservation. Other similar situations might include charging a credit card or incrementing a counter.
 
-Some write operations, like saving a registration or updating a record to a provided value (without calculation) can be repeated. Saving multiple registrations will cause messy data, but that can be cleaned up by some other non-customer related process. In this case, it's better to ensure we fulfill the customers request at the expense of extra work for us rather than failing, leaving the system in an unknown state and making it the customer's problem. For example, let's say we were updating the user's password to abc123, this end state which was provided by the user is fixed and so, therefore, repeating the process only wastes the resources of the data store.
+Some write operations, like saving a registration or updating a record to a provided value (without calculation) can be repeated. Saving multiple registrations will cause messy data, but that can be cleaned up by some other non-customer related process. In this case, it's better to ensure we fulfil the customers request at the expense of extra work for us rather than failing, leaving the system in an unknown state and making it the customer's problem. For example, let's say we were updating the user's password to abc123, this end state which was provided by the user is fixed and so, therefore, repeating the process only wastes the resources of the data store.
 
 In cases where retries are possible, but you want to be able to detect and prevent duplicate transactions (like in our ticket reservation example) it is possible to introduce a **cryptographic nonce**. This topic would require an article all of its own, but the short version is: a cryptographic nonce is a random number introduced into a request that helps us detect that two requests are actually one.
 
@@ -137,7 +137,7 @@ Going back to our example, let's assume that our backoff delay is 100 millisecon
 </table>
 
 
-The underlying theory here is that if a request has already failed a few times, then it has an increased likelihood of failing again. We, therefore, want to give the upstream service the greater chance to recover and be able to fulfill our request.
+The underlying theory here is that if a request has already failed a few times, then it has an increased likelihood of failing again. We, therefore, want to give the upstream service the greater chance to recover and be able to fulfil our request.
 
 By increasing the delay, we are not only giving it more time to recover, but we are spreading out the load of our requests and retries. In cases where the request failure is caused by the upstream service being overloaded, this spreading out of the load also gives us a greater chance of success.
 
@@ -176,9 +176,9 @@ The base delay is the **minimum** backoff delay between attempts, while the max 
 **Note**: The actual delay will always be between these the values for Base and Max Delays and will also be based on the attempt number (number of previous failures).
 
 
-### Time-boxing requests
+### Time-boxing Requests
 
-While the underlying goal of the retry mechanism is to do everything possible to fulfill our user's request by retrying until we successfully complete the request, we cannot try forever.
+While the underlying goal of the retry mechanism is to do everything possible to fulfil our user's request by retrying until we successfully complete the request, we cannot try forever.
 
 At some point, we need to give up and allow the failure.
 
@@ -264,7 +264,7 @@ You can see from this table how the total amount of time taken very quickly esca
 
 ## Circuit Breakers vs Retries
 
-Some of the original discussions that started this series was centered around one question "_why use a circuit-breaker when you can just retry?_" Let's dig into this a little deeper.
+Some of the original discussions that started this series was centred around one question "_why use a circuit-breaker when you can just retry?_" Let's dig into this a little deeper.
 
 
 ### Communication with Retries only
@@ -280,8 +280,6 @@ In this simple example, setting our retry count to 1 would ensure that we would 
 
 Sounds good right? So where is the downside? Let's consider a failure scenario where our broken host does not throw an error immediately but instead never responds. This means:
 
-
-
 *   When routed to the working host first then the response time would be fast, whatever the processing time of the working host is.
 *   When routed to the broken host first then the response time would be equal to our **Request Timeout** setting plus the processing time of the working host.
 
@@ -296,7 +294,7 @@ For example, if in our above example, we have 2 hosts that are capable of handli
 However, because all requests to the broken host are retried on the working host, our working host suddenly has to handle its original 7.5k requests plus 7.5k retries giving it 15k requests/second to handle, which it cannot.
 
 
-### Communication with Circuit Breaker only
+### Communication with Circuit Breaker Only
 
 But what if you only implemented a circuit breaker and no retries? There are two factors to note in this scenario. Firstly, the error rate of our system is the error rate that is seen by our users. For example, if our system has a 10% error rate then 10% of our users would receive an error.
 
@@ -312,7 +310,7 @@ Taking the same example we used in the previous section, if we were to retry the
 Perhaps another interesting side-effect of retrying and successfully completing the request is the effect that it has on the circuit itself. In our example, our error rate has moved from **10%** to **1%**. This significant reduction in our error rate means that our circuit is far less likely to open and prevent all requests.
 
 
-### Circuit Breaker inside Retries / Retries inside Circuit Breaker
+### Circuit Breaker Inside Retries / Retries Inside Circuit Breaker
 
 It might seem strange but it is imperative that you spend some time considering the order in which you place the mechanisms.
 
@@ -322,12 +320,10 @@ On the other hand, when we have a circuit breaker inside a retry mechanism, then
 
 The second configuration is by far my preferred option. I prefer it because:
 
-
-
-*   The circuit breaker is monitoring all requests.
-*   The circuit is not unduly influenced by one bad request. For example, a request with a large payload might fail when sent to all hosts, but all other requests are fine. If we have a low **Error Percent Threshold** setting, this might unduly influence the circuit.
-*   I like to ensure that bulwark inside our circuit breaker implementation also protects the upstream service from excessive requests, which it does more effectively when tracking individual requests
-*   If I set the **Timeout** setting on my circuit to some huge number (e.g. 1 hour), then I can effectively ignore it and the calculation of my maximum possible time spent calling the upstream service is simplified to **(maximum retries x request timeout) + (maximum retries x maximum delay)**.  Yes, this is not so simple, but it is one less setting to worry about.
+* The circuit breaker is monitoring all requests.
+* The circuit is not unduly influenced by one bad request. For example, a request with a large payload might fail when sent to all hosts, but all other requests are fine. If we have a low **Error Percent Threshold** setting, this might unduly influence the circuit.
+* I like to ensure that bulwark inside our circuit breaker implementation also protects the upstream service from excessive requests, which it does more effectively when tracking individual requests
+* If I set the **Timeout** setting on my circuit to some huge number (e.g. 1 hour), then I can effectively ignore it and the calculation of my maximum possible time spent calling the upstream service is simplified to **(maximum retries x request timeout) + (maximum retries x maximum delay)**.  Yes, this is not so simple, but it is one less setting to worry about.
 
 
 ## Final Thoughts

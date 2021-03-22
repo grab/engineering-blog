@@ -19,13 +19,13 @@ Over the last 6 years, Grab has repeatedly fine-tuned its machine learning algo
 
 But drivers are constantly on the move, and at any one point there could be hundreds of passengers requesting a ride within the same area. This means that sometimes, the closest available drivers might still be too far away.
 
-The Analytics team at Grab attempts to analyze these instances at scale via clearly-defined metrics. We study the gaps so that we can identify potential product and operational solutions that may guide supply and demand towards geo-temporal alignment and better experience.
+The Analytics team at Grab attempts to analyse these instances at scale via clearly-defined metrics. We study the gaps so that we can identify potential product and operational solutions that may guide supply and demand towards geo-temporal alignment and better experience.
 
 In this article, we give you a glimpse of one of our analytics initiatives - to measure the supply and demand ratio at any given area and time.
 
 ## Defining Supply and Demand
 
-A single unit of **Supply** is considered as a driver who is Online and Idle (not currently on a job) at the beginning of an _x_ seconds slot, where _x_ is a miniscule unit of time. The driver’s GPS ping at the beginning of this _x_ seconds slot is considered to be his or her location.
+A single unit of **Supply** is considered as a driver who is Online and Idle (not currently on a job) at the beginning of an _x_ seconds slot, where _x_ is a minuscule unit of time. The driver’s GPS ping at the beginning of this _x_ seconds slot is considered to be his or her location.
 
 A single unit of **Demand** is considered as a passenger who is checking fares for a ride via our app within the same _x_ seconds slot. We consider the passenger’s location to be the pick up address entered.
 
@@ -59,13 +59,13 @@ Simply put, the complexity can be summarised as the following: Every extra Suppl
 
 This is just one of many high-computation problems that the Analytics team handles on a daily basis. So the problem solving doesn’t necessarily end with developing a network-representative algorithm or metric, but to be able to make it performant and usable, even as the business scales.
 
-## Visualizing the Metrics on a Map
+## Visualising the Metrics on a Map
 
 With the metrics we discussed above, we can map out how gaps between demand and supply can evolve throughout the day. The GIF below displays Singapore’s supply demand gap on a typical day.
 
 ![](img/understanding-supply-demand-ride-hailing-data/image5.gif)
 
-Each bubble indicates a miniscule area on the map. The size of each bubble indicates the Supply Demand difference in that area - the bigger the bubble, the bigger the gap. We’ve also colored the bubbles to indicate the Supply Demand Ratio where Red signifies Undersupplied and Green signifies Oversupplied.
+Each bubble indicates a minuscule area on the map. The size of each bubble indicates the Supply Demand difference in that area - the bigger the bubble, the bigger the gap. We’ve also coloured the bubbles to indicate the Supply Demand Ratio where Red signifies Undersupplied and Green signifies Oversupplied.
 
 To meet our goals of ensuring that passengers can always find a ride whenever they want it, we need to balance demand and supply. At Grab, we do this in many ways, including on one hand - finding ways to move oversupply to areas where there is higher demand, and on the other - shifting less time-sensitive demand away from peak time-slots.
 
@@ -81,7 +81,7 @@ As shown in Figure 3, this is common in Singapore after morning peak hours when 
 
 To address this geo-temporal misalignment, Grab recently updated the **Heatmap** on the Grab Driver app to encourage drivers to move away from oversupplied areas to areas where there is higher demand.
 
-## Identifying Temporal Opportunities to move Demand
+## Identifying Temporal Opportunities to Move Demand
 
 ![](img/understanding-supply-demand-ride-hailing-data/image6.png)
 
@@ -101,7 +101,7 @@ This widget shows you demand trends, based on the summation of historical data f
 
 As testimony to its usefulness, the Travel Trends Widget is now ranked #1 among all of Grab’s widgets! With the highest number of click-throughs, we have observed that hundreds of thousands of people are finding it useful for their daily use! Watch out for the next upgraded version as we continue to improve it to be more contextual and smart!
 
-## Stay tuned for more!
+## Stay Tuned for More!
 
 Given the continuously-changing reality where there is a constantly-fluctuating supply and demand, Grab’s Transportation team’s ultimate goal boils down to just one thing: to ensure that our passengers can get a ride when and where they need it, as fast and easy as possible; while providing our drivers better livelihood, through rewarding experience.
 
@@ -109,7 +109,7 @@ To get this right - balancing demand and supply is crucial. There are many ways 
 
 We’ll be taking a closer look at this topic in another article. So stay tuned!
 
-## Interested? Join us!
+## Interested? Join Us!
 
 Grab’s Analytics team provides integral support to all of Grab's services and products.
 
@@ -117,6 +117,6 @@ This is only a glimpse of the Analytics team’s efforts to deeply understand ou
 
 If you are interested in solving problems like this, join us! We are hiring! Visit our [career website](https://grab.careers/) to check out the openings!
 
-### Acknowledgement:
+### Acknowledgements
 
 We would like to thank the many contributors to the work mentioned above: Ashwin Madelil (Product Manager), Shrey Jain (Product Manager), Brahmasta Adipradana (Product Manager), Prashant Kumar (Product Manager), and Ajmal Jamal (Designer).

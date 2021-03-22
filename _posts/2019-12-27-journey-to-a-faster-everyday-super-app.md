@@ -119,7 +119,7 @@ While collaborating with teams, we learned that we could remove 12 frameworks en
 
 And so, we were left with 95 frameworks; 75 of which were statically linked successfully, resulting in our *p90* pre-main dropping by *41%*.
 
-As Grabbers, it’s in our DNA to push ourselves a little more. With the remaining 20 frameworks, our pre-main was still considerably high. Out of the 20 frameworks, 10 could not be statically linked without issues. As a workaround, we merged multiple dynamic frameworks into one. One of our outstanding engineers even created a plug-in for this, which is called the Cocoapod Merge. With this plug-in, we were able to merge 10 dynamically linked frameworks into 2. _We’ve made this plug-in open source: [https://github.com/grab/cocoapods-pod-merge](https://github.com/grab/cocoapods-pod-merge)_.
+As Grabbers, it’s in our DNA to push ourselves a little more. With the remaining 20 frameworks, our pre-main was still considerably high. Out of the 20 frameworks, 10 could not be statically linked without issues. As a workaround, we merged multiple dynamic frameworks into one. One of our outstanding engineers even created a plug-in for this, which is called the CocoaPods Merge. With this plug-in, we were able to merge 10 dynamically linked frameworks into 2. _We’ve made this plug-in open source: [https://github.com/grab/cocoapods-pod-merge](https://github.com/grab/cocoapods-pod-merge)_.
 
 With all of the above steps, we were finally left with 12 dynamic frameworks - a huge *88%* reduction.
 
@@ -130,7 +130,7 @@ The following image illustrates the complex numbers mentioned above:
 </div>
 <p></p>
 
-Using cocoapod merge further helped us with *~0.8s* of improvement.
+Using CocoaPods merge further helped us with *~0.8s* of improvement.
 
 ### Coroutines
 
@@ -138,7 +138,7 @@ While we were executing the static linking initiative on iOS, we also started re
 
 Now all the libraries are being initialised in parallel via coroutines and thus enabling better utilisations of computing resources and a faster TTI.
 
-This refactoring and background initialisation for libraries on Android helped in gaining *~0.4s* of improvements.
+This refactoring and background initialisation for libraries on Android helped gain *~0.4s* of improvements.
 
 ## Changing the Basics - Visualisation Setup
 
@@ -164,7 +164,7 @@ We did this not only for our metrics, but also for our main goals, which allowe
 </div>
 <p></p>
 
-The color bars in the above image depicts the status of our numbers against our goals and also shows the actual numbers at p50, p90, and p95.
+The colour bars in the above image depicts the status of our numbers against our goals and also shows the actual numbers at p50, p90, and p95.
 
 As our tracking progressed, we started including more granular and precise measurements, to help guide the team and achieve more impactful improvements of around *~0.3-0.4s*.
 
@@ -189,7 +189,7 @@ We took the following measures to cover these cases:
 ### Linters
 
 
-We built [linters](https://en.wikipedia.org/wiki/Lint_(software)) on the Continuous Integration (CI) pipeline to detect potential changes in _static linking_ on iOS and the _ApplicationInitialiser_ class on Android. The linters block the changelist and enforce a special review process for such changes.
+We built [linters](https://en.wikipedia.org/wiki/Lint_(software)) on the Continuous Integration (CI) pipeline to detect potential changes in _static linking_ on iOS and the _ApplicationInitialiser_ class on Android. The linters block the change list and enforce a special review process for such changes.
 
 ### Library Integration Process
 

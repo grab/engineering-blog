@@ -13,7 +13,7 @@ excerpt: "This blog post explains what we did to solve our inhouse logging probl
 
 ## Problem
 
-Let me take you back a year ago at Grab. When we lacked any visualizations or metrics for our service logs. When performing a query for a string from the last three days was something only run before you went for a beverage.
+Let me take you back a year ago at Grab. When we lacked any visualisations or metrics for our service logs. When performing a query for a string from the last three days was something only run before you went for a beverage.
 
 When a service stops responding, Grab’s core problems were and are:
 
@@ -43,15 +43,15 @@ It started with gathering numbers. How much data did we produce each day? How ma
 
 Before starting a project, understand your parameters. This helps you spec out your cluster, get buy-in from higher ups, and increase your success rate when rolling out a product used by the entire engineering organization. Remember, if it’s not better than what they have now, why will they switch?
 
-A good starting point was opening the floor to our users. What features did they want? If we offered a visualization suite so they can see ERROR event spikes, would they use it? How about alerting them about SEGFAULTs? Hands down the most requested feature was speed; _“I want an easy webUI that shows me the user ID when I search for it, and get all the results in <5 seconds!”_
+A good starting point was opening the floor to our users. What features did they want? If we offered a visualisation suite so they can see ERROR event spikes, would they use it? How about alerting them about SEGFAULTs? Hands down the most requested feature was speed; _“I want an easy webUI that shows me the user ID when I search for it, and get all the results in <5 seconds!”_
 
 ### Getting Our Feet Wet
 
 New concerns always pop up during a project. We’re sure someone has correlated the time spent in R&D to the number of problems. We had an always moving target, since as our proof of concept began, our daily logger volume kept increasing.
 
-Thankfully, using [Elasticsearch](https://www.elastic.co/) as our data store meant we could fully utilize horizontal scaling. This let us start with a simple 5 node cluster as we built out our proof-of-concept (POC). Once we were ready to onboard more services, we could move into a larger footprint.
+Thankfully, using [Elasticsearch](https://www.elastic.co/) as our data store meant we could fully utilise horizontal scaling. This let us start with a simple 5 node cluster as we built out our proof-of-concept (POC). Once we were ready to onboard more services, we could move into a larger footprint.
 
-The specs at the time called for about 80 nodes to handle all our data. But if we designed our system correctly, we’d only need to increase the number of Elasticsearch nodes as we enrolled more customers. Our key operating metrics were CPU utilization, heap memory needed for the JVM, and total disk space.
+The specs at the time called for about 80 nodes to handle all our data. But if we designed our system correctly, we’d only need to increase the number of Elasticsearch nodes as we enrolled more customers. Our key operating metrics were CPU utilisation, heap memory needed for the JVM, and total disk space.
 
 ### Initial Design
 
@@ -70,15 +70,15 @@ It’s challenging to figure out why you are losing master nodes because someone
 
 We also decided to further reduce complexity by going with ingest nodes over Logstash. But at the time, the documentation wasn’t great so we had a lot of trial and error in figuring out how they work. Particularly as compared to something more battle tested like Logstash.
 
-If you’re unfamiliar with ingest node design, they are lightweight proxies to your data nodes that accept a bulk payload, perform post-processing on documents,and then send the documents to be indexed by your data nodes. In theory, this helps keep your entire pipeline simple. And in Elasticsearch’s defense, ingest nodes have made massive improvements since we began.
+If you’re unfamiliar with ingest node design, they are lightweight proxies to your data nodes that accept a bulk payload, perform post-processing on documents, and then send the documents to be indexed by your data nodes. In theory, this helps keep your entire pipeline simple. And in Elasticsearch’s defense, ingest nodes have made massive improvements since we began.
 
 But adding more ingest nodes means ADDING MORE NODES! This can create a lot of chatter in your cluster and cause more complexity when  troubleshooting problems. We’ve seen when an ingest node failing in an odd way caused larger cluster concerns than just a failed bulk send request.
 
 ### Monitoring
 
-This isn’t anything new, but we can’t overstate the usefulness of monitoring. Thankfully, we already had a robust tool called Datadog with an additional integration for Elasticsearch. Seeing your heap utilization over time, then breaking it into smaller graphs to display the field data cache or segment memory, has been a lifesaver. There’s nothing worse than a node falling over due to an OOM with no explanation and just hoping it doesn’t happen again.
+This isn’t anything new, but we can’t overstate the usefulness of monitoring. Thankfully, we already had a robust tool called Datadog with an additional integration for Elasticsearch. Seeing your heap utilisation over time, then breaking it into smaller graphs to display the field data cache or segment memory, has been a lifesaver. There’s nothing worse than a node falling over due to an OOM with no explanation and just hoping it doesn’t happen again.
 
-At this point, we’ve built out several dashboards which visualize a wide range of metrics from query rates to index latency. They tell us if we sharply drop on log ingestion or if circuit breakers are tripping. And yes, Kibana has some nice monitoring pages for some cluster stats. But to know each node’s JVM memory utilization on a 400+ node cluster, you need a robust metric system.
+At this point, we’ve built out several dashboards which visualise a wide range of metrics from query rates to index latency. They tell us if we sharply drop on log ingestion or if circuit breakers are tripping. And yes, Kibana has some nice monitoring pages for some cluster stats. But to know each node’s JVM memory utilization on a 400+ node cluster, you need a robust metric system.
 
 ## Pitfalls
 
@@ -114,11 +114,11 @@ However, we found compression between nodes can drastically slow down shard tran
 
 #### Segment Memory
 
-Most of our issues involved the heap memory being exhausted. We can’t stress enough the importance of having visualizations around how the JVM is used. We learned this lesson the hard way around segment memory.
+Most of our issues involved the heap memory being exhausted. We can’t stress enough the importance of having visualisations around how the JVM is used. We learned this lesson the hard way around segment memory.
 
 This is a prime example of why you need to understand your data when building a cluster. We were hitting a lot of OOMs and couldn’t figure out why. We had fixed the field cache issue, but what was using all our RAM?
 
-There is a reason why having a 16TB data node might be a poorly spec’d machine. Digging into it, we realized we simply allocated too many shards to our nodes. Looking up the total segment memory used per index should give a good idea of how many shards you can put on a node before you start running out of heap space. We calculated on average our 2TB indices used about 5GB of segment memory spread over 30 nodes.
+There is a reason why having a 16TB data node might be a poorly spec’d machine. Digging into it, we realised we simply allocated too many shards to our nodes. Looking up the total segment memory used per index should give a good idea of how many shards you can put on a node before you start running out of heap space. We calculated on average our 2TB indices used about 5GB of segment memory spread over 30 nodes.
 
 The numbers have since changed and our layout was tweaked, but we came up with calculations showing we could allocate about 8TB of shards to a node with 32GB heap memory before we running into issues. That’s if you really want to push it, but it’s also a metric used to keep your segment memory per node around 50%. This allows enough memory to run queries without knocking out your data nodes. Naturally this led us to ask “What is using all this segment memory per node?”
 
@@ -126,23 +126,23 @@ The numbers have since changed and our layout was tweaked, but we came up with c
 
 Could we lower how much segment memory our indices used to cut our cluster operation costs? Using the segments data found in the ES cluster and some simple Python loops, we tracked down the total memory used per field in our index.
 
-We used a lot of segment memory for the _id_ field (but can’t do much about that). It also gave us a good breakdown of our other fields. And we realized we indexed fields in completely unnecessary ways. A few fields should have been integers but were keyword fields. We had fields no one would ever search against and which could be dropped from index memory.
+We used a lot of segment memory for the _id_ field (but can’t do much about that). It also gave us a good breakdown of our other fields. And we realised we indexed fields in completely unnecessary ways. A few fields should have been integers but were keyword fields. We had fields no one would ever search against and which could be dropped from index memory.
 
-Most importantly, this began our learning process of how tokens and analyzers work in Elasticsearch/Lucene.
+Most importantly, this began our learning process of how tokens and analysers work in Elasticsearch/Lucene.
 
-#### Picking the Wrong Analyzer
+#### Picking the Wrong Analyser
 
-By default, we use Elasticsearch’s Standard Analyzer on all analyzed fields. It’s great, offering a very close approximation to how users search and it doesn’t explode your index memory like an N-gram tokenizer would.
+By default, we use Elasticsearch’s Standard Analyser on all analysed fields. It’s great, offering a very close approximation to how users search and it doesn’t explode your index memory like an N-gram tokeniser would.
 
-But it does a few things we thought unnecessary, so we thought we could save a significant amount of heap memory. For starters, it keeps the original tokens: the Standard Analyzer would break **IDXVB56KLM** into tokens **IDXVB**, **56**,  and **KLM**. This usually works well, but it really hurts you if you have a lot of alphanumeric strings.
+But it does a few things we thought unnecessary, so we thought we could save a significant amount of heap memory. For starters, it keeps the original tokens: the Standard Analyser would break **IDXVB56KLM** into tokens **IDXVB**, **56**,  and **KLM**. This usually works well, but it really hurts you if you have a lot of alphanumeric strings.
 
 We never have a user search for a user ID as a partial value. It would be more useful to only return the entire match of an alphanumeric string. This has the added benefit of only storing the single token in our index memory. This modification alone stripped a whole 1GB off our index memory, or at our scale meant we could eliminate 8 nodes.
 
-We can’t stress enough how cautious you need to be when changing analyzers on a production system. Throughout this process, end users were confused why search results were no longer returning or returning weird results. There is a nice [kibana plugin](https://github.com/johtani/analyze-api-ui-plugin) that gives you a representation of how your tokens look with a different analyzer, or use the build in [ES tools](https://www.elastic.co/guide/en/elasticsearch/reference/master/_testing_analyzers.html) to get the same understanding.
+We can’t stress enough how cautious you need to be when changing analysers on a production system. Throughout this process, end users were confused why search results were no longer returning or returning weird results. There is a nice [kibana plugin](https://github.com/johtani/analyze-api-ui-plugin) that gives you a representation of how your tokens look with a different analyser, or use the build in [ES tools](https://www.elastic.co/guide/en/elasticsearch/reference/master/_testing_analyzers.html) to get the same understanding.
 
 #### Be Careful with Cloud Maintainers
 
-We realized that running a cluster at this scale is expensive. The hardware alone sets you back a lot, but our hidden bigger cost was cross traffic between availability zones.
+We realised that running a cluster at this scale is expensive. The hardware alone sets you back a lot, but our hidden bigger cost was cross traffic between availability zones.
 
 Most cloud providers offer different “zones” for your machines to entice you to achieve a High-Availability environment. That’s a very useful thing to have, but you need to do a cost/risk analysis. If you migrate shards from HOT to WARM to COLD nodes constantly, you can really rack up a bill. This alone was about 30% of our total cluster cost, which wasn’t cheap at our scale.
 
@@ -156,4 +156,4 @@ We could probably fill 30 more pages with odd things we ran into, hacks we imple
 
 There are many different ways we could have started knowing what we do now. For example, using Logstash over Ingest nodes, changing default circuit breakers, and properly using heap space to prevent node failures. But hindsight is 20/20 and it’s rare for projects to not change.
 
-We suggest anyone wanting to revamp their centralized logging system look at the ELK solutions. There is a learning curve, but the scalability is outstanding and having subsecond lookup time for assisting a customer is phenomenal. But, before you begin, do your homework to save yourself weeks of troubleshooting down the road. In the end though, we’ve received nothing but praise from Grab engineers about their experiences with our new logging system.
+We suggest anyone wanting to revamp their centralised logging system look at the ELK solutions. There is a learning curve, but the scalability is outstanding and having subsecond lookup time for assisting a customer is phenomenal. But, before you begin, do your homework to save yourself weeks of troubleshooting down the road. In the end though, we’ve received nothing but praise from Grab engineers about their experiences with our new logging system.

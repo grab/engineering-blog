@@ -20,7 +20,7 @@ Stuck in traffic in a Grab ride? Pass the time by opening your Grab app and chec
 
 Beyond serving your everyday needs, we want to provide our users with information that is interesting, useful and relevant. That’s why we’re always coming up with new widgets.
 
-Building each widget takes close collaboration across multiple different teams - from Product Management to Design, Engineering, Behavioral Science, and Data Science and Analytics. Sounds like a lot of people, doesn’t it? But you’ll be surprised to hear that this behind-the-scenes collaboration works rapidly, usually in the span of one month! Which means we’re often moving from ideation phase to product release in just a few weeks.
+Building each widget takes close collaboration across multiple different teams - from Product Management to Design, Engineering, Behavioural Science, and Data Science and Analytics. Sounds like a lot of people, doesn’t it? But you’ll be surprised to hear that this behind-the-scenes collaboration works rapidly, usually in the span of one month! Which means we’re often moving from ideation phase to product release in just a few weeks.
 
 <div class="post-image-section" style="float: left; width: 50%; margin-right: 1em;">
   <img alt="Travel Trends Widget" style="margin:0;" src="/img/peak-shift-demand-travel-trends/image6.png">
@@ -30,7 +30,7 @@ This fast-and-furious process is anchored on one word - “customer-centric”.
 
 Because we had so much fun developing this widget, we wanted to write a blog post to share with you what we did and how we did it!
 
-## Inspiration: Where it all started
+## Inspiration: Where it All Started
 
 Transport demand can be rather lumpy. Owing to organic patterns (e.g. office hours), a lot of passengers tend to request for cars around the same time. In periods like this, the increase in demand could outpace the arrival of driver supply, increasing the waiting time for passengers.
 
@@ -52,7 +52,7 @@ As you can see from this post from the London Transport Museum ([Source: Transpo
 
 You may also have seen something similar at the last hotel you stayed at. Notice here a poster in an elevator at a Beijing hotel, announcing the best times to eat breakfast in comfort and avoid the crowd. (Photo credits to Prashant, our Product Manager, who saw this on holiday.)
 
-## How the Travel Trends Widget works
+## How the Travel Trends Widget Works
 
 To apply “peak-shifting” and help our users better plan their trips, we decided to dig in and leverage our data. It was way more complex than we had initially thought, as market conditions could be different on different days. This meant that  generic statements like “5PM-8PM are peak hours and prices will be hight” would not hold true. Contrary to general perception, we observed that even during peak hours, there are buckets of time when there is no surge or low surge.
 
@@ -64,7 +64,7 @@ So we used machine learning techniques to build a forecasting widget which can h
   <img alt="Grab trends" src="/img/peak-shift-demand-travel-trends/image3.png">
 </div>
 
-### So how exactly does this widget work?!
+### So How Exactly does This Widget Work?!
 
 <div class="post-image-section">
   <img alt="Historical trends for Monday" src="/img/peak-shift-demand-travel-trends/image7.png">
@@ -72,9 +72,9 @@ So we used machine learning techniques to build a forecasting widget which can h
 
 It pulls together historically observed imbalances between supply and demand, for the consumer’s current location and nearby time periods. Aggregated data is displayed to consumers in easily interpreted visualisations, so that they can plan to leave at times when there are more supply, and with potentially more savings for fares.
 
-## How did we build the widget? Loop, agile working process, POC & workstream
+## How did We Build the Widget? Loop, Agile Working Process, POC & Workstream
 
-Widget-building is an agile, collaborative, and simultaneous process. First, we started the process with analysis from **Product Analytics** team, pulling out data on traffic trends, surge patterns, and behavioral insights of both passengers and drivers in Singapore.
+Widget-building is an agile, collaborative, and simultaneous process. First, we started the process with analysis from **Product Analytics** team, pulling out data on traffic trends, surge patterns, and behavioural insights of both passengers and drivers in Singapore.
 
 When we noticed the existence of seasonality for each day of the week, we came up with more precise analytical and business questions to dig deeper into the data. Upon verification of hypotheses, we decided that we will build a widget.
 
@@ -88,15 +88,15 @@ Soon after, we went into the development process, and voila! We had the first it
 
 And just two weeks later, the widget made its way to our Singapore and Jakarta Feeds, accessible to the world at large! Feedback from our users started pouring in almost immediately (thanks to the rich feedback functionality that comes with each widget), ranging from great to sometimes not-so-great, and we listened to all of it with a keen ear! And thus began a new cycle of iterations and continuous improvement, more of which we will share in a subsequent post.
 
-## In the trenches with the creators: How multiple teams got together to make this come true
+## In the Trenches with the Creators: How Multiple Teams Got Together to Make this Come True
 
 Various disciplines within our cross functional team came together to whip out this widget by quipping their expertise to the end product.
 
-### Using Behavioural Science to simplify choices and design good outcomes
+### Using Behavioural Science to Simplify Choices and Design Good Outcomes
 
-Behavioural Science helped to explore many facets of consumer behaviour in order to plan and design the widget: understanding how consumers think and conceptualizing a widget that can be easily understood and used by the consumers.
+Behavioural Science helped to explore many facets of consumer behaviour in order to plan and design the widget: understanding how consumers think and conceptualising a widget that can be easily understood and used by the consumers.
 
-While fares are governed entirely by market conditions, it’s important for us to explain the economics to customers. As a customer-centric company, we aim to make the consumers feel like they own their decisions, which they can take based on full information. And this is the role of Behavioral Scientists at Grab!
+While fares are governed entirely by market conditions, it’s important for us to explain the economics to customers. As a customer-centric company, we aim to make the consumers feel like they own their decisions, which they can take based on full information. And this is the role of Behavioural Scientists at Grab!
 
 In guiding the customers through the information, Behavioural Science team had the following three objectives in mind while building this Travel Trends widget:
 
@@ -105,9 +105,9 @@ In guiding the customers through the information, Behavioural Science team had t
 3.  Provide helpful tips: Every bar gives users tips on the conditions at that time and the immediate future. For instance, a low surge bar, followed by a high surge bar gives the tip “Psst... Leave now, It might get busy later!”, helping people understand the graph better and nudging them to take an action. If you are interested in saving fares, may we suggest tapping around all the bars to reveal the secret pro-tips?
 
 
-### Designing interfaces that lead to consumer success by abstracting complexity
+### Designing Interfaces that Lead to Consumer Success by Abstracting Complexity
 
-Design team is the one behind the colors and shapes that make up the widget that you see and interact with! The team took inspiration from Google’s Popular Times.
+Design team is the one behind the colours and shapes that make up the widget that you see and interact with! The team took inspiration from Google’s Popular Times.
 
 <div class="post-image-section">
   <img alt="Source/Credits: Google Live Popular Times" src="/img/peak-shift-demand-travel-trends/image1.png">
@@ -116,7 +116,7 @@ Design team is the one behind the colors and shapes that make up the widget that
 
 <p>&nbsp;</p>
 
-Right from the offset, our content and product teams were keen to surface additional information and actions with each bar to keep the widget interactive and useful. One of the early challenges was to arrive at the right gesture that invites the user to interact and intuitively navigate the bars on the widget but also does not conflict with other gestures (eg scrolling and scrubbing) that the user was pre-trained to perform on the feed. We found out that **tapping** was simultaneously an unused and yet intuitive gesturethat we could use for interaction with the bars.
+Right from the offset, our content and product teams were keen to surface additional information and actions with each bar to keep the widget interactive and useful. One of the early challenges was to arrive at the right gesture that invites the user to interact and intuitively navigate the bars on the widget but also does not conflict with other gestures (eg scrolling and scrubbing) that the user was pre-trained to perform on the feed. We found out that **tapping** was simultaneously an unused and yet intuitive gesture that we could use for interaction with the bars.
 
 We then went into rounds of iteration on the visual design of the widget. In this process, multiple stakeholders were involved ranging from Product to Content to Engineering. We had to overcome a number of constraints i.e. the limited canvas of a widget and the context of a user when she is exploring the feed. By re-using existing libraries and components, we managed to keep the development light and ship something fast.
 
@@ -128,11 +128,11 @@ Dozens of revisions and four iterations later, we landed with a design that we f
 
 And finally we managed to deliver on the feature’s goal, by surfacing just the right detail of information in a manner that is intuitive yet effective to peak-shift demand.  
 
-### Bringing all of this to fruition through high performance engineering
+### Bringing All of This to Fruition Through High Performance Engineering
 
 Our Development Engineering team was in charge of developing the widget and making it available to our users in just a few weeks’ time - materialising the work of the other teams.
 
-One of their challenges was to find the best way to process the vast amount of data (millions of database entries) so it can be visualized simply as bar charts. Grab’s engineers had to achieve this while making sure performance is as resilient as possible.
+One of their challenges was to find the best way to process the vast amount of data (millions of database entries) so it can be visualised simply as bar charts. Grab’s engineers had to achieve this while making sure performance is as resilient as possible.
 
 There were two options in doing this:
 
@@ -144,7 +144,7 @@ After considering that this feature will likely expect a lot of traffic thus hig
 
 At the frontend, the challenge was to cater to the intricate request from our designers. We use chart libraries to increase our development speed, and not all of the requirements were readily supported by these libraries.
 
-For instance, let’s say this library makes visualising charts easy, but not so much for customising them. If designers wanted to have an average line in a dotted form, the library did not support this so easily. Also, the moving arrow pointers as you move between bar chart, changing colors of the bars changes when clicked -- all required countless CSS tweaks.
+For instance, let’s say this library makes visualising charts easy, but not so much for customising them. If designers wanted to have an average line in a dotted form, the library did not support this so easily. Also, the moving arrow pointers as you move between bar chart, changing colours of the bars changes when clicked -- all required countless CSS tweaks.
 
 <div class="post-image-section">
   <img alt="CSS tweak on trends widget" src="/img/peak-shift-demand-travel-trends/image8.png">
@@ -154,7 +154,7 @@ For instance, let’s say this library makes visualising charts easy, but not so
   <img alt="CSS tweak on trends widget" src="/img/peak-shift-demand-travel-trends/image5.png">
 </div>
 
-### Closing the product loop with user feedback and data driven insights
+### Closing the Product Loop with User Feedback and Data Driven Insights
 
 One of the most crucial parts of launching any product is to ensure that customers are engaging with the widget and finding it useful.
 
