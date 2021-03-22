@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-05-29-go-module-a-guide-for-monorepos-part-2
-title: Go Modules- A guide for monorepos (Part 2)
+title: Go Modules- A Guide for monorepos (Part 2)
 date: 2020-08-12 10:02:00
 authors: [michael-cartmell]
 categories: [Engineering]
@@ -13,42 +13,41 @@ excerpt: "This is the second post on the Go module series, which highlights Grab
 
 This is the second post on the Go module series, which highlights Grab’s experience working with Go modules in a multi-module monorepo. In this article, we’ll focus on suggested solutions for catching unexpected changes to the `go.mod` file and addressing dependency issues. We’ll also cover automatic upgrades and other learnings uncovered from the initial obstacles in using Go modules.
 
-## Vendoring process issues
+## Vendoring Process Issues
 
-Our previous vendoring process fell solely on the developer who wanted to add or update a dependency. However, it was often the case that the developer came across many unexpected changes, due to previous vendoring attempts, accidental imports and changes to dependencies.
+Our previous vendoring process fell solely on the developer who wanted to add or update a dependency. However, it was often the case that the developer came across many unexpected changes due to previous vendoring attempts, accidental imports and changes to dependencies.
 
 The developer would then have to resolve these issues before being able to make a change, costing time and causing frustration with the process. It became clear that it wasn’t practical to expect the developer to catch all of the potential issues while vendoring, especially since Go modules itself was new and still in development.
 
-## Avoiding unexpected changes
+## Avoiding Unexpected Changes
 
-Reluctantly, we added a check to our CI process which ran on every merge request. This helped ensure that there are no unexpected changes required to go mod. This added time to every build and often flagged a failure, but it saved a lot of post-merge hassle. We then realized that we should have done this from the beginning.
+Reluctantly, we added a check to our CI process which ran on every merge request. This helped ensure that there are no unexpected changes required to go mod. This added time to every build and often flagged a failure, but it saved a lot of post-merge hassle. We then realised that we should have done this from the beginning.
 
 Since we hadn’t enabled Go modules for builds yet, we couldn’t rely on the [`\mod=readonly`](https://godoc.org/cmd/go%23hdr-Maintaining_module_requirements) flag. We implemented the check by running `go mod vendor` and then checking the resulting difference.
 
 If there were any changes to `go.mod` or the vendor directory, the merge request would get rejected. This worked well in ensuring the integrity of our `go.mod`.
 
-## Roadblocks and learnings
+## Roadblocks and Learnings
 
 However, as this was the first time we were using Go modules on our CI system, it uncovered some more problems.
 
-### Private repository access
+### Private Repository Access
 
 There was the problem of accessing private repositories. We had to ensure that the CI system was able to clone all of our private repositories as well as the main monorepo, by adding the relevant SSH deploy keys to the repository.
 
-### False positives
+### False Positives
 
 The check sometimes fired `false positives` - detecting a go mod failure when there were no changes. This was often due to network issues, especially when the modules are hosted by less reliable third-party servers. This is somewhat solved in Go 1.13 onwards with the introduction of [proxy servers](https://golang.org/cmd/go/%23hdr-Module_downloading_and_verification), but our workaround was simply to retry the command several times.
 
 We also avoided adding dependencies hosted by a domain that we haven’t seen before, unless absolutely necessary.
 
-### Inconsistent Go versions
+### Inconsistent Go Versions
 
 We found several inconsistencies between Go versions - running go mod vendor on one Go version gave different results to another. One example was a [change to the checksums](https://github.com/golang/go/issues/29278). These inconsistencies are less common now, but still remain between Go 1.12 and later versions. The only solution is to stick to a single version when running the vendoring process.
 
-## Automated upgrades
+## Automated Upgrades
 
-
-There are benefits to using Go modules for vendoring. It’s faster than previous solutions, better supported by the community and it’s part of the language, so it doesn’t require any extra tools or wrappers to use it.
+There are benefits to using Go modules for vendoring. It’s faster than previous solutions, better supported by the community and part of the language, so it doesn’t require any extra tools or wrappers to use it.
 
 One of the most useful benefits from using Go modules is that it enables automated upgrades of dependencies in the go.mod file - and it becomes more useful as more third-party modules adopt Go modules and semantic versioning.
 
@@ -73,7 +72,7 @@ Like many other Go tools, the Modules feature comprises many small, focused tool
 
 I hope you have enjoyed this article on using Go modules and vendoring within a monorepo.
 
-## Join us
+## Join Us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.

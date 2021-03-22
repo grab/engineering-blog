@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-06-29-how-we-built-our-in-house-chat-platform-for-the-web
-title: How we built our in-house chat platform for the web
+title: How We Built Our In-house Chat Platform for the Web
 date: 2020-06-29 14:34:40
 authors: [vasudevan-k]
 categories: [Engineering]
@@ -42,7 +42,7 @@ The obvious answer was to change our TCP connection strategy to multicast. We to
 
 We had to consider a different approach for the web and zeroed in on a hybrid approach with a little known Javascript APIs called [SharedWorker](https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker) and [BroadcastChannel](https://developers.google.com/web/updates/2016/09/broadcastchannel).
 
-## Understanding the basics
+## Understanding the Basics
 
 Before we jump in, let's take a quick detour to review some of the terminologies that we'll be using in this post.
 
@@ -99,7 +99,7 @@ There is a lot to unpack here. Once a SharedWorker is created, we've to manually
 
 Under the hood, SharedWorker spawns a single OS thread per worker script per domain. For instance, if the script name is `worker.js` running in the domain `https://ce.grab.com`. The logic inside `worker.js` runs _exactly once_ in this domain. The advantage of this approach is that we can run multiple worker scripts in the same-origin each managing a different part of the functionality. This was one of the key reasons why we picked SharedWorker over other solutions.
 
-### What are Broadcast channels
+### What are Broadcast Channels
 
 In a multi-tab environment, our users may send messages from any of the tabs and switch to another for the next message. For a seamless experience, we need to ensure that the state is in sync across all the browser contexts.
 
@@ -134,7 +134,7 @@ const off = () => {
 
 One thing to note here is that communication is restricted to listeners from the same origin.
 
-## How are our chat rooms powered
+## How Our Chat Rooms are Powered
 
 Now that we have a basic understanding of how SharedWorker and Broadcast channels work, let's take a peek into how Grab is using it.
 
@@ -285,7 +285,7 @@ class GrabChatSDK {
 
 This ensures that there is only one connection between our application and the TCP service irrespective of the number of tabs the page is open in.
 
-## Some caveats
+## Some Caveats
 
 While SharedWorker is a great way to enforce singleton objects across browser contexts, the developer experience of SharedWorker leaves a lot to be desired. There aren't many resources on the web, and it could be quite confusing if this is the first time you're using this feature.
 
@@ -300,7 +300,7 @@ The browser support for SharedWorker is [far from universal](https://caniuse.com
 
 SharedWorker enforces uniqueness using a combination of origin and the script name. This could potentially introduce an unintentional race condition during deploy times if we’re not careful. Let’s say the user has a tab open before the latest deployment, and another one after deployment, it’s possible to end up with two different versions of the same script. We built a wrapper over the SharedWorker which cedes control to the latest connection, ensuring that there is only one version of the worker active.
 
-## Wrapping up
+## Wrapping Up
 
 We’re happy to have shared our learnings from building our in-house chat platform for the web, and we hope you found this post helpful. We’ve built the web solution as a reusable SDK for our internal portals and public-facing websites for quick and easy integration, providing a powerful user experience.
 
@@ -313,7 +313,7 @@ We hope this post also helped you get a deeper sense of how SharedWorker and Bro
 
 ---
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

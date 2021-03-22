@@ -26,7 +26,7 @@ We do implement some round-robin logic in our code too, which can be tricky to g
 
 This is the simplest approach you can use to implement round-robin logic.
 
-Basically, all you need is an array and a counter in your program and the use of a lock to protect usage. Here's some example code in Golang to illustrate the idea:
+Basically, all you need is an array and a counter in your programme and the use of a lock to protect usage. Here's some example code in Golang to illustrate the idea:
 
 ~~~golang
 package main

@@ -1,7 +1,7 @@
 ---
 layout: post
 id: preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes
-title: How We Prevented App Performance Degradation From Sudden Ride Demand Spikes
+title: How We Prevented App Performance Degradation from Sudden Ride Demand Spikes
 date: 2020-01-08 15:00:00
 authors: [corey-scott]
 categories: [Engineering]
@@ -19,13 +19,13 @@ In those days, demand for Grab’s ride services grew much faster than our abili
 
 There were also other contributors to demand spikes, for example when public transport services broke down or when a major event such as an international concert ends and event-goers all need a ride at the same time.
 
-Upon reflection, we realized there were two integral aspects to these incidents.
+Upon reflection, we realised there were two integral aspects to these incidents.
 
-Firstly, they were localized events. The increase in demand came from a particular geographical location; in some cases a very small area. These localized events had the potential to cause so much load on our system that it impacted the experience of other users outside the geolocation.
+Firstly, they were localised events. The increase in demand came from a particular geographical location; in some cases a very small area. These localised events had the potential to cause so much load on our system that it impacted the experience of other users outside the geolocation.
 
 Secondly, the underlying problem was a lack of drivers (supply) in that particular geographical area.
 
-At Grab, our goal has always been to get everyone a ride when and where they needed it, but in this situation, it was just not possible. We needed to find a way to ensure this localized demand spike did not affect our ability to meet the needs of other users.
+At Grab, our goal has always been to get everyone a ride when and where they needed it, but in this situation, it was just not possible. We needed to find a way to ensure this localised demand spike did not affect our ability to meet the needs of other users.
 
 ## Enter the Spampede Filter
 
@@ -71,7 +71,7 @@ The next step was the configuration. Specifically, setting how many unallocated
 
 Finally, the last piece. We introduced code at the beginning of our booking processing, most importantly, before any calls to any other services and before any significant processing was done. This code compared the location, time, and requested service to the currently configured Spampede setting, along with the previously unallocated bookings. If the maximum had already been reached, then we immediately stopped processing the booking.
 
-This might sound harsh- to immediately refuse a booking request without even trying to fulfill it. But the goal of the Spampede filter is to prevent excessive, localized demand from impacting all of the users of the system.
+This might sound harsh- to immediately refuse a booking request without even trying to fulfil it. But the goal of the Spampede filter is to prevent excessive, localised demand from impacting all of the users of the system.
 
 ## Conclusion
 
@@ -85,7 +85,7 @@ Generally, the higher the accuracy or consistency of the monitoring and limits, 
 
 In this case, we have intentionally chosen the most resource-efficient options and traded accuracy for more throughput.
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

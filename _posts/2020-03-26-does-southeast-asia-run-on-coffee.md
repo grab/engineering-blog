@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-03-26-does-southeast-asia-run-on-coffee
-title: Does Southeast Asia run on coffee?
+title: Does Southeast Asia Run on Coffee?
 date: 2020-03-26 08:34:00
 authors: [siu-sing-lai, lara-pureum-yim]
 categories: [Data Science]
@@ -16,25 +16,25 @@ excerpt: "This blog post shares insights on GrabFood data around how much our fe
 
 There is no surprise as to why coffee is a go-to drink in the region. For one, almost a third of coffee is produced in [Asia](https://utzcertified.org/en/aboututzcertified/136-general-stories-coffee/asia8/2155-coffee-asia), giving us easy access to beans. Coupled with the plethora of local cafes and stores at every corner in Southeast Asia, coffee has become an accessible and affordable drink — and one that enjoys a huge following.
 
-For many, a morning cuppa is fuel to kick start their day. For some it’s the secret weapon to a food coma, for others, it’s fuel to keep them going throughout the day.
+For many, a morning cuppa is fuel to kick start their day. For some, it’s the secret weapon to a food coma; for others, it’s the fuel to keep them going throughout the day.
 
 To get a glimpse of how our fellow Southeast Asians refuel with coffee on a daily basis, we took a look (along with our ‘kopi’) at GrabFood data, and here is what we found.
 
-## Did you know: Coffee orders have grown 1,400% on GrabFood?
+## Did You Know: Coffee Orders have Grown 1,400% on GrabFood?
 
 How much do we actually love our coffee? It seems like we do, a lot.
 
-Coffee orders on GrabFood has been growing pervasively throughout the major cities, and a timelapse visualisation based on data from GrabFood orders show us the growth of orders across major cities over a 9-month period:
+Coffee orders on GrabFood has been growing pervasively throughout the major cities, and a time-lapse visualisation based on data from GrabFood orders show us the growth of orders across major cities over a 9-month period:
 
 <div class="post-image-section"><figure>
   <img src="/img/does-southeast-asia-run-on-coffee/image1.gif" alt="Timelapse visualisation">
 </figure></div>
 
-## Time for coffee?
+## Time for Coffee?
 
 But how reliant are we on caffeine? We analysed the coffee consumption behaviour of GrabFood users from major SEA countries across a typical week.
 
-### Coffee Orders by Day of the Week: Singapore coffee orders peak on the weekends
+### Coffee Orders by Day of the Week: Singapore Coffee Orders Peak on the Weekends
 
 <div class="post-image-section"><figure>
   <img src="/img/does-southeast-asia-run-on-coffee/image2.png" alt="Coffee Orders by Day of the Week - Chart">
@@ -45,13 +45,13 @@ Turns out most coffee orders are placed on Wednesdays — clearly a much needed 
 
 However, the complete opposite happens for our friends in Singapore and the Philippines! Coffee orders actually spike on the weekends, and especially so on Sundays. It can only mean that Singaporeans and Filipinos surely enjoy their coffee catch-ups with friends and family.
 
-### AM- Coffee… PM- Still coffee
+### AM- Coffee… PM- Still Coffee
 
 *The question begets* — when exactly do SEA coffee drinkers summon that life saving cup from our delivery heroes in green?
 
 Check out this trippy visualisation that resembles jumping coffee beans:
 
-### Coffee Orders by Hour of Day — Orders peak at 10am for Thailand and 2pm in Indonesia
+### Coffee Orders by Hour of Day — Orders Peak at 10am for Thailand and 2pm in Indonesia
 
 <div class="post-image-section"><figure>
   <img src="/img/does-southeast-asia-run-on-coffee/image3.gif" alt="Coffee Orders by Day of the Week">
@@ -61,17 +61,17 @@ While other cities generally reach for the Grab app at noon for that extra boost
 
 Interestingly, coffee orders for Singapore peak at about 4pm in the afternoon… are they working hard, or are they hardly working?
 
-## GrabFood’s love is in the air, and it smells like coffee
+## GrabFood’s Love is in the Air, and It Smells Like Coffee
 
 Curious as to what coffee flavours our SEA neighbours prefer? We spill the (coffee) beans!
 
-### Top 3 Coffee Flavours in each Country
+### Top 3 Coffee Flavours in Each Country
 
 <div class="post-image-section"><figure>
   <img src="/img/does-southeast-asia-run-on-coffee/image4.png" alt="Top 3 Coffee Flavours in each Country">
 </figure></div>
 
-### What is a non-coffee drinker to do?
+### What is a Non-coffee Drinker to Do?
 
 <div class="post-image-section"><figure>
   <img src="/img/does-southeast-asia-run-on-coffee/image5.png" alt="What non-coffee drinker drinks">
@@ -89,11 +89,11 @@ Southeast Asian’s love of tea-based latte (other than green tea) is apparent i
   <img src="/img/does-southeast-asia-run-on-coffee/image6.png" alt="Unique flavours">
 </figure></div>
 
-## GrabFood Coffee is a hug in a mug
+## GrabFood Coffee is a Hug in a Mug
 
 Is your blood type coffee? Whether you feel like caramelly and chocolatey Macchiato, or fruity and floral aroma of freshly brewed Americano, or intense and bitter double-shot Long Black — GrabFood has got you covered! May your coffee get delivered (and kick in) before reality does!
 
-## Join us
+## Join Us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.

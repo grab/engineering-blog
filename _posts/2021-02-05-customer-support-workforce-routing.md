@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2021-02-05-customer-support-workforce-routing
-title: Customer Support workforce routing
+title: Customer Support Workforce Routing
 date: 2021-02-05 00:15:00
 authors: [suman-anand, elisa-monacchi, jasmine-lim, matthew-yeow, pengcheng-zhao]
 categories: [Engineering]
@@ -33,11 +33,11 @@ This article describes how we built our in-house workforce routing system at Gra
 
 Let’s run through the issues with our previous routing solution in the next sections.
 
-### Priority management
+### Priority Management
 
 The third-party solution didn’t allow us to prioritise a group of requests over others. This was particularly important for handling safety issues that were not impacted due to other low-priority requests like enquiries. So our goal for the in-house solution was to ensure that we were able to configure the priority of the request queues.
 
-### Bespoke product customisation
+### Bespoke Product Customisation
 
 With the third-party solution being a generic service provider, customisations often required long lead times as not all product requests from Grab were well received by the mass market. Building this in-house meant Grab had full controls over the design and configuration over routing. Here are a few sample use cases that were addressed by customisation:
 
@@ -45,7 +45,7 @@ With the third-party solution being a generic service provider, customisations o
 *   **Resource Constraints** - To avoid overwhelming resources with unlimited chats and maintaining reasonable wait times for our customers, we introduced a dynamic queue limit on the number of chat requests enqueued. This limit was based on factors like the number of incoming chats and the agent performance over the last hour.
 *   **Remote Work Challenges** - With the pandemic situation and more of our agents working remotely, network issues were common. So we released an enhancement on the routing system to reroute chats handled by unavailable agents (due to disconnection for an extended period) to another available agent. The seamless experience helped increase customer satisfaction.
 
-### Reporting and analytics
+### Reporting and Analytics
 
 Similar to previous point, having a solution addressing generic use cases didn't allow us to add further customisations for monitoring. With the custom implementation, we were able to add more granular metrics that are very useful to assess the agent productivity and performance, which helps in planning the resources ahead of time. This is why reporting and analytics were so valuable for workforce planning. Few of the customisations added additionally were:
 
@@ -55,13 +55,13 @@ Similar to previous point, having a solution addressing generic use cases didn't
 ## Solution
 Now that we've covered the issues we're solving, let's go over the solutions.
 
-### Prioritising high-priority requests
+### Prioritising High-priority Requests
 
 During routing, the constraint is on the number of resources available. The incoming requests cannot simply be assigned to the first available agent. The issue with this approach is that we would eventually run out of agents to serve the high-priority requests.
 
 One of the ways to prevent this is to have a separate group of agents to solely handle high-priority requests. This does not solve issues as the high-priority requests and low-priority requests share the same queue and are de-queued in a _First-In, First-out (FIFO)_ order. As a result, the low-priority requests are directly processed instead of waiting for the queue to fill up before processing high-priority requests. Because of this queuing issue, prioritisation of requests is critical.
 
-#### The need to prioritise
+#### The Need to Prioritise
 
 High-priority requests, such as safety issues, must not be in the queue for a long duration and should be handled as fast as possible even when the system is filled with low-priority requests.
 
@@ -109,11 +109,11 @@ The above code snippet iterates over individual priority queues and waits for a 
 
 The caveat with the above approach is that the worker may end up spending more time than expected when it receives a message at the end of the waiting duration. We addressed this by having multiple workers running concurrently.
 
-#### Request starvation
+#### Request Starvation
 
 Now when priority queues are used, there is a possibility that some of the low-priority requests remain unprocessed for long periods of time. To ensure that this doesn’t happen, the workers are forced to run out of sync by tweaking the order in which priority queues are processed, such that when _worker1_ is processing a high-priority queue request, _worker2_ is waiting for a request in the medium-priority queue instead of the high-priority queue.
 
-### Customising to our needs
+### Customising to Our Needs
 
 We wanted to make sure that agents with the adequate skills are assigned to the right queues to handle the requests. On top of that, we wanted to ensure that there is a limit on the number of requests that a queue can accept at a time, guaranteeing that the system isn’t flushed with too many requests, which can lead to longer waiting times for request allocation.
 
@@ -139,7 +139,7 @@ When the request is de-queued, the agent list mapped to the queue is found and t
 
 The factors impacting the eligibility score are proficiency (whether the agent is online/offline), current concurrency, max concurrency, and last allocation time.
 
-#### Ensuring the concurrency is not breached
+#### Ensuring the Concurrency is Not Breached
 
 To make sure that the agent doesn’t receive more chats than their defined concurrency, a locking mechanism is used at per agent level. During agent allocation, the worker acquires a lock on the agent record with an expiry, preventing other workers from allocating a chat to this agent. Only once the allocation process is complete (either failed or successful), the concurrency is updated and the lock is released, allowing other workers to assign more chats to the agent depending on the bandwidth.
 

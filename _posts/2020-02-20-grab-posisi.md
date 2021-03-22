@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2020-02-20-grab-posisi
-title: Grab-Posisi - Southeast Asia’s first comprehensive GPS trajectory dataset
+title: Grab-Posisi - Southeast Asia’s First Comprehensive GPS Trajectory Dataset
 date: 2020-02-20 18:43:40
 authors: [zhengmin-xu, poornima-badrinath, xiaocheng-huang, abeesh-thomas]
 categories: [Engineering]
@@ -18,11 +18,11 @@ At Grab, thousands of bookings happen daily via the Grab app. The driver phones 
 
 Apart from the time and location of the object, GPS trajectories are also characterised by other parameters such as speed, the headed direction, the area and distance covered during its travel, and the travelled time. Thus, the trajectory patterns from users GPS data are a valuable source of information for a wide range of urban applications, such as solving transportation problems, traffic prediction, and developing reasonable urban planning.
 
-Currently, it’s a herculean task to create and maintain the GPS datasets since it’s costly and laborious. As a result, most of the GPS datasets available today in the market have poor coverage or contain outdated information. They cover only a small area of a city, have low sampling rates and contain less contextual information of the GPS pings such as no accuracy level, bearing, and speed. Despite over a dozen mapping communities engaged in collecting GPS trajectory datasets, a significant amount of effort would be required for data cleaning and data pre-processing in order to utilize them.
+Currently, it’s a herculean task to create and maintain the GPS datasets since it’s costly and laborious. As a result, most of the GPS datasets available today in the market have poor coverage or contain outdated information. They cover only a small area of a city, have low sampling rates and contain less contextual information of the GPS pings, such as no accuracy level, bearing, and speed. Despite over a dozen mapping communities engaged in collecting GPS trajectory datasets, a significant amount of effort would be required for data cleaning and data pre-processing in order to utilise them.
 
 To overcome the shortfalls in the existing datasets, we built Grab-Posisi, the first GPS trajectory dataset of Southeast Asia. The term Posisi refers to a position in Bahasa. The data was collected from Grab drivers’ phones while in transit. By tackling the addition of major arterial roads in regions where existing maps have poor coverage, and the incremental improvement of coverage in regions where major roads are already mapped, Posisi substantially improves mapping productivity.
 
-## What’s inside the dataset
+## What’s Inside the Dataset
 
 The whole Grab-Posisi dataset contains in total 84K trajectories that consist of more than 80 million GPS pings and cover over 1 million km. The average trajectory length is 11.94 km and the average duration per trip is 21.50 minutes.
 
@@ -32,7 +32,7 @@ As the GPS trajectories were collected from Grab drivers’ phones while in tran
 
 All drivers’ personal information is encrypted and the real start/end locations are removed within the dataset.
 
-### Data format
+### Data Format
 
 Each trajectory is serialised in a file in Apache Parquet format. The whole dataset size is around 2 GB. Each GPS ping is associated with values for a trajectory ID, latitude, longitude, timestamp (UTC), accuracy level, bearing and speed. The GPS sampling rate is 1 second, which is the highest among all the existing open source datasets. Table 1 shows a sample of the dataset.
 
@@ -111,7 +111,7 @@ Transportation mode detection refers to the task of identifying the travel mode 
 
 The real-world GPS trajectories of people reveal realistic travel patterns and demands, which can be of great help for city planning. As there are some realistic constraints faced by governments such as budget limitations and construction inconvenience, it is important to incorporate both the planning authorities’ requirements and the realistic travel demands mined from trajectories for intelligent city planning. For example, the trajectories of cars can provide suggestions on how to schedule highway constructions. The trajectories of motorcycles can help the government to choose the optimal locations to construct motorcycle lanes for safety concerns.
 
-## Want to access our dataset?
+## Want to Access Our Dataset?
 
 Grab-Posisi dataset offers a great value and is a significant resource to the community for benchmarking and revisiting existing technologies.         
 
@@ -131,7 +131,7 @@ _Huang, X., Yin, Y., Lim, S., Wang, G., Hu, B., Varadarajan, J., ... & Zimmerman
 
 **Note: You cannot use Grab-Posisi dataset for commercial purposes.**
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 

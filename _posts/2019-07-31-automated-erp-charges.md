@@ -41,7 +41,7 @@ However, that wasn’t enough. We wanted this feature to be scalable to every co
 
 ## Boots on the Ground!
 
-Collecting all the ERP or toll data for every country is no small feat, recalls Robinson Kudali, program manager for the project. “We had around 15 people travelling across the region for 2-3 weeks, working on collecting data from every possible source in every country.”
+Collecting all the ERP or toll data for every country is no small feat, recalls Robinson Kudali, programme manager for the project. “We had around 15 people travelling across the region for 2-3 weeks, working on collecting data from every possible source in every country.”
 
 Getting the right geographical coordinates for every gantry is very important. We track driver GPS pings frequently, identify the nearest road to that GPS ping and check the presence of a gantry using its coordinates. The entire process requires you to be very accurate; incorrect gantry location can easily lead to us miscalculating the fare.
 

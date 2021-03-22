@@ -78,11 +78,11 @@ Did you know? Drivers are twice as likely to get back-to-back allocations during
 
 One of our most active driver-partners covered 57,000km ferrying passengers in 2018 — that’s like driving every road, street, jalan, lorong and tanjong in Singapore for more than 57 times!
 
-How our driver-partners utilize the Grab platform to make a living (and break a few records along the way) never ceases to amaze us.
+How our driver-partners utilise the Grab platform to make a living (and break a few records along the way) never ceases to amaze us.
 
 Interested to know more about the winning strategies among our driver-partners? Look out for the next data story!
 
-## Join us
+## Join Us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
 If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
