@@ -22,7 +22,7 @@ Part of our user growth strategy is centred around our efforts in running direct
 Grab’s ever-expanding services, extensive geographical coverage and hyperlocal strategies result in an extremely dynamic, yet complex ad account structure. This also means that whenever there is a new business vertical launch or hyperlocal campaign, the team would spend valuable hours rolling out a large volume of new ads across our accounts in the region.
 
 <div class="post-image-section"><figure>
-  <img src="/img/learn-how-grab-leveraged-performance-marketing-automation/image1.png" alt="Sample Google Ads account structure"> <figcaption align="middle"><i>A sample of our Google Ads account structure.</i></figcaption>
+  <img src="/img/learn-how-grab-leveraged-performance-marketing-automation/image1.jpg" alt="Sample Google Ads account structure"> <figcaption align="middle"><i>A sample of our Google Ads account structure.</i></figcaption>
 </figure></div>
 
 The granular structure of our Google Ads account provided us with flexibility to execute hyperlocal strategies, but this also resulted in thousands of ad groups that had to be individually maintained.
@@ -80,7 +80,7 @@ CARA is an automation tool that scans for any low-performing creatives and repla
 In a controlled experimental launch, we saw nearly __2,000__ underperforming assets automatically replaced across more than __8,000__ active ad groups, translating to an __18-30%__ increase in clickthrough and conversion rates.
 
 <div class="post-image-section"><figure>
-  <img src="/img/learn-how-grab-leveraged-performance-marketing-automation/image3.png" alt="Subset of results from CARA experimental launch"><figcaption align="middle"><i>A subset of results from CARA's experimental launch</i></figcaption>
+  <img src="/img/learn-how-grab-leveraged-performance-marketing-automation/image3.jpg" alt="Subset of results from CARA experimental launch"><figcaption align="middle"><i>A subset of results from CARA's experimental launch</i></figcaption>
 </figure></div>
 
 Through automation, Grab’s performance marketing team has been able to significantly improve clickthrough and conversion rates while saving valuable man-hours. We have also established a scalable foundation for future growth. The best part? We are just getting started.
