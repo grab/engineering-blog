@@ -85,6 +85,10 @@ In a controlled experimental launch, we saw nearly __2,000__ underperforming ass
 
 Through automation, Grab’s performance marketing team has been able to significantly improve clickthrough and conversion rates while saving valuable man-hours. We have also established a scalable foundation for future growth. The best part? We are just getting started.
 
+----
+<small class="credits">Authored on behalf of the performance marketing team @ Grab. Special thanks to the CRM data analytics team, particularly Milhad Miah and Vaibhav Vij for making this a reality.</small>
+
+----
 ## Join Us
 
 Grab is more than just the leading ride-hailing and food delivery platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services for a region of more than 650 million people. We aspire to unlock the true potential of Southeast Asia and are on the lookout for like-minded individuals to join us on this ride.
