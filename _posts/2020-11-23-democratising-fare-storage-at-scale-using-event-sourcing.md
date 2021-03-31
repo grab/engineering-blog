@@ -11,7 +11,7 @@ cover_photo: /img/democratising-fare-storage-at-scale-using-event-sourcing/cover
 excerpt: "Read how we built Grab's single source of truth for fare storage and management. In this post, we explain how we used the Event Sourcing pattern to build our fare data store."
 ---
 
-From humble beginnings, Grab has expanded across different markets in the last couple of years. We've added a wide range of features to the Grab platform to continue to delight our customers and driver-partners. We had to incessantly find ways to improve our existing solutions to better support new features.
+From humble beginnings, Grab has expanded across different markets in the last couple of years. We've added a wide range of features to the Grab platform to continue to delight our consumers and driver-partners. We had to incessantly find ways to improve our existing solutions to better support new features.
 
 In this blog, we discuss how we built _Fare Storage_, Grab's single source of truth fare data store, and how we overcame the challenges to make it more reliable and scalable to support our expanding features.
 
@@ -40,7 +40,7 @@ High-level functional requirements for the new fare store were:
 *   Provide a platform to store and retrieve fare and associated breakdowns, with no tight coupling between services.
 *   Act as a single source-of-truth for fare and associated fees in the Grab ecosystem.
 *   Enable clients to access the metadata of fare change events in real-time, enabling the Product team to innovate freely.
-*   Provide smooth access to a fare’s audit trail, improving the response time to our customers' queries.
+*   Provide smooth access to a fare’s audit trail, improving the response time to our consumers' queries.
 
 Non-functional requirements for the fare store were:
 
@@ -109,7 +109,7 @@ Democratising the responsibility of fare modification means that multiple servic
 Let’s understand why the ordering of fare updates are important. Business rules for different cities and countries regulate the pricing features based on local market conditions and prevailing laws. For example, in some scenarios, _Tolls_ and _Waiting Fees_ may not be eligible for discounts or promotions. The service applying discounts needs to consider this information while applying a discount. Therefore, updates to the fare are not independent of the previous fare events.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image3.jpg" alt="Fare Integrity">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image3.jpg" alt="Fare Integrity">
 </figure></div>
 
 We needed a mechanism to detect race conditions and handle them appropriately to ensure the integrity of the fare. To handle race conditions based on our use case, we explored [Pessimistic and Optimistic locking mechanisms](https://en.wikipedia.org/wiki/Lock_(computer_science)).
@@ -119,7 +119,7 @@ All the expected fare change events happen based on certain conditions being tru
 The logic to calculate the fare/surcharge is coupled with the business logic of the system that calculates the fare component or fees. So, handling data race conditions on the data store layer was not an acceptable option either. It made more sense to let the clients handle it and keep the storage system decoupled from the business logic to compute the fare.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image8.jpg" alt="Optimistic Locking">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image8.jpg" alt="Optimistic Locking">
 </figure></div>
 
 To achieve _Optimistic Locking_, we store a fare version and increment it on every successful update. The client must pass the version they read to modify the fare. Should there be a version mismatch between the update query and the current fare, the update is rejected. On version mismatches, the clients read the updated checksum(version) and retry with the recalculated fare.
@@ -133,7 +133,7 @@ As discussed in the previous section, retrying with the same version would fail 
 However, clients might not know if their update modified the version or if any other clients updated the data. Relying on clients to check for event duplication makes the client-side complex and leaves a chance of error if the clients do not handle it correctly.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image9.jpg" alt="Solution for Duplicate Events">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image9.jpg" alt="Solution for Duplicate Events">
 </figure></div>
 
 To handle the duplicate events, we associate each event with a unique UUID (`transactionID`) generated from the client-side using a UUID library from the Fare LifeCycle service SDK. We check whether the `transactionID` is already part of successful transaction IDs before updating the fare. If we identify a non-unique `transactionID`, we return duplicate event errors to the client.
@@ -150,7 +150,7 @@ One goal for our data store was to give our clients the flexibility to add new f
 2.  Deserialise the bytes metadata returned from the Fare LifeCycle service into a Go struct for client access.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image7.jpg" alt="Fare LifeCycle SDK">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image7.jpg" alt="Fare LifeCycle SDK">
 </figure></div>
 
 Serialising and deserialising the metadata on the client-side decoupled it from the Fare LifeCycle Store API. This helped teams update the metadata without deploying the storage service each time.
@@ -161,11 +161,11 @@ For reading the breakdown, the clients pass the metadata bytes to the SDK along 
 
 The Fare LifeCycle service enabled us to revolutionise the fare storage at scale for Grab’s ecosystem of services. Further benefits realised with the system are:
 
-*   The feature agnostic platform helped us to reduce the time-to-market for our hyper-local features so that we can further outserve our customers and driver-partners.
+*   The feature agnostic platform helped us to reduce the time-to-market for our hyper-local features so that we can further outserve our consumers and driver-partners.
 *   Decoupling the fare information from the booking information also helped us to achieve a better separation of concerns between services.
 *   Improve the overall reliability and scalability of the Grab platform by decoupling fare and booking information, allowing them to scale independently of each other.
 *   Reduce unnecessary coupling between services to fetch fare related information and update fare.
-*   The audit-trail of fare changes in the chronological order reduced the time to debug fare and improved our response to customers for fare-related queries.
+*   The audit-trail of fare changes in the chronological order reduced the time to debug fare and improved our response to consumers for fare-related queries.
 
 We hope this post helped you to have a closer look at how we used the Event Source pattern for building a data store and how we handled a few caveats and challenges in the process.
 

@@ -13,7 +13,7 @@ excerpt: "Read how we built our in-house workforce routing system at Grab."
 
 ## Introduction
 
-With Grab’s wide range of services, we get large volumes of queries a day. Our Customer Support teams address concerns and issues from safety issues to general FAQs. The teams delight our customers through quick resolutions, resulting from world-class support framework and an efficient workforce routing system.
+With Grab’s wide range of services, we get large volumes of queries a day. Our Customer Support teams address concerns and issues from safety issues to general FAQs. The teams delight our consumers through quick resolutions, resulting from world-class support framework and an efficient workforce routing system.
 
 Our routing workforce system ensures that available resources are efficiently assigned to a request based on the right skillset and deciding factors such as department, country, request priority. Scalability to work across support channels (e.g. voice, chat, or digital) is also another factor considered for routing a request to a particular support specialist.
 
@@ -22,7 +22,7 @@ Our routing workforce system ensures that available resources are efficiently as
   </figure></div>
 
 
-Having an efficient workforce routing system ensures that requests are directed to relevant support specialists who are most suited to handle a certain type of issue, resulting in quicker resolution, happier and satisfied customers, and reduced cost spent on support.
+Having an efficient workforce routing system ensures that requests are directed to relevant support specialists who are most suited to handle a certain type of issue, resulting in quicker resolution, happier and satisfied consumers, and reduced cost spent on support.
 
 We initially implemented a third-party solution, however there were a few limitations, such as prioritisation, that motivated us to build our very own routing solution that provides better routing configuration controls and cost reduction from licensing costs.
 
@@ -42,8 +42,8 @@ The third-party solution didn’t allow us to prioritise a group of requests ove
 With the third-party solution being a generic service provider, customisations often required long lead times as not all product requests from Grab were well received by the mass market. Building this in-house meant Grab had full controls over the design and configuration over routing. Here are a few sample use cases that were addressed by customisation:
 
 *   **Bulk configuration changes** - Previously, it was challenging to assign the same configuration to multiple agents. So, we introduced another layer of grouping for agents that share the same configuration. For example, which queues the agents receive chats from and what the proficiency and max concurrency should be.
-*   **Resource Constraints** - To avoid overwhelming resources with unlimited chats and maintaining reasonable wait times for our customers, we introduced a dynamic queue limit on the number of chat requests enqueued. This limit was based on factors like the number of incoming chats and the agent performance over the last hour.
-*   **Remote Work Challenges** - With the pandemic situation and more of our agents working remotely, network issues were common. So we released an enhancement on the routing system to reroute chats handled by unavailable agents (due to disconnection for an extended period) to another available agent. The seamless experience helped increase customer satisfaction.
+*   **Resource Constraints** - To avoid overwhelming resources with unlimited chats and maintaining reasonable wait times for our consumers, we introduced a dynamic queue limit on the number of chat requests enqueued. This limit was based on factors like the number of incoming chats and the agent performance over the last hour.
+*   **Remote Work Challenges** - With the pandemic situation and more of our agents working remotely, network issues were common. So we released an enhancement on the routing system to reroute chats handled by unavailable agents (due to disconnection for an extended period) to another available agent. The seamless experience helped increase consumer satisfaction.
 
 ### Reporting and Analytics
 
@@ -157,7 +157,7 @@ If the agent fails to accept the request in a given period of time, then the req
 
 #### Informing the frontend about allocation
 
-When an allocation of an agent happens, the routing system needs to inform the frontend by sending messages over websocket to the frontend. This is done with our super reliable messaging system called _Hermes_, which operates at scale in supporting *12k concurrent connections* and establishes real-time communication between agents and customers.
+When an allocation of an agent happens, the routing system needs to inform the frontend by sending messages over websocket to the frontend. This is done with our super reliable messaging system called _Hermes_, which operates at scale in supporting *12k concurrent connections* and establishes real-time communication between agents and consumers.
 
 #### Finding the online agents
 
@@ -181,7 +181,7 @@ Now to understand the system limitations and behaviour before releasing to multi
 
 ## Next steps
 
-We have lined up a few enhancements to reduce the customer wait time and the time spent by the agents on unresponsive customers. Aside from chats, we plan to implement this solution to handle digital issues (social media and emails) and voice requests (call).
+We have lined up a few enhancements to reduce the consumer wait time and the time spent by the agents on unresponsive consumers. Aside from chats, we plan to implement this solution to handle digital issues (social media and emails) and voice requests (call).
 
 ---
 

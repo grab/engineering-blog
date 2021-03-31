@@ -8,7 +8,7 @@ categories: [Data Science]
 tags: [Data Science]
 comments: true
 cover_photo: /img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/cover.jpeg
-excerpt: "We questioned some of the estimates that our algorithm for calculating restaurant wait times was making, and found that the \"errors\" were actually useful to discover restaurants whose locations had been incorrectly registered in our system. By combining such error signals across multiple orders, we were able to identify correct restaurant locations and amend them to improve the experience for our customers."
+excerpt: "We questioned some of the estimates that our algorithm for calculating restaurant wait times was making, and found that the \"errors\" were actually useful to discover restaurants whose locations had been incorrectly registered in our system. By combining such error signals across multiple orders, we were able to identify correct restaurant locations and amend them to improve the experience for our consumers."
 ---
 
 While studying GPS ping data to understand how long our driver-partners needed to spend at restaurants during a GrabFood delivery, we came across an interesting observation. We realised that there was a significant proportion of restaurants where our driver-partners were waiting for abnormally short durations, often for just seconds.

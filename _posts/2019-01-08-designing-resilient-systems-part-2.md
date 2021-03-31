@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Resiliency, Circuit Breakers]
 comments: true
 cover_photo: /img/designing-resilient-systems-part-2/cover.jpg
-excerpt: "Grab designs fault-tolerant systems that can withstand failures allowing us to continuously provide our customers with the many services they expect from us."
+excerpt: "Grab designs fault-tolerant systems that can withstand failures allowing us to continuously provide our consumers with the many services they expect from us."
 ---
 
 _This post is the second part of the series on Designing Resilient Systems. In Part 1, we looked at use cases for implementing circuit breakers. In this second part, we will do a deep dive on retries and its use cases, followed by a technical comparison of both approaches._
@@ -71,13 +71,13 @@ Please do not take the above example to imply that only read operations can be r
 
 A _reserve a ticket_ operation is almost always going to involve some finite amount of tickets, and in such a situation it is imperative that 1 request only results in 1 reservation. Other similar situations might include charging a credit card or incrementing a counter.
 
-Some write operations, like saving a registration or updating a record to a provided value (without calculation) can be repeated. Saving multiple registrations will cause messy data, but that can be cleaned up by some other non-customer related process. In this case, it's better to ensure we fulfil the customers request at the expense of extra work for us rather than failing, leaving the system in an unknown state and making it the customer's problem. For example, let's say we were updating the user's password to abc123, this end state which was provided by the user is fixed and so, therefore, repeating the process only wastes the resources of the data store.
+Some write operations, like saving a registration or updating a record to a provided value (without calculation) can be repeated. Saving multiple registrations will cause messy data, but that can be cleaned up by some other non-consumer related process. In this case, it's better to ensure we fulfil the consumers request at the expense of extra work for us rather than failing, leaving the system in an unknown state and making it the consumer's problem. For example, let's say we were updating the user's password to abc123, this end state which was provided by the user is fixed and so, therefore, repeating the process only wastes the resources of the data store.
 
 In cases where retries are possible, but you want to be able to detect and prevent duplicate transactions (like in our ticket reservation example) it is possible to introduce a **cryptographic nonce**. This topic would require an article all of its own, but the short version is: a cryptographic nonce is a random number introduced into a request that helps us detect that two requests are actually one.
 
 If that didn't make much sense, here's an example:
 
-Let's say we receive a ticket registration request from our customer, and we append to it a random number. Now, when we call our upstream service, we can pass the request data together with the nonce. This request is partially processed but then fails and returns an HTTP 500 - Internal Server Error. We retry this request with another upstream service host and again supply the request data and the exact same nonce. The upstream host is now able to use this nonce and other identifying information in the request (e.g. customer id, amount, ticket type, etc.) to determine that both requests originate from the same user request and therefore should be treated as one. In our case, this might mean we return the tickets reserved by the first partially processed request and complete the processing.
+Let's say we receive a ticket registration request from our consumer, and we append to it a random number. Now, when we call our upstream service, we can pass the request data together with the nonce. This request is partially processed but then fails and returns an HTTP 500 - Internal Server Error. We retry this request with another upstream service host and again supply the request data and the exact same nonce. The upstream host is now able to use this nonce and other identifying information in the request (e.g. consumer id, amount, ticket type, etc.) to determine that both requests originate from the same user request and therefore should be treated as one. In our case, this might mean we return the tickets reserved by the first partially processed request and complete the processing.
 
 For more information on cryptographic nonces, start [here](https://en.wikipedia.org/wiki/Cryptographic_nonce).
 
@@ -182,7 +182,7 @@ While the underlying goal of the retry mechanism is to do everything possible to
 
 At some point, we need to give up and allow the failure.
 
-When configuring the retry mechanism, it is essential to tune the **Maximum Retries**, **Request Timeout**, and **Maximum Delay** together. The target to keep in mind when tuning these values is the worst-case response time to our customer.
+When configuring the retry mechanism, it is essential to tune the **Maximum Retries**, **Request Timeout**, and **Maximum Delay** together. The target to keep in mind when tuning these values is the worst-case response time to our consumer.
 
 The worst-case response time can be calculated as: **(maximum retries x request timeout) + (maximum retries x maximum delay)**
 

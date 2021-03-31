@@ -17,11 +17,11 @@ Let me take you back a year ago at Grab. When we lacked any visualisations or me
 
 When a service stops responding, Grab’s core problems were and are:
 
-*   We need to know it happened before the customer does.
+*   We need to know it happened before the consumer does.
 *   We need to know why it happened.
-*   We need to solve our customers’ problems fast.
+*   We need to solve our consumers' problems fast.
 
-We had a hodgepodge of log-based solutions for developers when they needed to figure out the above, or why a driver never showed up, or a customer wasn’t receiving our promised promotions. These included logs in a cloud based storage service (which could take hours to retrieve). Or a SAS provider constantly timing out on our queries. Or even asking our SREs to fetch logs from the potential machines for the service engineer, a rather laborious process.
+We had a hodgepodge of log-based solutions for developers when they needed to figure out the above, or why a driver never showed up, or a consumer wasn’t receiving our promised promotions. These included logs in a cloud based storage service (which could take hours to retrieve). Or a SAS provider constantly timing out on our queries. Or even asking our SREs to fetch logs from the potential machines for the service engineer, a rather laborious process.
 
 Here’s what we did with our logs to solve these problems.
 
@@ -51,7 +51,7 @@ New concerns always pop up during a project. We’re sure someone has correlated
 
 Thankfully, using [Elasticsearch](https://www.elastic.co/) as our data store meant we could fully utilise horizontal scaling. This let us start with a simple 5 node cluster as we built out our proof-of-concept (POC). Once we were ready to onboard more services, we could move into a larger footprint.
 
-The specs at the time called for about 80 nodes to handle all our data. But if we designed our system correctly, we’d only need to increase the number of Elasticsearch nodes as we enrolled more customers. Our key operating metrics were CPU utilisation, heap memory needed for the JVM, and total disk space.
+The specs at the time called for about 80 nodes to handle all our data. But if we designed our system correctly, we’d only need to increase the number of Elasticsearch nodes as we enrolled more consumers. Our key operating metrics were CPU utilisation, heap memory needed for the JVM, and total disk space.
 
 ### Initial Design
 
@@ -156,4 +156,4 @@ We could probably fill 30 more pages with odd things we ran into, hacks we imple
 
 There are many different ways we could have started knowing what we do now. For example, using Logstash over Ingest nodes, changing default circuit breakers, and properly using heap space to prevent node failures. But hindsight is 20/20 and it’s rare for projects to not change.
 
-We suggest anyone wanting to revamp their centralised logging system look at the ELK solutions. There is a learning curve, but the scalability is outstanding and having subsecond lookup time for assisting a customer is phenomenal. But, before you begin, do your homework to save yourself weeks of troubleshooting down the road. In the end though, we’ve received nothing but praise from Grab engineers about their experiences with our new logging system.
+We suggest anyone wanting to revamp their centralised logging system look at the ELK solutions. There is a learning curve, but the scalability is outstanding and having subsecond lookup time for assisting a consumer is phenomenal. But, before you begin, do your homework to save yourself weeks of troubleshooting down the road. In the end though, we’ve received nothing but praise from Grab engineers about their experiences with our new logging system.

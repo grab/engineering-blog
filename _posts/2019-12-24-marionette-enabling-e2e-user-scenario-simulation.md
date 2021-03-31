@@ -13,7 +13,7 @@ excerpt: "Do you know how we get early feedback on any breaking changes? Read th
 
 ## Introduction
 
-A plethora of interconnected microservices is what powers the Grab’s app. The microservices work behind the scenes to delight millions of our customers in Southeast Asia. It is a no-brainer that we emphasise on strong testing tools, so our app performs flawlessly to continuously meet our customers’ needs.
+A plethora of interconnected microservices is what powers the Grab’s app. The microservices work behind the scenes to delight millions of our consumers in Southeast Asia. It is a no-brainer that we emphasise on strong testing tools, so our app performs flawlessly to continuously meet our consumers' needs.
 
 ## Background
 
@@ -69,7 +69,7 @@ Grabbers can interact with Marionette through three channels: UI, SDK, and throu
 
 With Marionette, Grabbers now have the ability to:
 
-*   Simulate the whole booking flow including customer and driver behaviour as well as transition through the booking life cycle including pick-up, drop-off, cancellation, etc. For example, developers can make passenger booking from the UI and configure pick-up points, drop-off points, taxi types, and other parameters easily. They can define passenger behaviour such as “make bookings after a specified time interval”, “cancel each booking”, etc. They can also set driver locations, define driver behaviour such as “always accept booking manually”, “decline received bookings”, etc.
+*   Simulate the whole booking flow including consumer and driver behaviour as well as transition through the booking life cycle including pick-up, drop-off, cancellation, etc. For example, developers can make passenger booking from the UI and configure pick-up points, drop-off points, taxi types, and other parameters easily. They can define passenger behaviour such as “make bookings after a specified time interval”, “cancel each booking”, etc. They can also set driver locations, define driver behaviour such as “always accept booking manually”, “decline received bookings”, etc.
 *   Simulate bookings in all cities where Grab operates. Further, developers can run simulations for multiple Grab taxi types such as JustGrab, GrabShare, etc.
 *   Visualise passengers, drivers, and ride transitions on the UI, which lets them easily test their workflows.
 *   Save efforts and time spent on installing third-party android or iOS emulators, troubleshooting or debugging `.apk` installation files, etc before testing workflows.

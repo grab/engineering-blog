@@ -13,7 +13,7 @@ excerpt: "Disrupt or be disrupted - that was exactly the spirit in which the Gro
 
 **Disrupt or be disrupted** - that was exactly the spirit in which the Growth Hacking team was created this year (also a Grab principle that is recognised on the [2017 CNBC Disruptor 50 list](https://www.cnbc.com/2017/05/16/the-2017-cnbc-disruptor-50-list-of-companies.html)). This was a deliberate decision to nurture our scrappy DNA, and ensure that we had a dedicated space to experiment and enable intelligent risk-taking.
 
-Focusing on initiatives with the highest impact to unlock exponential scaling, our lean and nimble Growth Hacking team tackles challenges considered either too niched or high-risk by business teams. We do this by delivering *growth loops* to Grab, with the ultimate aim to outserve our 68 million customers across the region.
+Focusing on initiatives with the highest impact to unlock exponential scaling, our lean and nimble Growth Hacking team tackles challenges considered either too niched or high-risk by business teams. We do this by delivering *growth loops* to Grab, with the ultimate aim to outserve our 68 million consumers across the region.
 
 *What is a growth loop?*
 
@@ -23,7 +23,7 @@ A typical growth loop follows this path:
   <div style="flex: 1;">
     <p>1. Actively <strong><em>acquire</em></strong> the right users through needs-based /observable traits segmentation.</p>
     <p>2. <strong><em>Activate</em></strong> these users to change their behaviour through incentives or deterrents.</p>
-    <p>3. <strong><em>Engage</em></strong> these same users through an ongoing customer lifecycle management programme. </p>
+    <p>3. <strong><em>Engage</em></strong> these same users through an ongoing consumer lifecycle management programme. </p>
     <p>4. Driving <strong><em>virality</em></strong> across the system to exponentially increase desired impact. </p>
   </div>
   <div style="flex: 1;">

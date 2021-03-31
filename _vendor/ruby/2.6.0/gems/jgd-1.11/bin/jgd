@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+STDOUT.sync = true
+
+require 'trollop'
+opts = Trollop.options do
+  banner <<-EOS
+jgd is an automated deployer of Jekyll site to Github Pages
+
+Usage: jgd [options]
+  EOS
+  opt :url, 'Github URL', type: String, default: ''
+  opt :branch, 'Destination branch', type: String, default: 'gh-pages'
+  opt :branch_from, 'Source branch', type: String, default: 'master'
+  opt :config, 'Deploy Config File', type: String, default: '_config-deploy.yml'
+  opt :bundle, 'Use bundle'
+  opt :drafts, 'Generate drafts'
+end
+
+branch = opts[:branch]
+branch_from = opts[:branch_from]
+config = opts[:config]
+fail 'branch can\'t be empty' if branch.empty?
+fail 'branch-from can\'t be empty' if branch_from.empty?
+fail 'config can\'t be empty' if config.empty?
+url = opts[:url]
+url = `git config --get remote.origin.url`.strip if url.empty?
+bundle = opts[:bundle] ? '"bundle exec"' : '""'
+drafts = opts[:drafts] ? '"--drafts"' : '""'
+
+spec = Gem::Specification.find_by_name('jgd')
+root = spec.gem_dir
+script = File.join(root, 'bash/deploy.sh')
+
+fail 'deployment failed, see log above' \
+  unless system("#{script} #{url} #{branch} #{branch_from} #{config} #{bundle} #{drafts}")

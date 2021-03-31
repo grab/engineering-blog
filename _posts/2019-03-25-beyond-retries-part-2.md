@@ -97,7 +97,7 @@ Finally, if the response is too complex to compute locally or if major functiona
 
 ### Grab’s Fallback Implementation
 
-At Grab, we make use of various fallback strategies in our services. For example, our microservice framework [Grab-Kit](https://engineering.grab.com/introducing-grab-kit) has built-in support for returning cached values when a downstream service is unresponsive. We've even built a backup service to replicate our core functionality, so we can continue to serve customers despite severe technical difficulties!
+At Grab, we make use of various fallback strategies in our services. For example, our microservice framework [Grab-Kit](https://engineering.grab.com/introducing-grab-kit) has built-in support for returning cached values when a downstream service is unresponsive. We've even built a backup service to replicate our core functionality, so we can continue to serve consumers despite severe technical difficulties!
 
 ## Up Next, Architecture Patterns and Chaos Engineering...
 

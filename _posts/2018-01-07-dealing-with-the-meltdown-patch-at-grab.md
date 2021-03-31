@@ -84,12 +84,12 @@ We would add additional shards so that the load gets spread evenly. This was com
   <small class="post-image-caption">Fig 7. Redis where code changes were made to shard the data across multiple nodes to reduce the overall load on a single critical node</small>
 </div>
 
-All of these mitigations were done over a period of 24 hours to ensure that we go past our Friday peak (our highest traffic point during the week) without any customer facing impact.
+All of these mitigations were done over a period of 24 hours to ensure that we go past our Friday peak (our highest traffic point during the week) without any consumer facing impact.
 
 **Conclusion**
 
 This post was meant to give a quick glimpse of the impact that Meltdown has had at Grab as well as provide some real data on the performance impact of the patches.
 
-The design of our internal systems in their usage of Redis to quickly be able to horizontally scale-out was key in ensuring that there was minimal impact, if any to our customers.
+The design of our internal systems in their usage of Redis to quickly be able to horizontally scale-out was key in ensuring that there was minimal impact, if any to our consumers.
 
 We still have further investigation to conduct to truly understand why only certain Redis workloads were affected while others weren’t. We are planning to dive deeper into this and that may be the subject of a future blog post.

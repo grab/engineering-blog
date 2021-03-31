@@ -11,7 +11,7 @@ cover_photo: /img/keeping-170-libraries-up-to-date/cover.jpg
 excerpt: "Learn how we maintain our libraries and prevent defect leaks in our Grab Passenger app."
 ---
 
-To scale up to the needs of our customers, we've adopted ways to efficiently deliver our services through our everyday superapp - whether it's through continuous process improvements or coding best practices. For one, [libraries](https://en.wikipedia.org/wiki/Library_(computing)) have made it possible for us to increase our development velocity. In the Passenger App Android team, we've a mix of libraries - from libraries that we've built in-house to open source ones.
+To scale up to the needs of our consumers, we've adopted ways to efficiently deliver our services through our everyday superapp - whether it's through continuous process improvements or coding best practices. For one, [libraries](https://en.wikipedia.org/wiki/Library_(computing)) have made it possible for us to increase our development velocity. In the Passenger App Android team, we've a mix of libraries - from libraries that we've built in-house to open source ones.
 
 Every week, we release a new version of our Passenger App. Each update contains on average between five to ten library updates. In this article, we will explain how we keep all libraries used by our app up to date, and the different actions we take to avoid defect leaks into production.
 
