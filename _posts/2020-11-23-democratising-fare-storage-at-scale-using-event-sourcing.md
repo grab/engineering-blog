@@ -109,7 +109,7 @@ Democratising the responsibility of fare modification means that multiple servic
 Let’s understand why the ordering of fare updates are important. Business rules for different cities and countries regulate the pricing features based on local market conditions and prevailing laws. For example, in some scenarios, _Tolls_ and _Waiting Fees_ may not be eligible for discounts or promotions. The service applying discounts needs to consider this information while applying a discount. Therefore, updates to the fare are not independent of the previous fare events.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image3.jpg" alt="Fare Integrity">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image3.jpg" alt="Fare Integrity">
 </figure></div>
 
 We needed a mechanism to detect race conditions and handle them appropriately to ensure the integrity of the fare. To handle race conditions based on our use case, we explored [Pessimistic and Optimistic locking mechanisms](https://en.wikipedia.org/wiki/Lock_(computer_science)).
@@ -119,7 +119,7 @@ All the expected fare change events happen based on certain conditions being tru
 The logic to calculate the fare/surcharge is coupled with the business logic of the system that calculates the fare component or fees. So, handling data race conditions on the data store layer was not an acceptable option either. It made more sense to let the clients handle it and keep the storage system decoupled from the business logic to compute the fare.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image8.jpg" alt="Optimistic Locking">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image8.jpg" alt="Optimistic Locking">
 </figure></div>
 
 To achieve _Optimistic Locking_, we store a fare version and increment it on every successful update. The client must pass the version they read to modify the fare. Should there be a version mismatch between the update query and the current fare, the update is rejected. On version mismatches, the clients read the updated checksum(version) and retry with the recalculated fare.
@@ -133,7 +133,7 @@ As discussed in the previous section, retrying with the same version would fail 
 However, clients might not know if their update modified the version or if any other clients updated the data. Relying on clients to check for event duplication makes the client-side complex and leaves a chance of error if the clients do not handle it correctly.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image9.jpg" alt="Solution for Duplicate Events">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image9.jpg" alt="Solution for Duplicate Events">
 </figure></div>
 
 To handle the duplicate events, we associate each event with a unique UUID (`transactionID`) generated from the client-side using a UUID library from the Fare LifeCycle service SDK. We check whether the `transactionID` is already part of successful transaction IDs before updating the fare. If we identify a non-unique `transactionID`, we return duplicate event errors to the client.
@@ -150,7 +150,7 @@ One goal for our data store was to give our clients the flexibility to add new f
 2.  Deserialise the bytes metadata returned from the Fare LifeCycle service into a Go struct for client access.
 
 <div class="post-image-section"><figure>
-  <img src="/img/democratizing-fare-storage-at-scale-using-event-sourcing/image7.jpg" alt="Fare LifeCycle SDK">
+  <img src="/img/democratising-fare-storage-at-scale-using-event-sourcing/image7.jpg" alt="Fare LifeCycle SDK">
 </figure></div>
 
 Serialising and deserialising the metadata on the client-side decoupled it from the Fare LifeCycle Store API. This helped teams update the metadata without deploying the storage service each time.
