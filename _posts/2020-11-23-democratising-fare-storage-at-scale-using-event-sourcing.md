@@ -11,7 +11,7 @@ cover_photo: /img/democratising-fare-storage-at-scale-using-event-sourcing/cover
 excerpt: "Read how we built Grab's single source of truth for fare storage and management. In this post, we explain how we used the Event Sourcing pattern to build our fare data store."
 ---
 
-From humble beginnings, Grab has expanded across different markets in the last couple of years. We've added a wide range of features to the Grab platform to continue to delight our customers and driver-partners. We had to incessantly find ways to improve our existing solutions to better support new features.
+From humble beginnings, Grab has expanded across different markets in the last couple of years. We've added a wide range of features to the Grab platform to continue to delight our consumers and driver-partners. We had to incessantly find ways to improve our existing solutions to better support new features.
 
 In this blog, we discuss how we built _Fare Storage_, Grab's single source of truth fare data store, and how we overcame the challenges to make it more reliable and scalable to support our expanding features.
 
@@ -40,7 +40,7 @@ High-level functional requirements for the new fare store were:
 *   Provide a platform to store and retrieve fare and associated breakdowns, with no tight coupling between services.
 *   Act as a single source-of-truth for fare and associated fees in the Grab ecosystem.
 *   Enable clients to access the metadata of fare change events in real-time, enabling the Product team to innovate freely.
-*   Provide smooth access to a fare’s audit trail, improving the response time to our customers' queries.
+*   Provide smooth access to a fare’s audit trail, improving the response time to our consumers' queries.
 
 Non-functional requirements for the fare store were:
 
@@ -161,11 +161,11 @@ For reading the breakdown, the clients pass the metadata bytes to the SDK along 
 
 The Fare LifeCycle service enabled us to revolutionise the fare storage at scale for Grab’s ecosystem of services. Further benefits realised with the system are:
 
-*   The feature agnostic platform helped us to reduce the time-to-market for our hyper-local features so that we can further outserve our customers and driver-partners.
+*   The feature agnostic platform helped us to reduce the time-to-market for our hyper-local features so that we can further outserve our consumers and driver-partners.
 *   Decoupling the fare information from the booking information also helped us to achieve a better separation of concerns between services.
 *   Improve the overall reliability and scalability of the Grab platform by decoupling fare and booking information, allowing them to scale independently of each other.
 *   Reduce unnecessary coupling between services to fetch fare related information and update fare.
-*   The audit-trail of fare changes in the chronological order reduced the time to debug fare and improved our response to customers for fare-related queries.
+*   The audit-trail of fare changes in the chronological order reduced the time to debug fare and improved our response to consumers for fare-related queries.
 
 We hope this post helped you to have a closer look at how we used the Event Source pattern for building a data store and how we handled a few caveats and challenges in the process.
 

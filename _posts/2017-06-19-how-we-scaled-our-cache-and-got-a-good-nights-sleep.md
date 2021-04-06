@@ -14,7 +14,7 @@ Caching is arguably the most important and widely used technique in computer ind
 
 ### Problem
 
-Our CDS (Common Data Service) relies heavily on caching too. It helps us reduce database load and generate faster responses to our customers. But as our business grows, the load on our cache system grows too and it might eventually become a bottleneck.
+Our CDS (Common Data Service) relies heavily on caching too. It helps us reduce database load and generate faster responses to our consumers. But as our business grows, the load on our cache system grows too and it might eventually become a bottleneck.
 
 To solve this potential problem, we need to be able to horizontally scale our cache system. Why horizontally?
 

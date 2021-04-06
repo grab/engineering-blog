@@ -14,9 +14,9 @@ excerpt: "This blog post explains why and how we came up with a machine learning
 Introduction
 ============
 
-Grab’s unwavering ambition is to be the best Super App in Southeast Asia that adds value to the everyday for our customers. In order to achieve that, the customer experience must be flawless for each and every Grab service. Let’s take our frequently used ride-hailing service as an example. We want fair pricing for both drivers and passengers, accurate estimation of ETAs, effective detection of fraudulent activities, and ensured ride safety for our customers. The key to perfecting these customer journeys is artificial intelligence (AI).
+Grab’s unwavering ambition is to be the best Super App in Southeast Asia that adds value to the everyday for our consumers. In order to achieve that, the consumer experience must be flawless for each and every Grab service. Let’s take our frequently used ride-hailing service as an example. We want fair pricing for both drivers and passengers, accurate estimation of ETAs, effective detection of fraudulent activities, and ensured ride safety for our consumers. The key to perfecting these consumer journeys is artificial intelligence (AI).
 
-Grab has a tremendous amount of data that we can leverage to solve complex problems such as fraudulent user activity, and to provide our customers personalised experiences on our products. One of the tools we are using to make sense of this data is machine learning (ML).
+Grab has a tremendous amount of data that we can leverage to solve complex problems such as fraudulent user activity, and to provide our consumers personalised experiences on our products. One of the tools we are using to make sense of this data is machine learning (ML).
 
 As Grab made giant strides towards increasingly using machine learning across the organization, more and more teams were organically building model serving solutions for their own use cases. Unfortunately, these model serving solutions required data scientists to understand the infrastructure underlying them. Moreover, there was a lot of overlap in the effort it took to build these model serving solutions.
 
@@ -202,7 +202,7 @@ And logs that we put in place:
 Benefits Gained from Catwalk
 ============================
 
-Catwalk has become the go-to, centralised system to serve machine learning models. Data scientists are not required to take care of the serving infrastructure hence they can focus on what matters the most: come up with models to solve customer problems. They are only required to provide exported model files and estimation of expected traffic in order to prepare sufficient resources to run their model. In return, they are presented with an endpoint to make inference calls to their model, along with all necessary tools for monitoring and debugging. Updating the model version is self-service, and the model improvement cycle is much shorter than before. We used to count in days, we now count in minutes.
+Catwalk has become the go-to, centralised system to serve machine learning models. Data scientists are not required to take care of the serving infrastructure hence they can focus on what matters the most: come up with models to solve consumer problems. They are only required to provide exported model files and estimation of expected traffic in order to prepare sufficient resources to run their model. In return, they are presented with an endpoint to make inference calls to their model, along with all necessary tools for monitoring and debugging. Updating the model version is self-service, and the model improvement cycle is much shorter than before. We used to count in days, we now count in minutes.
 
 Future Plans
 ============

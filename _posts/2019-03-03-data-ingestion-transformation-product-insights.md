@@ -14,7 +14,7 @@ excerpt: "This blog post describes how Grab built a scalable data ingestion syst
 Introduction
 ============
 
-As Grab grew from a small startup to an organisation serving millions of customers and driver partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.
+As Grab grew from a small startup to an organisation serving millions of consumers and driver partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.
 
 Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab's scale, it is a non-trivial task. We had to prepare for two key scenarios:
 
@@ -23,7 +23,7 @@ Thanks to modern data processing frameworks, ingesting data isn’t a big issue.
 
 We could ingest data in batches, in real time, or a combination of the two. When you ingest data in batches, you can import it at regularly scheduled intervals or when it reaches a certain size. This is very useful when processes run on a schedule, such as reports that run daily at a specific time. Typically, batched data is useful for offline analytics and data science.
 
-On the other hand, real-time ingestion has significant [business value](https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/#459fc6d61220), such as with [reactive systems](https://www.reactivemanifesto.org/). For example, when a customer provides feedback for a Grab superapp widget, we re-rank widgets based on that customer’s likes or dislikes. Note that when information is very time-sensitive, you must continuously monitor its data.
+On the other hand, real-time ingestion has significant [business value](https://www.forbes.com/sites/forbestechcouncil/2017/08/08/the-value-of-real-time-data-analytics/#459fc6d61220), such as with [reactive systems](https://www.reactivemanifesto.org/). For example, when a consumer provides feedback for a Grab superapp widget, we re-rank widgets based on that consumer’s likes or dislikes. Note that when information is very time-sensitive, you must continuously monitor its data.
 
 This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.
 

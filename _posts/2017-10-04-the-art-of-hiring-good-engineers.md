@@ -33,7 +33,7 @@ There is never only one way to start building a team of good engineers. Many of 
 
 > Your small team of good engineers should be ready to fight everyday for the right to be a player in the market where you are.
 
-They will need to be more eager, more hungry, and more customer minded than others. They will need to always fight for the right to be a player in that market. To fight off the big guys, sometimes the good engineer needs to be battle-worn, battle-tried.
+They will need to be more eager, more hungry, and more consumer minded than others. They will need to always fight for the right to be a player in that market. To fight off the big guys, sometimes the good engineer needs to be battle-worn, battle-tried.
 
 The battle-tried good engineer has faced many of the situations you too will face:
 
@@ -93,7 +93,7 @@ Most top companies design this first part to take 1-2 hours of the candidates' t
 
 The outcome you should look for is ideally for every one of your warriors to feel comfortable with fighting alongside this battle-ready good engineer. Misgivings and possible gaps can always be improved on while working on the product together.
 
-Also, check if the good engineer can work well with others in Design, Product and Data functions as well as communicate reasonably well to someone outside your engineering organisation. Any HR or Recruitment professional can help check if the engineer possesses a few of these soft skills you need, such as communicating to stakeholders, business acumen or excitement in helping solve customer issues. Don't skip this step!
+Also, check if the good engineer can work well with others in Design, Product and Data functions as well as communicate reasonably well to someone outside your engineering organisation. Any HR or Recruitment professional can help check if the engineer possesses a few of these soft skills you need, such as communicating to stakeholders, business acumen or excitement in helping solve consumer issues. Don't skip this step!
 
 #### Step 4: Optimise Your Process to 'Always Be Closing'
 

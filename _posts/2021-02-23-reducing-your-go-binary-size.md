@@ -27,7 +27,7 @@ __Deployment challenges__
 *   Managing the underlying infrastructure as code.
 *   Higher downtime when bringing the systems up after a scale down event.
 
-Grab’s appetite for customer obsession and quality drives the engineering teams to innovate and deliver value rapidly. The time that the team spends in fixing build issues or deployment-related tasks has a direct impact on the time they spend on delivering business value.
+Grab’s appetite for consumer obsession and quality drives the engineering teams to innovate and deliver value rapidly. The time that the team spends in fixing build issues or deployment-related tasks has a direct impact on the time they spend on delivering business value.
 
 ## Introduction to Containerisation
 
