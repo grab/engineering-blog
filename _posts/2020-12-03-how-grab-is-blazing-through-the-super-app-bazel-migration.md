@@ -28,7 +28,7 @@ With the big product scale, it brings with it even bigger technical challenges. 
 
 ### Engineering and Product Structure
 
-Technical and product teams work in close collaboration to outserve our customers. These teams are combined into dedicated groups to form Tech Families and focus on similar use cases and areas.
+Technical and product teams work in close collaboration to outserve our consumers. These teams are combined into dedicated groups to form Tech Families and focus on similar use cases and areas.
 
 Grab consists of many Tech Families who work on food, payments, transport, and other services, which are supported by hundreds of engineers. The diverse landscape makes the development process complicated and requires the industry’s best practices and approaches.
 
@@ -60,7 +60,7 @@ Xcode behaved a bit better compared to Gradle. The Xcode build cache was somehow
 
 ### CI Pipeline Time
 
-Each time an engineer submits a Merge Request (MR), our CI kicks in running a wide variety of jobs to ensure the commit is valid and doesn't introduce regression to the master branch. The feedback loop time is critical here as well, and the pipeline time tends to skyrocket alongside the code base growth. We found ourselves on the trend where the feedback loop came in by the hours, which again was just breaking the engineering experience, and prevented  us from delivering the world’s best features to our customers.
+Each time an engineer submits a Merge Request (MR), our CI kicks in running a wide variety of jobs to ensure the commit is valid and doesn't introduce regression to the master branch. The feedback loop time is critical here as well, and the pipeline time tends to skyrocket alongside the code base growth. We found ourselves on the trend where the feedback loop came in by the hours, which again was just breaking the engineering experience, and prevented  us from delivering the world’s best features to our consumers.
 
 As mentioned, we have a large number of unit tests (30K-40K+) and UI tests (700+) that we run on a pre-merge pipeline. This brings us to hours of execution time before we could actually allow MRs to land to the master branch.
 

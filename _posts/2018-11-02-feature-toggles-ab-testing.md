@@ -240,4 +240,4 @@ This technique did miracles for us and kept network overhead at bay while still 
 
 ## Results
 
-We have described our feature toggles SDK, but what benefits have we seen? We’ve seen fast adoption of the platform in the company, product managers rolling out features, and data scientists/analysts able to run experiments autonomously. Engineers are happy and things move faster inside the company. This makes us more competitive as an organisation and focused on our customer’s needs, instead of spending time in meetings and on communication.
+We have described our feature toggles SDK, but what benefits have we seen? We’ve seen fast adoption of the platform in the company, product managers rolling out features, and data scientists/analysts able to run experiments autonomously. Engineers are happy and things move faster inside the company. This makes us more competitive as an organisation and focused on our consumer's needs, instead of spending time in meetings and on communication.

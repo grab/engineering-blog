@@ -23,7 +23,7 @@ At Grab, we consistently strive to build a platform that delivers excellent user
 
 Post allocation cancellations are particularly painful; these are cases where a strong intent to take a ride is expressed, the price is agreed upon but the trip eventually does not happen.  While we recognise that some cancellations are unavoidable, we wanted to know if there are instances where such cancellations, particularly the ones post allocation, can be prevented.
 
-## Service Design as Part of Our Customer-centric Culture
+## Service Design as Part of Our Consumer-centric Culture
 
 Service design is the process of generating a product, policy or any kind of enhancement that improves the user experience while hitting business metrics.
 

@@ -215,7 +215,7 @@ We are enabling all teams to benchmark their performance numbers based on define
 
 ## Conclusion
 
-Overall, we improved by 60%, and this calls for a big celebration! _Woohoo!_ The bigger celebration came from knowing that we’ve improved our customers’ experience in using our app.
+Overall, we improved by 60%, and this calls for a big celebration! _Woohoo!_ The bigger celebration came from knowing that we’ve improved our consumers' experience in using our app.
 
 This graph represents our performance improvement journey for the entire 2019, in terms of TTI.
 
@@ -228,4 +228,4 @@ Based on the graph, looking at our p95 improvements and converting them to numbe
 
 Hey, did you know that it takes approximately *80-85* hours to watch all the episodes of _Friends_? Just saying. :)
 
-We will continue to serve our customers for a better and faster experience in the upcoming years.
+We will continue to serve our consumers for a better and faster experience in the upcoming years.

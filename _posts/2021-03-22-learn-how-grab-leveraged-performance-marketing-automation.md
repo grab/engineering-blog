@@ -3,7 +3,7 @@ layout: post
 id: 2021-03-22-learn-how-grab-leveraged-performance-marketing-automation
 title: How Grab Leveraged Performance Marketing Automation to Improve Conversion Rates by 30%
 date: 2021-03-22 00:13:30
-authors: [sc-ng, herman-khoo, audrey-jee]
+authors: [sc-ng, herman-khoo, audrey-jee, vaibhav-vij, milhad-miah]
 categories: [Engineering]
 tags: [Automation, Engineering, Marketing]
 comments: true

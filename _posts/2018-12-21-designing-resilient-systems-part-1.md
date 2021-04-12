@@ -8,14 +8,14 @@ categories: [Engineering]
 tags: [Resiliency, Circuit Breakers]
 comments: true
 cover_photo: /img/designing-resilient-systems-part-1/cover.jpg
-excerpt: "Grab designs fault-tolerant systems that can withstand failures allowing us to continuously provide our customers with the many services they expect from us."
+excerpt: "Grab designs fault-tolerant systems that can withstand failures allowing us to continuously provide our consumers with the many services they expect from us."
 ---
 
 _This post is the first of a two-part series on Circuit Breakers and Retries, where we will introduce and compare these two often used service reliability concepts. For Part 1, we will focus on the use cases for implementing circuit breakers including the different options related to the configuration of circuits._
 
-Things should just work. That is the most fundamental expectation that any customer has towards a service provider. But just as poor weather is inevitable and often unpredictable, so are software and hardware failures. That is why it's important for software engineers to plan and account for failures.
+Things should just work. That is the most fundamental expectation that any consumer has towards a service provider. But just as poor weather is inevitable and often unpredictable, so are software and hardware failures. That is why it's important for software engineers to plan and account for failures.
 
-In this first article of a two-part series, we will begin to introduce and compare two frequently used service reliability mechanisms: Circuit Breakers and Retries. At Grab, we use both of these mechanisms extensively throughout our many software systems to ensure that we can weather failures and continue to provide our customers with the services they expect from us. But are both mechanisms equal? Where and how do we choose one over the other?
+In this first article of a two-part series, we will begin to introduce and compare two frequently used service reliability mechanisms: Circuit Breakers and Retries. At Grab, we use both of these mechanisms extensively throughout our many software systems to ensure that we can weather failures and continue to provide our consumers with the services they expect from us. But are both mechanisms equal? Where and how do we choose one over the other?
 
 In this series we will take a close look at both approaches and their use cases, to help you make an informed decision regarding if and when to apply each method. But let's start by looking at the common reasons for failures. With our services communicating with numerous external resources, failures can be caused by:
 

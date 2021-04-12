@@ -45,7 +45,7 @@ It is famously understood that disaster recovery is worthless unless it's tested
 
 The emerging best practice for testing resiliency is _chaos engineering_. This practice, made famous by Netflix's [Chaos Monkey](https://medium.com/netflix-techblog/the-netflix-simian-army-16e57fbab116), is the idea of deliberately causing parts of a system to fail in order to test (and subsequently improve) its resiliency. There are many different kinds of chaos engineering that vary in scope, from simulating an outage in an entire AWS region to injecting latency into a single endpoint. A chaos engineering strategy may include multiple types of failure, to build confidence in the ability of various parts of the system to withstand failure.
 
-Chaos engineering has evolved since its inception, ironically becoming less 'chaotic', despite the name. Shutting off parts of a system without a clear plan is unlikely to provide much value, but is practically guaranteed to frustrate your customers - and upper management! Since it is recommended to experiment on production, minimising the _blast radius_ of chaos experiments, at least at the beginning, is crucial to avoid unnecessary impact to the system.
+Chaos engineering has evolved since its inception, ironically becoming less 'chaotic', despite the name. Shutting off parts of a system without a clear plan is unlikely to provide much value, but is practically guaranteed to frustrate your consumers - and upper management! Since it is recommended to experiment on production, minimising the _blast radius_ of chaos experiments, at least at the beginning, is crucial to avoid unnecessary impact to the system.
 
 ### Chaos Experiment Process
 

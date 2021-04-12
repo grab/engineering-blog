@@ -11,7 +11,7 @@ cover_photo: /img/introducing-grab-kit/cover.jpg
 excerpt: "As we evolved from a single monolithic application to a microservices-based architecture, we were faced with a new challenge. How do we support exponential growth while maintaining consistency, coordination, and quality?"
 ---
 
-As Grab rapidly expands its services, we at Engineering continue to look for ways to work smarter and deliver qualitative and relevant services quickly and efficiently. This helps us to stay true to our commitment to outserve our partners and customers.
+As Grab rapidly expands its services, we at Engineering continue to look for ways to work smarter and deliver qualitative and relevant services quickly and efficiently. This helps us to stay true to our commitment to outserve our partners and consumers.
 
 As we evolved from a single monolithic application to a microservices-based architecture, we were faced with a new challenge. How do we support exponential growth while maintaining consistency, coordination, and quality?
 
@@ -25,7 +25,7 @@ Grab-Kit provides abstraction from all aspects of distributed system design by s
 
 ![Grab-kit create command](/img/introducing-grab-kit/grab-kit_create.png)
 
-We no longer need to spend long hours generating boilerplate code, initialising common libraries, creating dashboards and alarms, or creating Data Access Objects (DAOs). Instead, we can concentrate on delivering scalable and agile services that are essential for the success of our engineers and in turn delight our customers.
+We no longer need to spend long hours generating boilerplate code, initialising common libraries, creating dashboards and alarms, or creating Data Access Objects (DAOs). Instead, we can concentrate on delivering scalable and agile services that are essential for the success of our engineers and in turn delight our consumers.
 
 ## The Heart of Grab-Kit
 
@@ -108,6 +108,6 @@ More and more teams have adopted Grab-Kit since the Grab Developer Experience te
 
 ![Grab-kit Adoption](/img/introducing-grab-kit/adoption_chart.png)
 
-At Grab, we are on a never-ending journey to deliver robust services that meet our customers’ requirements. We continue to standardise and streamline our engineering best practices around distributed service design through Grab-Kit. The future is in Grab-Kit!
+At Grab, we are on a never-ending journey to deliver robust services that meet our consumers' requirements. We continue to standardise and streamline our engineering best practices around distributed service design through Grab-Kit. The future is in Grab-Kit!
 
 Should you have any questions or require more details about Grab-Kit, please don’t hesitate to leave a comment.

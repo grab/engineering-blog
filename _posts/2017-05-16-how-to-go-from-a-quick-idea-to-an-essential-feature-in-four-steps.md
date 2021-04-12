@@ -50,7 +50,7 @@ After building the initial architecture is when the most time-intensive part com
 
 Data scientist Sien Yi evaluated the impact of GrabChat to give the engineering team the analysis it needed to further improve the product. One hypothesis was that the use of GrabChat would lower the cancellation rates in the Grab app. Sien Yi tested this thesis.
 
-**Sien Yi:** Measuring the effect of GrabChat isn't just about comparing the cancellations ratios on the Grab app, before and after implementation of the GrabChat feature. For all we know, those who use GrabChat could be the more engaged customers who are less likely to cancel anyway — even without GrabChat.
+**Sien Yi:** Measuring the effect of GrabChat isn't just about comparing the cancellations ratios on the Grab app, before and after implementation of the GrabChat feature. For all we know, those who use GrabChat could be the more engaged consumers who are less likely to cancel anyway — even without GrabChat.
 
 We approached testing the hypothesis from two sides.
 

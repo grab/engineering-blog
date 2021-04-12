@@ -15,7 +15,7 @@ excerpt: "In this article, we focus on TalariaDB, a distributed, highly availabl
 
 Enabling the millions and millions of transactions and connections that take place every day on our platform requires data-driven decision making. And these decisions need to be made based on real-time data. For example, an experiment might inadvertently cause a significant increase of waiting time for riders.
 
-Without the right tools and setup, we might only know the reason for this longer waiting time much later. And that would negatively impact our driver partners' livelihoods and our customers' Grab experience.
+Without the right tools and setup, we might only know the reason for this longer waiting time much later. And that would negatively impact our driver partners' livelihoods and our consumers' Grab experience.
 
 To overcome the challenge of retrieving information from large amounts of data, our first step was to adopt the open-source [Facebook's Presto](https://prestodb.io/), that makes it possible to query petabytes with plain SQL. However, given our many teams, tools, and data sources, we also needed a way to reliably ingest and disperse data at scale throughout our platform.
 
@@ -148,7 +148,7 @@ Next, Presto hits every TalariaDB instance in parallel for data retrieval. Inter
 
 While scaling databases is not a trivial task, by sacrificing some of the requirements (such as strong consistency as per CAP), **TalariaDB can scale horizontally** by simply adding more hardware servers.
 
-TalariaDB is not only highly available but also tolerant to network partitions. If a node goes down, data residing on the node becomes unavailable but new data will still be ingested and presented. We would much rather serve our customers some data than no data at all. Going forward, we plan to transition the entire system to a [Kubernetes](https://kubernetes.io/) [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) integration. This lets us auto-heal the TalariaDB cluster without data loss, as Kubernetes manages the data volumes.
+TalariaDB is not only highly available but also tolerant to network partitions. If a node goes down, data residing on the node becomes unavailable but new data will still be ingested and presented. We would much rather serve our consumers some data than no data at all. Going forward, we plan to transition the entire system to a [Kubernetes](https://kubernetes.io/) [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) integration. This lets us auto-heal the TalariaDB cluster without data loss, as Kubernetes manages the data volumes.
 
 We do **upscaling** by adding a new machine to the cluster. It automatically joins the cluster by starting gossiping with one of the nodes (discovery is done using a DNS record, Route53 in our case). Once the instance joins the cluster, it starts polling from a queue the files it has to ingest.
 

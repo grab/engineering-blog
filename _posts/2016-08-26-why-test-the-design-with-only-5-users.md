@@ -61,7 +61,7 @@ In the year 1993, renowned usability expert, Jakob Nielsen, published a scientif
 
 ### Multiple Approaches to Solving the Same Problem
 
-Various stakeholders have different approaches. While engineers may think in terms of technical infrastructure, performance and risk, marketing leaders need to think of outreach and customer acquisition among other things. Business and product leaders need to build the case for the need in the market for a new feature and designers/researchers translate the business vision into tangible outcomes while data driven people measure the success of everyone’s efforts. Although, a simplified version of the roles of stakeholders, the essence is that everyone is working towards solving the same problem. Understanding each other’s approaches and the value they bring will help us be collaborative and give a deeper meaning to the shared vision and success of a product.
+Various stakeholders have different approaches. While engineers may think in terms of technical infrastructure, performance and risk, marketing leaders need to think of outreach and consumer acquisition among other things. Business and product leaders need to build the case for the need in the market for a new feature and designers/researchers translate the business vision into tangible outcomes while data driven people measure the success of everyone’s efforts. Although, a simplified version of the roles of stakeholders, the essence is that everyone is working towards solving the same problem. Understanding each other’s approaches and the value they bring will help us be collaborative and give a deeper meaning to the shared vision and success of a product.
 
 ![Stones](/img/why-test-design/stones.jpg)
 

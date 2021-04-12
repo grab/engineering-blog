@@ -26,7 +26,7 @@ Building each widget takes close collaboration across multiple different teams -
   <img alt="Travel Trends Widget" style="margin:0;" src="/img/peak-shift-demand-travel-trends/image6.png">
 </div>
 
-This fast-and-furious process is anchored on one word - “customer-centric”. And that’s how it all began with our  “Travel Trends Widget” - a widget that provides passengers with an overview of historical supply and demand trends for their current location and nearby time periods.
+This fast-and-furious process is anchored on one word - “consumer-centric”. And that’s how it all began with our  “Travel Trends Widget” - a widget that provides passengers with an overview of historical supply and demand trends for their current location and nearby time periods.
 
 Because we had so much fun developing this widget, we wanted to write a blog post to share with you what we did and how we did it!
 
@@ -96,12 +96,12 @@ Various disciplines within our cross functional team came together to whip out t
 
 Behavioural Science helped to explore many facets of consumer behaviour in order to plan and design the widget: understanding how consumers think and conceptualising a widget that can be easily understood and used by the consumers.
 
-While fares are governed entirely by market conditions, it’s important for us to explain the economics to customers. As a customer-centric company, we aim to make the consumers feel like they own their decisions, which they can take based on full information. And this is the role of Behavioural Scientists at Grab!
+While fares are governed entirely by market conditions, it’s important for us to explain the economics to consumers. As a consumer-centric company, we aim to make the consumers feel like they own their decisions, which they can take based on full information. And this is the role of Behavioural Scientists at Grab!
 
-In guiding the customers through the information, Behavioural Science team had the following three objectives in mind while building this Travel Trends widget:
+In guiding the consumers through the information, Behavioural Science team had the following three objectives in mind while building this Travel Trends widget:
 
 1.  Offer transparency on the fares: By exposing our historic surge levels for a 4 hour period, we wanted to ensure that the passenger is aware of the surge levels and does not treat the fare as a nasty shock.
-2.  Give information that helps them plan: By showing them surge levels for the future 2 hours, we wanted to help customers who have the flexibility, plan for a better time, hence, giving them the power to decide based on transparent information.
+2.  Give information that helps them plan: By showing them surge levels for the future 2 hours, we wanted to help consumers who have the flexibility, plan for a better time, hence, giving them the power to decide based on transparent information.
 3.  Provide helpful tips: Every bar gives users tips on the conditions at that time and the immediate future. For instance, a low surge bar, followed by a high surge bar gives the tip “Psst... Leave now, It might get busy later!”, helping people understand the graph better and nudging them to take an action. If you are interested in saving fares, may we suggest tapping around all the bars to reveal the secret pro-tips?
 
 
@@ -156,15 +156,15 @@ For instance, let’s say this library makes visualising charts easy, but not so
 
 ### Closing the Product Loop with User Feedback and Data Driven Insights
 
-One of the most crucial parts of launching any product is to ensure that customers are engaging with the widget and finding it useful.
+One of the most crucial parts of launching any product is to ensure that consumers are engaging with the widget and finding it useful.
 
-To understand what customers think about the widget, whether they find it useful and whether it is helping them to plan better,  we delved into the huge mine of clickstream data.
+To understand what consumers think about the widget, whether they find it useful and whether it is helping them to plan better,  we delved into the huge mine of clickstream data.
 
 <div class="post-image-section">
   <img alt="User feedback on the trends widget" src="/img/peak-shift-demand-travel-trends/image2.png">
 </div>
 
-We found that 1 in 3 users who make a booking everyday interact with the widget. And of these people, more than 70% users have given positive rating for the widget. This validates our initial hypothesis that if given an option, our customers will love the freedom to plan their trips and inculcate more transparent ecosystem.
+We found that 1 in 3 users who make a booking everyday interact with the widget. And of these people, more than 70% users have given positive rating for the widget. This validates our initial hypothesis that if given an option, our consumers will love the freedom to plan their trips and inculcate more transparent ecosystem.
 
 These users also indicate the things they like most about the widget. 61% of users gave positive rating for usefulness, 20% were impressed by the design (Kudos to our fantastic designer Ajmal!!) and 13% for usability.
 
@@ -174,7 +174,7 @@ These users also indicate the things they like most about the widget. 61% of use
 
 Beyond internal data, our widget made some rounds on social media channels. For Example, here is screenshot of what our users have to say on Twitter.
 
-We closely track these metrics on user engagement and feedback to ensure that we keep improving and coming up with new iterations which helps us to serve our customers in a better way.
+We closely track these metrics on user engagement and feedback to ensure that we keep improving and coming up with new iterations which helps us to serve our consumers in a better way.
 
 ## Conclusion
 
