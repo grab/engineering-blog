@@ -69,7 +69,7 @@ There are two different kinds of queues: one to handle requests at priority leve
 
 To illustrate further, here are two different scenarios of enqueuing/de-queuing:
 
-**Different issues with different priorities**
+**Different Issues with Different Priorities**
 
 In this scenario, the priority is set to de-queue safety issues, which are in the high-priority queue, before picking up the enquiry issues from the low-priority queue.
 
@@ -77,7 +77,7 @@ In this scenario, the priority is set to de-queue safety issues, which are in th
   <img src="/img/customer-support-workforce-routing/image6.png" alt="Different issues with different priorities"> <figcaption align="middle"><i>Different issues with different priorities</i></figcaption>
   </figure></div>
 
-**Identical issues with different priorities**
+**Identical Issues with Different Priorities**
 
 In this scenario where identical issues have different priorities, the reallocated enquiry issue in the high-priority queue is de-queued first before picking up a low-priority enquiry issue. Reallocations happen when a chat is transferred to another agent or when it was not accepted by the allocated agent. When reallocated, it goes back to the queue with a higher priority.
 
@@ -145,25 +145,25 @@ To make sure that the agent doesn’t receive more chats than their defined conc
 
 A similar approach was used to ensure that the queue limit doesn’t exceed the desired limit.
 
-#### Reallocation and transfers
+#### Reallocation and Transfers
 
 Having the routing configuration setup, the reallocation of agents is done using the same steps for agent allocation.
 
 To transfer a chat to another queue, the request goes back to the queue with a higher priority so that the request is assigned faster.
 
-#### Unaccepted chats
+#### Unaccepted Chats
 
 If the agent fails to accept the request in a given period of time, then the request is put back into the queue, but this time with a higher priority. This is the reason why there’s a corresponding re-allocation queue with a higher priority than the normal queue to make sure that those unaccepted requests don’t have to wait in the queue again.
 
-#### Informing the frontend about allocation
+#### Informing the Frontend about Allocation
 
 When an allocation of an agent happens, the routing system needs to inform the frontend by sending messages over websocket to the frontend. This is done with our super reliable messaging system called _Hermes_, which operates at scale in supporting *12k concurrent connections* and establishes real-time communication between agents and consumers.
 
-#### Finding the online agents
+#### Finding the Online Agents
 
 The routing system should only send the allocation message to the frontend when the agent is online and accepting requests. Frontend uses the same websocket connection used to receive the allocation message to inform the routing system about the availability of agents. This means that if for some reason, the websocket connection is broken due to internet connection issues, the agent would stop receiving any new chat requests.
 
-### Enriched reporting and analytics
+### Enriched Reporting and Analytics
 
 The routing system is able to push monitoring metrics, such as number of online agents, number of chat requests assigned to the agent, and so on. Because of the fine-grained control that comes with building this system in-house, it gives us the ability to push more custom metrics.
 
@@ -179,7 +179,7 @@ Letting the system behave appropriately when rolled out to multiple regions is a
 
 Now to understand the system limitations and behaviour before releasing to multiple regions, we ran load tests with 10x more traffic than expected. This gave us the understanding on what monitors and alerts we should add to make sure the system is able to function efficiently and reduce our recovery time if something goes wrong.
 
-## Next steps
+## Next Steps
 
 We have lined up a few enhancements to reduce the consumer wait time and the time spent by the agents on unresponsive consumers. Aside from chats, we plan to implement this solution to handle digital issues (social media and emails) and voice requests (call).
 
@@ -190,7 +190,7 @@ We have lined up a few enhancements to reduce the consumer wait time and the tim
 ---
 
 
-## Join us
+## Join Us
 
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
