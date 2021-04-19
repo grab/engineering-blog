@@ -11,8 +11,6 @@ cover_photo: /img/smartchat/cover.jpg
 excerpt: "Read to find out how Customer Support Experience's Phoenix live chat team improved agent chat efficiency with machine learning."
 ---
 
-# Introduction
-
 In previous articles (see [Grab's in-house chat platform](https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web), [workforce routing](https://engineering.grab.com/customer-support-workforce-routing)), we shared how chat has grown to become one of the primary channels for support in the last few years.
 
 With continuous chat growth and a new in-house tool, helping our agents be more efficient and productive was key to ensure a faster support time for our users and scale chat even further.
@@ -23,11 +21,11 @@ We decided to build a machine learning model, called **SmartChat**, which offers
 
 In this article, we are going to explain the process from problem discovery to design iterations, and share how the model was implemented from both a data science and software engineering perspective.
 
-# How SmartChat Works
+## How SmartChat Works
 
 ![](../img/smartchat/image7.gif)
 
-# Diving Deeper into the Problem
+## Diving Deeper into the Problem
 
 Agent productivity became a key part in the process of scaling chat as a channel for support.
 
@@ -46,15 +44,15 @@ We needed something that reduces typing time and also:
 
 Considering the constraints, **this seemed to be the perfect candidate for a machine learning-based functionality**, which predicts sentence completion by considering all the context about the user, issue and even the latest messages exchanged.
 
-# Designing with Success in Mind
+## Designing with Success in Mind
 
-## Usability is Key
+### Usability is Key
 
 ![](../img/smartchat/image3.png)
 
 To fulfill the hypothesis, there are a few design considerations:
 
-1.  Minimising learning curve for agents
+1.  Minimising learning curve for agents.
 2.  Avoiding visual clutter if recommendations are not relevant.
 
 To increase the probability of predicting an agent's message, one of the design explorations is to allow agents to select the top 3 predictions (Design 1). To onboard agents, we designed a quick tip to activate SmartChat using keyboard shortcuts.
@@ -69,7 +67,7 @@ In our next design iteration, we decided to leverage and reuse the interaction o
 
 To relearn the shortcut, agents can hover on the text recommended.![](../img/smartchat/image9.png)
 
-## How We Track Progress
+### How We Track Progress
 
 Knowing that this feature would come in multiple iterations, we had to find ways to track how well we were doing progressively, so we decided to measure the different components of chat time.
 
@@ -80,7 +78,7 @@ We realised that the agent typing time is affected by:
 *   **Acceptance rate**, which tells us how many messages were written with the help of the model. It is a good proxy for feature usage and model capabilities.
 *   **Latency**: if the suggestion is not shown in about 100-200ms, the agent would not notice the text and keep typing.
 
-# Architecture
+## Architecture
 
 ![](../img/smartchat/image8.png)
 
@@ -88,9 +86,9 @@ The architecture involves support specialists initiating the fetch suggestion re
 
 We have an internal platform called Catwalk, which is a microservice that offers the capability to execute machine learning models as a HTTP service. We used the Presto query engine to calculate and analyse the results from the experiment.
 
-# Implementation
+## Implementation
 
-## Designing the Machine Learning Model
+### Designing the Machine Learning Model
 
 I am sure all of us can remember an experiment we did in school when we had to catch a falling ruler. For those who have not, feel free to try [this experiment](https://www.youtube.com/watch?v%3DLheOjO2DJD0) at home! The purpose of this experiment is to define a ballpark number for typical human reaction time (equations also included in the video link).
 
@@ -149,7 +147,7 @@ These features give the model the ability to generalise beyond a simple language
 
 For example, the model is better aware of the nature of time in addressing “Good **{Morning/Afternoon/Evening}**” given the time of the day input, as well as being able to interpret meal times in the case of food orders. E.g. “We have contacted the driver, your **{breakfast/lunch/dinner}** will be arriving shortly”.
 
-## Typeahead Solution for the User Interface
+### Typeahead Solution for the User Interface
 
 With our goal to provide a seamless experience in showing suggestions to accepting them, we decided to implement a typeahead solution in the chat input area. This solution had to be implemented with the ReactJS library, as the internal web-app used by our support specialist for handling chats is built in React.
 
@@ -269,11 +267,11 @@ The implementation has also considered the following:
 *   **Control rollout**. Since rollout is by percentage per country, the implementation has to ensure that only certain users can access predictions from their country chat model.
 *   **Aggregate and send metrics**. Metrics are gathered and sent for each chat message.
 
-# Results
+## Results
 
 The initial experiment results suggested that we managed to save 20% of characters, which improved the **efficiency of our agents by 12%** as they were able to resolve the queries faster. These numbers exceeded our expectations and as a result, we decided to move forward by rolling SmartChat out regionally.
 
-# What’s Next?
+## What’s Next?
 
 In the upcoming iteration, we are going to focus on **non-Latin language support**, **caching**, and **continuous training**.
 
@@ -291,7 +289,7 @@ Seeing how effective this solution has been for our chat agents, we would also l
 <small class="credits">This article would not have been possible without the key contributions from [Elisa Monacchi](mailto:elisa.monacchi@grab.com), who gave the right direction for the product , [Darrell Tay](mailto:darrell.tay@grab.com) , [Yun Zou](mailto:yun.zou@grabtaxi.com) , [Kok Keong Matthew Yeow](mailto:matthew.yeow@grabtaxi.com), who helped to build the architecture and implementation in a scalable way and [Wan Ling Guai](mailto:wanling.guai@grab.com), who designed the UX that provided a seamless experience to the agents.</small>
 ----
 
-# Join Us
+## Join Us
 
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
