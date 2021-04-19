@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Engineering, Machine Learning, Customer Support]
 comments: true
 cover_photo: /img/smartchat/cover.jpg
-excerpt: "Read to find out how CSE's Phoenix live chat team improved agent chat efficiency with machine learning."
+excerpt: "Read to find out how Customer Support Experience's Phoenix live chat team improved agent chat efficiency with machine learning."
 ---
 
 # Introduction
@@ -17,7 +17,7 @@ In previous articles (see [Grab's in-house chat platform](https://engineering.gr
 
 With continuous chat growth and a new in-house tool, helping our agents be more efficient and productive was key to ensure a faster support time for our users and scale chat even further.
 
-Starting from the analysis on the usage of another third party tool as well as some shadowing sessions, we realised that building a templated-based feature wouldn’t help. We needed to offer personalisation capabilities, as our consumer support specialists care about their writing style and tone, and using templates often feels robotic.
+Starting from the analysis on the usage of another third-party tool as well as some shadowing sessions, we realised that building a templated-based feature wouldn’t help. We needed to offer personalisation capabilities, as our consumer support specialists care about their writing style and tone, and using templates often feels robotic.
 
 We decided to build a machine learning model, called **SmartChat**, which offers contextual suggestions by leveraging several sources of internal data, helping our chat specialists type much faster, and hence serving more consumers.
 
@@ -33,7 +33,7 @@ Agent productivity became a key part in the process of scaling chat as a channel
 
 After splitting chat time into all its components, we noted that agent typing time represented a big portion of the chat support journey, making it the perfect problem to tackle next.
 
-After some analysis on the usage of the third party chat tool, we found out that even with functionalities such as canned messages, **85% of the messages were still free typed**.
+After some analysis on the usage of the third-party chat tool, we found out that even with functionalities such as canned messages, **85% of the messages were still free typed**.
 
 Hours of shadowing sessions also confirmed that the consumer support specialists liked to add their own flair. They would often use the template and adjust it to their style, which took more time than just writing it on the spot. With this in mind, it was obvious that templates wouldn’t be too helpful, unless they provided some degree of personalisation.
 
@@ -44,7 +44,7 @@ We needed something that reduces typing time and also:
 *   **It’s contextual to the problem** and takes into account the user type, issue reported, and even the time of the day.
 *   **Ideally doesn’t require any maintenance effort**, such as having to keep templates updated whenever there’s a change in policies.
 
-Considering the constraints, **this seemed to be the perfect candidate for a machine learning based functionality**, which predicts sentence completion by considering all the context about the user, issue and even the latest messages exchanged.
+Considering the constraints, **this seemed to be the perfect candidate for a machine learning-based functionality**, which predicts sentence completion by considering all the context about the user, issue and even the latest messages exchanged.
 
 # Designing with Success in Mind
 
@@ -166,164 +166,92 @@ Here is a code snippet for the implementation:
 
 ```
 import React, { Component } from 'react';
-
 import liveChatInstance from './live-chat';
 
 export class ChatInput extends Component {
-
  constructor(props) {
+   super(props);
+   this.state = {
+     suggestion: '',
+   };
+ }
 
- super(props);
+ getCurrentInput = () => {
+   const { roomID } = this.props;
+   const inputDiv = document.getElementById(`input_content_${roomID}`);
+   const suggestionSpan = document.getElementById(
+     `suggestion_content_${roomID}`,
+   );
 
- this.state = {
-
- suggestion: '',
-
+   // put the check for extra safety in case suggestion span is accidentally cleared
+   if (suggestionSpan) {
+     const range = document.createRange();
+     range.setStart(inputDiv, 0);
+     range.setEndBefore(suggestionSpan);
+     return range.toString(); // content before suggestion span in input div
+   }
+   return inputDiv.textContent;
  };
 
- }
-
- getCurrentInput = () \=> {
-
- const { roomID } = this.props;
-
- const inputDiv = document.getElementById(\`input\_content\_${roomID}\`);
-
- const suggestionSpan = document.getElementById(
-
- \`suggestion\_content\_${roomID}\`,
-
- );
-
- // put the check for extra safety in case suggestion span is accidentally cleared
-
- if (suggestionSpan) {
-
- const range = document.createRange();
-
- range.setStart(inputDiv, 0);
-
- range.setEndBefore(suggestionSpan);
-
- return range.toString(); // content before suggestion span in input div
-
- }
-
- return inputDiv.textContent;
-
+ handleKeyDown = async e => {
+   const { roomID } = this.props;
+   // tab or right arrow for accepting suggestion
+   if (this.state.suggestion && (e.keyCode === 9 || e.keyCode === 39)) {
+     e.preventDefault();
+     e.stopPropagation();
+     this.insertContent(this.state.suggestion);
+     this.setState({ suggestion: '' });
+   }
+   const parsedValue = this.getCurrentInput();
+   // space
+   if (e.keyCode === 32 && !this.state.suggestion && parsedValue) {
+     // fetch suggestion
+     const prediction = await liveChatInstance.getSmartComposePrediction(
+       parsedValue.trim(), roomID);
+     this.setState({ suggestion: prediction })
+   }
  };
 
- handleKeyDown = async e \=> {
-
- const { roomID } = this.props;
-
- // tab or right arrow for accepting suggestion
-
- if (this.state.suggestion && (e.keyCode === 9 || e.keyCode === 39)) {
-
- e.preventDefault();
-
- e.stopPropagation();
-
- this.insertContent(this.state.suggestion);
-
- this.setState({ suggestion: '' });
-
- }
-
- const parsedValue = this.getCurrentInput();
-
- // space
-
- if (e.keyCode === 32 && !this.state.suggestion && parsedValue) {
-
- // fetch suggestion
-
- const prediction = await liveChatInstance.getSmartComposePrediction(
-
- parsedValue.trim(), roomID);
-
- this.setState({ suggestion: prediction })
-
- }
-
- };
-
- insertContent = content \=> {
-
- // insert content behind cursor
-
- const { roomID } = this.props;
-
- const inputDiv = document.getElementById(\`input\_content\_${roomID}\`);
-
- if (inputDiv) {
-
- inputDiv.focus();
-
- const sel = window.getSelection();
-
- const range = sel.getRangeAt(0);
-
- if (sel.getRangeAt && sel.rangeCount) {
-
- range.insertNode(document.createTextNode(content));
-
- range.collapse();
-
- }
-
- }
-
+ insertContent = content => {
+   // insert content behind cursor
+   const { roomID } = this.props;
+   const inputDiv = document.getElementById(`input_content_${roomID}`);
+   if (inputDiv) {
+     inputDiv.focus();
+     const sel = window.getSelection();
+     const range = sel.getRangeAt(0);
+     if (sel.getRangeAt && sel.rangeCount) {
+       range.insertNode(document.createTextNode(content));
+       range.collapse();
+     }
+   }
  };
 
  render() {
-
- const { roomID } = this.props;
-
- return (
-
- <div className\="message\_wrapper"\>
-
- <div
-
- id\={\`input\_content\_${roomID}\`}
-
- role\={'textbox'}
-
- contentEditable
-
- spellCheck
-
- onKeyDown\={this.handleKeyDown}
-
- \>
-
- {!!this.state.suggestion.length && (
-
- <span
-
- contentEditable\={false}
-
- id\={\`suggestion\_content\_${roomID}\`}
-
- \>
-
- {this.state.suggestion}
-
- </span\>
-
- )}
-
- </div\>
-
- </div\>
-
- );
-
+   const { roomID } = this.props;
+   return (
+     <div className="message_wrapper">
+       <div
+         id={`input_content_${roomID}`}
+         role={'textbox'}
+         contentEditable
+         spellCheck
+         onKeyDown={this.handleKeyDown}
+       >
+         {!!this.state.suggestion.length && (
+           <span
+             contentEditable={false}
+             id={`suggestion_content_${roomID}`}
+           >
+             {this.state.suggestion}
+           </span>
+         )}
+       </div>
+     </div>
+   );
  }
-
 }
+
 ```
 
 The solution uses the spacebar as the trigger for fetching the suggestion from the ML model and stores them in a React state. The ML model prediction is then rendered in a dynamically rendered span.
