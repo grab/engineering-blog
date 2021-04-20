@@ -3,7 +3,7 @@ layout: post
 id: 2021-04-19-how-we-improved-agent-chat-efficiency-with-ml
 title: How We Improved Agent Chat Efficiency with Machine Learning
 date: 2021-04-19 00:08:30
-authors: [elisa-monacchi, darrell-tay, yun-zou, wan-ling-guai]
+authors: [suman-anand, elisa-monacchi, darrell-tay, yun-zou, wan-ling-guai]
 categories: [Engineering]
 tags: [Engineering, Machine Learning, Customer Support]
 comments: true
@@ -44,15 +44,13 @@ We needed something that reduces typing time and also:
 
 Considering the constraints, **this seemed to be the perfect candidate for a machine learning-based functionality**, which predicts sentence completion by considering all the context about the user, issue and even the latest messages exchanged.
 
-## Designing with Success in Mind
-
-### Usability is Key
+## Usability is Key
 
 ![](../img/smartchat/image3.png)
 
-To fulfill the hypothesis, there are a few design considerations:
+To fulfil the hypothesis, there are a few design considerations:
 
-1.  Minimising learning curve for agents.
+1.  Minimising the learning curve for agents.
 2.  Avoiding visual clutter if recommendations are not relevant.
 
 To increase the probability of predicting an agent's message, one of the design explorations is to allow agents to select the top 3 predictions (Design 1). To onboard agents, we designed a quick tip to activate SmartChat using keyboard shortcuts.
@@ -65,18 +63,18 @@ In our next design iteration, we decided to leverage and reuse the interaction o
 
 ![](../img/smartchat/image6.png)
 
-To relearn the shortcut, agents can hover on the text recommended.![](../img/smartchat/image9.png)
+To relearn the shortcut, agents can hover on the recommended text.![](../img/smartchat/image9.png)
 
-### How We Track Progress
+## How We Track Progress
 
 Knowing that this feature would come in multiple iterations, we had to find ways to track how well we were doing progressively, so we decided to measure the different components of chat time.
 
 We realised that the agent typing time is affected by:
 
-*   **Percentage of characters saved**, which tells us that the model predicted correctly, and also saved time. This metric should increase as the model improves.
-*   **Model’s effectiveness**: the agent writes the least number of characters possible before getting the right suggestion, which should decrease as the model learns.
-*   **Acceptance rate**, which tells us how many messages were written with the help of the model. It is a good proxy for feature usage and model capabilities.
-*   **Latency**: if the suggestion is not shown in about 100-200ms, the agent would not notice the text and keep typing.
+*   **Percentage of characters saved**. This tells us that the model predicted correctly, and also saved time. This metric should increase as the model improves.
+*   **Model’s effectiveness**. The agent writes the least number of characters possible before getting the right suggestion, which should decrease as the model learns.
+*   **Acceptance rate**. This tells us how many messages were written with the help of the model. It is a good proxy for feature usage and model capabilities.
+*   **Latency**. If the suggestion is not shown in about 100-200ms, the agent would not notice the text and keep typing.
 
 ## Architecture
 
@@ -84,38 +82,38 @@ We realised that the agent typing time is affected by:
 
 The architecture involves support specialists initiating the fetch suggestion request, which is sent for evaluation to the machine learning model through API gateway. This ensures that only authenticated requests are allowed to go through and also ensures that we have proper rate limiting applied.
 
-We have an internal platform called Catwalk, which is a microservice that offers the capability to execute machine learning models as a HTTP service. We used the Presto query engine to calculate and analyse the results from the experiment.
+We have an internal platform called **Catwalk**, which is a microservice that offers the capability to execute machine learning models as a HTTP service. We used the Presto query engine to calculate and analyse the results from the experiment.
 
-## Implementation
+## Designing the Machine Learning Model
 
-### Designing the Machine Learning Model
-
-I am sure all of us can remember an experiment we did in school when we had to catch a falling ruler. For those who have not, feel free to try [this experiment](https://www.youtube.com/watch?v%3DLheOjO2DJD0) at home! The purpose of this experiment is to define a ballpark number for typical human reaction time (equations also included in the video link).
+I am sure all of us can remember an experiment we did in school when we had to catch a falling ruler. For those who have not done this experiment, feel free to try [it](https://www.youtube.com/watch?v%3DLheOjO2DJD0) at home! The purpose of this experiment is to define a ballpark number for typical human reaction time (equations also included in the video link).
 
 Typically, the human reaction time ranges from 100ms to 300ms, with a median of about 250ms (read more [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4374455/)). Hence, we decided to set the upper bound for SmartChat response time to be 200ms while deciding the approach. Otherwise, the experience would be affected as the agents would notice a delay in the suggestions. To achieve this, we had to manage the model’s complexity and ensure that it achieves the optimal time performance.
 
 Taking into consideration network latencies, the machine learning model would need to churn out predictions in less than 100ms, in order for the entire product to achieve a maximum 200ms refresh rate.
 
-As such, a few key components need to be considered:
+As such, a few key components were considered:
 
 *   Model Tokenisation
-    *   Model tokenisation needs to be implemented as part of code and not microservice
-    *   Model tokenisation needs to be lightweight and cheap to compute
+    *   Model input/output tokenisation needs to be implemented along with the model's core logic so that it is done in one network request.
+    *   Model tokenisation needs to be lightweight and cheap to compute.
 
 *   Model Architecture
     *   This is a typical sequence-to-sequence (seq2seq) task so the model needs to be complex enough to account for the auto-regressive nature of seq2seq tasks.
-    *   Pure attention-based models, which are usually state of the art for seq2seq tasks, are bulky and computationally expensive.
+    *   We could not use pure attention-based models, which are usually state of the art for seq2seq tasks, as they are bulky and computationally expensive.
 
 *   Model Service
-    *   The model serving platform should be executed on a low-level, highly performant framework
+    *   The model serving platform should be executed on a low-level, highly performant framework.
 
 Our proposed solution considers the points listed above. We have chosen to develop in Tensorflow (TF), which is a well-supported framework for machine learning models and application building.
 
-For Latin-based languages, we used a simple whitespace tokenizer, which is serialisable in the TF graph using the \`tensorflow-text\` package.
+For Latin-based languages, we used a simple whitespace tokenizer, which is serialisable in the TF graph using the `tensorflow-text` package.
 
-import tensorflow\_text as text
+```
+import tensorflow_text as text
 
-tokenizer \= text.WhitespaceTokenizer()
+tokenizer = text.WhitespaceTokenizer()
+```
 
 For the model architecture, we considered a few options but eventually settled for a simple recurrent neural network architecture (RNN), in an Encoder-Decoder structure:
 
@@ -136,7 +134,7 @@ For the model architecture, we considered a few options but eventually settled f
 
 **Features**
 
-To provide context for the sentence completion tasks, we provide the following features as model inputs:
+To provide context for the sentence completion tasks, we provided the following features as model inputs:
 
 *   Past conversations between the chat agent and the user
 *   Time of the day
@@ -147,14 +145,14 @@ These features give the model the ability to generalise beyond a simple language
 
 For example, the model is better aware of the nature of time in addressing “Good **{Morning/Afternoon/Evening}**” given the time of the day input, as well as being able to interpret meal times in the case of food orders. E.g. “We have contacted the driver, your **{breakfast/lunch/dinner}** will be arriving shortly”.
 
-### Typeahead Solution for the User Interface
+## Typeahead Solution for the User Interface
 
 With our goal to provide a seamless experience in showing suggestions to accepting them, we decided to implement a typeahead solution in the chat input area. This solution had to be implemented with the ReactJS library, as the internal web-app used by our support specialist for handling chats is built in React.
 
 There were a few ways to achieve this:
 
-1.  Modify the DOM using Javascript to show suggestions by positioning them over the input HTML tag based on the cursor position.
-2.  Use a content editable div and have the suggestion span render conditionally.
+1.  Modify the Document Object Model (DOM) using Javascript to show suggestions by positioning them over the `input` HTML tag based on the cursor position.
+2.  Use a content editable `div` and have the suggestion `span` render conditionally.
 
 After evaluating the complexity in both approaches, the second solution seemed to be the better choice, as it is more aligned with the React way of doing things: avoid DOM manipulations as much as possible.
 
@@ -262,7 +260,7 @@ We used the [window.getSelection()](https://developer.mozilla.org/en-US/docs/Web
 
 The implementation has also considered the following:
 
-*   **Caching**. API calls are made on every space character to fetch the prediction. To reduce the number of API calls, we also cache the prediction until it differs from the user input.
+*   **Caching**. API calls are made on every space character to fetch the prediction. To reduce the number of API calls, we also cached the prediction until it differs from the user input.
 *   **Recover placeholder**. There are data fields that are specific to the agent and consumer, such as agent name and user phone number, and these data fields are replaced by placeholders for model training. The implementation recovers the placeholders in the prediction before showing it on the UI.
 *   **Control rollout**. Since rollout is by percentage per country, the implementation has to ensure that only certain users can access predictions from their country chat model.
 *   **Aggregate and send metrics**. Metrics are gathered and sent for each chat message.
@@ -286,7 +284,7 @@ The current machine learning model is built with training data derived from hist
 Seeing how effective this solution has been for our chat agents, we would also like to expose this to the end consumers to help them express their concerns faster and improve their overall chat experience.
 
 ----
-<small class="credits">This article would not have been possible without the key contributions from [Elisa Monacchi](mailto:elisa.monacchi@grab.com), who gave the right direction for the product , [Darrell Tay](mailto:darrell.tay@grab.com) , [Yun Zou](mailto:yun.zou@grabtaxi.com) , [Kok Keong Matthew Yeow](mailto:matthew.yeow@grabtaxi.com), who helped to build the architecture and implementation in a scalable way and [Wan Ling Guai](mailto:wanling.guai@grab.com), who designed the UX that provided a seamless experience to the agents.</small>
+<small class="credits">Special thanks to [Kok Keong Matthew Yeow](mailto:matthew.yeow@grabtaxi.com), who helped to build the architecture and implementation in a scalable way.</small>
 ----
 
 ## Join Us
