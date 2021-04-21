@@ -13,9 +13,9 @@ excerpt: "This blog post discusses how Grab's DataGateway plays a key role in su
 
 ## Introduction
 
-Data is the lifeblood of Grab and the insights we gain from it drive all the most critical business decisions made by Grabbers and our leaders everyday.
+Data is the lifeblood of Grab and the insights we gain from it drive all the most critical business decisions made by Grabbers and our leaders every day.
 
-Grab’s Data Engineering (DE) team is responsible for maintaining the data platform, which consists of data pipelines, job schedulers, and the query/computation engines that are the key components for generating insights from data. SQL is the core language for analytics at Grab and as of early 2020, our Presto platform serves about 200 user groups that add up to 500 users who run 350,000 queries everyday. These queries span across 10,000 tables that process up to 1PB of data daily.
+Grab’s Data Engineering (DE) team is responsible for maintaining the data platform, which consists of data pipelines, job schedulers, and the query/computation engines that are the key components for generating insights from data. SQL is the core language for analytics at Grab and as of early 2020, our Presto platform serves about 200 user groups that add up to 500 users who run 350,000 queries every day. These queries span across 10,000 tables that process up to 1PB of data daily.
 
 In 2016, we started the DataGateway project to enable us to manage data access for the hundreds of Grabbers who needed access to [Presto](https://aws.amazon.com/big-data/what-is-presto/) for their work. Since then, DataGateway has grown to become much more than just an access control mechanism for Presto. In this blog, we want to share what we’ve achieved since the initial launch of the project.
 

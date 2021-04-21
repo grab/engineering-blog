@@ -124,7 +124,7 @@ In our data, the time and event types are the key attributes. Every single event
 
 Our goal is to minimise the data the query engine needs to process and serve a specific query. Each query’s workload is the combination of the data that needs to be accessed and the complexity of the operation performed on the data. For analytical queries, common operations are data aggregation and transformations.
 
-Most of our analytical workloads span across a small number of event types (between 2 to 10) and a time range from one hour to few months. Our expert system and time series systems workloads focus on a single event type. In these workloads, the time range can vary from a few hours to one day. A data scientist’s typical workloads require accessing multiple event types and specific time ranges. For these reasons, we partitioned data by event type and ingestion time.
+Most of our analytical workloads span across a small number of event types (between 2 to 10) and a time range from one hour to a few months. Our expert system and time series systems workloads focus on a single event type. In these workloads, the time range can vary from a few hours to one day. A data scientist’s typical workloads require accessing multiple event types and specific time ranges. For these reasons, we partitioned data by event type and ingestion time.
 
 ![](img/experimentation-platform-data-pipeline/image3.png)
 
