@@ -5,7 +5,7 @@ title: How We Improved Agent Chat Efficiency with Machine Learning
 date: 2021-04-19 00:08:30
 authors: [suman-anand, elisa-monacchi, darrell-tay, yun-zou, wan-ling-guai]
 categories: [Engineering]
-tags: [Engineering, Machine Learning, Customer Support]
+tags: [Engineering, Machine Learning, Consumer Support]
 comments: true
 cover_photo: /img/smartchat/cover.jpg
 excerpt: "Read to find out how Customer Support Experience's Phoenix live chat team improved agent chat efficiency with machine learning."
@@ -63,7 +63,7 @@ In our next design iteration, we decided to leverage and reuse the interaction o
 
 ![](../img/smartchat/image6.png)
 
-To relearn the shortcut, agents can hover on the recommended text.![](../img/smartchat/image9.png)
+To relearn the shortcut, agents can hover over the recommended text.![](../img/smartchat/image9.png)
 
 ## How We Track Progress
 
