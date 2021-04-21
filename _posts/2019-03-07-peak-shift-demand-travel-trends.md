@@ -56,7 +56,7 @@ You may also have seen something similar at the last hotel you stayed at. Notice
 
 To apply “peak-shifting” and help our users better plan their trips, we decided to dig in and leverage our data. It was way more complex than we had initially thought, as market conditions could be different on different days. This meant that  generic statements like “5PM-8PM are peak hours and prices will be hight” would not hold true. Contrary to general perception, we observed that even during peak hours, there are buckets of time when there is no surge or low surge.
 
-For instance, plot 1 and plot 2 below shows how a typical Monday and Tuesday surge looks like in a given month respectively. One of the key insights is that the surge trends during peak hour is different on Monday from Tuesday. It reinforces our initial hypothesis that every day is unique.
+For instance, plot 1 and plot 2 below shows how a typical Monday and Tuesday surge looks like in a given month respectively. One of the key insights is that the surge trends during peak hour is different on Monday from Tuesday. It reinforces our initial hypothesis that everyday is unique.
 
 So we used machine learning techniques to build a forecasting widget which can help our users and give them the power to plan their trips beforehand. This widget is able to provide the pricing trends for the next 2 hours. So with a bit of flexibility, riders can ride the tide!
 

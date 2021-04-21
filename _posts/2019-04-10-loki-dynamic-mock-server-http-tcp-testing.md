@@ -37,7 +37,7 @@ In a one week regression-and-release scenario, testing time is limited. However,
 Loki - Grab's Solution to Simplify Mobile Apps Testing
 ======================================================
 
-At Grab, we have multiple mobile apps that are dependent on each other. For example, our Passenger and Driver apps are two sides of a coin; the driver gets a job card only when a passenger requests a booking. These apps are developed by different teams, each with its own release cycle. This can make it tricky to confidently and repeatedly test the whole business flow across apps. Apps also depend on multiple backend services to execute a booking or food order and communicate over different protocols.
+At Grab, we have multiple mobile apps that are dependent on each other. For example, our passenger and driver apps are two sides of a coin; the driver gets a job card only when a passenger requests a booking. These apps are developed by different teams, each with its own release cycle. This can make it tricky to confidently and repeatedly test the whole business flow across apps. Apps also depend on multiple backend services to execute a booking or food order and communicate over different protocols.
 
 Here’s a look at how our mobile apps interact with backend services over different protocols:
 
@@ -128,7 +128,7 @@ Mocking TCP Events
 
 Developers point their app to Loki over a TCP connection and set up the TCP expectations. Loki then generates scheduled events such as sending push messages (job cards, notifications, etc) to the apps pointing at Loki.
 
-For example, if the Driver app, after it starts, wants to get a job card, you can set an expectation in Loki to push a job card over the TCP connection to the Driver app after a scheduled time interval.
+For example, if the driver app, after it starts, wants to get a job card, you can set an expectation in Loki to push a job card over the TCP connection to the driver app after a scheduled time interval.
 
 This snippet shows how to set the TCP expectation and schedule a push message:
 

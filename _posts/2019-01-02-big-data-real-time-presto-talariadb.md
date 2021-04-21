@@ -13,9 +13,9 @@ excerpt: "In this article, we focus on TalariaDB, a distributed, highly availabl
 
 # Introduction
 
-Enabling the millions and millions of transactions and connections that take place every day on our platform requires data-driven decision making. And these decisions need to be made based on real-time data. For example, an experiment might inadvertently cause a significant increase of waiting time for riders.
+Enabling the millions and millions of transactions and connections that take place everyday on our platform requires data-driven decision making. And these decisions need to be made based on real-time data. For example, an experiment might inadvertently cause a significant increase of waiting time for riders.
 
-Without the right tools and setup, we might only know the reason for this longer waiting time much later. And that would negatively impact our driver partners' livelihoods and our consumers' Grab experience.
+Without the right tools and setup, we might only know the reason for this longer waiting time much later. And that would negatively impact our driver-partners' livelihoods and our consumers' Grab experience.
 
 To overcome the challenge of retrieving information from large amounts of data, our first step was to adopt the open-source [Facebook's Presto](https://prestodb.io/), that makes it possible to query petabytes with plain SQL. However, given our many teams, tools, and data sources, we also needed a way to reliably ingest and disperse data at scale throughout our platform.
 

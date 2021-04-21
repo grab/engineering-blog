@@ -11,7 +11,7 @@ comments: true
 cover_photo: /img/plumbing-at-scale/cover.jpg
 excerpt: "This article details our journey building and deploying an event sourcing platform in Go, building a stream processing framework over it, and then scaling it (reliably and efficiently) to service over 300 billion events a week."
 ---
-When you open the Grab app and hit book, a series of events are generated that define your personalised experience with us: booking state machines kick into motion, driver partners are notified, reward points are computed, your feed is generated, etc. While it is important for you to know that a request has been received, a lot happens asynchronously in our back-end services.
+When you open the Grab app and hit book, a series of events are generated that define your personalised experience with us: booking state machines kick into motion, driver-partners are notified, reward points are computed, your feed is generated, etc. While it is important for you to know that a request has been received, a lot happens asynchronously in our back-end services.
 
 As custodians and builders of the streaming platform at Grab operating at massive scale (think terabytes of data ingress each hour), the Coban team’s mission is to provide a NoOps, managed platform for seamless, secure access to event streams in real-time, for every team at Grab.
 
@@ -173,9 +173,9 @@ Zezhou Yu, Ryan Ooi, Hui Yang, Yuguang Xiao, Ling Zhang, Roy Kim, Matt Hino, Jum
 
 ## Join Us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
 
 #### Footnotes
 [^1]: https://martinfowler.com/eaaDev/EventSourcing.html

@@ -14,7 +14,7 @@ excerpt: "This blog post describes how Grab built a scalable data ingestion syst
 Introduction
 ============
 
-As Grab grew from a small startup to an organisation serving millions of consumers and driver partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.
+As Grab grew from a small startup to an organisation serving millions of consumers and driver-partners, making day-to-day data-driven decisions became paramount. We needed a system to efficiently ingest data from mobile apps and backend systems and then make it available for analytics and engineering teams.
 
 Thanks to modern data processing frameworks, ingesting data isn’t a big issue. However, at Grab's scale, it is a non-trivial task. We had to prepare for two key scenarios:
 

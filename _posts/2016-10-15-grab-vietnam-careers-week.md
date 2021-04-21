@@ -27,11 +27,11 @@ We have a lot of Vietnamese talent delivering features that delight our users on
 
 <h3>Why did you join Grab and what's your most meaningful Grab experience?</h3>
 
-<strong>Hai:</strong> I never thought of working for a large, social enterprise such as Grab, but my time here has been purposeful. It feels great knowing that we're the ride-hailing leader in Southeast Asia with the ability to improve livelihoods and make a positive difference to millions.
+<strong>Hai:</strong> I never thought of working for a large, social enterprise such as Grab, but my time here has been purposeful. It feels great knowing that we're the leader in Southeast Asia for mobility services with the ability to improve livelihoods and make a positive difference to millions.
 
 <strong>Son:</strong> I like having the opportunity to work with awesome people from all over the world. From Mexico to Malaysia, India to Indonesia, Brazil to Belgium, you name it! We are a close-knit bunch and we have fun together. At Grab, you can be sure your ideas are always appreciated. We even have regular company hackathons which we call “Grabathons” where everyone comes together to improve our app and services! What's more… we love having lunches with the boss and our happy hours every week! Free food and lots of drinks!
 
-<strong>Hai:</strong> For me, it is wonderful to be out in public and seeing people whip out their phones and launching the Grab app to book a ride. That pride I feel is indescribable and I find myself saying: “Yes, we made that.” All the hard work from the teams has led us to develop the best ride-hailing app in the world -- it makes me happy and proud that we are doing great things here and helping millions of people in their daily lives.
+<strong>Hai:</strong> For me, it is wonderful to be out in public and seeing people whip out their phones and launching the Grab app to book a ride. That pride I feel is indescribable and I find myself saying: “Yes, we made that.” All the hard work from the teams has led us to develop the best mobility services app in the world -- it makes me happy and proud that we are doing great things here and helping millions of people in their daily lives.
 
 <h3>Both of you will be in Ho Chi Minh City conducting interviews for Grab Vietnam Careers Week from 22-26 October. Any tips for those looking to work with us -- what are we looking for?</h3>
 

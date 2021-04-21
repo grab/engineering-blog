@@ -11,7 +11,7 @@ cover_photo: /img/reflecting-on-the-five-years-of-bug-bounty-at-grab/cover.jpg
 excerpt: "Read about how the product security team's bug bounty programme has helped keep Grab secure."
 ---
 
-Security has always been a top-priority at Grab; our product security team works round-the-clock to ensure that our consumers' data remains safe. Five years ago, we launched our private bug bounty programme on [HackerOne](https://hackerone.com/grab), which evolved into a public programme in August 2017. The idea was to complement the security efforts our team has been putting through to keep Grab secure. We were a pioneer in South East Asia to implement a public bug bounty programme, and now we stand among the [Top 20 programmes on HackerOne](https://www.hackerone.com/resources/e-book/top-20-public-bug-bounty-programs) worldwide.
+Security has always been a top-priority at Grab; our product security team works round-the-clock to ensure that our consumers' data remains safe. Five years ago, we launched our private bug bounty programme on [HackerOne](https://hackerone.com/grab), which evolved into a public programme in August 2017. The idea was to complement the security efforts our team has been putting through to keep Grab secure. We were a pioneer in Southeast Asia to implement a public bug bounty programme, and now we stand among the [Top 20 programmes on HackerOne](https://www.hackerone.com/resources/e-book/top-20-public-bug-bounty-programs) worldwide.
 
 We started as a private bug bounty programme which provided us with fantastic results, thus encouraging us to increase our reach and benefit from the vibrant security community across the globe which have helped us iron-out security issues 24x7 in our products and infrastructure. We then publicly launched our bug bounty programme offering competitive rewards and hackers can even earn additional bonuses if their report is well-written and display an innovative approach to testing.
 
@@ -71,6 +71,6 @@ Well done and from everyone on the Grab team, we look forward to seeing you on t
 
 ## Join Us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

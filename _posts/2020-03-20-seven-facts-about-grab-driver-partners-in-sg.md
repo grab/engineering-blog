@@ -52,7 +52,7 @@ Did you know that having more passengers in a car can yield more 5-star ratings?
   <img src="/img/seven-facts-about-grab-partner-drivers-in-sg/image4.png" alt="The Road More Travelled">
 </figure></div>
 
-Which neighbourhoods are painting the town green? Our driver partners picked up the most passengers from Tampines, while Orchard & Marina Bay areas were the most popular destination in 2018!
+Which neighbourhoods are painting the town green? Our driver-partners picked up the most passengers from Tampines, while Orchard & Marina Bay areas were the most popular destination in 2018!
 
 ### 5. Tricks of the Trade
 
@@ -60,7 +60,7 @@ Which neighbourhoods are painting the town green? Our driver partners picked up 
   <img src="/img/seven-facts-about-grab-partner-drivers-in-sg/image5.png" alt="Tricks of the Trad">
 </figure></div>
 
-Ever wondered if seasoned driver-partners who have been with us for more than 2 years, have different driving preferences and habits? They tend to start their day 1 hour earlier around 6–7am, and are on auto-accept most of the time. Did you know that drivers on auto-accept spend less time idle waiting for new jobs?
+Ever wondered if seasoned driver-partners who have been with us for more than 2 years, have different driving preferences and habits? They tend to start their day 1 hour earlier around 6–7am, and are on auto-accept most of the time. Did you know that drivers on auto-accept spend less time idle waiting for new bookings?
 
 ### 6. Busy Bee
 
@@ -68,7 +68,7 @@ Ever wondered if seasoned driver-partners who have been with us for more than 2 
   <img src="/img/seven-facts-about-grab-partner-drivers-in-sg/image6.png" alt="Busy Bee">
 </figure></div>
 
-Did you know? Drivers are twice as likely to get back-to-back allocations during evening peak hours! Drivers with frequent back-to-back jobs earn about 50% more per hour.
+Did you know? Drivers are twice as likely to get back-to-back allocations during evening peak hours! Drivers with frequent back-to-back bookings earn about 50% more per hour.
 
 ## 7. Road Runner
 
@@ -83,6 +83,7 @@ How our driver-partners utilise the Grab platform to make a living (and break a 
 Interested to know more about the winning strategies among our driver-partners? Look out for the next data story!
 
 ## Join Us
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
+
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

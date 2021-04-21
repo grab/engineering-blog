@@ -26,7 +26,7 @@ Having an efficient workforce routing system ensures that requests are directed 
 
 We initially implemented a third-party solution, however there were a few limitations, such as prioritisation, that motivated us to build our very own routing solution that provides better routing configuration controls and cost reduction from licensing costs.
 
-This article describes how we built our in-house workforce routing system at Grab and focuses on _Livechat_, one of the domains of customer support.
+This article describes how we built our in-house workforce routing system at Grab and focuses on _Livechat_, one of the domains of consumer support.
 
 
 ## Problem
@@ -189,9 +189,8 @@ We have lined up a few enhancements to reduce the consumer wait time and the tim
 
 ---
 
-
 ## Join Us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

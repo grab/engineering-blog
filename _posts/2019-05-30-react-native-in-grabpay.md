@@ -25,7 +25,7 @@ This post describes our work on developing React Native components for Grab apps
 
 Before embarking on our work with React Native, these were the goals we set out. We wanted to:
 
-*   Have a reusable code between Android and iOS as well as across various Grab apps (Driver app, Merchant app, etc.).
+*   Have a reusable code between Android and iOS as well as across various Grab apps (driver app, merchant app, etc.).
 *   Have a single codebase to minimise the effort needed to modify and maintain our code long term.
 *   Match the performance and standards of existing Grab apps.
 *   Use as few Engineering resources as possible.
@@ -38,7 +38,7 @@ Many Grab teams located across Southeast Asia and in the United States support t
 *   Transaction History
 *   Postpaid BillPay
 
-We have a single codebase for both iOS and Android apps, which means that the modules take half the maintenance resources. Debugging is faster with React Native’s hot reloading. And it’s much easier and faster to implement one of our modules in another app, such as the Grab Driver app.
+We have a single codebase for both iOS and Android apps, which means that the modules take half the maintenance resources. Debugging is faster with React Native’s hot reloading. And it’s much easier and faster to implement one of our modules in another app, such as the Grab driver app.
 
 Another challenge was creating a universally acceptable format for a bridging library to communicate between existing code and React Native modules. We had to define fixed guidelines to create new bridges and define communication protocols between React Native modules and existing code.
 
@@ -81,7 +81,7 @@ publicfinalclassDeviceKitModule: NSObject, RCTBridgeModule {
 
 ## GrabPay Components and React Native
 
-The GrabPay Merchant App gave us a good foundation for React Native in terms of:
+The GrabPay merchant app gave us a good foundation for React Native in terms of:
 
 *   Component libraries
 *   Networking layer and API middleware

@@ -11,15 +11,15 @@ cover_photo: /img/keeping-170-libraries-up-to-date/cover.jpg
 excerpt: "Learn how we maintain our libraries and prevent defect leaks in our Grab Passenger app."
 ---
 
-To scale up to the needs of our consumers, we've adopted ways to efficiently deliver our services through our everyday superapp - whether it's through continuous process improvements or coding best practices. For one, [libraries](https://en.wikipedia.org/wiki/Library_(computing)) have made it possible for us to increase our development velocity. In the Passenger App Android team, we've a mix of libraries - from libraries that we've built in-house to open source ones.
+To scale up to the needs of our consumers, we've adopted ways to efficiently deliver our services through our everyday superapp - whether it's through continuous process improvements or coding best practices. For one, [libraries](https://en.wikipedia.org/wiki/Library_(computing)) have made it possible for us to increase our development velocity. In the passenger app Android team, we've a mix of libraries - from libraries that we've built in-house to open source ones.
 
-Every week, we release a new version of our Passenger App. Each update contains on average between five to ten library updates. In this article, we will explain how we keep all libraries used by our app up to date, and the different actions we take to avoid defect leaks into production.
+Every week, we release a new version of our passenger app. Each update contains on average between five to ten library updates. In this article, we will explain how we keep all libraries used by our app up to date, and the different actions we take to avoid defect leaks into production.
 
 ## How Many Libraries are We Using?
 
 Before we add a new library to a project, it goes through a rigorous assessment process covering many parts, such as security issue detection and usability tests measuring the impact on the app size and app startup time. This process ensures that only libraries up to our standards are added.
 
-In total, there are more than **170 libraries** powering the SuperApp, including 55 AndroidX artifacts and 22 libraries used for the sole purpose of writing automation testing (Unit Testing or UI Testing).
+In total, there are more than **170 libraries** powering the superapp, including 55 AndroidX artifacts and 22 libraries used for the sole purpose of writing automation testing (Unit Testing or UI Testing).
 
 ## Who is Responsible for Updating?
 
@@ -100,6 +100,6 @@ For example, starting 1st November 2020 all apps must target API 29. This change
 
 ## Join Us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

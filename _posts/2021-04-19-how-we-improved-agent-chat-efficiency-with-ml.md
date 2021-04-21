@@ -138,7 +138,7 @@ To provide context for the sentence completion tasks, we provided the following 
 
 *   Past conversations between the chat agent and the user
 *   Time of the day
-*   User type (Driver partners, Consumers, etc.)
+*   User type (Driver-partners, Consumers, etc.)
 *   Entrypoint into the chat (e.g. an article on cancelling a food order)
 
 These features give the model the ability to generalise beyond a simple language model, with additional context on the nature of contact for support. Such experiences also provide a better user experience and a more customised user experience.

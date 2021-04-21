@@ -36,8 +36,8 @@ More importantly, I really enjoy working with my team members!
 
 ### Grab: What are the three things that you love most about your role at Grab?
 
-**Brandon:** Grab has a unique position in Southeast Asia. As the region’s leading ride-hailing company, we have the opportunity to make life-changing positive experiences in how people commute, live, and pay. To me, this is really exciting and worth all our hard work.
-Secondly, the amazing talent I get to work with every day! Grab is willing to help our engineers grow and provides us with the resources that we need. Enough said!
+**Brandon:** Grab has a unique position in Southeast Asia. As the region’s leading mobility services company, we have the opportunity to make life-changing positive experiences in how people commute, live, and pay. To me, this is really exciting and worth all our hard work.
+Secondly, the amazing talent I get to work with everyday! Grab is willing to help our engineers grow and provides us with the resources that we need. Enough said!
 
 Ultimately, I really enjoy my role at Grab because I am constantly exposed to new challenges where I actively contribute to its solutions -- I imagine this opportunity will be hard to come by at a large, structured and process-heavy company. I take joy in building programs and writing code from scratch. This keeps me motivated and I look forward to continue making a difference.
 

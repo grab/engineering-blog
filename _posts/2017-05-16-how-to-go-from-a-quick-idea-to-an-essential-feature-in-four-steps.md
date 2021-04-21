@@ -12,7 +12,7 @@ excerpt: "How do you work within a startup team and build a quick idea into a ke
 
 How do you work within a startup team and build a quick idea into a key feature for an app that impacts millions of people? It's one of those things that is hard to understand when you just graduate as an engineer.
 
-Software engineer Huang Da and data scientist Tan Sien Yi can explain just that. Huang Da and his team first came up with the idea for a chat function in the Grab app in early 2016 and since the official roll out of GrabChat, the first messaging tool in a ride-hailing app, more than 78 million messages have been exchanged across the region. Here's their story on how this feature evolved from a quick idea to an essential feature.
+Software engineer Huang Da and data scientist Tan Sien Yi can explain just that. Huang Da and his team first came up with the idea for a chat function in the Grab app in early 2016 and since the official roll out of GrabChat, the first messaging tool in a mobility services app, more than 78 million messages have been exchanged across the region. Here's their story on how this feature evolved from a quick idea to an essential feature.
 
 ### 1. Identify the Problem
 

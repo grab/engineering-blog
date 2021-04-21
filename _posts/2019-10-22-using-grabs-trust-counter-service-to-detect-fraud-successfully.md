@@ -33,7 +33,7 @@ To overcome the challenges in the conventional method, the Trust platform team d
 
 ## The Major Engineering Challenges Faced in Designing the Counter Service
 
-There are millions of transactions happening at Grab every day, which implies we needed to perform billions of fraud and safety detections. As seen from the example shared earlier, most predictions require a group of counters. In the above use case, we need to know how many counts of the cashless payment happened for a driver and passenger pair. Due to the scale of Grab’s business, the potential combinations of drivers and passengers could be exponential. However, this is only one use case. So imagine that there could be hundreds of counters for different use cases. Hence, it’s important that we provide a platform for stakeholders to manage counters.
+There are millions of transactions happening at Grab everyday, which implies we needed to perform billions of fraud and safety detections. As seen from the example shared earlier, most predictions require a group of counters. In the above use case, we need to know how many counts of the cashless payment happened for a driver and passenger pair. Due to the scale of Grab’s business, the potential combinations of drivers and passengers could be exponential. However, this is only one use case. So imagine that there could be hundreds of counters for different use cases. Hence, it’s important that we provide a platform for stakeholders to manage counters.
 
 Read on to learn about some of the common challenges we faced.
 
