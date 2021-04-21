@@ -134,7 +134,7 @@ Mirror cache is [eventually consistent](https://en.wikipedia.org/wiki/Eventual_c
 
 Mirror cache stores all the data in volatile memory (RAM) and they are wiped out during deployments, resulting in a temporary load increase to Redis and DB.
 
-Also, many new driver-partners are added everyday to the Grab system, and we might need to increase the cache size to maintain a high hit ratio. To address these issues we plan to use SSD in the future to store a part of the data and use RAM only to store hot data.
+Also, many new driver-partners are added every day to the Grab system, and we might need to increase the cache size to maintain a high hit ratio. To address these issues we plan to use SSD in the future to store a part of the data and use RAM only to store hot data.
 
 ## Conclusion
 

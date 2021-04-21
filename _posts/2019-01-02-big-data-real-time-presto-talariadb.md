@@ -13,7 +13,7 @@ excerpt: "In this article, we focus on TalariaDB, a distributed, highly availabl
 
 # Introduction
 
-Enabling the millions and millions of transactions and connections that take place everyday on our platform requires data-driven decision making. And these decisions need to be made based on real-time data. For example, an experiment might inadvertently cause a significant increase of waiting time for riders.
+Enabling the millions and millions of transactions and connections that take place every day on our platform requires data-driven decision making. And these decisions need to be made based on real-time data. For example, an experiment might inadvertently cause a significant increase of waiting time for riders.
 
 Without the right tools and setup, we might only know the reason for this longer waiting time much later. And that would negatively impact our driver-partners' livelihoods and our consumers' Grab experience.
 

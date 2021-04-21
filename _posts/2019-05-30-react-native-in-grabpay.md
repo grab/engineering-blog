@@ -87,7 +87,7 @@ The GrabPay merchant app gave us a good foundation for React Native in terms of:
 *   Networking layer and API middleware
 *   Real world data for internal assessment of performance and stability
 
-We used this knowledge to build the Transaction History and GrabPay Digital Marketplace components inside the Grab Passenger app with React Native.
+We used this knowledge to build the Transaction History and GrabPay Digital Marketplace components inside the Grab passenger app with React Native.
 
 ### Component Library
 

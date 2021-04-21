@@ -94,7 +94,7 @@ This is the first phase of our journey in reducing the storage footprint of our 
 
 Concurrently, we are also reducing the maximum size of cache created by some libraries. For example, Glide by default creates a cache of 250MB but this can be configured and optimised.
 
-We hope you found this piece insightful and please remember to update your app regularly to benefit from the improvements we’re making everyday. If you find that your app is still taking a lot of space on your phone, be assured that we’re looking into it.
+We hope you found this piece insightful and please remember to update your app regularly to benefit from the improvements we’re making every day. If you find that your app is still taking a lot of space on your phone, be assured that we’re looking into it.
 
 ## Join Us
 

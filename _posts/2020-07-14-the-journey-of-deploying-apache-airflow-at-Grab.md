@@ -19,7 +19,7 @@ We designed and implemented an Apache Airflow-based scheduling and orchestration
 
 ## Early Days
 
-Circa 2018, we were running a few hundred Directed Acyclic Graphs (DAGs) on one Airflow instance in the Data Engineering team. There was no dedicated team to maintain it, and no Airflow expert in our team. We were struggling to maintain our Airflow instance, which was causing many jobs to fail everyday. We were facing issues with library management, scaling, managing and syncing artefacts across all Airflow components, upgrading Airflow versions, deployment, rollbacks, etc.
+Circa 2018, we were running a few hundred Directed Acyclic Graphs (DAGs) on one Airflow instance in the Data Engineering team. There was no dedicated team to maintain it, and no Airflow expert in our team. We were struggling to maintain our Airflow instance, which was causing many jobs to fail every day. We were facing issues with library management, scaling, managing and syncing artefacts across all Airflow components, upgrading Airflow versions, deployment, rollbacks, etc.
 
 After a few postmortem reports, we realised that we needed a dedicated team to maintain our Airflow. This was how our Airflow team was born.
 

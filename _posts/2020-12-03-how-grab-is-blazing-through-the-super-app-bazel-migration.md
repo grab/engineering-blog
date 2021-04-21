@@ -16,7 +16,7 @@ excerpt: "Learn how we planned and started migrating our superapp to Bazel at Gr
 
 At Grab, we build a seamless user experience that addresses more and more of the daily lifestyle needs of people across Southeast Asia. We’re proud of our Grab rides, payments, and delivery services, and want to provide a unified experience across these offerings.
 
-Here are a couple of examples of what Grab does for millions of people across Southeast Asia everyday:
+Here are a couple of examples of what Grab does for millions of people across Southeast Asia every day:
 
 <div class="post-image-section"><figure>
   <img src="/img/how-grab-is-blazing-through-the-super-app-bazel-migration/image2.jpg" alt="Grab Service Offerings"> <figcaption align="middle"><i>Grab Service Offerings</i></figcaption>
