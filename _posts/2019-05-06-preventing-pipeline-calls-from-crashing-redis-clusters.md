@@ -20,7 +20,7 @@ This blog post describes Grab’s outage post-mortem findings.
 
 With Grab's continuous growth, our services must handle large amounts of data traffic involving high processing power for reading and writing operations. To address this significant growth, reduce handler latency, and improve overall performance, many of our services use _Redis_ - a common in-memory data structure storage - as a cache, database, or message broker. Furthermore, we use a _Redis Cluster_, a distributed implementation of Redis, for shorter latency and higher availability.
 
-Apollo is our driver-side state machine. It is on almost all requests’ critical path and is a primary component for booking transport and providing great service for consumer bookings. It stores individual driver availability in an AWS ElastiCache Redis Cluster, letting our booking service efficiently assign jobs to drivers. It’s critical to keep Apollo running and available 24/7.
+Apollo is our driver-side state machine. It is on almost all requests’ critical path and is a primary component for booking transport and providing great service for consumer bookings. It stores individual driver availability in an AWS ElastiCache Redis Cluster, letting our booking service efficiently assign bookings to drivers. It’s critical to keep Apollo running and available 24/7.
 
 <div class="post-image-section">
   <img alt="Apollo's infrastructure" src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/image1.jpg">

@@ -35,7 +35,7 @@ We, however, are on your side. We want to make the hiring process as transparent
 
 For this reason, we're embarking on a series of articles that will uncover the hiring processes of leading technology companies in Singapore. Let us know how we can improve on this - what other information you'd like to see, which companies you'd like to read about here, and so on.
 
-First up, a ride-hailing company that has <a href="https://www.techinasia.com/companies/grab" target="_blank" rel="noopener noreferrer">raised US$1.4 billion in funding</a> (that we know of) to date - **Grab**.
+First up, a mobility services company that has <a href="https://www.techinasia.com/companies/grab" target="_blank" rel="noopener noreferrer">raised US$1.4 billion in funding</a> (that we know of) to date - **Grab**.
 
 ### Interview Process at Grab
 

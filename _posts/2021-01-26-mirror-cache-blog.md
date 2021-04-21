@@ -38,7 +38,7 @@ We opted for a [cache aside](https://docs.microsoft.com/en-us/azure/architecture
 
 The measurement of the response source revealed that during peak hours __~25% of the requests were being served via standalone local cache__, __~20% by MySQL DB__, and __~55% via Redis__.
 
-The low cache hit rate is caused by the driver-partners data loading patterns: _low frequency per driver over time but the high frequency in a short amount of time._ When a driver-partner is a candidate for a job or is involved in an ongoing job, different services make multiple requests to the Drivers Data service to fetch that specific driver-partner information. The frequency of calls for a specific driver-partner reduces if he/she is not involved in the job allocation process or is not doing any job at the moment.
+The low cache hit rate is caused by the driver-partners data loading patterns: _low frequency per driver over time but the high frequency in a short amount of time._ When a driver-partner is a candidate for a booking or is involved in an ongoing booking, different services make multiple requests to the Drivers Data service to fetch that specific driver-partner information. The frequency of calls for a specific driver-partner reduces if he/she is not involved in the booking allocation process or is not doing any booking at the moment.
 
 While low frequency per driver over time impacts the Redis cache hit rate, high frequency in short amounts of time mostly contributes to in-memory cache hit rate. In our investigations, we found that local caches of different nodes in the Drivers Data service cluster were making redundant calls to Redis and DB for fetching the same data that are already present in a node local cache.
 
@@ -150,6 +150,6 @@ We also extended mirror cache in some other services and found similar promising
 
 ## Join Us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

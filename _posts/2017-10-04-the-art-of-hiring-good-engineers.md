@@ -109,7 +109,7 @@ I think it is a good idea to personally spend more time with all good engineer c
 
 Many good engineers will seem to possess all the right credentials but in the mid to long-term, there will always be some who are much better for your team.
 
-### Final thoughts
+### Final Thoughts
 
 Aim for a flat structure, even if you get big one day. Companies like Facebook and Grab still try to keep their Engineering structure as flat as possible.
 

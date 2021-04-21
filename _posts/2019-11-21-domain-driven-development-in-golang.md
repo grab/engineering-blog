@@ -11,7 +11,7 @@ cover_photo: /img/domain-driven-development-in-golang/cover.png
 excerpt: "Are you curious how we quickly enabled our partners to self-service using our platform? Have you wondered how some teams at Grab implemented domain-driven development while using Golang? Read this blog post to know more."
 ---
 
-Partnerships have always been core to Grab’s super app strategy. We believe in collaborating with partners who are the best in what they do - combining their expertise with what we’re good at so that we can bring high-quality new services to our consumers, at the same time create new opportunities for the merchant and driver-partners in our ecosystem.
+Partnerships have always been core to Grab’s superapp strategy. We believe in collaborating with partners who are the best in what they do - combining their expertise with what we’re good at so that we can bring high-quality new services to our consumers, at the same time create new opportunities for the merchant and driver-partners in our ecosystem.
 
 That’s why we launched GrabPlatform last year. To make it easier for partners to either integrate Grab into their services, or integrate their services into Grab.
 

@@ -41,7 +41,7 @@ Not all endpoints have to be made asynchronous, and the decision to be synchrono
 
 ## Preventing Disaster Through Chaos Engineering
 
-It is famously understood that disaster recovery is worthless unless it's tested regularly. There are dozens of stories of employees diligently performing backups every day only to find that when they actually needed to restore from it, the backups were empty. The same thing applies to resiliency, albeit with less spectacular consequences.
+It is famously understood that disaster recovery is worthless unless it's tested regularly. There are dozens of stories of employees diligently performing backups everyday only to find that when they actually needed to restore from it, the backups were empty. The same thing applies to resiliency, albeit with less spectacular consequences.
 
 The emerging best practice for testing resiliency is _chaos engineering_. This practice, made famous by Netflix's [Chaos Monkey](https://medium.com/netflix-techblog/the-netflix-simian-army-16e57fbab116), is the idea of deliberately causing parts of a system to fail in order to test (and subsequently improve) its resiliency. There are many different kinds of chaos engineering that vary in scope, from simulating an outage in an entire AWS region to injecting latency into a single endpoint. A chaos engineering strategy may include multiple types of failure, to build confidence in the ability of various parts of the system to withstand failure.
 

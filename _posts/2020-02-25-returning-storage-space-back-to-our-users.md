@@ -13,7 +13,7 @@ excerpt: "This blog explains how we measured and reduced our app's storage footp
 
 Have you ever run out of storage on your phone? Mobile phones come with limited storage and with the multiplication of apps and large video files, many of you are running out of space.
 
-In this article, we explain how we measure and reduce the storage footprint of the Grab App on a user's device to help you overcome this issue.
+In this article, we explain how we measure and reduce the storage footprint of the Grab app on a user's device to help you overcome this issue.
 
 ## The Wakeup Call
 
@@ -37,7 +37,7 @@ This is the ratio of uninstalls on active devices with less than 1GB free storag
 
 ## Instrumentation to Know Where We Stand
 
-First things first, we needed to know how much space the Grab App occupies on user device. So we started using our personal devices. We can find this information by opening the phone settings and selecting Grab App.
+First things first, we needed to know how much space the Grab app occupies on user device. So we started using our personal devices. We can find this information by opening the phone settings and selecting Grab app.
 
 <div class="post-image-section"><figure>
   <img src="/img/returning-storage-space-back-to-our-users/image3.jpg" alt="App Settings">
@@ -94,10 +94,10 @@ This is the first phase of our journey in reducing the storage footprint of our 
 
 Concurrently, we are also reducing the maximum size of cache created by some libraries. For example, Glide by default creates a cache of 250MB but this can be configured and optimised.
 
-We hope you found this piece insightful and please remember to update your app regularly to benefit from the improvements we’re making every day. If you find that your app is still taking a lot of space on your phone, be assured that we’re looking into it.
+We hope you found this piece insightful and please remember to update your app regularly to benefit from the improvements we’re making everyday. If you find that your app is still taking a lot of space on your phone, be assured that we’re looking into it.
 
 ## Join Us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

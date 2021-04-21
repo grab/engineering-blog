@@ -1,28 +1,28 @@
 ---
 layout: post
 id: 2020-12-03-how-grab-is-blazing-through-the-super-app-bazel-migration
-title: How Grab is Blazing Through the Super App Bazel Migration
+title: How Grab is Blazing Through the Superapp Bazel Migration
 date: 2020-12-03 04:30:00
 authors: [sergii-grechukha]
 categories: [Engineering]
 tags: [Bazel, Android, iOS, Build Time, Xcode, Gradle]
 comments: true
 cover_photo: /img/how-grab-is-blazing-through-the-super-app-bazel-migration/cover.png
-excerpt: "Learn how we planned and started migrating our super app to Bazel at Grab."
+excerpt: "Learn how we planned and started migrating our superapp to Bazel at Grab."
 ---
 
 
 ## Introduction
 
-At Grab, we build a seamless user experience that addresses more and more of the daily lifestyle needs of people across South East Asia. We’re proud of our Grab rides, payments, and delivery services, and want to provide a unified experience across these offerings.
+At Grab, we build a seamless user experience that addresses more and more of the daily lifestyle needs of people across Southeast Asia. We’re proud of our Grab rides, payments, and delivery services, and want to provide a unified experience across these offerings.
 
-Here are a couple of examples of what Grab does for millions of people across South East Asia every day:
+Here are a couple of examples of what Grab does for millions of people across Southeast Asia everyday:
 
 <div class="post-image-section"><figure>
   <img src="/img/how-grab-is-blazing-through-the-super-app-bazel-migration/image2.jpg" alt="Grab Service Offerings"> <figcaption align="middle"><i>Grab Service Offerings</i></figcaption>
 </figure></div>
 
-The Grab Passenger application reached super app status more than a year ago and continues to provide hundreds of life-changing use cases in dozens of areas for millions of users.
+The Grab Passenger application reached superapp status more than a year ago and continues to provide hundreds of life-changing use cases in dozens of areas for millions of users.
 
 With the big product scale, it brings with it even bigger technical challenges. Here are a couple of dimensions that can give you a sense of the scale we're working with.
 
@@ -34,13 +34,13 @@ Grab consists of many Tech Families who work on food, payments, transport, and o
 
 ### Codebase Scale Overview
 
-The Passenger Applications (Android and iOS) contain more than **2.5 million lines of code** each and it keeps growing. We have **1000+ modules** in the Android App and **700+ targets** in the iOS App. Hundreds of commits are merged by all the mobile engineers on a daily basis.
+The Passenger Applications (Android and iOS) contain more than **2.5 million lines of code** each and it keeps growing. We have **1000+ modules** in the Android app and **700+ targets** in the iOS app. Hundreds of commits are merged by all the mobile engineers on a daily basis.
 
 To maintain the health of the codebase and product stability, we run **40K+ unit tests** on Android and **30K+ unit tests** on iOS, as well as thousands of UI tests and hundreds of end-to-end tests on both platforms.
 
 ## Build Time Challenges
 
-The described complexity and scale do not come without challenges. A huge codebase propels the build process to the ultimate extreme- challenging the efficiency of build systems and hardware used to compile the super app, and creating out of the line challenges to be addressed.
+The described complexity and scale do not come without challenges. A huge codebase propels the build process to the ultimate extreme- challenging the efficiency of build systems and hardware used to compile the superapp, and creating out of the line challenges to be addressed.
 
 ### Local Build Time
 
@@ -261,18 +261,18 @@ The iOS tooling is a bit behind, and we expect it to be available for open-sourc
 
 Bazel is not a silver bullet for the build time and your project. There are a lot of edge cases you’ll never know until it punches you straight in your face.
 
-It’s far from industry standard and you might find yourself having difficulty hiring engineers with such knowledge. It has a steep learning curve as well. It’s absolutely an overhead for small to medium-sized projects, but it’s undeniably essential once you start playing in a high league of super apps.
+It’s far from industry standard and you might find yourself having difficulty hiring engineers with such knowledge. It has a steep learning curve as well. It’s absolutely an overhead for small to medium-sized projects, but it’s undeniably essential once you start playing in a high league of superapps.
 
 If you were to ask whether we’d go this path again, the answer would come in a **fast and correct** way - yes, without any doubts.
 
 ---
 
-<small class="credits">Authored by Sergii Grechukha on behalf of the Passenger App team at Grab. Special thanks to Madushan Gamage, Mikhail Zinov, Nguyen Van Minh, Mihai Costiug, Arunkumar Sampathkumar, Maryna Shaposhnikova, Pavlo Stavytskyi, Michael Goletto, Nico Liu, and Omar Gawish for their contributions.</small>
+<small class="credits">Authored by Sergii Grechukha on behalf of the passenger app team at Grab. Special thanks to Madushan Gamage, Mikhail Zinov, Nguyen Van Minh, Mihai Costiug, Arunkumar Sampathkumar, Maryna Shaposhnikova, Pavlo Stavytskyi, Michael Goletto, Nico Liu, and Omar Gawish for their contributions.</small>
 
 ---
 
 ## Join Us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

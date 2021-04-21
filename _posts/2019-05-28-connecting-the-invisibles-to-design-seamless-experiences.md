@@ -32,7 +32,7 @@ We explore holistic experiences by visualising the connections across features, 
 For example, placing an order on GrabFood requires much more work than sending information to the merchant through the Grab app. How might Grab
 
 *   allocate drivers effectively,
-*   support unhappy paths with our customer support team,
+*   support unhappy paths with our consumer support team,
 *   resolve discrepancies in our operations teams, and
 *   store this data in a system that can continue to expand for future uses to come?
 
@@ -75,4 +75,4 @@ Finally, we believe in the power of a participatory design process to unlock mea
 
 ## What’s the Ultimate Goal? A Harmonious Backstage for a Delightful Consumer Experience
 
-By facilitating cross-functional collaborations and espousing a whole-of-Grab approach, the service design team at Grab helps to connect the dots in an interconnected ‘super-app’ service ecosystem. By empathising with our users, and having a deep understanding of how different parts of the Grab ecosystem affect one another, we hope to unleash the full power of Grab to deliver maximum value and delight to serve our users.
+By facilitating cross-functional collaborations and espousing a whole-of-Grab approach, the service design team at Grab helps to connect the dots in an interconnected superapp service ecosystem. By empathising with our users, and having a deep understanding of how different parts of the Grab ecosystem affect one another, we hope to unleash the full power of Grab to deliver maximum value and delight to serve our users.

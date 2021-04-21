@@ -8,12 +8,12 @@ categories: [Engineering]
 tags: [Experiment, Back End, Front End]
 comments: true
 cover_photo: /img/building-grab-s-experimentation-platform/cover.png
-excerpt: "At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver partners. To do that, we’re constantly experimenting, and in fact, many of the improvements we roll out  to the Grab app are a direct result of successful experiments."
+excerpt: "At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver-partners. To do that, we’re constantly experimenting, and in fact, many of the improvements we roll out  to the Grab app are a direct result of successful experiments."
 ---
 
 # ExP Overview
 
-At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver partners.
+At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver-partners.
 
 To do that, we’re constantly experimenting, and in fact, many of the improvements we roll out  to the Grab app are a direct result of successful experiments.
 
@@ -52,7 +52,7 @@ Since implementing ExP, we have seen the number of experiments grow from just a 
 
 With this scale comes some issues we needed to address. Here is the architectural approach we have taken to address them:
 
-**Prevention of network effects** - At Grab, we have several types of users: our driver partners, passengers, and merchants. Unlike most experimentation platforms out there that deal with a single website visitor, our user types can and do interact with each other which leads to network effects in some cases. For example, an experiment on promotions can lead to a surge of demand more than the supply.
+**Prevention of network effects** - At Grab, we have several types of users: our driver-partners, passengers, and merchants. Unlike most experimentation platforms out there that deal with a single website visitor, our user types can and do interact with each other which leads to network effects in some cases. For example, an experiment on promotions can lead to a surge of demand more than the supply.
 
 **Control and treatment assignment strategies** - Various teams within the organisation have different requirements and ways of setting up experiments. Some simple aesthetic experiments can be simply randomised by a user ID while other, algorithmic experiments may use a time-slicing strategies with bias minimisation. So we built many different strategies for different use-cases to address the challenging task of having all of these be both random and deterministic at the same time.
 
@@ -116,11 +116,11 @@ Since its rollout, ExP and its staged rollout framework have proven to be indisp
 
 Take the GrabChat feature, for example. Booking cancellations were a key problem and the team believed that with the right interventions in place, some cancellations could be prevented.
 
-One of the ideas we had was to use GrabChat to establish a conversation between the driver and the passenger by sending automated messages. This transforms the service from a mere transaction to something more human and personal. By adding this human touch to the service, it reduced perceived waiting time, making passengers and driver partners more patient and accepting of any unavoidable delays that might arise.
+One of the ideas we had was to use GrabChat to establish a conversation between the driver and the passenger by sending automated messages. This transforms the service from a mere transaction to something more human and personal. By adding this human touch to the service, it reduced perceived waiting time, making passengers and driver-partners more patient and accepting of any unavoidable delays that might arise.
 
 When we deployed this new feature for app users in a specific geographic area, we noticed a drop in cancellations. To validate this, we conducted a series of iterative experiments using ExP. Check out this blog to find out more: https://engineering.grab.com/experiment-chat-booking-cancellations
 
-Lastly, we used the platform to perform a staged rollout of this functionality to different users in different countries across South East Asia.
+Lastly, we used the platform to perform a staged rollout of this functionality to different users in different countries across Southeast Asia.
 
 # Conclusion
 

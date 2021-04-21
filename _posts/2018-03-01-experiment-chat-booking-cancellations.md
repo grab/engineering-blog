@@ -8,12 +8,12 @@ categories: [Product]
 tags: [Chat, Booking, Experiment]
 comments: true
 cover_photo: /img/experiment-chat-booking-cancellations/cover.png
-excerpt: "At Grab, we consistently strive to build a platform that delivers excellent user experience to both our Passengers and Driver-Partners. A major degradation to a seamless booking experience is the cancellation of that booking."
+excerpt: "At Grab, we consistently strive to build a platform that delivers excellent user experience to both our passengers and driver-partners. A major degradation to a seamless booking experience is the cancellation of that booking."
 ---
 
 ## Booking Cancellations are Frustrating and Costly
 
-At Grab, we consistently strive to build a platform that delivers excellent user experience to both our Passengers and Driver-Partners. A major degradation to a seamless booking experience is the cancellation of that booking. A cancelled booking is an unpleasant experience and a costly event which only frustrates all parties involved.
+At Grab, we consistently strive to build a platform that delivers excellent user experience to both our passengers and driver-partners. A major degradation to a seamless booking experience is the cancellation of that booking. A cancelled booking is an unpleasant experience and a costly event which only frustrates all parties involved.
 
 <p class="text-center" style="font-weight: bold;">Cancellations at Grab</p>
 <div class="post-image-section">
@@ -27,19 +27,19 @@ Post allocation cancellations are particularly painful; these are cases where a 
 
 Service design is the process of generating a product, policy or any kind of enhancement that improves the user experience while hitting business metrics.
 
-Booking cancellations were a key problem of which the team was convinced that, with the right interventions in place, some cancellations could be prevented. To identify these scenarios the team conducted several rounds of user research to understand the root cause of cancellations and devise a valid and quality solution that would enhance the ride experience of both Passengers and Driver-Partners.
+Booking cancellations were a key problem of which the team was convinced that, with the right interventions in place, some cancellations could be prevented. To identify these scenarios the team conducted several rounds of user research to understand the root cause of cancellations and devise a valid and quality solution that would enhance the ride experience of both passengers and driver-partners.
 
-One interesting anecdote they heard from Driver-Partners was that when the Driver-Partner informed the Passenger that he was on the way to the pick up point, the booking had a lower likelihood of being cancelled! A simple message from the Driver-Partner could help reduce perceived waiting time for Passengers and give them confidence in the service.
+One interesting anecdote they heard from driver-partners was that when the driver-partner informed the passenger that he was on the way to the pick up point, the booking had a lower likelihood of being cancelled! A simple message from the driver-partner could help reduce perceived waiting time for Passengers and give them confidence in the service.
 
 This triggered us to dive deeper into understanding the correlation between a GrabChat message and cancellation rates.
 
 ## GrabChat is Indeed Correlated to Reduced Cancellation Rates
 
-GrabChat is our in-app messaging system that allows the matched Passenger and Driver-Partner to chat with each other during the booking, saving on the costs of phone calls and/or SMSes while continuing to be on the app.
+GrabChat is our in-app messaging system that allows the matched passenger and driver-partner to chat with each other during the booking, saving on the costs of phone calls and/or SMSes while continuing to be on the app.
 
-We dug into our data to validate the feedback that Service Design team had received and discovered an interesting correlation; bookings which had a GrabChat conversation indeed had a lower likelihood of being cancelled. When the two parties established contact through chat, it transformed the service from a mere transaction to something more human. And this human touch to the service reduced perceived waiting time, making Passengers and Driver-Partners more patient and accepting of any unavoidable delays that might arise.
+We dug into our data to validate the feedback that Service Design team had received and discovered an interesting correlation; bookings which had a GrabChat conversation indeed had a lower likelihood of being cancelled. When the two parties established contact through chat, it transformed the service from a mere transaction to something more human. And this human touch to the service reduced perceived waiting time, making passengers and driver-partners more patient and accepting of any unavoidable delays that might arise.
 
-Building on this insight, we hypothesised that if we could encourage both parties to engage via a chat conversation upon getting a matched ride, we could potentially avoid a cancellation due to the prompted communication at no additional cost to the Passenger, Driver-Partner or our platform. To validate this, we conducted a series of iterative experiments.
+Building on this insight, we hypothesised that if we could encourage both parties to engage via a chat conversation upon getting a matched ride, we could potentially avoid a cancellation due to the prompted communication at no additional cost to the passenger, driver-partner or our platform. To validate this, we conducted a series of iterative experiments.
 
 ## Experimentation on Automated Messages and Delay Time
 
@@ -51,7 +51,7 @@ Test variations included:
 
 * direct asks for specific details such as the pick-up location
 
-* first-person-speak (on the Driver-Partner’s behalf)
+* first-person-speak (on the driver-partner's behalf)
 
 * Inclusion of *emojis*
 
@@ -80,8 +80,8 @@ Test variations included:
 </div>
 
 <div class="post-image-section">
-  <img alt="Figure 4 - We experimented on different localized messages based on local cultures" src="/img/experiment-chat-booking-cancellations/localized-message.png" width="50%">
-  <small class="post-image-caption">Figure 4 - We experimented on different localized messages based on local cultures</small>
+  <img alt="Figure 4 - We experimented on different localised messages based on local cultures" src="/img/experiment-chat-booking-cancellations/localized-message.png" width="50%">
+  <small class="post-image-caption">Figure 4 - We experimented on different localised messages based on local cultures</small>
 </div>
 
 ### Successful Experiments Yielded New Learnings
@@ -94,11 +94,11 @@ After thoroughly testing in different cities and verticals, we observed that thi
   <small class="post-image-caption">Figure 5 - Cancellation rates consistently dropped in all the experimented cities</small>
 </div>
 
-Another key observation was that while the *average number of messages per booking exchanged* between a Passenger and Driver-Partner was higher in the Control groups, cancellations still decreased in comparison to the Treatment groups. This showed us that quality, not quantity, of engagement through chat was the real metric mover. When we sent a clear directed question to the passengers, we were able to solicit a quick and meaningful response which made the conversation and the pick-up experience more efficient.
+Another key observation was that while the *average number of messages per booking exchanged* between a passenger and driver-partner was higher in the Control groups, cancellations still decreased in comparison to the Treatment groups. This showed us that quality, not quantity, of engagement through chat was the real metric mover. When we sent a clear directed question to the passengers, we were able to solicit a quick and meaningful response which made the conversation and the pick-up experience more efficient.
 
 ## Conclusion
 
-Through these experiments and product enhancements, Grab is dedicated to making the experience on our platform more human-centric and context-specific. This is why we build hyper-local products like GrabChat which not only helps our Indonesian Driver-Partners save hundreds in call and SMS costs but also allows our chat-loving Filipino Passengers to talk carefree!
+Through these experiments and product enhancements, Grab is dedicated to making the experience on our platform more human-centric and context-specific. This is why we build hyper-local products like GrabChat which not only helps our Indonesian driver-partners save hundreds in call and SMS costs but also allows our chat-loving Filipino passengers to talk carefree!
 
 The process is scientific, iterative and often born out of the simplest of ideas - in this case, making people talk more to improve the booking experience.
 
