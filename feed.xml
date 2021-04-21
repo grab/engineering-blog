@@ -6,9 +6,339 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 13 Apr 2021 11:02:55 +0000</pubDate>
-    <lastBuildDate>Tue, 13 Apr 2021 11:02:55 +0000</lastBuildDate>
+    <pubDate>Wed, 21 Apr 2021 02:22:58 +0000</pubDate>
+    <lastBuildDate>Wed, 21 Apr 2021 02:22:58 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>How We Improved Agent Chat Efficiency with Machine Learning</title>
+        <description>&lt;p&gt;In previous articles (see &lt;a href=&quot;https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web&quot;&gt;Grab’s in-house chat platform&lt;/a&gt;, &lt;a href=&quot;https://engineering.grab.com/customer-support-workforce-routing&quot;&gt;workforce routing&lt;/a&gt;), we shared how chat has grown to become one of the primary channels for support in the last few years.&lt;/p&gt;
+
+&lt;p&gt;With continuous chat growth and a new in-house tool, helping our agents be more efficient and productive was key to ensure a faster support time for our users and scale chat even further.&lt;/p&gt;
+
+&lt;p&gt;Starting from the analysis on the usage of another third-party tool as well as some shadowing sessions, we realised that building a templated-based feature wouldn’t help. We needed to offer personalisation capabilities, as our consumer support specialists care about their writing style and tone, and using templates often feels robotic.&lt;/p&gt;
+
+&lt;p&gt;We decided to build a machine learning model, called &lt;strong&gt;SmartChat&lt;/strong&gt;, which offers contextual suggestions by leveraging several sources of internal data, helping our chat specialists type much faster, and hence serving more consumers.&lt;/p&gt;
+
+&lt;p&gt;In this article, we are going to explain the process from problem discovery to design iterations, and share how the model was implemented from both a data science and software engineering perspective.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-smartchat-works&quot;&gt;How SmartChat Works&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/smartchat/image7.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;diving-deeper-into-the-problem&quot;&gt;Diving Deeper into the Problem&lt;/h2&gt;
+
+&lt;p&gt;Agent productivity became a key part in the process of scaling chat as a channel for support.&lt;/p&gt;
+
+&lt;p&gt;After splitting chat time into all its components, we noted that agent typing time represented a big portion of the chat support journey, making it the perfect problem to tackle next.&lt;/p&gt;
+
+&lt;p&gt;After some analysis on the usage of the third-party chat tool, we found out that even with functionalities such as canned messages, &lt;strong&gt;85% of the messages were still free typed&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;Hours of shadowing sessions also confirmed that the consumer support specialists liked to add their own flair. They would often use the template and adjust it to their style, which took more time than just writing it on the spot. With this in mind, it was obvious that templates wouldn’t be too helpful, unless they provided some degree of personalisation.&lt;/p&gt;
+
+&lt;p&gt;We needed something that reduces typing time and also:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Allows some degree of personalisation&lt;/strong&gt;, so that answers don’t seem robotic and repeated.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Works with multiple languages and nuances&lt;/strong&gt;, considering Grab operates in 8 markets, even some of the English markets have some slight differences in commonly used words.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;It’s contextual to the problem&lt;/strong&gt; and takes into account the user type, issue reported, and even the time of the day.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Ideally doesn’t require any maintenance effort&lt;/strong&gt;, such as having to keep templates updated whenever there’s a change in policies.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Considering the constraints, &lt;strong&gt;this seemed to be the perfect candidate for a machine learning-based functionality&lt;/strong&gt;, which predicts sentence completion by considering all the context about the user, issue and even the latest messages exchanged.&lt;/p&gt;
+
+&lt;h2 id=&quot;usability-is-key&quot;&gt;Usability is Key&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/smartchat/image3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;To fulfil the hypothesis, there are a few design considerations:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Minimising the learning curve for agents.&lt;/li&gt;
+  &lt;li&gt;Avoiding visual clutter if recommendations are not relevant.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;To increase the probability of predicting an agent’s message, one of the design explorations is to allow agents to select the top 3 predictions (Design 1). To onboard agents, we designed a quick tip to activate SmartChat using keyboard shortcuts.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/smartchat/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;By displaying the top 3 recommendations, we learnt that it slowed agents down as they started to read all options even if the recommendations were not helpful. Besides, by triggering this component upon every recommendable text, it became a distraction as they were forced to pause.&lt;/p&gt;
+
+&lt;p&gt;In our next design iteration, we decided to leverage and reuse the interaction of SmartChat from a familiar platform that agents are using - Gmail’s Smart Compose. As agents are familiar with Gmail, the learning curve for this feature would be less steep. For first time users, agents will see a “Press tab” tooltip, which will activate the text recommendation. The tooltip will disappear after 5 times of use.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/smartchat/image6.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;To relearn the shortcut, agents can hover on the recommended text.&lt;img src=&quot;../img/smartchat/image9.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;how-we-track-progress&quot;&gt;How We Track Progress&lt;/h2&gt;
+
+&lt;p&gt;Knowing that this feature would come in multiple iterations, we had to find ways to track how well we were doing progressively, so we decided to measure the different components of chat time.&lt;/p&gt;
+
+&lt;p&gt;We realised that the agent typing time is affected by:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Percentage of characters saved&lt;/strong&gt;. This tells us that the model predicted correctly, and also saved time. This metric should increase as the model improves.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Model’s effectiveness&lt;/strong&gt;. The agent writes the least number of characters possible before getting the right suggestion, which should decrease as the model learns.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Acceptance rate&lt;/strong&gt;. This tells us how many messages were written with the help of the model. It is a good proxy for feature usage and model capabilities.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Latency&lt;/strong&gt;. If the suggestion is not shown in about 100-200ms, the agent would not notice the text and keep typing.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;architecture&quot;&gt;Architecture&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/smartchat/image8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The architecture involves support specialists initiating the fetch suggestion request, which is sent for evaluation to the machine learning model through API gateway. This ensures that only authenticated requests are allowed to go through and also ensures that we have proper rate limiting applied.&lt;/p&gt;
+
+&lt;p&gt;We have an internal platform called &lt;strong&gt;Catwalk&lt;/strong&gt;, which is a microservice that offers the capability to execute machine learning models as a HTTP service. We used the Presto query engine to calculate and analyse the results from the experiment.&lt;/p&gt;
+
+&lt;h2 id=&quot;designing-the-machine-learning-model&quot;&gt;Designing the Machine Learning Model&lt;/h2&gt;
+
+&lt;p&gt;I am sure all of us can remember an experiment we did in school when we had to catch a falling ruler. For those who have not done this experiment, feel free to try &lt;a href=&quot;https://www.youtube.com/watch?v%3DLheOjO2DJD0&quot;&gt;it&lt;/a&gt; at home! The purpose of this experiment is to define a ballpark number for typical human reaction time (equations also included in the video link).&lt;/p&gt;
+
+&lt;p&gt;Typically, the human reaction time ranges from 100ms to 300ms, with a median of about 250ms (read more &lt;a href=&quot;https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4374455/&quot;&gt;here&lt;/a&gt;). Hence, we decided to set the upper bound for SmartChat response time to be 200ms while deciding the approach. Otherwise, the experience would be affected as the agents would notice a delay in the suggestions. To achieve this, we had to manage the model’s complexity and ensure that it achieves the optimal time performance.&lt;/p&gt;
+
+&lt;p&gt;Taking into consideration network latencies, the machine learning model would need to churn out predictions in less than 100ms, in order for the entire product to achieve a maximum 200ms refresh rate.&lt;/p&gt;
+
+&lt;p&gt;As such, a few key components were considered:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Model Tokenisation
+    &lt;ul&gt;
+      &lt;li&gt;Model input/output tokenisation needs to be implemented along with the model’s core logic so that it is done in one network request.&lt;/li&gt;
+      &lt;li&gt;Model tokenisation needs to be lightweight and cheap to compute.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Model Architecture
+    &lt;ul&gt;
+      &lt;li&gt;This is a typical sequence-to-sequence (seq2seq) task so the model needs to be complex enough to account for the auto-regressive nature of seq2seq tasks.&lt;/li&gt;
+      &lt;li&gt;We could not use pure attention-based models, which are usually state of the art for seq2seq tasks, as they are bulky and computationally expensive.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Model Service
+    &lt;ul&gt;
+      &lt;li&gt;The model serving platform should be executed on a low-level, highly performant framework.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Our proposed solution considers the points listed above. We have chosen to develop in Tensorflow (TF), which is a well-supported framework for machine learning models and application building.&lt;/p&gt;
+
+&lt;p&gt;For Latin-based languages, we used a simple whitespace tokenizer, which is serialisable in the TF graph using the &lt;code class=&quot;highlighter-rouge&quot;&gt;tensorflow-text&lt;/code&gt; package.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import tensorflow_text as text
+
+tokenizer = text.WhitespaceTokenizer()
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;For the model architecture, we considered a few options but eventually settled for a simple recurrent neural network architecture (RNN), in an Encoder-Decoder structure:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Encoder&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Whitespace tokenisation&lt;/li&gt;
+      &lt;li&gt;Single layered Bi-Directional RNN&lt;/li&gt;
+      &lt;li&gt;Gated-Recurrent Unit (GRU) Cell&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Decoder&lt;/strong&gt;&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;Single layered Uni-Directional RNN&lt;/li&gt;
+      &lt;li&gt;Gated-Recurrent Unit (GRU) Cell&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Optimisation&lt;/strong&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Teacher-forcing in training, Greedy decoding in production&lt;/li&gt;
+      &lt;li&gt;Trained with a cross-entropy loss function&lt;/li&gt;
+      &lt;li&gt;Using ADAM (Kingma and Ba) optimiser&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Features&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;To provide context for the sentence completion tasks, we provided the following features as model inputs:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Past conversations between the chat agent and the user&lt;/li&gt;
+  &lt;li&gt;Time of the day&lt;/li&gt;
+  &lt;li&gt;User type (Driver partners, Consumers, etc.)&lt;/li&gt;
+  &lt;li&gt;Entrypoint into the chat (e.g. an article on cancelling a food order)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;These features give the model the ability to generalise beyond a simple language model, with additional context on the nature of contact for support. Such experiences also provide a better user experience and a more customised user experience.&lt;/p&gt;
+
+&lt;p&gt;For example, the model is better aware of the nature of time in addressing “Good &lt;strong&gt;{Morning/Afternoon/Evening}&lt;/strong&gt;” given the time of the day input, as well as being able to interpret meal times in the case of food orders. E.g. “We have contacted the driver, your &lt;strong&gt;{breakfast/lunch/dinner}&lt;/strong&gt; will be arriving shortly”.&lt;/p&gt;
+
+&lt;h2 id=&quot;typeahead-solution-for-the-user-interface&quot;&gt;Typeahead Solution for the User Interface&lt;/h2&gt;
+
+&lt;p&gt;With our goal to provide a seamless experience in showing suggestions to accepting them, we decided to implement a typeahead solution in the chat input area. This solution had to be implemented with the ReactJS library, as the internal web-app used by our support specialist for handling chats is built in React.&lt;/p&gt;
+
+&lt;p&gt;There were a few ways to achieve this:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Modify the Document Object Model (DOM) using Javascript to show suggestions by positioning them over the &lt;code class=&quot;highlighter-rouge&quot;&gt;input&lt;/code&gt; HTML tag based on the cursor position.&lt;/li&gt;
+  &lt;li&gt;Use a content editable &lt;code class=&quot;highlighter-rouge&quot;&gt;div&lt;/code&gt; and have the suggestion &lt;code class=&quot;highlighter-rouge&quot;&gt;span&lt;/code&gt; render conditionally.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;After evaluating the complexity in both approaches, the second solution seemed to be the better choice, as it is more aligned with the React way of doing things: avoid DOM manipulations as much as possible.&lt;/p&gt;
+
+&lt;p&gt;However, when a suggestion is accepted we would still need to update the content editable div through DOM manipulation. It cannot be added to React’s state as it creates a laggy experience for the user to visualise what they type.&lt;/p&gt;
+
+&lt;p&gt;Here is a code snippet for the implementation:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import React, { Component } from 'react';
+import liveChatInstance from './live-chat';
+
+export class ChatInput extends Component {
+ constructor(props) {
+   super(props);
+   this.state = {
+     suggestion: '',
+   };
+ }
+
+ getCurrentInput = () =&amp;gt; {
+   const { roomID } = this.props;
+   const inputDiv = document.getElementById(`input_content_${roomID}`);
+   const suggestionSpan = document.getElementById(
+     `suggestion_content_${roomID}`,
+   );
+
+   // put the check for extra safety in case suggestion span is accidentally cleared
+   if (suggestionSpan) {
+     const range = document.createRange();
+     range.setStart(inputDiv, 0);
+     range.setEndBefore(suggestionSpan);
+     return range.toString(); // content before suggestion span in input div
+   }
+   return inputDiv.textContent;
+ };
+
+ handleKeyDown = async e =&amp;gt; {
+   const { roomID } = this.props;
+   // tab or right arrow for accepting suggestion
+   if (this.state.suggestion &amp;amp;&amp;amp; (e.keyCode === 9 || e.keyCode === 39)) {
+     e.preventDefault();
+     e.stopPropagation();
+     this.insertContent(this.state.suggestion);
+     this.setState({ suggestion: '' });
+   }
+   const parsedValue = this.getCurrentInput();
+   // space
+   if (e.keyCode === 32 &amp;amp;&amp;amp; !this.state.suggestion &amp;amp;&amp;amp; parsedValue) {
+     // fetch suggestion
+     const prediction = await liveChatInstance.getSmartComposePrediction(
+       parsedValue.trim(), roomID);
+     this.setState({ suggestion: prediction })
+   }
+ };
+
+ insertContent = content =&amp;gt; {
+   // insert content behind cursor
+   const { roomID } = this.props;
+   const inputDiv = document.getElementById(`input_content_${roomID}`);
+   if (inputDiv) {
+     inputDiv.focus();
+     const sel = window.getSelection();
+     const range = sel.getRangeAt(0);
+     if (sel.getRangeAt &amp;amp;&amp;amp; sel.rangeCount) {
+       range.insertNode(document.createTextNode(content));
+       range.collapse();
+     }
+   }
+ };
+
+ render() {
+   const { roomID } = this.props;
+   return (
+     &amp;lt;div className=&quot;message_wrapper&quot;&amp;gt;
+       &amp;lt;div
+         id={`input_content_${roomID}`}
+         role={'textbox'}
+         contentEditable
+         spellCheck
+         onKeyDown={this.handleKeyDown}
+       &amp;gt;
+         {!!this.state.suggestion.length &amp;amp;&amp;amp; (
+           &amp;lt;span
+             contentEditable={false}
+             id={`suggestion_content_${roomID}`}
+           &amp;gt;
+             {this.state.suggestion}
+           &amp;lt;/span&amp;gt;
+         )}
+       &amp;lt;/div&amp;gt;
+     &amp;lt;/div&amp;gt;
+   );
+ }
+}
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The solution uses the spacebar as the trigger for fetching the suggestion from the ML model and stores them in a React state. The ML model prediction is then rendered in a dynamically rendered span.&lt;/p&gt;
+
+&lt;p&gt;We used the &lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/API/Window/getSelection&quot;&gt;window.getSelection()&lt;/a&gt; and &lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/API/Selection/getRangeAt&quot;&gt;range&lt;/a&gt; APIs to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Find the current input value&lt;/li&gt;
+  &lt;li&gt;Insert the suggestion&lt;/li&gt;
+  &lt;li&gt;Clear the input to type a new message&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The implementation has also considered the following:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Caching&lt;/strong&gt;. API calls are made on every space character to fetch the prediction. To reduce the number of API calls, we also cached the prediction until it differs from the user input.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Recover placeholder&lt;/strong&gt;. There are data fields that are specific to the agent and consumer, such as agent name and user phone number, and these data fields are replaced by placeholders for model training. The implementation recovers the placeholders in the prediction before showing it on the UI.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Control rollout&lt;/strong&gt;. Since rollout is by percentage per country, the implementation has to ensure that only certain users can access predictions from their country chat model.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Aggregate and send metrics&lt;/strong&gt;. Metrics are gathered and sent for each chat message.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
+
+&lt;p&gt;The initial experiment results suggested that we managed to save 20% of characters, which improved the &lt;strong&gt;efficiency of our agents by 12%&lt;/strong&gt; as they were able to resolve the queries faster. These numbers exceeded our expectations and as a result, we decided to move forward by rolling SmartChat out regionally.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next?&lt;/h2&gt;
+
+&lt;p&gt;In the upcoming iteration, we are going to focus on &lt;strong&gt;non-Latin language support&lt;/strong&gt;, &lt;strong&gt;caching&lt;/strong&gt;, and &lt;strong&gt;continuous training&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Non-Latin Language Support and Caching&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;The current model only works with Latin languages, where sentences consist of space-separated words. We are looking to provide support for non-Latin languages such as Thai and Vietnamese. The result would also be cached in the frontend to reduce the number of API calls, providing the prediction faster for the agents.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Continuous Training&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;The current machine learning model is built with training data derived from historical chat data. In order to teach the model and improve the metrics mentioned in our goals, we will enhance the model by letting it learn from data gathered in day-to-day chat conversations. Along with this, we are going to train the model to give better responses by providing more context about the conversations.&lt;/p&gt;
+
+&lt;p&gt;Seeing how effective this solution has been for our chat agents, we would also like to expose this to the end consumers to help them express their concerns faster and improve their overall chat experience.&lt;/p&gt;
+
+&lt;hr /&gt;
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to &lt;a href=&quot;mailto:matthew.yeow@grabtaxi.com&quot;&gt;Kok Keong Matthew Yeow&lt;/a&gt;, who helped to build the architecture and implementation in a scalable way.&lt;/small&gt;
+—-&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 19 Apr 2021 00:08:30 +0000</pubDate>
+        <link>https://engineering.grab.com/how-we-improved-agent-chat-efficiency-with-ml</link>
+        <guid isPermaLink="true">https://engineering.grab.com/how-we-improved-agent-chat-efficiency-with-ml</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Machine Learning</category>
+        
+        <category>Customer Support</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>How Grab Leveraged Performance Marketing Automation to Improve Conversion Rates by 30%</title>
@@ -1699,200 +2029,6 @@ Expected check order: B, D, C
         <category>Xcode</category>
         
         <category>Gradle</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Democratising Fare Storage at Scale Using Event Sourcing</title>
-        <description>&lt;p&gt;From humble beginnings, Grab has expanded across different markets in the last couple of years. We’ve added a wide range of features to the Grab platform to continue to delight our consumers and driver-partners. We had to incessantly find ways to improve our existing solutions to better support new features.&lt;/p&gt;
-
-&lt;p&gt;In this blog, we discuss how we built &lt;em&gt;Fare Storage&lt;/em&gt;, Grab’s single source of truth fare data store, and how we overcame the challenges to make it more reliable and scalable to support our expanding features.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image1.jpg&quot; alt=&quot;High-level Flow&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;To set some context for this blog, let’s define some key terms before proceeding. A &lt;em&gt;Fare&lt;/em&gt; is a dollar amount calculated to move someone or something from point A to point B. And, a &lt;em&gt;Fee&lt;/em&gt; is a dollar amount added to or subtracted from the original fare amount for any additional service.&lt;/p&gt;
-
-&lt;p&gt;Now that you’re acquainted with the key concepts, let’s look take a look at the following image. It illustrates that features such as &lt;em&gt;Destination Change Fee&lt;/em&gt;, &lt;em&gt;Waiting Fee&lt;/em&gt;, &lt;em&gt;Cancellation Fee&lt;/em&gt;, &lt;em&gt;Tolls&lt;/em&gt;, &lt;em&gt;Promos&lt;/em&gt;, &lt;em&gt;Surcharges&lt;/em&gt;, and many others store additional fee breakdown along with the original fare. This set of information is crucial for generating receipts and debugging processes. However, our legacy storage system wasn’t designed to host massive quantities of information effectively.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image2.jpg&quot; alt=&quot;Sample Flow with Fee Breakdown&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;In our legacy architecture, we stored all the booking and fare-related information in a single relational database table. Adding new fare fields and breakdowns required changes in our critical booking system, making iterations prohibitively expensive and hindering innovation.&lt;/p&gt;
-
-&lt;p&gt;The need to store the fare information and metadata for every additional feature along with other booking information resulted in a bloated booking entity. With millions of bookings created every day at Grab, this posed a scaling and stability threat to our booking service storage. Moreover, the legacy storage only tracked the latest value of fare and lacked a holistic view of all the modifications to the fare. So, debugging the fare was also a massive chore for our Engineering and Tech Operations teams.&lt;/p&gt;
-
-&lt;h2 id=&quot;drafting-a-solution&quot;&gt;Drafting a Solution&lt;/h2&gt;
-
-&lt;p&gt;The shortcomings of our legacy system led us to explore options for decoupling the fare and its metadata storage from the booking details. We wanted to build a platform that can store and provide access to both fare and its audit trail.&lt;/p&gt;
-
-&lt;p&gt;High-level functional requirements for the new fare store were:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Provide a platform to store and retrieve fare and associated breakdowns, with no tight coupling between services.&lt;/li&gt;
-  &lt;li&gt;Act as a single source-of-truth for fare and associated fees in the Grab ecosystem.&lt;/li&gt;
-  &lt;li&gt;Enable clients to access the metadata of fare change events in real-time, enabling the Product team to innovate freely.&lt;/li&gt;
-  &lt;li&gt;Provide smooth access to a fare’s audit trail, improving the response time to our consumers’ queries.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Non-functional requirements for the fare store were:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;High availability for the read and write APIs, with few milliseconds latency.&lt;/li&gt;
-  &lt;li&gt;Handle concurrent updates to the fare gracefully.&lt;/li&gt;
-  &lt;li&gt;Detect duplicate events for a booking for the same transaction.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;storing-change-sequence-with-event-sourcing&quot;&gt;Storing Change Sequence with Event Sourcing&lt;/h2&gt;
-
-&lt;p&gt;Our legacy storage solution used a defined schema and only stored the latest state of the fare. We needed an audit trail-based storage system with fast querying capabilities that can store and retrieve changes in chronological order.&lt;/p&gt;
-
-&lt;p&gt;The &lt;em&gt;Event Sourcing pattern&lt;/em&gt; stood out as a flexible architectural pattern as it allowed us to store and query the sequence of changes in the order it occurred. In Martin Fowler’s &lt;a href=&quot;https://martinfowler.com/eaaDev/EventSourcing.html&quot;&gt;blog&lt;/a&gt;, he described &lt;a href=&quot;https://microservices.io/patterns/data/event-sourcing.html&quot;&gt;Event Sourcing&lt;/a&gt; as:&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;“The fundamental idea of Event Sourcing is to ensure that every change to the state of an application is captured in an event object and that these event objects are themselves stored in the sequence they were applied for the same lifetime as the application state itself.”&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;With the Event Sourcing pattern, we store all the fare changes as events in the order they occurred for a booking. We iterate through these events to retrieve a complete snapshot of the modifications to the fare.&lt;/p&gt;
-
-&lt;p&gt;A sample Fare Event looks like this:&lt;/p&gt;
-
-&lt;div class=&quot;language-js highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nx&quot;&gt;message&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;Event&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;c1&quot;&gt;// type of the event, ADD, SUB, SET, resilient&lt;/span&gt;
-  &lt;span class=&quot;nx&quot;&gt;EventType&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;c1&quot;&gt;// value which was added, subtracted or modified&lt;/span&gt;
-  &lt;span class=&quot;kr&quot;&gt;double&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;c1&quot;&gt;// fare for the booking after applying discount&lt;/span&gt;
-  &lt;span class=&quot;kr&quot;&gt;double&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;fare&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-  &lt;span class=&quot;p&quot;&gt;...&lt;/span&gt;
-
-  &lt;span class=&quot;c1&quot;&gt;// description bytes generated by SDK&lt;/span&gt;
-  &lt;span class=&quot;nx&quot;&gt;bytes&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;description&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;11&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;c1&quot;&gt;//transactionID for the EventType&lt;/span&gt;
-  &lt;span class=&quot;nx&quot;&gt;string&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;transactionID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;12&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The Event Sourcing pattern also enable us to use the Command Query Responsibility Segregation (&lt;a href=&quot;https://martinfowler.com/bliki/CQRS.html&quot;&gt;CQRS&lt;/a&gt;) pattern to decouple the read responsibility for different use cases.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image4.jpg&quot; alt=&quot;CQRS Pattern&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Clients of the fare life cycle read the current fare and create events to change the fare value as per their logic. Clients can also access fare events, when required. This pattern enable clients to modify fares independently, and give them visibility to the sequence for different business needs.&lt;/p&gt;
-
-&lt;p&gt;The diagram below describes the overall fare life cycle from creation, modification to display using the event store.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image5.png&quot; alt=&quot;Overall Fare Life Cycle&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;architecture-overview&quot;&gt;Architecture Overview&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image6.jpg&quot; alt=&quot;Fare Cycle Architecture&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Clients interact with the Fare LifeCycle service through an SDK. The SDK offers various features such as metadata serialisation, deserialisation, retries, and timeouts configurations, some of which are discussed later.&lt;/p&gt;
-
-&lt;p&gt;The &lt;em&gt;Fare LifeCycle Store&lt;/em&gt; service uses DynamoDB as Event Store to persist and read the fare change events backed by a cache for eventually consistent reads. For further processing, such as archiving and generation of receipts, the successfully updated events are streamed out to a message queue system.&lt;/p&gt;
-
-&lt;h2 id=&quot;ensuring-the-integrity-of-the-fare-sequence&quot;&gt;Ensuring the Integrity of the Fare Sequence&lt;/h2&gt;
-
-&lt;p&gt;Democratising the responsibility of fare modification means that multiple services might try to update the fare in parallel without prior synchronisation. Concurrent fare updates for the same booking might result in a race condition. Concurrency and consistency problems are always highlights of distributed storage systems.&lt;/p&gt;
-
-&lt;p&gt;Let’s understand why the ordering of fare updates are important. Business rules for different cities and countries regulate the pricing features based on local market conditions and prevailing laws. For example, in some scenarios, &lt;em&gt;Tolls&lt;/em&gt; and &lt;em&gt;Waiting Fees&lt;/em&gt; may not be eligible for discounts or promotions. The service applying discounts needs to consider this information while applying a discount. Therefore, updates to the fare are not independent of the previous fare events.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image3.jpg&quot; alt=&quot;Fare Integrity&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;We needed a mechanism to detect race conditions and handle them appropriately to ensure the integrity of the fare. To handle race conditions based on our use case, we explored &lt;a href=&quot;https://en.wikipedia.org/wiki/Lock_(computer_science)&quot;&gt;Pessimistic and Optimistic locking mechanisms&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;All the expected fare change events happen based on certain conditions being true or false. For example, less than 1% of the bookings have a payment change request initiated by passengers during a ride. And, the probability of multiple similar changes happening on the same booking is rather low. &lt;em&gt;Optimistic Locking&lt;/em&gt; offers both efficiency and correctness for our requirements where the chances of race conditions are low, and the records are independent of each other.&lt;/p&gt;
-
-&lt;p&gt;The logic to calculate the fare/surcharge is coupled with the business logic of the system that calculates the fare component or fees. So, handling data race conditions on the data store layer was not an acceptable option either. It made more sense to let the clients handle it and keep the storage system decoupled from the business logic to compute the fare.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image8.jpg&quot; alt=&quot;Optimistic Locking&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;To achieve &lt;em&gt;Optimistic Locking&lt;/em&gt;, we store a fare version and increment it on every successful update. The client must pass the version they read to modify the fare. Should there be a version mismatch between the update query and the current fare, the update is rejected. On version mismatches, the clients read the updated checksum(version) and retry with the recalculated fare.&lt;/p&gt;
-
-&lt;h2 id=&quot;idempotency-of-event-updates&quot;&gt;Idempotency of Event Updates&lt;/h2&gt;
-
-&lt;p&gt;The next challenge we came across was how to handle client retries - ensuring that we do not duplicate the same event for the booking. Clients might encounter sporadic errors as a result of network-related issues, although the update was successful. Under such circumstances, clients retry to update the same event, resulting in duplicate events. Duplicate events not only result in an extra space requirement, but it also impairs the clients’ understanding on whether we’ve taken an action multiple times on the fare.&lt;/p&gt;
-
-&lt;p&gt;As discussed in the previous section, retrying with the same version would fail due to the version mismatch. If the previous attempt successfully modified the fare, it would also update the version.&lt;/p&gt;
-
-&lt;p&gt;However, clients might not know if their update modified the version or if any other clients updated the data. Relying on clients to check for event duplication makes the client-side complex and leaves a chance of error if the clients do not handle it correctly.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image9.jpg&quot; alt=&quot;Solution for Duplicate Events&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;To handle the duplicate events, we associate each event with a unique UUID (&lt;code class=&quot;highlighter-rouge&quot;&gt;transactionID&lt;/code&gt;) generated from the client-side using a UUID library from the Fare LifeCycle service SDK. We check whether the &lt;code class=&quot;highlighter-rouge&quot;&gt;transactionID&lt;/code&gt; is already part of successful transaction IDs before updating the fare. If we identify a non-unique &lt;code class=&quot;highlighter-rouge&quot;&gt;transactionID&lt;/code&gt;, we return duplicate event errors to the client.&lt;/p&gt;
-
-&lt;p&gt;For unique &lt;code class=&quot;highlighter-rouge&quot;&gt;transactionIDs&lt;/code&gt;, we append it to the list of transactionIDs and save it to the Event Store along with the event.&lt;/p&gt;
-
-&lt;h2 id=&quot;schema-less-metadata&quot;&gt;Schema-less Metadata&lt;/h2&gt;
-
-&lt;p&gt;Metadata are the breakdowns associated with the fare. We require the metadata for specific fee/fare calculation for the generation of receipts and debugging purposes. Thus, for the storage system and multiple clients, they need not know the metadata definition of all events.&lt;/p&gt;
-
-&lt;p&gt;One goal for our data store was to give our clients the flexibility to add new fields to existing metadata or to define new metadata without changing the API. We adopted an SDK-based approach for metadata, where clients interact with the Fare LifeCycle service via SDK. The SDK has the following responsibilities for metadata:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Serialise the metadata into bytes before making an API call to the Fare LifeCycle service.&lt;/li&gt;
-  &lt;li&gt;Deserialise the bytes metadata returned from the Fare LifeCycle service into a Go struct for client access.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/democratising-fare-storage-at-scale-using-event-sourcing/image7.jpg&quot; alt=&quot;Fare LifeCycle SDK&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Serialising and deserialising the metadata on the client-side decoupled it from the Fare LifeCycle Store API. This helped teams update the metadata without deploying the storage service each time.&lt;/p&gt;
-
-&lt;p&gt;For reading the breakdown, the clients pass the metadata bytes to the SDK along with the Event Type, and then it converts them back into the corresponding proto schema. With this approach, clients can update the metadata without changing the Data Store Service.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;The Fare LifeCycle service enabled us to revolutionise the fare storage at scale for Grab’s ecosystem of services. Further benefits realised with the system are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The feature agnostic platform helped us to reduce the time-to-market for our hyper-local features so that we can further outserve our consumers and driver-partners.&lt;/li&gt;
-  &lt;li&gt;Decoupling the fare information from the booking information also helped us to achieve a better separation of concerns between services.&lt;/li&gt;
-  &lt;li&gt;Improve the overall reliability and scalability of the Grab platform by decoupling fare and booking information, allowing them to scale independently of each other.&lt;/li&gt;
-  &lt;li&gt;Reduce unnecessary coupling between services to fetch fare related information and update fare.&lt;/li&gt;
-  &lt;li&gt;The audit-trail of fare changes in the chronological order reduced the time to debug fare and improved our response to consumers for fare-related queries.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We hope this post helped you to have a closer look at how we used the Event Source pattern for building a data store and how we handled a few caveats and challenges in the process.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored by Sourabh Suman on behalf of the Pricing team at Grab. Special thanks to Karthik Gandhi, Kurni Famili, ChandanKumar Agarwal, Adarsh Koyya, Niteesh Mehra, Sebastian Wong, Matthew Saw, Muhammad Muneer, and Vishal Sharma for their contributions.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
-
-&lt;p&gt;If you share our vision of driving South East Asia forward, &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;apply&lt;/a&gt; to join our team today.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 23 Nov 2020 06:21:00 +0000</pubDate>
-        <link>https://engineering.grab.com/democratising-fare-storage-at-scale-using-event-sourcing</link>
-        <guid isPermaLink="true">https://engineering.grab.com/democratising-fare-storage-at-scale-using-event-sourcing</guid>
-        
-        <category>Pricing</category>
-        
-        <category>Event Sourcing</category>
-        
-        <category>Fare Storage</category>
         
         
         <category>Engineering</category>
