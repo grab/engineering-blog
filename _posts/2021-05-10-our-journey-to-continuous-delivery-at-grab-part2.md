@@ -45,7 +45,7 @@ Hermeticity is maintained by registering the deployment parameters as artefacts 
 
 ![](../img/our-journey-to-continuous-delivery-at-grab-part2/image12.png)
 
-At this point, you might be wondering:why not use a single pipeline that includes both staging and production deployments? This was indeed how it started, with a single pipeline spanning multiple environments. However, engineers soon complained about it.
+At this point, you might be wondering: why not use a single pipeline that includes both staging and production deployments? This was indeed how it started, with a single pipeline spanning multiple environments. However, engineers soon complained about it.
 
 The most obvious reason for the complaint was that less than 20% of changes deployed in staging will make their way to production. This meant that engineers would have toil associated with each completed staging deployment since the pipeline must be manually cancelled rather than continued to production.
 
