@@ -53,7 +53,7 @@ The other reason is that this multi-environment pipeline approach reduced flexib
 
 ![](../img/our-journey-to-continuous-delivery-at-grab-part2/image7.png)
 
-Eventually, engineers promote a deployment artefact to production. However they do not need to apply changes in the same sequence with which were applied to staging. Furthermore, to prevent erroneous actions, Conveyor presents only changes that can be applied with the requested pipeline (and sometimes, no changes are available). Not being forced into a specific method of deploying changes is one of added benefit of hermetic deployments.
+Eventually, engineers promote a deployment artefact to production. However they do not need to apply changes in the same sequence with which were applied to staging. Furthermore, to prevent erroneous actions, Conveyor presents only changes that can be applied with the requested pipeline (and sometimes, no changes are available). Not being forced into a specific method of deploying changes is one of added benefits of hermetic deployments.
 
 ## Returning to Our Journey Towards Engineering Efficiency
 
@@ -77,7 +77,7 @@ All these improvements made over the last 2 years have reduced the effort spent 
 
 If you are an engineer working on DevOps in your organisation, you know how hard it can be to measure the impact you made on your organisation. To estimate the time saved by our pipelines, we can model the activities that were previously done manually with a rudimentary weighted graph. In this graph, each edge carries a probability of the activity being performed (100% when unspecified), while each vertex carries the time taken for that activity.
 
-Focusing on our regular staging deployments only, such a graph would looks like this:
+Focusing on our regular staging deployments only, such a graph would look like this:
 
 ![](../img/our-journey-to-continuous-delivery-at-grab-part2/image8.png)
 
