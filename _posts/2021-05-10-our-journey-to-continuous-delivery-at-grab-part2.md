@@ -103,7 +103,7 @@ Moreover, efficiency was not the only benefit brought by the use of deployment p
 
 ## Keep Calm and Automate
 
-Since the first draft for this post was written, we've made many more improvements to our pipelines. We've begun automating Database Migrations; we've extended our set of hermetic variables to AMI updates; and we're working towards supporting container deployments.
+Since the first draft for this post was written, we've made many more improvements to our pipelines. We've begun automating Database Migrations; we've extended our set of hermetic variables to Amazon Machine Image (AMI) updates; and we're working towards supporting container deployments.
 
 Through automation, all of Conveyor's deployment pipelines have contributed to save more than 5,000 man-days of efforts in 2020 alone, across all supported teams. That's around 20 man-years worth of effort, which is around 3 times the capacity of the team working on the project! Investments in our automation pipelines have more than paid for themselves, and the gains go up every year as more workflows are automated and more teams are onboarded.
 
