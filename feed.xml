@@ -6,9 +6,156 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 21 Apr 2021 10:40:27 +0000</pubDate>
-    <lastBuildDate>Wed, 21 Apr 2021 10:40:27 +0000</lastBuildDate>
+    <pubDate>Tue, 11 May 2021 03:16:14 +0000</pubDate>
+    <lastBuildDate>Tue, 11 May 2021 03:16:14 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Our Journey to Continuous Delivery at Grab (Part 2)</title>
+        <description>&lt;p&gt;&lt;a href=&quot;https://engineering.grab.com/our-journey-to-continuous-delivery-at-grab&quot;&gt;In the first part of this blog post&lt;/a&gt;, you’ve read about the improvements made to our build and staging deployment process, and how plenty of manual tasks routinely taken by engineers have been automated with &lt;em&gt;Conveyor&lt;/em&gt;: an in-house continuous delivery solution.&lt;/p&gt;
+
+&lt;p&gt;This new post begins with the introduction of the hermeticity principle for our deployments, and how it improves the confidence with promoting changes to production. Changes sent to production via Conveyor’s deployment pipelines are then described in detail.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/our-journey-to-continuous-delivery-at-grab-part2/image11.png&quot; alt=&quot;Overview of Grab delivery process&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Overview of Grab delivery process&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Finally, looking back at the engineering efficiency improvements around velocity and reliability over the last 2 years, we answer the big question - was the investment on a custom continuous delivery solution like Conveyor the right decision for Grab?&lt;/p&gt;
+
+&lt;h2 id=&quot;improving-confidence-in-our-production-deployments-with-hermeticity&quot;&gt;Improving Confidence in our Production Deployments with Hermeticity&lt;/h2&gt;
+
+&lt;p&gt;The term &lt;em&gt;deployment hermeticity&lt;/em&gt; is borrowed from build systems. A build system is called hermetic if builds always produce the same artefacts regardless of changes in the environment they run on. Similarly, we call our deployments hermetic if they always result in the same deployed artefacts regardless of the environment’s change or the number of times they are executed.&lt;/p&gt;
+
+&lt;p&gt;The behaviour of a service is rarely controlled by a single variable. The application that makes up your service is an important driver of its behaviour, but its configuration is an important contributor, for example. The behaviour for traditional microservices at Grab is dictated mainly by 3 versioned artefacts: application code, static and dynamic configuration.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/our-journey-to-continuous-delivery-at-grab-part2/image14.png&quot; /&gt;&lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Conveyor has been integrated with the systems that operate changes in each of these parameters. By tracking all 3 parameters at every deployment, Conveyor can reproducibly deploy microservices with similar behaviour: its deployments are hermetic.&lt;/p&gt;
+
+&lt;p&gt;Building upon this property, Conveyor can ensure that all deployments made to production have been tested before with the same combination of parameters. This is valuable to us:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;An outcome of staging deployments for a specific set of parameters is a good predictor of outcomes in production deployments for the same set of parameters and thus it makes testing in staging more relevant.&lt;/li&gt;
+  &lt;li&gt;Rollbacks are hermetic; we never rollback to a combination of parameters that has not been used previously.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image10.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In the past, incidents had resulted from an application rollback not compatible with the current dynamic configuration version; this was aggravating since rollbacks are expected to be a safe recovery mechanism. The introduction of hermetic deployments has largely eliminated this category of problems.&lt;/p&gt;
+
+&lt;p&gt;Hermeticity is maintained by registering the deployment parameters as artefacts after each successfully completed pipeline. Users must then select one of the registered deployment metadata to promote to production.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image12.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;At this point, you might be wondering: why not use a single pipeline that includes both staging and production deployments? This was indeed how it started, with a single pipeline spanning multiple environments. However, engineers soon complained about it.&lt;/p&gt;
+
+&lt;p&gt;The most obvious reason for the complaint was that less than 20% of changes deployed in staging will make their way to production. This meant that engineers would have toil associated with each completed staging deployment since the pipeline must be manually cancelled rather than continued to production.&lt;/p&gt;
+
+&lt;p&gt;The other reason is that this multi-environment pipeline approach reduced flexibility when promoting changes to production. There are different ways to apply changes to a cluster. For example, lengthy pipelines that refresh instances can be used to deploy any combination of changes, while there are quicker pipelines restricted to dynamic configuration changes (such as feature flags rollouts). Regardless of the order in which the changes are made and how they are applied, Conveyor tracks the change.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image7.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Eventually, engineers promote a deployment artefact to production. However they do not need to apply changes in the same sequence with which were applied to staging. Furthermore, to prevent erroneous actions, Conveyor presents only changes that can be applied with the requested pipeline (and sometimes, no changes are available). Not being forced into a specific method of deploying changes is one of added benefits of hermetic deployments.&lt;/p&gt;
+
+&lt;h2 id=&quot;returning-to-our-journey-towards-engineering-efficiency&quot;&gt;Returning to Our Journey Towards Engineering Efficiency&lt;/h2&gt;
+
+&lt;p&gt;If you can recall, the first part of this blog post series ended with a description of staging deployment. Our deployment to production starts with a verification that we uphold our hermeticity principle, as explained above.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image9.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Our production deployment pipelines can run for several hours for large clusters with rolling releases (few run for days), so we start by acquiring locks to ensure there are no concurrent deployments for any given cluster.&lt;/p&gt;
+
+&lt;p&gt;Before making any changes to the environment, we automatically generate release notes, giving engineers a chance to abort if the wrong set of changes are sent to production.&lt;/p&gt;
+
+&lt;p&gt;The pipeline next waits for a deployment slot. Early on, engineers adopted deployment windows that coincide with office hours, such that if anything goes wrong, there is always someone on hand to help. Prior to the introduction of Conveyor, however, engineers would manually ask a Slack bot for approval. This interaction is now automated, and the only remaining action left is for the engineer to approve that the deployment can proceed via a single click, in line with our hands-off deployment principle.&lt;/p&gt;
+
+&lt;p&gt;When the canary is in production, Conveyor automates monitoring it. This process is similar to the one already discussed &lt;a href=&quot;https://engineering.grab.com/our-journey-to-continuous-delivery-at-grab&quot;&gt;in the first part of this blog post&lt;/a&gt;: Engineers can configure a set of alerts that Conveyor will keep track of. As soon as any one of the alerts is triggered, Conveyor automatically rolls back the service.&lt;/p&gt;
+
+&lt;p&gt;If no alert is raised for the duration of the monitoring period, Conveyor waits again for a deployment slot. It then publishes the release notes for that deployment and completes the deployments for the cluster. After the lock is released and the deployment registered, the pipeline finally comes to its successful completion.&lt;/p&gt;
+
+&lt;h2 id=&quot;benefits-of-our-journey-towards-engineering-efficiency&quot;&gt;Benefits of Our Journey Towards Engineering Efficiency&lt;/h2&gt;
+
+&lt;p&gt;All these improvements made over the last 2 years have reduced the effort spent by engineers on deployment while also reducing the failure rate of our deployments.&lt;/p&gt;
+
+&lt;p&gt;If you are an engineer working on DevOps in your organisation, you know how hard it can be to measure the impact you made on your organisation. To estimate the time saved by our pipelines, we can model the activities that were previously done manually with a rudimentary weighted graph. In this graph, each edge carries a probability of the activity being performed (100% when unspecified), while each vertex carries the time taken for that activity.&lt;/p&gt;
+
+&lt;p&gt;Focusing on our regular staging deployments only, such a graph would look like this:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The overall amount of effort automated by the staging pipelines (&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image1.png&quot; alt=&quot;&quot; /&gt;) is represented in the graph above. It can be converted into the equation below:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;This equation shows that for each staging deployment, around 16 minutes of work have been saved. Similarly, for regular production deployments, we find that 67 minutes of work were saved for each deployment:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image13.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image5.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image6.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Moreover, efficiency was not the only benefit brought by the use of deployment pipelines for our traditional microservices. Surprisingly perhaps, the rate of failures related to production changes is progressively reducing while the amount of production changes that were made with Conveyor increased across the organisation (starting at 1.5% of failures per deployments, and finishing at 0.3% on average over the last 3 months for the period of data collected):&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image15.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;keep-calm-and-automate&quot;&gt;Keep Calm and Automate&lt;/h2&gt;
+
+&lt;p&gt;Since the first draft for this post was written, we’ve made many more improvements to our pipelines. We’ve begun automating Database Migrations; we’ve extended our set of hermetic variables to Amazon Machine Image (AMI) updates; and we’re working towards supporting container deployments.&lt;/p&gt;
+
+&lt;p&gt;Through automation, all of Conveyor’s deployment pipelines have contributed to save more than 5,000 man-days of efforts in 2020 alone, across all supported teams. That’s around 20 man-years worth of effort, which is around 3 times the capacity of the team working on the project! Investments in our automation pipelines have more than paid for themselves, and the gains go up every year as more workflows are automated and more teams are onboarded.&lt;/p&gt;
+
+&lt;p&gt;If Conveyor has saved efforts for engineering teams, has it then helped to improve velocity? I had opened the first part of this blog post with figures on the deployment funnel for microservice teams at Grab, towards the end of 2018. So where do the figures stand today for these teams?&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;../img/our-journey-to-continuous-delivery-at-grab-part2/image16.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In the span of 2 years, the average number of build and staging deployment performed each day has not varied much. However, in the last 3 months of 2020, engineers have sent twice more changes to production than they did for the same period in 2018.&lt;/p&gt;
+
+&lt;p&gt;Perhaps the biggest recognition received by the team working on the project, was from Grab’s engineers themselves. In the 2020 internal NPS survey for engineering experience at Grab, Conveyor received the highest score of any tools (built in-house or not).&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;All these improvements in efficiency for our engineers would never have been possible without the hard work of all team members involved in the project, past and present: Tanun Chalermsinsuwan, Aufar Gilbran, Deepak Ramakrishnaiah, Repon Kumar Roy (Kowshik), Su Han, Voislav Dimitrijevikj, Stanley Goh, Htet Aung Shine, Evan Sebastian, Qijia Wang, Oscar Ng, Jacob Sunny, Subhodip Mandal and many others who have contributed and collaborated with them.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 10 May 2021 08:10:20 +0000</pubDate>
+        <link>https://engineering.grab.com/our-journey-to-continuous-delivery-at-grab-part2</link>
+        <guid isPermaLink="true">https://engineering.grab.com/our-journey-to-continuous-delivery-at-grab-part2</guid>
+        
+        <category>Deployment</category>
+        
+        <category>CI</category>
+        
+        <category>Continuous Integration</category>
+        
+        <category>Continuous Deployment</category>
+        
+        <category>Deployment Process</category>
+        
+        <category>Continuous Delivery</category>
+        
+        <category>Multi Cloud</category>
+        
+        <category>Hermetic Deployments</category>
+        
+        <category>Automation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>How We Improved Agent Chat Efficiency with Machine Learning</title>
@@ -1728,310 +1875,6 @@ Expected check order: B, D, C
         
         
         <category>Security</category>
-        
-      </item>
-    
-      <item>
-        <title>How Grab is Blazing Through the Superapp Bazel Migration</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;At Grab, we build a seamless user experience that addresses more and more of the daily lifestyle needs of people across Southeast Asia. We’re proud of our Grab rides, payments, and delivery services, and want to provide a unified experience across these offerings.&lt;/p&gt;
-
-&lt;p&gt;Here are a couple of examples of what Grab does for millions of people across Southeast Asia every day:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/how-grab-is-blazing-through-the-super-app-bazel-migration/image2.jpg&quot; alt=&quot;Grab Service Offerings&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Grab Service Offerings&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;The Grab Passenger application reached superapp status more than a year ago and continues to provide hundreds of life-changing use cases in dozens of areas for millions of users.&lt;/p&gt;
-
-&lt;p&gt;With the big product scale, it brings with it even bigger technical challenges. Here are a couple of dimensions that can give you a sense of the scale we’re working with.&lt;/p&gt;
-
-&lt;h3 id=&quot;engineering-and-product-structure&quot;&gt;Engineering and Product Structure&lt;/h3&gt;
-
-&lt;p&gt;Technical and product teams work in close collaboration to outserve our consumers. These teams are combined into dedicated groups to form Tech Families and focus on similar use cases and areas.&lt;/p&gt;
-
-&lt;p&gt;Grab consists of many Tech Families who work on food, payments, transport, and other services, which are supported by hundreds of engineers. The diverse landscape makes the development process complicated and requires the industry’s best practices and approaches.&lt;/p&gt;
-
-&lt;h3 id=&quot;codebase-scale-overview&quot;&gt;Codebase Scale Overview&lt;/h3&gt;
-
-&lt;p&gt;The Passenger Applications (Android and iOS) contain more than &lt;strong&gt;2.5 million lines of code&lt;/strong&gt; each and it keeps growing. We have &lt;strong&gt;1000+ modules&lt;/strong&gt; in the Android app and &lt;strong&gt;700+ targets&lt;/strong&gt; in the iOS app. Hundreds of commits are merged by all the mobile engineers on a daily basis.&lt;/p&gt;
-
-&lt;p&gt;To maintain the health of the codebase and product stability, we run &lt;strong&gt;40K+ unit tests&lt;/strong&gt; on Android and &lt;strong&gt;30K+ unit tests&lt;/strong&gt; on iOS, as well as thousands of UI tests and hundreds of end-to-end tests on both platforms.&lt;/p&gt;
-
-&lt;h2 id=&quot;build-time-challenges&quot;&gt;Build Time Challenges&lt;/h2&gt;
-
-&lt;p&gt;The described complexity and scale do not come without challenges. A huge codebase propels the build process to the ultimate extreme- challenging the efficiency of build systems and hardware used to compile the superapp, and creating out of the line challenges to be addressed.&lt;/p&gt;
-
-&lt;h3 id=&quot;local-build-time&quot;&gt;Local Build Time&lt;/h3&gt;
-
-&lt;p&gt;Local build time (the build on engineers’ laptop) is one of the most obvious challenges. More code goes in the application binary, hence the build system requires more time to compile it.&lt;/p&gt;
-
-&lt;h4 id=&quot;adr-local-build-time&quot;&gt;ADR Local Build Time&lt;/h4&gt;
-
-&lt;p&gt;The Android ecosystem provides a great out-of-the-box tool to build your project called &lt;em&gt;Gradle&lt;/em&gt;. It’s flexible and user friendly, and  provides huge capabilities for a reasonable cost. But is this always true? It appears to not be the case due to multiple reasons. Let’s unpack these reasons below.&lt;/p&gt;
-
-&lt;p&gt;Gradle performs well for medium sized projects with say 1 million line of code. Once the code surpasses that 1 million mark (or so), Gradle starts failing in giving engineers a reasonable build time for the given flexibility. And that’s exactly what we have observed in our Android application.&lt;/p&gt;
-
-&lt;p&gt;At some point in time, the Android local build became ridiculously long. We even encountered cases  where engineers’ laptops simply failed to build the project due to hardware resources limits. Clean builds took by the hours, and incremental builds easily hit dozens of minutes.&lt;/p&gt;
-
-&lt;h4 id=&quot;ios-local-build-time&quot;&gt;iOS Local Build Time&lt;/h4&gt;
-
-&lt;p&gt;Xcode behaved a bit better compared to Gradle. The Xcode build cache was somehow bearable for incremental builds and didn’t exceed a couple of minutes. Clean builds still took dozens of minutes though. When Xcode failed to provide the valid cache, engineers had to rerun everything as a clean build, which killed the experience entirely.&lt;/p&gt;
-
-&lt;h3 id=&quot;ci-pipeline-time&quot;&gt;CI Pipeline Time&lt;/h3&gt;
-
-&lt;p&gt;Each time an engineer submits a Merge Request (MR), our CI kicks in running a wide variety of jobs to ensure the commit is valid and doesn’t introduce regression to the master branch. The feedback loop time is critical here as well, and the pipeline time tends to skyrocket alongside the code base growth. We found ourselves on the trend where the feedback loop came in by the hours, which again was just breaking the engineering experience, and prevented  us from delivering the world’s best features to our consumers.&lt;/p&gt;
-
-&lt;p&gt;As mentioned, we have a large number of unit tests (30K-40K+) and UI tests (700+) that we run on a pre-merge pipeline. This brings us to hours of execution time before we could actually allow MRs to land to the master branch.&lt;/p&gt;
-
-&lt;p&gt;The number of daily commits, which is by the hundreds, adds another stone to the basket of challenges.&lt;/p&gt;
-
-&lt;p&gt;All this clearly indicated the area of improvement. We were missing opportunities in terms of engineering productivity.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-extra-mile&quot;&gt;The Extra Mile&lt;/h2&gt;
-
-&lt;p&gt;The biggest question for us to answer was how to put all this scale into a reasonable experience with minimal engineering idle time and fast feedback loop.&lt;/p&gt;
-
-&lt;h3 id=&quot;build-time-critical-path-optimisation&quot;&gt;Build Time Critical Path Optimisation&lt;/h3&gt;
-
-&lt;p&gt;The most reasonable thing to do was to pay attention to the utilisation of the hardware resources and make the build process optimal.&lt;/p&gt;
-
-&lt;p&gt;This literally boiled down to the simplest approach:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Decouple building blocks&lt;/li&gt;
-  &lt;li&gt;Make building blocks as small as possible&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;This approach is valid for any build system and applies  for both iOS and Android. The first thing we focused on was to understand what our build graph looked like, how dependencies were distributed, and which blocks were bottlenecks.&lt;/p&gt;
-
-&lt;p&gt;Given the scale of the apps, it’s practically not possible to manage a dependency tree manually, thus we created a tool to help us.&lt;/p&gt;
-
-&lt;h4 id=&quot;critical-path-overview&quot;&gt;Critical Path Overview&lt;/h4&gt;
-
-&lt;p&gt;We introduced the Critical Path concept:&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;The critical path is the longest (time) chain of sequential dependencies, which must be built one after the other.&lt;/em&gt;&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/how-grab-is-blazing-through-the-super-app-bazel-migration/image3.png&quot; alt=&quot;Critical Path&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Critical Path build&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Even with an infinite number of parallel processors/cores, the total build time cannot be less than the critical path time.&lt;/p&gt;
-
-&lt;p&gt;We implemented the tool that parsed the dependency trees (for both Android and iOS), aggregated modules/target build time, and calculated the critical path.&lt;/p&gt;
-
-&lt;p&gt;The concept of the critical path introduced a number of action items, which we prioritised:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The critical path must be as short as possible.&lt;/li&gt;
-  &lt;li&gt;Any huge module/target on the critical path must be split into smaller modules/targets.&lt;/li&gt;
-  &lt;li&gt;Depend on interfaces/bridges rather than implementations to shorten the critical path.&lt;/li&gt;
-  &lt;li&gt;The presence of other teams’ implementation modules/targets in the critical path of the given team is a red flag.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/how-grab-is-blazing-through-the-super-app-bazel-migration/image1.png&quot; alt=&quot;Stack representation of the Critical Path build time&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Stack representation of the Critical Path build time&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h4 id=&quot;projects-scale-factor&quot;&gt;Project’s Scale Factor&lt;/h4&gt;
-
-&lt;p&gt;To implement the conceptually easy action items, we ran a Grab-wide program. The programme has impacted almost every mobile team at Grab and involved &lt;strong&gt;200+ engineers&lt;/strong&gt; to some degree. The whole implementation took 6 months to complete.&lt;/p&gt;
-
-&lt;p&gt;During this period of time, we assigned engineers who were responsible to review the changes, provide support to the engineers across Grab, and monitor the results.&lt;/p&gt;
-
-&lt;h4 id=&quot;results&quot;&gt;Results&lt;/h4&gt;
-
-&lt;p&gt;Even though the overall plan seemed to be good on paper, the results were minimal - it just flattened the build time curve of the upcoming trend introduced by the growth of the codebase. The estimated impact was almost the same for both platforms and gave us about a &lt;strong&gt;7%-10% cut in the CI and local build time&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;h4 id=&quot;open-source-plan&quot;&gt;Open Source Plan&lt;/h4&gt;
-
-&lt;p&gt;The critical path tool proved to be effective to illustrate the projects’ bottlenecks in a dependency tree configuration. It is currently widely used by mobile teams at Grab to analyse their dependencies and cut out or limit an unnecessary impact on the respective scope.&lt;/p&gt;
-
-&lt;p&gt;The tool is currently considered to be open-sourced as we’d like to hear feedback from other external teams and see what can be built on top of it. We’ll provide more details on this in future posts.&lt;/p&gt;
-
-&lt;h3 id=&quot;remote-build&quot;&gt;Remote Build&lt;/h3&gt;
-
-&lt;p&gt;Another pillar of the  build process is the hardware where the build runs. The solution is really straightforward - put more muscles on your build to get it stronger and to run faster.&lt;/p&gt;
-
-&lt;p&gt;Clearly, our engineers’ laptops could not be considered fast enough. To have a fast enough build we were looking at something with &lt;em&gt;20+ cores, ~200Gb of RAM&lt;/em&gt;. None of the desktop or laptop computers can reach those numbers within reasonable pricing. We hit a bottleneck in hardware. Further parallelization of the build process didn’t give any significant improvement as all the build tasks were just queueing and waiting for the resources to be released. And that’s where cloud computing came into the picture where a huge variety of available options is ready to be used.&lt;/p&gt;
-
-&lt;h4 id=&quot;adr-mainframer&quot;&gt;ADR Mainframer&lt;/h4&gt;
-
-&lt;p&gt;We took advantage of the &lt;a href=&quot;https://github.com/buildfoundation/mainframer&quot;&gt;Mainframer&lt;/a&gt; tool. When the build must run, the code diff is pushed to the remote executor, gets compiled, and then the generated artifacts are pushed back to the local machine. An engineer might still benefit from indexing, debugging, and other features available in the IDE.&lt;/p&gt;
-
-&lt;p&gt;To make the infrastructure mature enough, we’ve introduced Kubernetes-based autoscaling based on the load. Currently, we have a stable infrastructure that accommodates &lt;strong&gt;100+ Android engineers scaling up and down (saving costs)&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;This strategy gave us a &lt;strong&gt;40-50% improvement in the local build time&lt;/strong&gt;. Android builds finished, in the extreme case, &lt;strong&gt;x2 faster&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;h4 id=&quot;ios&quot;&gt;iOS&lt;/h4&gt;
-
-&lt;p&gt;Given the success of the Android remote build infrastructure, we have immediately turned our attention to the iOS builds. It was an obvious move for us - we wanted the same infrastructure for iOS builds. The idea looked good on paper and was proven with Android infrastructure, but the reality was a bit different for our iOS builds.&lt;/p&gt;
-
-&lt;p&gt;Our very first roadblock was that Xcode is not that flexible and the process of delegating builds to remote is way more complicated as compared to Android. We tackled a series of blockers such as running indexing on a remote machine, sending and consuming build artifacts, and even running the remote build itself.&lt;/p&gt;
-
-&lt;p&gt;The reality was that the remote build was absolutely possible for iOS. There were minor tradeoffs impacting engineering experience alongside obvious gains from utilising cloud computing resources. But the problem is that legally iOS builds are only allowed to be built on an Apple machine.&lt;/p&gt;
-
-&lt;p&gt;Even if we get the most powerful hardware - a macPro -  the specs are still not ideal and are unfortunately not optimised for the build process. A &lt;em&gt;24 core, 194Gb RAM macPro&lt;/em&gt; could have given about x2 improvement on the build time, but when it had to run 3 builds simultaneously for different users, the build efficiency immediately dropped to the baseline value.&lt;/p&gt;
-
-&lt;p&gt;Android remote machines with the above same specs are capable of running up to &lt;strong&gt;8 simultaneous builds&lt;/strong&gt;. This allowed us to accommodate up to &lt;strong&gt;30-35 engineers&lt;/strong&gt; per machine, whereas iOS’ infrastructure would require to keep this balance at &lt;strong&gt;5-6 engineers&lt;/strong&gt; per machine. This solution didn’t seem to be scalable at all, causing us to abandon the idea of the remote builds for iOS at that moment.&lt;/p&gt;
-
-&lt;h3 id=&quot;test-impact-analysis&quot;&gt;Test Impact Analysis&lt;/h3&gt;
-
-&lt;p&gt;The other battlefront was the CI pipeline time. Our efforts in dependency tree optimisations complemented with comparably powerful hardware played a good part in achieving a reasonable build time on CI.&lt;/p&gt;
-
-&lt;p&gt;CI validations also include the execution of unit and UI tests and easily take 50%-60% of the pipeline time. The problem was getting worse as the number of tests was constantly growing. We were to face incredibly huge tests’ execution time in the near future. We could mitigate the problem by a muscle approach - throwing more runners and shredding tests - but it won’t make finance executives happy.&lt;/p&gt;
-
-&lt;p&gt;So the time for smart solutions came again. It’s a known fact that the simpler solution is more likely to be correct. The simplest solution was to stop running &lt;em&gt;ALL&lt;/em&gt; tests. The idea was to run only those tests that were impacted by the codebase change introduced in the given MR.&lt;/p&gt;
-
-&lt;p&gt;Behind this simple idea, we’ve found a huge impact. Once the &lt;em&gt;Test Impact Analysis&lt;/em&gt; was applied to the pre-merge pipelines, we’ve managed to cut down the total number of executed tests by up to &lt;strong&gt;90%&lt;/strong&gt; without any impact on the codebase quality or applications’ stability. As a result, &lt;strong&gt;we cut the pipeline for both platforms by more than 30%&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;Today, the Test Impact Analysis is coupled with our codebase. We are looking to  invest some effort to make it available for open sourcing. We are excited to be  on this path.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-end-of-the-native-build-systems&quot;&gt;The End of the Native Build Systems&lt;/h2&gt;
-
-&lt;p&gt;One might say that our journey was long and we won the battle for the build time.&lt;/p&gt;
-
-&lt;p&gt;Today, we hit a limit to the native build systems’ efficiency and hardware for both Android and iOS. And it’s clear to us that in our current setup, we would not be able to scale up while delivering high engineering experience.&lt;/p&gt;
-
-&lt;h2 id=&quot;lets-move-to-bazel&quot;&gt;Let’s Move to Bazel&lt;/h2&gt;
-
-&lt;p&gt;To introduce another big improvement to the build time, we needed to make some ground-level changes. And this time, we focused on the build system itself.&lt;/p&gt;
-
-&lt;p&gt;Native build systems are designed to work well for small and medium-sized projects, however they have not been as successful in large scale projects such as the Grab Passenger applications.&lt;/p&gt;
-
-&lt;p&gt;With these assumptions, we considered options and found the Bazel build system to be a good contender. The deep comparison of build systems disclosed that Bazel was promising better results almost in all key areas:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Bazel enables remote builds out of box&lt;/li&gt;
-  &lt;li&gt;Bazel provides sustainable cache capabilities (local and remote). This cache can be reused across all consumers - local builds, CI builds&lt;/li&gt;
-  &lt;li&gt;Bazel was designed with the big codebase as a cornerstone requirement&lt;/li&gt;
-  &lt;li&gt;The majority of the tooling may be reused across multiple platforms&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;ways-of-adopting&quot;&gt;Ways of Adopting&lt;/h3&gt;
-
-&lt;p&gt;On paper, Bazel was awesome and shining. All our playground investigations showed positive results:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Cache worked great&lt;/li&gt;
-  &lt;li&gt;Incremental builds were incredibly fast&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;But the effort to shift to this new build system was huge. We made sure that we foresee all possible pitfalls and impediments. It took us about 5 months to estimate the impact and put together a sustainable proof of concept, which reflected the majority of our use cases.&lt;/p&gt;
-
-&lt;h4 id=&quot;migration-limitations&quot;&gt;Migration Limitations&lt;/h4&gt;
-
-&lt;p&gt;After those 5 months of investigation, we got the endless list of incompatible features and major blockers to be addressed. Those blockers touched even such obvious things as indexing and the &lt;em&gt;jump to definition&lt;/em&gt; IDE feature, which we used to take for granted.&lt;/p&gt;
-
-&lt;p&gt;But the biggest challenge was the need to keep the pace of the product release. There was no compromise of stopping the product development even for a day. The way out appeared to be a &lt;strong&gt;hybrid build&lt;/strong&gt; concept. We figured out how to marry native and Bazel build systems to live together in harmony. This move gave us a chance to start migrating target by target, project by project moving from the bottom to top of the dependency graph.&lt;/p&gt;
-
-&lt;p&gt;This approach was a valid enabler, however we were still faced with a challenge of our app’s  scale. The codebase of over 2.5 million of LOC cannot be migrated overnight. The initial estimation was based on the idea of manually migrating the whole codebase, which would have required us to invest dozens of person-months.&lt;/p&gt;
-
-&lt;h4 id=&quot;team-capacity-limitations&quot;&gt;Team Capacity Limitations&lt;/h4&gt;
-
-&lt;p&gt;This approach was immediately pushed back by multiple teams arguing with the priority and concerns about the impact on their own product roadmap.&lt;/p&gt;
-
-&lt;p&gt;We were left with not much  choice. On one hand, we had a pressingly long build time. And on the other hand, we were asking for a huge effort from teams. We clearly needed to get buy-ins from all of our stakeholders to push things forward.&lt;/p&gt;
-
-&lt;h3 id=&quot;getting-buy-in&quot;&gt;Getting Buy-in&lt;/h3&gt;
-
-&lt;p&gt;To get all needed buy-ins, all stakeholders were grouped and addressed separately. We defined key factors for each group.&lt;/p&gt;
-
-&lt;h4 id=&quot;key-factors&quot;&gt;Key Factors&lt;/h4&gt;
-
-&lt;p&gt;C-level stakeholders:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Impact&lt;/strong&gt;. The migration impact must be significant - at least a 40% decrease on the build time.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Costs&lt;/strong&gt;. Migration costs must be paid back in a reasonable time and the positive impact is extended to  the future.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Engineering experience&lt;/strong&gt;. The user experience must not be compromised. All tools and features engineers used must be available during migration and even after.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Engineers:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Engineering experience&lt;/strong&gt;. Similar to the criteria established at the C-level factor.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Early adopters engagement&lt;/strong&gt;. A common  core experience must be created across the mobile engineering community to support other engineers in the later stages.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Education&lt;/strong&gt;. Awareness campaigns must be in place. Planned and conducted a series of tech talks and workshops to raise awareness among engineers and cut the learning curve. We wrote hundreds of pages of documentation and guidelines.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Product teams:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;No roadmap impact&lt;/strong&gt;. Migration must not affect the product roadmap.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Minimise the engineering effort&lt;/strong&gt;. Migration must not increase the efforts from engineering.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;migration-automation-separate-talks&quot;&gt;Migration Automation (Separate Talks)&lt;/h4&gt;
-
-&lt;p&gt;The biggest concern for the majority of the stakeholders appeared to be the estimated migration effort, which impacted the cost, the product roadmap, and the engineering experience. It became evident that we needed to streamline the process and reduce the effort for migration.&lt;/p&gt;
-
-&lt;p&gt;Fortunately, the actual migration process was routine in nature, so we had opportunities for automation. We investigated ideas on automating the whole migration process.&lt;/p&gt;
-
-&lt;h4 id=&quot;the-tools-weve-created&quot;&gt;The Tools We’ve Created&lt;/h4&gt;
-
-&lt;p&gt;We found that it’s relatively easy to create a bunch of tools that read the native project structure and create an equivalent Bazel set up. This was a game changer.&lt;/p&gt;
-
-&lt;p&gt;Things moved pretty smoothly for both Android and iOS projects. We managed to roll out tooling to migrate the codebase in a single click/command (well with some exceptions as of now. Stay tuned for another blog post on this). With this tooling combined with the hybrid build concept, we addressed all the key buy-in factors:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Migration cost dropped by at least 50%.&lt;/li&gt;
-  &lt;li&gt;Less engineers required for the actual migration. There was no need to engage the wide engineering community as a small group of people can manage the whole process.&lt;/li&gt;
-  &lt;li&gt;There is no more impact on the product roadmap.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;where-we-stand-today&quot;&gt;Where We Stand Today&lt;/h2&gt;
-
-&lt;p&gt;When we were in the middle of the actual migration, we decided to take a pragmatic path and migrate our applications in phases to ensure everything was under control and that there were no unforeseen issues.&lt;/p&gt;
-
-&lt;p&gt;The hybrid build time is racing alongside our migration progress. It has a linear dependency on the amount of the migrated code. The figures look positive and we are confident in achieving our impact goal of &lt;strong&gt;decreasing at least 40% of the build time&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;plans-for-open-source&quot;&gt;Plans for Open Source&lt;/h3&gt;
-
-&lt;p&gt;The automated migration tooling we’ve created is planned to be open sourced. We are doing a bit better on the Android side decoupling it from our applications’ implementation details and plan to open source it in the near future.&lt;/p&gt;
-
-&lt;p&gt;The iOS tooling is a bit behind, and we expect it to be available for open-sourcing by the end of Q1’2021.&lt;/p&gt;
-
-&lt;h2 id=&quot;is-it-worth-it-all&quot;&gt;Is it Worth it All?&lt;/h2&gt;
-
-&lt;p&gt;Bazel is not a silver bullet for the build time and your project. There are a lot of edge cases you’ll never know until it punches you straight in your face.&lt;/p&gt;
-
-&lt;p&gt;It’s far from industry standard and you might find yourself having difficulty hiring engineers with such knowledge. It has a steep learning curve as well. It’s absolutely an overhead for small to medium-sized projects, but it’s undeniably essential once you start playing in a high league of superapps.&lt;/p&gt;
-
-&lt;p&gt;If you were to ask whether we’d go this path again, the answer would come in a &lt;strong&gt;fast and correct&lt;/strong&gt; way - yes, without any doubts.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored by Sergii Grechukha on behalf of the passenger app team at Grab. Special thanks to Madushan Gamage, Mikhail Zinov, Nguyen Van Minh, Mihai Costiug, Arunkumar Sampathkumar, Maryna Shaposhnikova, Pavlo Stavytskyi, Michael Goletto, Nico Liu, and Omar Gawish for their contributions.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 03 Dec 2020 04:30:00 +0000</pubDate>
-        <link>https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration</link>
-        <guid isPermaLink="true">https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration</guid>
-        
-        <category>Bazel</category>
-        
-        <category>Android</category>
-        
-        <category>iOS</category>
-        
-        <category>Build Time</category>
-        
-        <category>Xcode</category>
-        
-        <category>Gradle</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
