@@ -44,7 +44,7 @@ To answer the questions above, TISS services previously used company-wide Kibana
 
 *   Logs in plain text don’t have any structure and are not friendly to ML model training as most ML models need processed data to make accurate predictions.
 *   Furthermore, there is no fine-granularity access control for developers in Kibana.
-*   Developers, DS and DA have no access control while CEs have no access at all. So CE can not easily see the data and DA/DS can not easily process the data.
+*   Developers, DA and DS have no access control while CEs have no access at all. So CE cannot easily see the data and DA/DS cannot easily process the data.
 
 To address all the Kibana log issues, we developed ActionTrace, a code library with a well-structured data schema. The logs, also called documents, are stored in a dedicated ElasticSearch cluster with access control implemented. However, after using it for a while, we found that it still needed some improvements.
 
@@ -262,7 +262,7 @@ In Archivist, a prediction/decision is called an event. The event schema can be 
 
 ### A User Portal to Support Querying, Prediction Stats and Feedback
 
-DA/DS/Ops/CE can access the internal user portal to see the prediction events, individually and on an aggregated city level.
+DA, DS, Ops and CE can access the internal user portal to see the prediction events, individually and on an aggregated city level.
 
 <div class="post-image-section"><figure>
   <img src="/img/archivist/image5.gif" alt="A snapshot of the Archivist logs showing the aggregation of the data in each city" style="width:90%"> <figcaption align="middle"><i>A snapshot of the Archivist logs showing the aggregation of the data in each city</i></figcaption>
@@ -276,7 +276,7 @@ There are graphs on the portal, showing the rule/model performance on individual
 
 ## How to Use Archivist for Your Service
 
-If you want to get onboard Archivist, the coding effort is minimal (check out this [link](https://wiki.grab.com/display/TEO/Archivist%2BHow-to)). Here is an example of a code snippet to log an event:
+If you want to get onboard Archivist, the coding effort is minimal. Here is an example of a code snippet to log an event:
 
 ![](img/archivist/image2.png)
 
