@@ -6,9 +6,352 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 11 May 2021 03:16:14 +0000</pubDate>
-    <lastBuildDate>Tue, 11 May 2021 03:16:14 +0000</lastBuildDate>
+    <pubDate>Tue, 25 May 2021 03:59:19 +0000</pubDate>
+    <lastBuildDate>Tue, 25 May 2021 03:59:19 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Building a Hyper Self-Service, Distributed Tracing and Feedback System for Rule &amp; Machine Learning (ML) Predictions</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;In Grab, the Trust, Identity, Safety, and Security (TISS) is a team of software engineers and AI developers working on fraud detection, login identity check, safety issues, etc. There are many TISS services, like grab-fraud, grab-safety, and grab-id. They make billions of business decisions daily using the &lt;a href=&quot;https://engineering.grab.com/griffin&quot;&gt;Griffin rule engine&lt;/a&gt;, which determines if a passenger can book a trip, get a food promotion, or if a driver gets a delivery booking.&lt;/p&gt;
+
+&lt;p&gt;There is a natural demand to log down all these important business decisions, store them and query them interactively or in batches. Data analysts and scientists need to use the data to train their machine learning models. RiskOps and customer service teams can query the historical data and help consumers.&lt;/p&gt;
+
+&lt;p&gt;That’s where Archivist comes in; it is a new tracing, statistics and feedback system for rule and machine learning-based predictions. It is reliable and performant. Its innovative data schema is flexible for storing events from different business scenarios. Finally, it provides a user-friendly UI, which has access control for classified data.&lt;/p&gt;
+
+&lt;p&gt;Here are the impacts Archivist has already made:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Currently, there are 2 teams with a total of 5 services and about 50 business scenarios using Archivist. The scenarios include fraud prevention (e.g. DriverBan, PassengerBan), payment checks (e.g. PayoutBlockCheck, PromoCheck), and identity check events like PinTrigger.&lt;/li&gt;
+  &lt;li&gt;It takes only a few minutes to onboard a new business scenario (event type), by using the configuration page on the user portal. Previously, it took at least 1 to 2 days.&lt;/li&gt;
+  &lt;li&gt;Each day, Archivist logs down 80 million logs to the ElasticSearch cluster, which is about 200GB of data.&lt;/li&gt;
+  &lt;li&gt;Each week, Customer Experience (CE)/Risk Ops goes to the user portal and checks Archivist logs for about 2,000 distinct customers. They can search based on numerous dimensions such as the Passenger/DriverID, phone number, request ID, booking code and payment fingerprint.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Each day, TISS services make billions of business decisions (predictions), based on the Griffin rule engine and ML models.&lt;/p&gt;
+
+&lt;p&gt;After the predictions are made, there are still some tough questions for these services to answer.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;If Risk Ops believes a prediction is false-positive, a consumer could be banned. If this happens, how can consumers or Risk Ops report or feedback this information to the new rule and ML model training quickly?&lt;/li&gt;
+  &lt;li&gt;As CustomService/Data Scientists investigating any tickets opened due to TISS predictions/decisions, how do you know which rules and data were used? E.g. why the passenger triggered a selfie, or why a booking was blocked.&lt;/li&gt;
+  &lt;li&gt;After Data Analysts/Data Scientists (DA/DS) launch a new rule/model, how can they track the performance in fine-granularity and in real-time? E.g. week-over-week rule performance in a country or city.&lt;/li&gt;
+  &lt;li&gt;How can DA/DS access all prediction data for data analysis or model training?&lt;/li&gt;
+  &lt;li&gt;How can the system keep up with Grab’s business launch speed, with maximum self-service?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;/h2&gt;
+
+&lt;p&gt;To answer the questions above, TISS services previously used company-wide Kibana to log predictions.  For example, a log looks like: &lt;code class=&quot;highlighter-rouge&quot;&gt;PassengerID:123,Scenario:PinTrigger,Decision:Trigger,...&lt;/code&gt;. This logging method had some obvious issues:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Logs in plain text don’t have any structure and are not friendly to ML model training as most ML models need processed data to make accurate predictions.&lt;/li&gt;
+  &lt;li&gt;Furthermore, there is no fine-granularity access control for developers in Kibana.&lt;/li&gt;
+  &lt;li&gt;Developers, DA and DS have no access control while CEs have no access at all. So CE cannot easily see the data and DA/DS cannot easily process the data.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To address all the Kibana log issues, we developed ActionTrace, a code library with a well-structured data schema. The logs, also called documents, are stored in a dedicated ElasticSearch cluster with access control implemented. However, after using it for a while, we found that it still needed some improvements.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Each business scenario involves different types of entities and ActionTrace is not fully self-service. This means that a lot of development work was needed to support fast-launching business scenarios. Here are some examples:
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;The main entities in the taxi business are Driver and Passenger,&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;The main entities in the food business can be Merchant, Driver and Consumer.&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+
+    &lt;p&gt;All these entities will need to be manually added into the ActionTrace data schema.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt; Each business scenario may have their own custom information logged. Because there is no overlap, each of them will correspond to a new field in the data schema. For example:
+    &lt;ul&gt;
+      &lt;li&gt;For any scenario involving payment, a valid payment method and expiration date is logged.&lt;/li&gt;
+      &lt;li&gt;For the taxi business, the geohash is logged.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;  To store the log data from ActionTrace, different teams need to set up and manage their own ElasticSearch clusters. This increases hardware and maintenance costs.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;There was a simple Web UI created for viewing logs from ActionTrace, but there was still no access control in fine granularity.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;We developed Archivist, a new tracing, statistics, and feedback system for ML/rule-based prediction events. It’s centralised, performant and flexible. It answers all the issues mentioned above, and it is an improvement over all the existing solutions we have mentioned previously.&lt;/p&gt;
+
+&lt;p&gt;The key improvements are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;User-defined entities and custom fields
+    &lt;ul&gt;
+      &lt;li&gt;There are no predefined entity types. Users can define up to 5 entity types (E.g. PassengerId, DriverId, PhoneNumber, PaymentMethodId, etc.).&lt;/li&gt;
+      &lt;li&gt;Similarly, there are a limited number of custom data fields to use, in addition to the common data fields shared by all business scenarios.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;A dedicated service shared by all other services
+    &lt;ul&gt;
+      &lt;li&gt;Each service writes its prediction events to a Kafka stream. Archivist then reads the stream and writes to the ElasticSearch cluster.&lt;/li&gt;
+      &lt;li&gt;The data writes are buffered, so it is easy to handle traffic surges in peak time.&lt;/li&gt;
+      &lt;li&gt;Different services share the same Elastic Cloud Enterprise (ECE) cluster, but they create their own daily file indices so the costs can be split fairly.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Better support for data mining, prediction stats and feedback
+    &lt;ul&gt;
+      &lt;li&gt;Kafka stream data are simultaneously written to AWS S3. DA/DS can use the PrestoDB SQL query engine to mine the data.&lt;/li&gt;
+      &lt;li&gt;There is an internal web portal for viewing Archivist logs. Customer service teams and Ops can use no-risk data to address CE tickets, while DA, DS and developers can view high-risk data for code/rule debugging.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;A reduction of development days to support new business launches
+    &lt;ul&gt;
+      &lt;li&gt;Previously, it took a week to modify and deploy the ActionTrace data schema. Now, it only takes several minutes to configure event schemas in the user portal.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Saves time in RiskOps/CE investigations
+    &lt;ul&gt;
+      &lt;li&gt;With the new web UI which has access control in place, the different roles in the company, like Customer service and Data analysts, can access the Archivist events with different levels of permissions.&lt;/li&gt;
+      &lt;li&gt;It takes only a few clicks for them to find the relevant events that impact the drivers/passengers.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;architecture-details&quot;&gt;Architecture Details&lt;/h3&gt;
+
+&lt;p&gt;Archivist’s system architecture is shown in the diagram below.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/archivist/image7.png&quot; alt=&quot;Archivist system architecture&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Archivist system architecture&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Different services (like fraud-detection, safety-allocation, etc.) use a simple SDK to write data to a Kafka stream (the left side of the diagram).&lt;/li&gt;
+  &lt;li&gt;In the centre of Archivist is an event processor. It reads data from Kafka, and writes them to ElasticSearch (ES).&lt;/li&gt;
+  &lt;li&gt;The Kafka stream writes to the Amazon S3 data lake, so DA/DS can use the Presto SQL query engine to query them.&lt;/li&gt;
+  &lt;li&gt;The user portal (bottom right) can be used to view the Archivist log and update configurations. It also sends all the web requests to the API Handler in the centre.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The following diagram shows how internal and external users use Archivist as well as the interaction between the &lt;a href=&quot;https://engineering.grab.com/griffin&quot;&gt;Griffin rule engine&lt;/a&gt; and Archivist.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/archivist/image11.png&quot; alt=&quot;Archivist use cases&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Archivist use cases&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;flexible-event-schema&quot;&gt;Flexible Event Schema&lt;/h3&gt;
+
+&lt;p&gt;In Archivist, a prediction/decision is called an event. The event schema can be divided into 3 main parts conceptually.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Data partitioning: Fields like &lt;code class=&quot;highlighter-rouge&quot;&gt;service_name&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;event_type&lt;/code&gt; categorise data by services and business scenarios.
+    &lt;table class=&quot;table&quot;&gt;
+   &lt;thead&gt;
+     &lt;tr&gt;
+       &lt;th&gt;Field name&lt;/th&gt;
+       &lt;th&gt;Type&lt;/th&gt;
+       &lt;th&gt;Example&lt;/th&gt;
+       &lt;th&gt;Notes&lt;/th&gt;
+     &lt;/tr&gt;
+   &lt;/thead&gt;
+   &lt;tbody&gt;
+     &lt;tr&gt;
+       &lt;td&gt;service_name&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;GrabFraud&lt;/td&gt;
+       &lt;td&gt;Name of the Service&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;event_type&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;PreRide&lt;/td&gt;
+       &lt;td&gt;PaxBan/SafeAllocation&lt;/td&gt;
+     &lt;/tr&gt;
+   &lt;/tbody&gt;
+ &lt;/table&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Business decision making: &lt;code class=&quot;highlighter-rouge&quot;&gt;request_id&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;decisions&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;reasons&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;event_content&lt;/code&gt; are used to record the business decision, the reason and the context (E.g. The input features of machine learning algorithms).
+    &lt;table class=&quot;table&quot;&gt;
+   &lt;thead&gt;
+     &lt;tr&gt;
+       &lt;th&gt;Field name&lt;/th&gt;
+       &lt;th&gt;Type&lt;/th&gt;
+       &lt;th&gt;Example&lt;/th&gt;
+       &lt;th&gt;Notes&lt;/th&gt;
+     &lt;/tr&gt;
+   &lt;/thead&gt;
+   &lt;tbody&gt;
+     &lt;tr&gt;
+       &lt;td&gt;request_id&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;a16756e8-efe2-472b-b614-ec6ae08a5912&lt;/td&gt;
+       &lt;td&gt;a 32-digit id for web requests&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;event_content&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+       &lt;td&gt;Event context&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;decisions&lt;/td&gt;
+       &lt;td&gt;[string]&lt;/td&gt;
+       &lt;td&gt;[&quot;NotAllowBook&quot;, &quot;SMS&quot;]&lt;/td&gt;
+       &lt;td&gt;A list&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;reasons&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+       &lt;td&gt;json payload string of the response from engine.&lt;/td&gt;
+     &lt;/tr&gt;
+   &lt;/tbody&gt;
+ &lt;/table&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Customisation: Archivist provides user-defined entities and custom fields that we feel are sufficient and flexible for handling different business scenarios.
+    &lt;table class=&quot;table&quot;&gt;
+   &lt;thead&gt;
+     &lt;tr&gt;
+       &lt;th&gt;Field name&lt;/th&gt;
+       &lt;th&gt;Type&lt;/th&gt;
+       &lt;th&gt;Example&lt;/th&gt;
+       &lt;th&gt;Notes&lt;/th&gt;
+     &lt;/tr&gt;
+   &lt;/thead&gt;
+   &lt;tbody&gt;
+     &lt;tr&gt;
+       &lt;td&gt;entity_type_1&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;Passenger&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;entity_id_1&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;12151&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;entity_type_2&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;Driver&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;entity_id_2&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;341521-rdxf36767&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;...&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;entity_id_5&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;custom_field_type_1&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;“MessageToUser”&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;custom_field_1&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;&quot;please contact Ops&quot;&lt;/td&gt;
+       &lt;td&gt;User defined fields&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;custom_field_type_2&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+       &lt;td&gt;“Prediction rule:”&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;custom_field_2&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;“ML rule: 123, version:2”&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;...&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+     &lt;tr&gt;
+       &lt;td&gt;custom_field_6&lt;/td&gt;
+       &lt;td&gt;string&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+       &lt;td&gt;&lt;/td&gt;
+     &lt;/tr&gt;
+   &lt;/tbody&gt;
+ &lt;/table&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;a-user-portal-to-support-querying-prediction-stats-and-feedback&quot;&gt;A User Portal to Support Querying, Prediction Stats and Feedback&lt;/h3&gt;
+
+&lt;p&gt;DA, DS, Ops and CE can access the internal user portal to see the prediction events, individually and on an aggregated city level.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/archivist/image5.gif&quot; alt=&quot;A snapshot of the Archivist logs showing the aggregation of the data in each city&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;A snapshot of the Archivist logs showing the aggregation of the data in each city&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;There are graphs on the portal, showing the rule/model performance on individual customers over a period of time.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/archivist/image10.gif&quot; alt=&quot;Rule performance on a customer over a period of time&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Rule performance on a customer over a period of time&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;how-to-use-archivist-for-your-service&quot;&gt;How to Use Archivist for Your Service&lt;/h2&gt;
+
+&lt;p&gt;If you want to get onboard Archivist, the coding effort is minimal. Here is an example of a code snippet to log an event:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/archivist/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/archivist/image2.png&quot; alt=&quot;Code snippet to log an event&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Code snippet to log an event&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;lessons&quot;&gt;Lessons&lt;/h2&gt;
+
+&lt;p&gt;During the implementation of Archivist, we learnt some things:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A good system needs to support multi-tenants from the beginning. Originally, we thought we could use just one Kafka stream, and put all the documents from different teams into one ElasticSearch (ES) index. But after one team insisted on keeping their data separately from others, we created more Kafka streams and ES indexes. We realised that this way, it’s easier for us to manage data and share the cost fairly.&lt;/li&gt;
+  &lt;li&gt;Shortly after we launched Archivist, there was an incident where the ES data writes were choked. Because each document write is a goroutine, the number of goroutines increased to 400k and the memory usage reached 100% within minutes. We added a patch (2 lines of code) to limit the maximum number of goroutines in our system. Since then, we haven’t had any more severe incidents in Archivist.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 24 May 2021 00:11:20 +0000</pubDate>
+        <link>https://engineering.grab.com/building-hyper-self-service-distributed-tracing-feedback-system</link>
+        <guid isPermaLink="true">https://engineering.grab.com/building-hyper-self-service-distributed-tracing-feedback-system</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Machine Learning</category>
+        
+        <category>Statistics</category>
+        
+        <category>Distributed Tracing</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Our Journey to Continuous Delivery at Grab (Part 2)</title>
@@ -1787,94 +2130,6 @@ Expected check order: B, D, C
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Reflecting on the Five Years of Bug Bounty at Grab</title>
-        <description>&lt;p&gt;Security has always been a top-priority at Grab; our product security team works round-the-clock to ensure that our consumers’ data remains safe. Five years ago, we launched our private bug bounty programme on &lt;a href=&quot;https://hackerone.com/grab&quot;&gt;HackerOne&lt;/a&gt;, which evolved into a public programme in August 2017. The idea was to complement the security efforts our team has been putting through to keep Grab secure. We were a pioneer in Southeast Asia to implement a public bug bounty programme, and now we stand among the &lt;a href=&quot;https://www.hackerone.com/resources/e-book/top-20-public-bug-bounty-programs&quot;&gt;Top 20 programmes on HackerOne&lt;/a&gt; worldwide.&lt;/p&gt;
-
-&lt;p&gt;We started as a private bug bounty programme which provided us with fantastic results, thus encouraging us to increase our reach and benefit from the vibrant security community across the globe which have helped us iron-out security issues 24x7 in our products and infrastructure. We then publicly launched our bug bounty programme offering competitive rewards and hackers can even earn additional bonuses if their report is well-written and display an innovative approach to testing.&lt;/p&gt;
-
-&lt;p&gt;In 2019, we also enrolled ourselves in the &lt;a href=&quot;https://hackerone.com/googleplay&quot;&gt;Google Play Security Reward Programme (GPSRP)&lt;/a&gt;, Offered by Google Play, GPSRP allows researchers to re-submit their resolved mobile security issues directly and get additional bounties if the report qualifies under the GPSRP rules. A selected number of Android applications are eligible, including Grab’s Android mobile application. Through the participation in GPSP, we hope to give researchers the recognition they deserve for their efforts.&lt;/p&gt;
-
-&lt;p&gt;In this blog post, we’re going to share our journey of running a bug bounty programme, challenges involved and share the learnings we had on the way to help other companies in SEA and beyond to establish and build a successful bug bounty programme.&lt;/p&gt;
-
-&lt;h2 id=&quot;transitioning-from-private-to-a-public-programme&quot;&gt;Transitioning from Private to a Public Programme&lt;/h2&gt;
-
-&lt;p&gt;At Grab, before starting the private programme, we defined &lt;a href=&quot;https://docs.hackerone.com/programs/policy-and-scope.html&quot;&gt;policy and scope&lt;/a&gt;, allowing us to communicate the objectives of our bug bounty programme and list the targets that can be tested for security issues. We did a security sweep of the targets to eliminate low-hanging security issues, assigned people from the security team to take care of incoming reports, and then launched the programme in private mode on HackerOne with a few chosen researchers having demonstrated a history of submitting quality submissions.&lt;/p&gt;
-
-&lt;p&gt;One of the benefits of running a &lt;a href=&quot;https://docs.hackerone.com/programs/private-vs-public-programs.html&quot;&gt;private bug bounty programme&lt;/a&gt; is to have some control over the number of incoming submissions of potential security issues and researchers who can report issues. This ensures the quality of submissions and helps to control the volume of bug reports, thus avoiding overwhelming a possibly small security team with a deluge of issues so that they won’t be overwhelming for the people triaging potential security issues. The invited researchers to the programme are limited, and it is possible to invite researchers with a known track record or with a specific skill set, further working in the programme’s favour.&lt;/p&gt;
-
-&lt;p&gt;The results and lessons from our private programme were valuable, making our programme and processes mature enough to &lt;a href=&quot;https://www.techinasia.com/grab-public-bug-bounty&quot;&gt;open the bug bounty programme&lt;/a&gt; to security researchers across the world. We still did another security sweep, reworded the policy, redefined the targets by expanding the scope, and allocated enough folks from our security team to take on the initial inflow of reports which was anticipated to be in tune with other public programmes.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reflecting-on-the-five-years-of-bug-bounty-at-grab/image1.png&quot; alt=&quot;Submissions&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;em&gt;Noticeable spike in the number of incoming reports as we went public in July 2017.&lt;/em&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;lessons-learned-from-the-public-programme&quot;&gt;Lessons Learned from the Public Programme&lt;/h2&gt;
-
-&lt;p&gt;Although we were running our bug bounty programme in private for sometime before going public, we still had not worked much on building standard operating procedures and processes for managing our bug bounty programme up until early 2018. Listed below, are our key takeaways from 2018 till July 2020 in terms of improvements, challenges, and other insights.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Response Time&lt;/strong&gt;: No researcher wants to work with a bug bounty team that doesn’t respect the time that they are putting into reporting bugs to the programme. We initially didn’t have a formal process around response times, because we wanted to encourage all security engineers to pick-up reports. Still, we have been consistently delivering a first response to reports in a matter of hours, which is significantly lower than the top 20 bug bounty programmes running on HackerOne. Know what structured (or unstructured) processes work for your team in this area, because your programme can see significant rewards from fast response times.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Time to Bounty&lt;/strong&gt;: In most bug bounty programmes the payout for a bug is made in one of the following ways: full payment after the bug has been resolved, full payment after the bug has been triaged, or paying a portion of the bounty after triage and the remaining after resolution. We opt to pay the full bounty after triage. While we’re always working to speed up resolution times, that timeline is in our hands, not the researcher’s. Instead of making them wait, we pay them as soon as impact is determined to incentivise long-term engagement in the programme.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Noise Reduction&lt;/strong&gt;: With &lt;a href=&quot;https://www.hackerone.com/services&quot;&gt;HackerOne Triage&lt;/a&gt; and &lt;a href=&quot;https://www.hackerone.com/blog/Double-your-signal-double-your-fun&quot;&gt;Human-Augmented Signal&lt;/a&gt;, we’re able to focus our team’s efforts on resolving unique, valid vulnerabilities. Human-Augmented Signal flags any reports that are likely false-positives, and Triage provides a validation layer between our security team and the report inbox. Collaboration with the HackerOne Triage team has been fantastic and ultimately allows us to be more efficient by focusing our energy on valid, actionable reports. In addition, we take significant steps to block traffic coming from networks running automated scans against our Grab infrastructure and we’re constantly exploring this area to actively prevent automated external scanning.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Team Coverage&lt;/strong&gt;: We introduced a team scheduling process, in which we assign a security engineer (chosen during sprint planning) on a weekly basis, whose sole responsibility is to review and respond to bug bounty reports. We have integrated our systems with HackerOne’s API and PagerDuty to ensure alerts are for valid reports and verified as much as possible.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;looking-ahead&quot;&gt;Looking Ahead&lt;/h2&gt;
-
-&lt;p&gt;One area we haven’t been doing too great is ensuring higher rates of participation in our core mobile applications; some of the pain points researchers have informed us about while testing our applications are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Researchers’ accounts are getting blocked due to our &lt;a href=&quot;https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully&quot;&gt;anti-fraud checks&lt;/a&gt;.&lt;/li&gt;
-  &lt;li&gt;Researchers are not able to register driver accounts (which is understandable as our driver-partners have to go through manual verification process)&lt;/li&gt;
-  &lt;li&gt;Researchers who are not residing in the Southeast Asia region are unable to complete end-to-end flows of our applications.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We are open to community feedback and how we can improve. We want to hear from you! Please drop us a note at &lt;a href=&quot;mailto:infosec.bugbounty@grab.com&quot;&gt;infosec.bugbounty@grab.com&lt;/a&gt; for any programme suggestions or feedback.&lt;/p&gt;
-
-&lt;p&gt;Last but not least, we’d like to thank all researchers who have contributed to the Grab programme so far. Your immense efforts have helped keep Grab’s businesses and users safe. Here’s a shoutout to our programme’s top-earning hackers &lt;a href=&quot;https://emojipedia.org/trophy/%23:~:text%3DThe%2520trophy%2520emoji%2520is%2520a,the%2520bottom%2520detailing%2520the%2520award.%26text%3DTrophy%2520was%2520approved%2520as%2520part,to%2520Emoji%25201.0%2520in%25202015.&quot;&gt;🏆&lt;/a&gt;:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Overall Top 3 Researchers&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/reptou?type%3Duser&quot;&gt;@reptou&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/quanyang?type%3Duser&quot;&gt;@quanyang&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/ngocdh?type%3Duser&quot;&gt;@ngocdh&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Year 2019/2020 Top 3 Researchers&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/reptou?type%3Duser&quot;&gt;@reptou&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/alexeypetrenko?type%3Duser&quot;&gt;@alexeypetrenko&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/chaosbolt?type%3Duser&quot;&gt;@chaosbolt&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Lastly, here is a special shoutout to &lt;a href=&quot;https://hackerone.com/bagipro&quot;&gt;@bagipro&lt;/a&gt; who has done some great work and testing on our Grab mobile applications!&lt;/p&gt;
-
-&lt;p&gt;Well done and from everyone on the Grab team, we look forward to seeing you on the programme!&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 16 Dec 2020 00:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/reflecting-on-the-five-years-of-bug-bounty-at-grab</link>
-        <guid isPermaLink="true">https://engineering.grab.com/reflecting-on-the-five-years-of-bug-bounty-at-grab</guid>
-        
-        <category>Security</category>
-        
-        <category>HackerOne</category>
-        
-        <category>Bug Bounty</category>
-        
-        
-        <category>Security</category>
         
       </item>
     
