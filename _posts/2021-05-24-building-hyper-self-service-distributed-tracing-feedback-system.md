@@ -75,10 +75,10 @@ The key improvements are:
 *   A dedicated service shared by all other services
     *   Each service writes its prediction events to a Kafka stream. Archivist then reads the stream and writes to the ElasticSearch cluster.
     *   The data writes are buffered, so it is easy to handle traffic surges in peak time.
-    *   Different services share the same ECE (Elastic Cloud Enterprise) cluster, but they create their own daily file indices so the costs can be split fairly.
+    *   Different services share the same Elastic Cloud Enterprise (ECE) cluster, but they create their own daily file indices so the costs can be split fairly.
 *   Better support for data mining, prediction stats and feedback
     *   Kafka stream data are simultaneously written to AWS S3. DA/DS can use the PrestoDB SQL query engine to mine the data.
-    *   There is an internal web portal for viewing Archivist logs. Customer service teams and Ops can use no-risk data to address CE tickets, while DA/DS/developers can view high-risk data for code/rule debugging.
+    *   There is an internal web portal for viewing Archivist logs. Customer service teams and Ops can use no-risk data to address CE tickets, while DA, DS and developers can view high-risk data for code/rule debugging.
 *   A reduction of development days to support new business launches
     *   Previously, it took a week to modify and deploy the ActionTrace data schema. Now, it only takes several minutes to configure event schemas in the user portal.
 *   Saves time in RiskOps/CE investigations
