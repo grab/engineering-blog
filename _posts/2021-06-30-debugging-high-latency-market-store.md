@@ -45,7 +45,9 @@ go tool pprof 'http://localhost:6060/debug/pprof/heap'
 
 The command then generates the Heap profile information as shown in the diagram below:
 
- ![](img/market-store/image1.png)
+<p align="center">
+ <img src="../img/market-store/image1.png">
+</p>
 
 From this diagram, we noticed that a lot of memory was allocated and held by the child context created from Async Library even after the tasks were completed.
 
