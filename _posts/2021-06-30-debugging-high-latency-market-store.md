@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Engineering, Latency, Debugging, Memory Leak]
 comments: true
 cover_photo: /img/market-store/cover.jpg
-excerpt: "Find out how the Trust, Identity, Safety, and Security (TISS) team improved machine learning predictions with Archivist, an in-house built solution."
+excerpt: "Learn how the Marketplace Tech Family debugged and resolved Market-Store's high latency issues."
 ---
 
 ## Background
@@ -40,7 +40,7 @@ By default, PPROF is enabled on all Grab Go services, making it the ideal tool t
 You can collect the Heap profile by running this command:
 
 ```
-go tool pprof 'http://localhost:6060/debug/pprof/heap’
+go tool pprof 'http://localhost:6060/debug/pprof/heap'
 ```
 
 The command then generates the Heap profile information as shown in the diagram below:
@@ -63,11 +63,11 @@ However, there was no change in our service that would have impacted how context
 
 ## Debugging the Memory Leak
 
-We need to look into the Async Library and how it works. For Market-Store, we update the cache asynchronously for the write-around caching mechanism. We use the Async Library for running the update tasks in the background.
+We needed to look into the Async Library and how it worked. For Market-Store, we updated the cache asynchronously for the write-around caching mechanism. We use the Async Library for running the update tasks in the background.
 
 The following code snippet explains how the Async Library works:
 
-```
+```go
 
 async.Consume(context.Background(), runtime.NumCPU()*4, buffer)
 
@@ -101,7 +101,7 @@ func Invoke(ctx context.Context, action Work) Task {
 
 }
 
-func(t \*task) Run(ctx context.Context) Task {
+func(t *task) Run(ctx context.Context) Task {
 
     ctx, t.cancel = context.WithCancel(ctx)
 
@@ -113,7 +113,7 @@ func(t \*task) Run(ctx context.Context) Task {
 
 ```
 
-*Note: code not relevant to this article has been replaced with `code`.*
+*Note: Code that is not relevant to this article was replaced with `code`.*
 
 As seen in the code snippet above, the Async Library initialises the `Consume` method with a background context, which is then passed to all its runners. Background contexts are empty and do not track or have links to child contexts that are created from them.
 
@@ -125,8 +125,7 @@ In Market-Store, we use background contexts because they are not bound by reques
 
 Upon further digging, we discovered an [MR](https://github.com/grab/async/commit/d7b10a27c97049564607012efaceb28ccd32e980) that was merged into the library to address a task cancellation issue. As shown in the code snippet below, the `Consume` method had been modified such that task contexts were being passed to the runners, instead of the empty background contexts.
 
-```
-
+```go
 func Consume(ctx context.Context, concurrency int, tasks chan Task) Task {
 
      // code...
@@ -166,13 +165,13 @@ We should always make sure to call the `CancelFunc` method after using contexts,
 
 #### Explaining the Impact of the MR
 
-In this code snippet, we see that task contexts are passed to runners and they are not being cancelled. The Async Library created task contexts from non-empty contexts, which means the task contexts are tracked by the parent contexts. So, even if the work associated with these task contexts is complete, they will not be cleaned up by the system (garbage collected).
+In the previous code snippet, we see that task contexts are passed to runners and they are not being cancelled. The Async Library created task contexts from non-empty contexts, which means the task contexts are tracked by the parent contexts. So, even if the work associated with these task contexts is complete, they will not be cleaned up by the system (garbage collected).
 
 As we started using task contexts instead of background contexts and did not cancel them, the memory used by these contexts was never returned, thus resulting in a memory leak.
 
 ![](img/market-store/image5.gif)
 
-## Learnings
+It took us several tries to debug and investigate the root cause of Market-Store's high latency issue and through this incident, we learnt several important things that would help prevent a memory leak from recurring.
 
 *   Always cancel the contexts you’ve created. Leaving it to garbage collection (system cleanup) may result in unexpected memory leaks.
 
