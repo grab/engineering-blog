@@ -6,9 +6,215 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 25 May 2021 03:59:19 +0000</pubDate>
-    <lastBuildDate>Tue, 25 May 2021 03:59:19 +0000</lastBuildDate>
+    <pubDate>Thu, 01 Jul 2021 05:16:42 +0000</pubDate>
+    <lastBuildDate>Thu, 01 Jul 2021 05:16:42 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Debugging High Latency Due to Context Leaks</title>
+        <description>&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Market-Store is an in-house developed general purpose feature store that is used to serve real-time computed machine learning (ML) features. Market-Store has a stringent SLA around latency, throughput, and availability as it empowers ML models, which are used in Dynamic Pricing and Consumer Experience.&lt;/p&gt;
+
+&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;/h2&gt;
+
+&lt;p&gt;As Grab continues to grow, introducing new ML models and handling increased traffic, Market-Store started to experience high latency. Market-Store’s SLA states that 99% of transactions should be within 200ms, but our latency increased to 2 seconds. This affected the availability and accuracy of our models that rely on Market-Store for real-time features.&lt;/p&gt;
+
+&lt;h3 id=&quot;latency-issue&quot;&gt;Latency Issue&lt;/h3&gt;
+
+&lt;p&gt;We used different metrics and logs to debug the latency issue but could not find any abnormalities that directly correlated to the API’s performance. We discovered that the problem went away temporarily when we restarted the service. But during the next peak period, the service began to struggle once again and the problem became more prominent as Market-Store’s &lt;a href=&quot;https://en.wikipedia.org/wiki/Queries_per_second&quot;&gt;query per second (QPS)&lt;/a&gt; increased.&lt;/p&gt;
+
+&lt;p&gt;The following graph shows an increase in the memory used with time over 12 hours. Even as the system load receded, memory usage continued to increase.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/market-store/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The continuous increase in memory consumption indicated the possibility of a memory leak, which occurs when memory is allocated but not returned after its use is over. This results in consistently increasing consumed memory until the service runs out of memory and crashes.&lt;/p&gt;
+
+&lt;p&gt;Although we could restart the service and resolve the issue temporarily, the increasing memory use suggested a deeper underlying root cause. This meant that we needed to conduct further investigation with tools that could provide deeper insights into the memory allocations.&lt;/p&gt;
+
+&lt;h2 id=&quot;debugging-using-go-tools&quot;&gt;Debugging Using Go Tools&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://golang.org/pkg/net/http/pprof/&quot;&gt;PPROF&lt;/a&gt; is a profiling tool by Golang that helps to visualise and analyse profiles from Go programmes. A profile is a collection of stack traces showing the call sequences in your programme that eventually led to instances of a particular event i.e. allocation. It also provides details such as Heap and CPU information, which could provide insights into the bottlenecks of the Go programme.&lt;/p&gt;
+
+&lt;p&gt;By default, PPROF is enabled on all Grab Go services, making it the ideal tool to use in our scenario. To understand how memory is allocated, we used PPROF to generate Market-Store’s Heap profile, which can be used to understand how inuse memory was allocated for the programme.&lt;/p&gt;
+
+&lt;p&gt;You can collect the Heap profile by running this command:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;go tool pprof 'http://localhost:6060/debug/pprof/heap'
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The command then generates the Heap profile information as shown in the diagram below:&lt;/p&gt;
+
+&lt;p align=&quot;center&quot;&gt;
+ &lt;img src=&quot;../img/market-store/image1.png&quot; /&gt;
+&lt;/p&gt;
+
+&lt;p&gt;From this diagram, we noticed that a lot of memory was allocated and held by the child context created from Async Library even after the tasks were completed.&lt;/p&gt;
+
+&lt;p&gt;In Market-Store, we used the &lt;a href=&quot;https://github.com/grab/async&quot;&gt;Async Library&lt;/a&gt;, a Grab open-source library, which typically used to run concurrent tasks. Any contexts created by the Async Library should be cleaned up after the background tasks are completed. This way, memory would be returned to the service.&lt;/p&gt;
+
+&lt;p&gt;However, as shown in the diagram, memory was not being returned, resulting in a memory leak, which explains the increasing memory usage even as Market-Store’s system load decreased.&lt;/p&gt;
+
+&lt;h3 id=&quot;uncovering-the-real-issue&quot;&gt;Uncovering the Real Issue&lt;/h3&gt;
+
+&lt;p&gt;So we knew that Market-Store’s latency was affected, but we didn’t know why. From the first graph, we saw that memory usage continued to grow even as Market-Store’s system load decreased. Then, PPROF showed us that the memory held by contexts was not cleaned up, resulting in a memory leak.&lt;/p&gt;
+
+&lt;p&gt;Through our investigations, we drew a correlation between the increase in memory usage and a degradation in the server’s API latency. In other words, the memory leak resulted in a high memory consumption and eventually, caused the latency issue.&lt;/p&gt;
+
+&lt;p&gt;However, there was no change in our service that would have impacted how contexts are created and cleaned up. So what caused the memory leak?&lt;/p&gt;
+
+&lt;h2 id=&quot;debugging-the-memory-leak&quot;&gt;Debugging the Memory Leak&lt;/h2&gt;
+
+&lt;p&gt;We needed to look into the Async Library and how it worked. For Market-Store, we updated the cache asynchronously for the write-around caching mechanism. We use the Async Library for running the update tasks in the background.&lt;/p&gt;
+
+&lt;p&gt;The following code snippet explains how the Async Library works:&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;async&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Consume&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Background&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;runtime&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NumCPU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// Consume runs the tasks with a specific max concurrency&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Consume&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tasks&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+   &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+   &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Invoke&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+       &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;workers&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+       &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrentTasks&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+       &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// code ...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+       &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ContinueWith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+       &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Invoke&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Work&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NewTask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+    &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cancel&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WithCancel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;go&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+    &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;em&gt;Note: Code that is not relevant to this article was replaced with &lt;code class=&quot;highlighter-rouge&quot;&gt;code&lt;/code&gt;.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;As seen in the code snippet above, the Async Library initialises the &lt;code class=&quot;highlighter-rouge&quot;&gt;Consume&lt;/code&gt; method with a background context, which is then passed to all its runners. Background contexts are empty and do not track or have links to child contexts that are created from them.&lt;/p&gt;
+
+&lt;p&gt;In Market-Store, we use background contexts because they are not bound by request contexts and can continue running even after a request context is cleaned up. This means that once the task has finished running, the memory consumed by child contexts would be freed up, avoiding the issue of memory leaks altogether.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/market-store/image3.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;identifying-the-cause-of-the-memory-leak&quot;&gt;Identifying the Cause of the Memory Leak&lt;/h3&gt;
+
+&lt;p&gt;Upon further digging, we discovered an &lt;a href=&quot;https://github.com/grab/async/commit/d7b10a27c97049564607012efaceb28ccd32e980&quot;&gt;MR&lt;/a&gt; that was merged into the library to address a task cancellation issue. As shown in the code snippet below, the &lt;code class=&quot;highlighter-rouge&quot;&gt;Consume&lt;/code&gt; method had been modified such that task contexts were being passed to the runners, instead of the empty background contexts.&lt;/p&gt;
+
+&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Consume&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tasks&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+     &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+     &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Invoke&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;taskCtx&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+         &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;workers&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+         &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrentTasks&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+         &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// code ...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+         &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;taskCtx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ContinueWith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;x&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+            &lt;/span&gt;&lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+     &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;x&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Before we explain the code snippet, we should briefly explain what Golang contexts are. A &lt;a href=&quot;https://golang.org/pkg/context/&quot;&gt;context&lt;/a&gt; is a standard Golang package that carries deadlines, cancellation signals, and other request-scoped values across API boundaries and between processes. We should always remember to cancel contexts after using them.&lt;/p&gt;
+
+&lt;h4 id=&quot;importance-of-context-cancellation&quot;&gt;Importance of Context Cancellation&lt;/h4&gt;
+
+&lt;p&gt;When a context is cancelled, all contexts derived from it are also cancelled. This means that there will be no unaccounted contexts or links and it can be achieved by using the Async Library’s &lt;code class=&quot;highlighter-rouge&quot;&gt;CancelFunc&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;The Async Library’s &lt;code class=&quot;highlighter-rouge&quot;&gt;CancelFunc&lt;/code&gt; method will:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Cancel the created child context and its children&lt;/li&gt;
+  &lt;li&gt;Remove the parent reference from the child context&lt;/li&gt;
+  &lt;li&gt;Stop any associated timers&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We should always make sure to call the &lt;code class=&quot;highlighter-rouge&quot;&gt;CancelFunc&lt;/code&gt; method after using contexts, to ensure that contexts and memory are not leaked.&lt;/p&gt;
+
+&lt;h4 id=&quot;explaining-the-impact-of-the-mr&quot;&gt;Explaining the Impact of the MR&lt;/h4&gt;
+
+&lt;p&gt;In the previous code snippet, we see that task contexts are passed to runners and they are not being cancelled. The Async Library created task contexts from non-empty contexts, which means the task contexts are tracked by the parent contexts. So, even if the work associated with these task contexts is complete, they will not be cleaned up by the system (garbage collected).&lt;/p&gt;
+
+&lt;p&gt;As we started using task contexts instead of background contexts and did not cancel them, the memory used by these contexts was never returned, thus resulting in a memory leak.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;img/market-store/image5.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It took us several tries to debug and investigate the root cause of Market-Store’s high latency issue and through this incident, we learnt several important things that would help prevent a memory leak from recurring.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Always cancel the contexts you’ve created. Leaving it to garbage collection (system cleanup) may result in unexpected memory leaks.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Go profiling can provide plenty of insights about your programme, especially when you’re not sure where to start troubleshooting.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Always benchmark your dependencies when integrating or updating the versions to ensure they don’t have any performance bottlenecks.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to &lt;em&gt;Chip Dong Lim&lt;/em&gt; for his contributions and for designing the GIFs included in this article.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 30 Jun 2021 00:08:20 +0000</pubDate>
+        <link>https://engineering.grab.com/debugging-high-latency-market-store</link>
+        <guid isPermaLink="true">https://engineering.grab.com/debugging-high-latency-market-store</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Latency</category>
+        
+        <category>Debugging</category>
+        
+        <category>Memory Leak</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Building a Hyper Self-Service, Distributed Tracing and Feedback System for Rule &amp; Machine Learning (ML) Predictions</title>
@@ -1927,206 +2133,6 @@ Expected check order: B, D, C
         <category>A/B Testing</category>
         
         <category>Event Processing</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Pharos - Searching Nearby Drivers on Road Network at Scale</title>
-        <description>&lt;p&gt;Have you ever wondered what happens when you click on the book button when arranging a ride home? Actually, many things happen behind this simple action and it would take days and nights to talk about all of them. Perhaps, we should rephrase this question to be more precise.  So, let’s try again - have you ever thought about how Grab stores and uses driver locations to allocate a driver to you? If so, you will surely find this blog post interesting as we cover how it all works in the backend.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-problems-are-we-going-to-solve&quot;&gt;What Problems are We Going to Solve?&lt;/h2&gt;
-
-&lt;p&gt;One of the fundamental problems of the ride-hailing and delivery industry is to locate the nearest moving drivers in real-time. There are two challenges from serving this request in real time.&lt;/p&gt;
-
-&lt;h3 id=&quot;fast-moving-vehicles&quot;&gt;Fast-moving Vehicles&lt;/h3&gt;
-
-&lt;p&gt;Vehicles are constantly moving and sometimes the drivers go at the speed of over 20 meters per second. As shown in Figure 1a and Figure 1b, the two nearest drivers to the pick-up point (blue dot) change as time passes. To provide a high-quality allocation service, it is important to constantly track the objects and update object locations at high frequency (e.g. per second).&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/fast-moving-drivers.png&quot; alt=&quot;Figure 1: Fast-moving drivers&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1: Fast-moving drivers&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;routing-distance-calculation&quot;&gt;Routing Distance Calculation&lt;/h3&gt;
-
-&lt;p&gt;To satisfy business requirements, K nearest objects need to be calculated based on the routing distance instead of straight-line distance. Due to the complexity of the road network, the driver with the shortest straight-line distance may not be the optimal driver as it could reach the pick-up point with a longer routing distance due to detour.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-   &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image1.png&quot; alt=&quot;Figure 2: Straight line vs routing&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2: Straight line vs routing&lt;/i&gt;&lt;/figcaption&gt;
- &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;As shown in Figure 2, the driver at the top is deemed as the nearest one to pick-up point by straight line distance. However, the driver at the bottom should be the true nearest driver by routing distance. Moreover, routing distance helps to infer the estimated time of arrival (ETA), which is an important factor for allocation, as shorter ETA reduces passenger waiting time thus reducing order cancellation rate and improving order completion rate.&lt;/p&gt;
-
-&lt;p&gt;Searching for the K nearest drivers with respect to a given POI is a well studied topic for all ride-hailing companies, which can be treated as a &lt;em&gt;K Nearest Neighbour (KNN) problem&lt;/em&gt;. Our predecessor, Sextant, searches nearby drivers with the &lt;em&gt;&lt;a href=&quot;https://en.wikipedia.org/wiki/Haversine_formula&quot;&gt;haversine&lt;/a&gt;&lt;/em&gt; distance from driver locations to the pick-up point. By partitioning the region into grids and storing them in a distributed manner, Sextant can handle large volumes of requests with low latency. However, nearest drivers found by the haversine distance may incur long driving distance and ETA as illustrated in Figure 2. For more information about Sextant, kindly refer to the paper, &lt;em&gt;&lt;a href=&quot;https://ieeexplore.ieee.org/document/8788742&quot;&gt;Sextant: Grab’s Scalable In-Memory Spatial Data Store for Real-Time K-Nearest Neighbour Search&lt;/a&gt;&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;To better address the challenges mentioned above, we present the next-generation solution, &lt;strong&gt;Pharos&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image7.png&quot; alt=&quot;Figure 3: Lighthouse of Alexandria&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3: Lighthouse of Alexandria&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;what-is-pharos&quot;&gt;What is Pharos?&lt;/h2&gt;
-
-&lt;p&gt;Pharos means lighthouse in Greek. At Grab, it is a scalable in-memory solution that supports large-volume, real-time K nearest search by driving distance or ETA with high object update frequency.&lt;/p&gt;
-
-&lt;p&gt;In Pharos, we use &lt;a href=&quot;https://en.wikipedia.org/wiki/OpenStreetMap&quot;&gt;OpenStreetMap&lt;/a&gt; (OSM) graphs to represent road networks. To support hyper-localised business requirements, the graph is partitioned by cities and verticals (e.g. the road network for a four-wheel vehicle is definitely different compared to a motorbike or a pedestrian). We denote this partition key as &lt;em&gt;map ID&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;Pharos loads the graph partitions at service start and stores drivers’ spatial data in memory in a distributed manner to alleviate the scalability issue when the graph or the number of drivers grows. These data are distributed into multiple instances (i.e. machines) with replicas for high stability. Pharos exploits &lt;a href=&quot;https://15721.courses.cs.cmu.edu/spring2016/papers/leis-icde2013.pdf&quot;&gt;Adaptive Radix Trees&lt;/a&gt; (ART) to store objects’ locations along with their metadata.&lt;/p&gt;
-
-&lt;p&gt;To answer the KNN query by routing distance or ETA, Pharos uses &lt;a href=&quot;http://www.vldb.org/pvldb/vol9/p492-abeywickrama.pdf&quot;&gt;Incremental Network Expansion&lt;/a&gt; (INE) starting from the road segment of the query point. During the expansion, drivers stored along the road segments are incrementally retrieved as candidates and put into the results. As the expansion actually generates an isochrone map, it can be terminated by reaching a predefined radius of distance or ETA, or even simply a maximum number of candidates.&lt;/p&gt;
-
-&lt;p&gt;Now that you have an  overview of Pharos, we would like to go into the design details of it, starting with its architecture.&lt;/p&gt;
-
-&lt;h3 id=&quot;pharos-architecture&quot;&gt;Pharos Architecture&lt;/h3&gt;
-
-&lt;p&gt;As a microservice, Pharos receives requests from the upstream, performs corresponding actions and then returns the result back. As shown in Figure 4, the Pharos architecture can be broken down into three layers: &lt;em&gt;Proxy&lt;/em&gt;, &lt;em&gt;Node&lt;/em&gt;, and &lt;em&gt;Model&lt;/em&gt;.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Proxy layer&lt;/strong&gt;. This layer helps to pass down the request to the right node, especially when the Node is on another machine.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Node layer&lt;/strong&gt;. This layer stores the index of map IDs to models and distributes the request to the right model for execution.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Model layer&lt;/strong&gt;. This layer is, where the business logic is implemented, executes the operations and returns the result.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;As a distributed in-memory driver storage, Pharos is designed to handle load balancing, fault tolerance, and fast recovery.&lt;/p&gt;
-
-&lt;p&gt;Taking Figure 4 as an example, Pharos consists of three instances. Each individual instance is able to handle any request from the upstream. Whenever there is a request coming from the upstream, it is distributed into one of the three instances, which achieves the purpose of load balancing.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image2.png&quot; alt=&quot;Figure 4: Pharos architecture&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 4: Pharos architecture&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;In Pharos, each model has two replicas and they are stored on different instances and different availability zones. If one instance is down, the other two instances are still up for service. The fault tolerance module in Pharos automatically detects the reduction of replicas and creates new instances to load graphs and build the models of missing replicas. This proves the reliability of Pharos even under extreme situations.&lt;/p&gt;
-
-&lt;p&gt;With the architecture of Pharos in mind, let’s take a look at how it stores driver information.&lt;/p&gt;
-
-&lt;h3 id=&quot;driver-storage&quot;&gt;Driver Storage&lt;/h3&gt;
-
-&lt;p&gt;Pharos acts as a driver storage, and rather than being an external storage, it adopts in-memory storage which is faster and more adequate to handle frequent driver position updates and retrieve driver locations for nearby driver queries. Without loss of generality, drivers are assumed to be located on the vertices, i.e. &lt;a href=&quot;https://github.com/Project-OSRM/osrm-backend/wiki/Graph-representation&quot;&gt;Edge Based Nodes&lt;/a&gt; (EBN) of an edge-based graph.&lt;/p&gt;
-
-&lt;p&gt;Model is in charge of the driver storage in Pharos. Driver objects are passed down from upper layers to the model layer for storage. Each driver object contains several fields such as driver ID and metadata, containing the driver’s business related information e.g. driver status and particular allocation preferences.&lt;/p&gt;
-
-&lt;p&gt;There is also a &lt;em&gt;Latitude and Longitude (LatLon) pair&lt;/em&gt; contained in the object, which indicates the driver’s current location. Very often, this LatLon pair sent from the driver is off the road (not on any existing road). The computation of routing distance between the query point and drivers is based on the road network. Thus, we need to infer which road segment (EBN) the driver is most probably on.&lt;/p&gt;
-
-&lt;p&gt;To convert a LatLon pair to an exact location on a road is called &lt;strong&gt;Snapping&lt;/strong&gt;. Model begins with finding EBNs which are close to the driver’s location. After that, as illustrated in Figure 5, the driver’s location is projected to those EBNs, by drawing perpendicular lines from the location to the EBNs. The projected point is denoted as a &lt;strong&gt;phantom node&lt;/strong&gt;. As the name suggests, these nodes do not exist in the graph. They are merely memory representations of the snapped driver.&lt;/p&gt;
-
-&lt;p&gt;Each phantom node contains information about its projected location such as the ID of EBN it is projected to, projected LatLon and projection ratio, etc. Snapping returns a list of phantom nodes ordered by the haversine distance from the driver’s LatLon to the phantom node in ascending order. The nearest phantom node is bound with the original driver object to provide information about the driver’s snapped location.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image12.png&quot; alt=&quot;Figure 5: Snapping and phantom nodes&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 5: Snapping and phantom nodes&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;To efficiently index drivers from the graph, Pharos uses ART for driver storage. Two ARTs are maintained by each model: &lt;em&gt;Driver ART&lt;/em&gt; and &lt;em&gt;EBN ART&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Driver ART&lt;/strong&gt; is used to store the index of driver IDs to corresponding driver objects, while &lt;strong&gt;EBN ART&lt;/strong&gt; is used to store the index of EBN IDs to the root of an ART, which stores the drivers on that EBN.&lt;/p&gt;
-
-&lt;p&gt;Bi-directional indexing between EBNs and drivers are built because an efficient retrieval from driver to EBN is needed as driver locations are constantly updated. In practice, as index keys, driver IDs, and EBN IDs are both numerical. ART has a better throughput for dense keys (e.g. numerical keys) in contrast to sparse keys such as alphabetical keys, and when compared to other in-memory look-up tables (e.g. hash table). It also incurs less memory than other tree-based methods.&lt;/p&gt;
-
-&lt;p&gt;Figure 6 gives an example of driver ART assuming that the driver ID only has three digits.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image9.png&quot; alt=&quot;Figure 6: Driver ART&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 6: Driver ART&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;After snapping, this new driver object is wrapped into an update task for execution. During execution, the model firstly checks if this driver already exists using its driver ID. If it does not exist, the model directly adds it to driver ART and EBN ART. If the driver already exists, the new driver object replaces the old driver object on driver ART. For EBN ART, the old driver object on the previous EBN needs to be deleted first before adding the new driver object to the current EBN.&lt;/p&gt;
-
-&lt;p&gt;Every insertion or deletion modifies both ARTs, which might cause changes to roots. The model only stores the roots of ARTs, and in order to prevent race conditions, a lock is used to prevent other read or write operations to access the ARTs while changing the ART roots.&lt;/p&gt;
-
-&lt;p&gt;Whenever a driver nearby request comes in, it needs to get a snapshot of driver storage, i.e. the roots of two ARTs. A simple example (Figure 7a and 7b) is used to explain how synchronisation is achieved during concurrent driver update and nearby requests.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/art-synchronization.png&quot; alt=&quot;Figure 7: How ARTs change roots for synchronization&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 7: How ARTs change roots for synchronization&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Currently, there are two drivers A and B stored and these two drivers reside on the same EBN. When there is a nearby request, the current roots of the two ARTs are returned. When processing this nearby request, there could be driver updates coming and modifying the ARTs, e.g. a new root is resulted due to update of driver C. This driver update has no impact on ongoing driver nearby requests as they are using different roots. Subsequent nearby requests will use the new ART roots to find the nearby drivers. Once the current roots are not used by any nearby request, these roots and their child nodes are ready to be garbage collected.&lt;/p&gt;
-
-&lt;p&gt;Pharos does not delete drivers actively. A deletion of expired drivers is carried out every midnight by populating two new ARTs with the same driver update requests for a duration of driver’s &lt;em&gt;Time To Live (TTL)&lt;/em&gt;, and then doing a switch of the roots at the end. Drivers with expired TTLs are not referenced and they are ready to be garbage collected. In this way, expired drivers are removed from the driver storage.&lt;/p&gt;
-
-&lt;h3 id=&quot;driver-update-and-nearby&quot;&gt;Driver Update and Nearby&lt;/h3&gt;
-
-&lt;p&gt;Pharos mainly has two external endpoints: &lt;em&gt;Driver Update&lt;/em&gt; and &lt;em&gt;Driver Nearby&lt;/em&gt;. The following describes how the business logic is implemented in these two operations.&lt;/p&gt;
-
-&lt;h4 id=&quot;driver-update&quot;&gt;Driver Update&lt;/h4&gt;
-
-&lt;p&gt;Figure 8 demonstrates the life cycle of a driver update request from upstream. Driver update requests from upstream are distributed to each proxy by a load balancer. The chosen proxy firstly constructs a driver object from the request body.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;RouteTable&lt;/em&gt;, a structure in proxy, stores the index between map IDs and replica addresses. Proxy then uses map ID in the request as the key to check its RouteTable and gets the IP addresses of all the instances containing the model of that map ID.&lt;/p&gt;
-
-&lt;p&gt;Then, proxy forwards the update to other replicas that reside in other instances. Those instances, upon receiving the message, know that the update is forwarded from another proxy. Hence they directly pass down the driver object to the node.&lt;/p&gt;
-
-&lt;p&gt;After receiving the driver object, Node sends it to the right model by checking the index between map ID and model. The remaining part of the update flow is the same as described in Driver Storage. Sometimes the driver updates to replicas are not successful, e.g. request lost or model does not exist, Pharos will not react to such kinds of scenarios.&lt;/p&gt;
-
-&lt;p&gt;It can be observed that data storage in Pharos does not guarantee strong consistency. In practice, Pharos favors high throughput over strong consistency of KNN query results as the update frequency is high and slight inconsistency does not affect allocation performance significantly.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image6.png&quot; alt=&quot;Figure 8: Driver update flow&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 8: Driver update flow&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h4 id=&quot;driver-nearby&quot;&gt;Driver Nearby&lt;/h4&gt;
-
-&lt;p&gt;Similar to driver update, after a driver nearby request comes from the upstream, it is distributed to one of the machines by the load balancer. In a nearby request, a set of filter parameters is used to match with driver metadata in order to support KNN queries with various business requirements. Note that driver metadata also carries an update timestamp. During the nearby search, drivers with an expired timestamp are filtered.&lt;/p&gt;
-
-&lt;p&gt;As illustrated in Figure 9, upon receiving the nearby request, a nearby object is built and passed to the proxy layer. The proxy first checks RouteTable by map ID to see if this request can be served on the current instance. If so, the nearby object is passed to the Node layer. Otherwise, this nearby request needs to be forwarded to the instances that contain this map ID.&lt;/p&gt;
-
-&lt;p&gt;In this situation, a round-robin fashion is applied to select the right instance for load balancing. After receiving the request, the proxy of the chosen instance directly passes the nearby object to the node. Once the node layer receives the nearby object, it looks for the right model using the map ID as key. Eventually, the nearby object goes to the model layer where K-nearest-driver computation takes place. Model snaps the location of the request to some phantom nodes as described previously - these nodes are used as start nodes for expansion later.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image5.png&quot; alt=&quot;Figure 9: Driver nearby flow&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 9: Driver nearby flow&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h4 id=&quot;k-nearest-driver-search&quot;&gt;K Nearest Driver Search&lt;/h4&gt;
-
-&lt;p&gt;Starting from the phantom nodes found in the &lt;em&gt;Driver Nearby&lt;/em&gt; flow, the K nearest driver search begins. Two priority queues are used during the search: &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt; is used to keep track of the nearby EBNs, while &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt; keeps track of drivers found during expansion by their driving distance to the query point.&lt;/p&gt;
-
-&lt;p&gt;At first, a snapshot of the current driver storage is taken (using roots of current ARTs) and it shows the driver locations on the road network at the time when the nearby request comes in. From each start node, the parent EBN is found and drivers on these EBNs are appended to driverPQ. After that, KNN search expands to adjacent EBNs and appends these EBNs to &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;. After iterating all start nodes, there will be some initial drivers in driverPQ and adjacent EBNs waiting to be expanded in &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Each time the nearest EBN is removed from &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;, drivers located on this EBN are appended to &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt;. After that, the closest driver is removed from &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt;. If the driver satisfies all filtering requirements, it is appended to the array of qualified drivers. This step repeats until driverPQ becomes empty. During this process, if the size of qualified drivers reaches the maximum driver limit, the KNN search stops right away and qualified drivers are returned.&lt;/p&gt;
-
-&lt;p&gt;After &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt; becomes empty, adjacent EBNs of the current one are to be expanded and those within the predefined range, e.g. three kilometres, are appended to &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt;. Then the nearest EBN is removed from &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt; and drivers on that EBN are appended to &lt;code class=&quot;highlighter-rouge&quot;&gt;driverPQ&lt;/code&gt; again. The whole process continues until &lt;code class=&quot;highlighter-rouge&quot;&gt;EBNPQ&lt;/code&gt; becomes empty. The driver array is returned as the result of the nearby query.&lt;/p&gt;
-
-&lt;p&gt;Figure 10 shows the pseudo code of this KNN algorithm.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/pharos-searching-nearby-drivers-on-road-network-at-scale/image8.png&quot; alt=&quot;Figure 10: KNN search algorithm&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 10: KNN search algorithm&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next?&lt;/h2&gt;
-
-&lt;p&gt;Currently, Pharos is running on the production environment, where it handles requests with &lt;strong&gt;P99 latency time of 10ms for driver update&lt;/strong&gt; and &lt;strong&gt;50ms for driver nearby&lt;/strong&gt;, respectively. Even though the performance of Pharos is quite satisfying, we still see some potential areas of improvements:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Pharos uses ART for driver storage. Even though ART proves its ability to handle large volumes of driver update and driver nearby requests, the write operations (driver update) are not carried out in parallel. Hence, we plan to explore other data structures that can achieve high concurrency of read and write, eg. concurrent hash table.&lt;/li&gt;
-  &lt;li&gt;Pharos uses OSM &lt;a href=&quot;https://i11www.iti.kit.edu/_media/teaching/theses/ba-hamme-13.pdf&quot;&gt;Multi-level Dijkstra&lt;/a&gt; (MLD) graphs to find K nearest drivers. As the predefined range of nearby driver search is often a few kilometres, Pharos does not make use of MLD partitions or support long distance query. Thus, we are interested in exploiting MLD graph partitions to enable Pharos to support long distance query.&lt;/li&gt;
-  &lt;li&gt;In Pharos, maps are partitioned by cities and we assume that drivers of a city operate within that city. When finding the nearby drivers, Pharos only allocates drivers of that city to the passenger. Hence, in the future, we want to enable Pharos to support cross city allocation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We hope this blog helps you to have a closer look at how we store driver locations and how we use these locations to find nearby drivers around you.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-
-&lt;h4 id=&quot;acknowledgements&quot;&gt;Acknowledgements&lt;/h4&gt;
-&lt;p&gt;We would like to thank Chunda Ding, Zerun Dong, and Jiang Liu for their contributions to the distributed layer used in Pharos. Their efforts make Pharos reliable and fault tolerant.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Figure 3, Lighthouse of Alexandria is taken from &lt;a href=&quot;https://www.britannica.com/topic/lighthouse-of-Alexandria%23/media/1/455210/187239&quot;&gt;https://www.britannica.com/topic/lighthouse-of-Alexandria#/media/1/455210/187239&lt;/a&gt; authored by Sergey Kamshylin.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Figure 5, Snapping and Phantom Nodes, is created by Minbo Qiu. We would like to thank him for the insightful elaboration of the snapping mechanism.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Cover Photo by Kevin Huang on Unsplash&lt;/em&gt;&lt;/p&gt;
-</description>
-        <pubDate>Tue, 22 Dec 2020 03:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/pharos-searching-nearby-drivers-on-road-network-at-scale</link>
-        <guid isPermaLink="true">https://engineering.grab.com/pharos-searching-nearby-drivers-on-road-network-at-scale</guid>
-        
-        <category>Real-Time K Nearest Neighbour Search</category>
-        
-        <category>Spatial Data Store</category>
-        
-        <category>Distributed System</category>
         
         
         <category>Engineering</category>
