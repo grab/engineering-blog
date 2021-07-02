@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Product, Chat, Design]
 comments: true
 cover_photo: /img/reshaping-chat-support/cover.png
-excerpt: "."
+excerpt: "Learn how the CSE team reshaped chat support through experimentation and design updates."
 ---
 
 Introduction
