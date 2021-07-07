@@ -1,14 +1,14 @@
 ---
 layout: post
-id: 2021-07-06-reshaping-chat-support
+id: 2021-07-07-reshaping-chat-support
 title: Reshaping Chat Support for Our Users
-date: 2021-07-01 00:18:20
+date: 2021-07-07 00:18:20
 authors: [elisa-monacchi, suman-anand, wan-ling-guai]
 categories: [Engineering]
-tags: [Product, Chat, Design]
+tags: [Product, Chat, Design, Customer Support]
 comments: true
 cover_photo: /img/reshaping-chat-support/cover.png
-excerpt: "Learn how the CSE team reshaped chat support through experimentation and design updates."
+excerpt: "Learn how the Customer Support Experience (CSE) team reshaped chat support through experimentation and design updates."
 ---
 
 Introduction
@@ -105,7 +105,7 @@ We broke down the chat support journey to determine what areas could be improved
 
 When analysing the current wait time, we realised that when there was a surge in support requests, the average waiting time increased drastically. In these cases, most users would be unresponsive by the time an agent finally attends to them.
 
-To solve this problem, the team worked on a dynamic queue limit concept based on [Little's law.](https://en.wikipedia.org/wiki/Little%2527s_law) The idea is that considering the number of incoming chats and the agents’ capacity, we can forecast the number of users we can handle in a reasonable time, and prevent the remaining from initiating a chat. When this happens, we ensure there’s a backup channel for support so that no user is left unattended.
+To solve this problem, the team worked on a dynamic queue limit concept based on [Little's law](https://en.wikipedia.org/wiki/Little%2527s_law). The idea is that considering the number of incoming chats and the agents’ capacity, we can forecast the number of users we can handle in a reasonable time, and prevent the remaining from initiating a chat. When this happens, we ensure there’s a backup channel for support so that no user is left unattended.
 
 This allowed us to **reduce chat waiting time by ~30% and reduce unresponsive users by ~7%**.
 
