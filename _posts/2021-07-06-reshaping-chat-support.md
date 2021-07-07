@@ -5,10 +5,10 @@ title: Reshaping Chat Support for Our Users
 date: 2021-07-07 00:18:20
 authors: [elisa-monacchi, suman-anand, wan-ling-guai]
 categories: [Engineering]
-tags: [Product, Chat, Design, Customer Support]
+tags: [Product, Design, Chat Support]
 comments: true
 cover_photo: /img/reshaping-chat-support/cover.png
-excerpt: "Learn how the Customer Support Experience (CSE) team reshaped chat support through experimentation and design updates."
+excerpt: "Learn how the CSE team reshaped chat support through experimentation and design updates."
 ---
 
 Introduction
