@@ -1,13 +1,13 @@
 ---
 layout: post
-id: 2021-07-13-app-moduralisation-at-scale
-title: App Moduralisation at Scale
+id: 2021-07-13-app-modularisation-at-scale
+title: App Modularisation at Scale
 date: 2021-07-13 00:04:40
 authors: [amar-jain]
 categories: [Engineering]
 tags: [App, Build Time, Engineering, Monorepo]
 comments: true
-cover_photo: /img/app-moduralisation-at-scale/cover.jpg
+cover_photo: /img/app-modularisation-at-scale/cover.jpg
 excerpt: "Read up to know how we improved our app’s build time performance and developer experience at Grab."
 ---
 
@@ -40,7 +40,7 @@ We divided the task into the following sub-tasks to ensure that only one out of 
 *   Finally, the App module is used as a hub to connect all the other modules together using dependency injection (Dagger).
 
 <div class="post-image-section"><figure>
-  <img src="/img/app-moduralisation-at-scale/image1.png" alt="Modularised app structure" style="width:90%"> <figcaption align="middle"><i>Modularised app structure</i></figcaption>
+  <img src="/img/app-modularisation-at-scale/image1.png" alt="Modularised app structure" style="width:90%"> <figcaption align="middle"><i>Modularised app structure</i></figcaption>
   </figure></div>
 
 In the above diagram, _payments-home_, _wallet top-up_, and _grabcard_ are different features provided by the Grab app. _top-up-kit_ and _grabcard-kit_ are bridges that expose functionalities from _topup_ and _grabcard_ modules to the payments-home module, respectively.
@@ -74,7 +74,7 @@ At Grab, we have many sub-teams which take care of different features available 
 We started modularising payments further in July 2020 as it was already bombarded with too many features and it was difficult for the team to work on the single payments module. The result of payments modularisation is shown in the following chart.
 
 <div class="post-image-section"><figure>
-  <img src="/img/app-moduralisation-at-scale/image2.png" alt="Build time graph of payments module" style="width:90%"> <figcaption align="middle"><i>Build time graph of payments module</i></figcaption>
+  <img src="/img/app-modularisation-at-scale/image2.png" alt="Build time graph of payments module" style="width:90%"> <figcaption align="middle"><i>Build time graph of payments module</i></figcaption>
   </figure></div>
 
 As of today, we have about 200+ modules in GFG and more than 95% of the modules take less than 15s to build.
