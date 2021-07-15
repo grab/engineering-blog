@@ -33,11 +33,11 @@ Modularising the Grab app was not an easy task as it brought many challenges alo
 
 We divided the task into the following sub-tasks to ensure that only one out of many functionalities in the app was impacted at a time.
 
-*   Setting up the infrastructure by creating Base/Core modules for Networking, Analytics, Experimentation, Storage, Config, and so on.
-*   Building Shared Library modules for Styling, Common-UI, Utils, etc.
-*   Incrementally building Feature modules for user-facing features like Payments Home, Wallet Top Up, Peer-to-Merchant (P2M) Payments, GrabCard and many others.
-*   Creating Kit modules for the feature to feature module communication. This step helped us in building the feature modules in parallel.
-*   Finally, the App module is used as a hub to connect all the other modules together using dependency injection (Dagger).
+*   Setting up the infrastructure by creating **Base/Core modules** for Networking, Analytics, Experimentation, Storage, Config, and so on.
+*   Building **Shared Library modules** for Styling, Common-UI, Utils, etc.
+*   Incrementally building **Feature modules** for user-facing features like Payments Home, Wallet Top Up, Peer-to-Merchant (P2M) Payments, GrabCard and many others.
+*   Creating **Kit modules** to enable inter-module communication. This step helped us in building the feature modules in parallel.
+*   Finally, the **App module** was used as a hub to connect all the other modules together using dependency injection (Dagger).
 
 <div class="post-image-section"><figure>
   <img src="/img/app-modularisation-at-scale/image1.png" alt="Modularised app structure" style="width:90%"> <figcaption align="middle"><i>Modularised app structure</i></figcaption>
@@ -51,11 +51,11 @@ With the _Kit_ module approach, we separated our code into independent layers by
 
 ## Modularisation Benefits
 
-*   **Faster build times and hence faster CI**: Gradle build system compiles only the changed modules and uses the binaries of all the non-affected modules from its cache. So the compilation becomes faster. Moreover, independent modules are run in parallel on different threads.
+*   **Faster build times and hence faster CI**: Gradle build system compiles only the changed modules and uses the binaries of all the non-affected modules from its cache. So the compilation becomes faster as independent modules are run in parallel on different threads.
 *   **Fine dependency graph**: Dependencies of a module are well defined.
-*   **Reusability across other apps**: Modules can be used across different apps by converting them into an AAR SDK.
+*   **Reusability across other apps**: Modules can be used across different apps by converting them into an AAR/SDK.
 *   **Scale and maintainability**: Teams can work independently on the modules owned by them without blocking each other.
-*   **Well-defined code ownership**: Clear responsibility on who owns which code.
+*   **Well-defined code ownership**: Easier to define ownership per module in the codebase.
 
 ## Limitations
 
