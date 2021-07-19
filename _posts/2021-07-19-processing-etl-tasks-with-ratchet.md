@@ -5,7 +5,7 @@ title: Processing ETL tasks with Ratchet
 date: 2021-07-19 03:21:10
 authors: [amar-prakash]
 categories: [Engineering]
-tags: [Pipelines, ETL, Engineering]
+tags: [Pipelines, Data, ETL, Engineering]
 comments: true
 cover_photo: /img/processing-etl-tasks-with-ratchet/cover.jpg
 excerpt: "Read about what Data and ETL pipelines are and how they are used for processing multiple tasks in the Lending Team at Grab."
@@ -22,7 +22,7 @@ In this tech blog, we will discuss what _Data_ and _Extract, Transform and Load 
 A Data pipeline is used to describe a system or a process that moves data from one platform to another. In between platforms, data passes through multiple steps based on defined  requirements, where it may be subjected to some kind of modification. All the steps in a Data pipeline are automated, and the output from one step acts as an input for the next step.
 
 <div class="post-image-section"><figure>
-  <img src="/img/processing-etl-tasks-with-ratchet/image1.png" alt="Data Pipeline (Source: [Hazelcast](https://hazelcast.com/glossary/data-pipeline/)" style="width:90%"> <figcaption align="middle"><i>Data Pipeline (Source: [Hazelcast](https://hazelcast.com/glossary/data-pipeline/)</i></figcaption>
+  <img src="/img/processing-etl-tasks-with-ratchet/image1.png" alt="Data Pipeline" style="width:90%"> <figcaption align="middle"><i>Data Pipeline (Source: <a href="https://hazelcast.com/glossary/data-pipeline/">Hazelcast</a>)</i></figcaption>
   </figure></div>
 
 ## What is an ETL Pipeline?
@@ -30,7 +30,7 @@ A Data pipeline is used to describe a system or a process that moves data from o
 An ETL pipeline is a type of Data pipeline that consists of 3 major steps, namely extraction of data from a source, transformation of that data into the desired format, and finally loading the transformed data to the destination. The destination is also known as the _sink_.
 
 <div class="post-image-section"><figure>
-  <img src="/img/processing-etl-tasks-with-ratchet/image3.jpg" alt="Extract-Transform-Load (Source: [TatvaSoft](https://www.tatvasoft.com/blog/etl-process-extract-transform-load/))" style="width:90%"> <figcaption align="middle"><i>Extract-Transform-Load (Source: [TatvaSoft](https://www.tatvasoft.com/blog/etl-process-extract-transform-load/))</i></figcaption>
+  <img src="/img/processing-etl-tasks-with-ratchet/image3.jpg" alt="Extract-Transform-Load" style="width:90%"> <figcaption align="middle"><i>Extract-Transform-Load (Source: <a href="https://www.tatvasoft.com/blog/etl-process-extract-transform-load/">TatvaSoft</a>)</i></figcaption>
   </figure></div>
 
 The combination of steps in an ETL pipeline provides functions to assure that the business requirements of the application are achieved.
@@ -92,9 +92,8 @@ We use Ratchet for multiple ETL tasks like batch processing, restructuring and r
 Ratchet uses _Data Processors_ for building a pipeline consisting of multiple stages. Data Processors each run in their own `goroutine` so all of the data is processed concurrently. Data Processors are organised into stages, and those stages are run within a pipeline. For building an ETL pipeline, each of the three steps (Extract, Transform and Load) use a Data Processor for implementation. Ratchet provides a set of built-in, useful data processors, while also providing an interface to implement your own. Usually, the transform stage uses a Custom Data Processor.
 
 <div class="post-image-section"><figure>
-  <img src="/img/processing-etl-tasks-with-ratchet/image4.png" alt="Data Processors in Ratchet (Source: [Github](https://github.com/dailyburn/ratchet))" style="width:90%"> <figcaption align="middle"><i>Data Processors in Ratchet (Source: [Github](https://github.com/dailyburn/ratchet))</i></figcaption>
+  <img src="/img/processing-etl-tasks-with-ratchet/image4.png" alt="Data Processors in Ratchet" style="width:90%"> <figcaption align="middle"><i>Data Processors in Ratchet (Source: <a href="https://github.com/dailyburn/ratchet">Github</a>)</i></figcaption>
   </figure></div>
-
 
 Let's take a look at one of these tasks to understand how we utilise Ratchet for processing an ETL task.
 
