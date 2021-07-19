@@ -19,7 +19,7 @@ In this tech blog, we will discuss what _Data_ and _Extract, Transform and Load 
 
 ## What is a Data Pipeline?
 
-A Data pipeline is used to describe a system or a process that moves data from one platform to another. In between platforms, data passes through multiple steps based on defined  requirements, where it may be subjected to some kind of modification. All the steps in a Data pipeline are automated, and the output from one step acts as an input for the next step.
+A Data pipeline is used to describe a system or a process that moves data from one platform to another. In between platforms, data passes through multiple steps based on defined requirements, where it may be subjected to some kind of modification. All the steps in a Data pipeline are automated, and the output from one step acts as an input for the next step.
 
 <div class="post-image-section"><figure>
   <img src="/img/processing-etl-tasks-with-ratchet/image1.png" alt="Data Pipeline" style="width:90%"> <figcaption align="middle"><i>Data Pipeline (Source: <a href="https://hazelcast.com/glossary/data-pipeline/">Hazelcast</a>)</i></figcaption>
@@ -42,7 +42,7 @@ Let's briefly look at each of the steps involved in the ETL pipeline.
 Data extraction is used to fetch data from one or multiple sources with ease. The source of data can vary based on the requirement. Some of the commonly used data sources are:
 
 *   Database
-*   Web based storage (S3, Google cloud, etc)
+*   Web-based storage (S3, Google cloud, etc)
 *   Files
 *   User Feeds, CRM, etc.
 
@@ -71,9 +71,9 @@ The final step of an ETL pipeline involves moving the transformed data to a sink
 
 1.  Database
 2.  File
-3.  Web based storage (S3, Google cloud, etc)
+3.  Web-based storage (S3, Google cloud, etc)
 
-An ETL pipeline may or may not have a loadstep based on its requirements. When the transformed data needs to be stored for further use, the loadstep is used to move the transformed data to the storage of choice. However, in some cases, the transformed data may not be needed for any further use and thus loadstep can be skipped.
+An ETL pipeline may or may not have a loadstep based on its requirements. When the transformed data needs to be stored for further use, the loadstep is used to move the transformed data to the storage of choice. However, in some cases, the transformed data may not be needed for any further use and thus, the loadstep can be skipped.
 
 Now that you understand the basics, let’s go over how we, in the Grab Lending team, use an ETL pipeline.
 
@@ -89,7 +89,7 @@ Go channels are connecting each stage of processing, so the syntax for sending d
 
 We use Ratchet for multiple ETL tasks like batch processing, restructuring and rescheduling of loans, creating user profiles, and so on. One of the backend services, named **Azkaban**, is responsible for handling various ETL tasks.
 
-Ratchet uses _Data Processors_ for building a pipeline consisting of multiple stages. Data Processors each run in their own `goroutine` so all of the data is processed concurrently. Data Processors are organised into stages, and those stages are run within a pipeline. For building an ETL pipeline, each of the three steps (Extract, Transform and Load) use a Data Processor for implementation. Ratchet provides a set of built-in, useful data processors, while also providing an interface to implement your own. Usually, the transform stage uses a Custom Data Processor.
+Ratchet uses _Data Processors_ for building a pipeline consisting of multiple stages. Data Processors each run in their own `goroutine` so all of the data is processed concurrently. Data Processors are organised into stages, and those stages are run within a pipeline. For building an ETL pipeline, each of the three steps (Extract, Transform and Load) use a Data Processor for implementation. Ratchet provides a set of built-in, useful Data Processors, while also providing an interface to implement your own. Usually, the transform stage uses a Custom Data Processor.
 
 <div class="post-image-section"><figure>
   <img src="/img/processing-etl-tasks-with-ratchet/image4.png" alt="Data Processors in Ratchet" style="width:90%"> <figcaption align="middle"><i>Data Processors in Ratchet (Source: <a href="https://github.com/dailyburn/ratchet">Github</a>)</i></figcaption>
@@ -97,13 +97,13 @@ Ratchet uses _Data Processors_ for building a pipeline consisting of multiple st
 
 Let's take a look at one of these tasks to understand how we utilise Ratchet for processing an ETL task.
 
-## Whitelisting Merchants Through ETL Pipeline
+## Whitelisting Merchants Through ETL Pipelines
 
-Whitelisting essentially means making the product available to the user by mapping an offer to the user ID. If a merchant in Thailand receives an option to opt for Cash Loan, it is done by whitelisting that Merchant. In order to whitelist our merchants, our Operations team uses an internal portal to upload a CSV file with the user IDs of the merchants and other required information. This CSV file is generated by our internal Data and Risk team and handed over to the Operations team. Once the CSV file is uploaded, the user IDs present in the file are whitelisted within minutes. However, a lot of work goes in the background to make this possible.
+Whitelisting essentially means making the product available to the user by mapping an offer to the user ID. If a merchant in Thailand receives an option to opt for Cash Loan, it is done by whitelisting that merchant. In order to whitelist our merchants, our Operations team uses an internal portal to upload a CSV file with the user IDs of the merchants and other required information. This CSV file is generated by our internal Data and Risk team and handed over to the Operations team. Once the CSV file is uploaded, the user IDs present in the file are whitelisted within minutes. However, a lot of work goes in the background to make this possible.
 
 ### Data Extraction
 
-Once the Operations team uploads the CSV containing a list of  merchant users to be whitelisted, the file is stored in S3 and an entry is created on the Azkaban service with the document ID of the uploaded file.
+Once the Operations team uploads the CSV containing a list of merchant users to be whitelisted, the file is stored in S3 and an entry is created on the Azkaban service with the document ID of the uploaded file.
 
 <div class="post-image-section"><figure>
   <img src="/img/processing-etl-tasks-with-ratchet/image5.png" alt="File upload by Operations team" style="width:90%"> <figcaption align="middle"><i>File upload by Operations team</i></figcaption>
@@ -113,14 +113,14 @@ The data extraction step makes use of a Custom CSV Data Processor that uses the 
 
 ### Data Transformation
 
-In order to transform the data, we define a Custom Data Processor that we call Transformer for each ETL pipeline. Transformers are responsible for applying all necessary transformations to the data before it is ready for loading. The transformations applied in the merchant whitelisting transformers are:
+In order to transform the data, we define a Custom Data Processor that we call a _Transformer_ for each ETL pipeline. Transformers are responsible for applying all necessary transformations to the data before it is ready for loading. The transformations applied in the merchant whitelisting transformers are:
 
 1.  Convert data from bytes to struct.
 2.  Check for presence of all mandatory fields in the received data.
 3.  Perform validation on the data received.
 4.  Make API calls to external microservices for whitelisting the merchant.
 
-As mentioned earlier, the CSV file is uploaded manually by the Operations team. Since this is a manual process, it is prone to human errors. Validation of data in the data transformation step helps avoid these errors and not propagate them further up the pipeline. Since CSV data consists of multiple rows, each of the rows pass through all the steps mentioned above.
+As mentioned earlier, the CSV file is uploaded manually by the Operations team. Since this is a manual process, it is prone to human errors. Validation of data in the data transformation step helps avoid these errors and not propagate them further up the pipeline. Since CSV data consists of multiple rows, each row passes through all the steps mentioned above.
 
 ### Data Loading
 
@@ -128,7 +128,7 @@ Whenever the merchants are whitelisted, we don't need to store the transformed d
 
 ## Connecting All Stages
 
-After defining our Data Processors for each of the steps in the ETL pipeline, the final remaining piece is to connect all the stages together. As stated earlier, the ETL tasks have different ETL pipelines and each ETL pipeline consists of 3 stages defined by their Data Processors.
+After defining our Data Processors for each of the steps in the ETL pipeline, the final piece is to connect all the stages together. As stated earlier, the ETL tasks have different ETL pipelines and each ETL pipeline consists of 3 stages defined by their Data Processors.
 
 In order to connect these 3 stages, we define a **Job Processor** for each ETL pipeline. A Job Processor represents the entire ETL pipeline and encompasses Data Processors for each of the 3 stages. Each Job Processor implements the following methods:
 
@@ -145,7 +145,7 @@ When the **Azkaban** service is initialised, we run the `SetSource()`, `SetTrans
 
 ## Conclusion
 
-ETL pipelines help us in streamlining various tasks in our team. As showcased through the example in the above section, ETL pipeline breaks a task into multiple stages and divides the responsibilities across these stages.
+ETL pipelines help us in streamlining various tasks in our team. As showcased through the example in the above section, an ETL pipeline breaks a task into multiple stages and divides the responsibilities across these stages.
 
 In cases where a task fails in the middle of the process, ETL pipelines help us determine the cause of the failure quickly and accurately. With ETL pipelines, we have reduced the manual effort required for validating data at each step and avoiding propagation of errors towards the end of the pipeline.
 
