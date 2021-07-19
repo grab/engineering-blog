@@ -158,3 +158,9 @@ Through the use of ETL pipelines and schedulers, we at Lending have been able to
 [http://rkulla.blogspot.com/2016/01/data-pipeline-and-etl-tasks-in-go-using](http://rkulla.blogspot.com/2016/01/data-pipeline-and-etl-tasks-in-go-using.html)
 
 [https://medium.com/swlh/etl-pipeline-and-data-pipeline-comparison-bf89fa240ce9](https://medium.com/swlh/etl-pipeline-and-data-pipeline-comparison-bf89fa240ce9)
+
+## Join Us
+
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
+
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
