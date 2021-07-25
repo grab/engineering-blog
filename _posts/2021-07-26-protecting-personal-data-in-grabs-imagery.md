@@ -179,15 +179,15 @@ The chosen ratios for splitting are:
       <td>3221</td>
     </tr>
     <tr>
-      <td>Number of labeled classes in train set</td>
+      <td>Number of labelled classes in train set</td>
       <td>60630</td>
     </tr>
     <tr>
-      <td>Number of labeled classes in validation set</td>
+      <td>Number of labelled classes in validation set</td>
       <td>7658</td>
     </tr>
     <tr>
-      <td>Number of of labeled classes in test set</td>
+      <td>Number of of labelled classes in test set</td>
       <td>18388</td>
     </tr>
   </tbody>
