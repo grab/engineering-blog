@@ -2,7 +2,7 @@
 layout: post
 id: 2021-07-26-protecting-personal-data-in-grabs-imagery
 title: Protecting Personal Data in Grab's Imagery
-date: 2021-07-26 10:00:00
+date: 2021-07-23 10:00:00
 authors: [adrian-popovici, zsolt-vadaszi, adrian-margin, hannes-kruppa]
 categories: [Engineering]
 tags: [Engineering, Machine Learning, Data, Datasets, Data Science]
@@ -17,7 +17,7 @@ A few years ago, we realised a strong demand to better understand the streets wh
 
 One way to fulfil that demand was to create an image collection platform named KartaView which is Grab Geo's platform for geotagged imagery. It empowers collection, indexing, storage, retrieval of imagery, and map data extraction.
 
-KartaView is a public, partially open-sourced product, used both internally and externally by the OpenStreetMap community and other users. As of 2021, KartaView has public imagery in over 100 countries with various coverage degrees, and 60+ cities of Southeast Asia. Check it out at [here](www.kartaview.com).
+KartaView is a public, partially open-sourced product, used both internally and externally by the OpenStreetMap community and other users. As of 2021, KartaView has public imagery in over 100 countries with various coverage degrees, and 60+ cities of Southeast Asia. Check it out at [here](http://www.kartaview.com/).
 
 <div class="post-image-section"><figure>
   <img src="/img/protecting-personal-data-in-grabs-imagery/figure-1-kartaview-platform.png" alt="Figure 1 - KartaView platform" style="width:90%"> <figcaption align="middle"><i>Figure 1 - KartaView platform</i></figcaption>
@@ -52,10 +52,11 @@ At a high level, this is how Grab goes about the blurring process:
 2. Use an object detector able to detect all faces and licence plates in a planar image having a standard field of view.
 3. Transform the coordinates of the detected regions into original coordinates and blur those regions.
 
+
 <div class="post-image-section"><figure>
-  <img src="/img/protecting-personal-data-in-grabs-imagery/figure-4-picture-processing-steps.png" alt="Figure 4 - Picture’s processing steps" style="width:90%"> <figcaption align="middle"><i>Figure 4 - Picture’s processing steps</i></figcaption>
-  </figure>
+  <img src="/img/protecting-personal-data-in-grabs-imagery/figure-4-picture-processing-steps.png" alt="Figure 4 - Picture’s processing steps" style="width:90%"> <figcaption align="middle"><i>Figure 4 - Picture’s processing steps</i></figcaption></figure>
 </div>
+
 [^2]
 In the following section, we are going to describe in detail the interesting aspects of the second step, sharing the challenges and how we were solving them. Let’s start with the first and most important part, the dataset.
 
@@ -244,8 +245,9 @@ Most CNN based object detectors have three main parts: Backbone, Neck and (Dense
   <img src="/img/protecting-personal-data-in-grabs-imagery/figure-7-anatomy-of-object-detectors.png" alt="Figure 7 - Anatomy of one and two-stage object detectors" style="width:90%"> <figcaption align="middle"><i>Figure 7 - Anatomy of one and two-stage object detectors</i></figcaption>
   </figure>
 </div>
+
 [^3]
-The backbone is usually a CNN classification network pretrained on some dataset, like ImageNet-1K. The neck combines features from different layers in order to produce rich representations for both large and small objects. Since the objects to be detected have varying sizes, the topmost features are too coarse to represent smaller objects, so the first CNN based object detectors were fairly weak in detecting small sized objects. The multi-scale, pyramid hierarchy is inherent to CNNs so [^4] introduced the Feature Pyramid Network which at marginal costs combines features from multiple scales and makes predictions on them. This or improved variants of this technique is used by most detectors nowadays. The head part does the predictions for bounding boxes and their labels.
+The backbone is usually a CNN classification network pretrained on some dataset, like ImageNet-1K. The neck combines features from different layers in order to produce rich representations for both large and small objects. Since the objects to be detected have varying sizes, the topmost features are too coarse to represent smaller objects, so the first CNN based object detectors were fairly weak in detecting small sized objects. The multi-scale, pyramid hierarchy is inherent to CNNs so Tsung-Yi Lin et al [^4] introduced the Feature Pyramid Network which at marginal costs combines features from multiple scales and makes predictions on them. This or improved variants of this technique is used by most detectors nowadays. The head part does the predictions for bounding boxes and their labels.
 
 YOLO is part of the anchor-based one-stage object detectors family being developed originally in Darknet, an open source neural network framework written in C and CUDA. Back in 2015, it was the first end-to-end differentiable network of this kind that offered a joint learning of object bounding boxes and their labels.
 
