@@ -306,6 +306,11 @@ Grab is the leading superapp platform in Southeast Asia, providing everyday serv
 
 Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
 
+#### References
+
+1. Bharat Singh, Larry S. Davis. An Analysis of Scale Invariance in Object Detection - SNIP. [arXiv:1711.08189v2](https://arxiv.org/abs/1711.08189v2)
+2. Zhenda Xie et al. Self-Supervised Learning with Swin Transformers.  [arXiv:2105.04553v2](https://arxiv.org/abs/2105.04553v2)
+
 #### Footnotes
 
 [^1]: Kaiyu Yang et al. Study of Face Obfuscation in ImageNet: [arxiv.org/abs/2103.06191](https://arxiv.org/abs/2103.06191)
@@ -316,5 +321,3 @@ Powered by technology and driven by heart, our mission is to drive Southeast Asi
 [^6]: Kemal Oksuz et al.. Imbalance Problems in Object Detection: A Review. [arXiv:1909.00169v3](https://arxiv.org/abs/1909.00169v3)
 [^7]: Kaiming He et al. Spatial Pyramid Pooling in Deep Convolutional Networks for Visual Recognition. [arXiv:1406.4729v4](https://arxiv.org/abs/1406.4729v4)
 [^8]: Shu Liu et al. Path Aggregation Network for Instance Segmentation. [arXiv:1803.01534v4](https://arxiv.org/abs/1803.01534v4)
-[^9]: Bharat Singh, Larry S. Davis. An Analysis of Scale Invariance in Object Detection - SNIP. [arXiv:1711.08189v2](https://arxiv.org/abs/1711.08189v2)
-[^10]: Zhenda Xie et al. Self-Supervised Learning with Swin Transformers.  [arXiv:2105.04553v2](https://arxiv.org/abs/2105.04553v2)
