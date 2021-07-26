@@ -6,9 +6,368 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 26 Jul 2021 09:12:26 +0000</pubDate>
-    <lastBuildDate>Mon, 26 Jul 2021 09:12:26 +0000</lastBuildDate>
+    <pubDate>Mon, 26 Jul 2021 11:32:45 +0000</pubDate>
+    <lastBuildDate>Mon, 26 Jul 2021 11:32:45 +0000</lastBuildDate>
     <generator>Jekyll v3.8.4</generator>
+    
+      <item>
+        <title>Protecting Personal Data in Grab's Imagery</title>
+        <description>&lt;h2 id=&quot;image-collection-using-kartaview&quot;&gt;Image Collection Using KartaView&lt;/h2&gt;
+
+&lt;p&gt;Starting a few years ago, we realised the strong demand to better understand the streets where our drivers and clients go, with the purpose to better fulfil their needs and also to be able to quickly adapt ourselves to the rapidly changing environment in the Southeast Asia cities.&lt;/p&gt;
+
+&lt;p&gt;One way to fulfil that demand was to create an image collection platform named KartaView which is Grab Geo’s platform for geotagged imagery. It empowers collection, indexing, storage, retrieval of imagery, and map data extraction.&lt;/p&gt;
+
+&lt;p&gt;KartaView is a public, partially open-sourced product, used both internally and externally by the OpenStreetMap community and other users. As of 2021, KartaView has public imagery in over 100 countries with various coverage degrees, and 60+ cities of Southeast Asia. Check it out at www.kartaview.com.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-1-kartaview-platform.png&quot; alt=&quot;Figure 1 - KartaView platform&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1 - KartaView platform&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;why-image-blurring-is-important&quot;&gt;Why Image Blurring is Important&lt;/h2&gt;
+
+&lt;p&gt;Many incidental people and licence plates are in the collected images, whose privacy is a serious concern. We deeply respect all of them and consequently, we are using image obfuscation as the most effective anonymisation method for ensuring privacy protection.&lt;/p&gt;
+
+&lt;p&gt;Because manually annotating the regions in the picture where faces and licence plates are located is impractical, this problem should be solved using machine learning and engineering techniques. Hence we detect and blur all faces and licence plates which could be considered as personal data.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-2-sample-blurred-picture.jpg&quot; alt=&quot;Figure 2 - Sample blurred picture&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2 - Sample blurred picture&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In our case, we have a wide range of picture types: regular planar, very wide and 360 pictures in equirectangular format collected with 360 cameras. Also, because we are collecting imagery globally, the vehicle types, licence plates, and human environments are quite diverse in appearance, and are not handled well by off-the-shelf blurring software. So we built our own custom blurring solution which yielded higher accuracy and better cost-efficiency overall with respect to blurring of personal data.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-3-equirectangular-image.png&quot; alt=&quot;Figure 3 - Example of equirectangular image where personal data has to be blurred&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3 - Example of equirectangular image where personal data has to be blurred&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Behind the scenes, in KartaView, there are a set of cool services which are able to derive useful information from the pictures like image quality, traffic signs, roads, etc. A big part of them are using deep learning algorithms which potentially can be negatively affected by running them over blurred pictures. In fact, based on the assessment we have done so far, the impact is extremely low, similar to the one reported in a well known study of face obfuscation in ImageNet [9].&lt;/p&gt;
+
+&lt;h3 id=&quot;outline-of-grabs-blurring-process&quot;&gt;Outline of Grab’s Blurring Process&lt;/h3&gt;
+
+&lt;p&gt;Roughly, the processing steps are the following:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Transform each picture into a set of planar images. In this way, we further process all pictures, whatever the format they had, in the same way.&lt;/li&gt;
+  &lt;li&gt;Use an object detector able to detect all faces and licence plates in a planar image having a standard field of view.&lt;/li&gt;
+  &lt;li&gt;Transform the coordinates of the detected regions into original coordinates and blur those regions.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-4-picture-processing-steps.png&quot; alt=&quot;Figure 4 - Picture’s processing steps [8]&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 4 - Picture’s processing steps [8]&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In the following section, we are going to describe in detail the interesting aspects of the second step, sharing the challenges and how we were solving them. Let’s start with the first and most important part, the dataset.&lt;/p&gt;
+
+&lt;h3 id=&quot;dataset&quot;&gt;Dataset&lt;/h3&gt;
+
+&lt;p&gt;Our current dataset consists of images from a wide range of cameras, including normal perspective cameras from mobile phones, wide field of view cameras and also 360 degree cameras.&lt;/p&gt;
+
+&lt;p&gt;It is the result of a series of data collections contributed by Grab’s data tagging teams, which may contain 2 classes of dataset that are of interest for us: FACE and LICENSE_PLATE.&lt;/p&gt;
+
+&lt;p&gt;The data was collected using Grab internal tools, stored in queryable databases, making it a system that gives the possibility to revisit the data and correct it if necessary, but also making it possible for data engineers to select and filter the data of interest.&lt;/p&gt;
+
+&lt;h4 id=&quot;dataset-evolution&quot;&gt;Dataset Evolution&lt;/h4&gt;
+
+&lt;p&gt;Each iteration of the dataset was made to address certain issues discovered while having models used in a production environment and observing situations where the model lacked in performance.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;/th&gt;
+      &lt;th&gt;Dataset v1&lt;/th&gt;
+      &lt;th&gt;Dataset v2&lt;/th&gt;
+      &lt;th&gt;Dataset v3&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Nr. images&lt;/td&gt;
+      &lt;td&gt;15226&lt;/td&gt;
+      &lt;td&gt;17636&lt;/td&gt;
+      &lt;td&gt;30538&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Nr. of labels&lt;/td&gt;
+      &lt;td&gt;64119&lt;/td&gt;
+      &lt;td&gt;86676&lt;/td&gt;
+      &lt;td&gt;242534&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;If the first version was basic, containing a rough tagging strategy we quickly noticed that it was not detecting some special situations that appeared due to the pandemic situation: people wearing masks.&lt;/p&gt;
+
+&lt;p&gt;This led to another round of data annotation to include those scenarios.
+The third iteration addressed a broader range of issues:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Small regions of interest (objects far away from the camera)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/small-region-of-interest.jpg&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Objects in very dark backgrounds&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/objects-in-very-dark-backgrounds.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Rotated objects or even upside down&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/rotated-objects.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Variation of the licence plate design due to images from different countries and regions&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/licence-plate.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;People wearing masks&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/masks.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Faces in the mirror - see below the mirror of the motorcycle&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/faces-in-mirror.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;But the main reason was because of a scenario where the recording, at the start or end (but not only), had close-ups of the operator who was checking the camera. This led to images with large regions of interest containing the camera operator’s face - too large to be detected by the model.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/face.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;An investigation in the dataset structure, by splitting the data into bins based on the bbox sizes (in pixels), made something clear: the dataset was unbalanced.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/detection-counts-graph.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We made bins for tag sizes with a stride of 100 pixels and went up to the max present in the dataset which accounted for 1 sample of size 2000 pixels. The majority of the labels were small in size and the higher we would go with the size, the less tags we would have. This made it clear that we would need more targeted annotations for our dataset to try to balance it.&lt;/p&gt;
+
+&lt;p&gt;All these scenarios required the tagging team to revisit the data multiple times and also change the tagging strategy by including more tags that were considered at a certain limit. It also required them to pay more attention to small details that may have been missed in a previous iteration.&lt;/p&gt;
+
+&lt;h4 id=&quot;data-splitting&quot;&gt;Data Splitting&lt;/h4&gt;
+
+&lt;p&gt;To better understand the strategy chosen for splitting the data we need to also understand the source of the data. The images come from different devices that are used in different geo locations (different countries) and are from a continuous trip recording. The annotation team used an internal tool to visualise the trips image by image and mark the faces and licence plates present in them. We would then have access to all those images and their respective metadata.&lt;/p&gt;
+
+&lt;p&gt;The chosen ratios for splitting are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Train 70%&lt;/li&gt;
+  &lt;li&gt;Validation 10%&lt;/li&gt;
+  &lt;li&gt;Test 20%&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Number of train images&lt;/td&gt;
+      &lt;td&gt;12733&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Number of validation images&lt;/td&gt;
+      &lt;td&gt;1682&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Number of test images&lt;/td&gt;
+      &lt;td&gt;3221&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Number of labeled classes in train set&lt;/td&gt;
+      &lt;td&gt;60630&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Number of labeled classes in validation set&lt;/td&gt;
+      &lt;td&gt;7658&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Number of of labeled classes in test set&lt;/td&gt;
+      &lt;td&gt;18388&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;The split is not so trivial as we have some requirements and need to complete some conditions:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;An image can have multiple tags from one or both classes but must belong to just one subset.&lt;/li&gt;
+  &lt;li&gt;The tags should be split as close as possible to the desired ratios.&lt;/li&gt;
+  &lt;li&gt;As different images can belong to the same trip in a close geographical relation we need to force them in the same subset, thus avoiding similar tags in train and test subsets, resulting in incorrect evaluations.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;data-augmentation&quot;&gt;Data Augmentation&lt;/h4&gt;
+
+&lt;p&gt;The application of data augmentation plays a crucial role while training the machine learning model. There are mainly three ways in which data augmentation techniques can be applied. They are:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Offline data augmentation - enriching a dataset by physically multiplying some of its images and applying modifications to them.&lt;/li&gt;
+  &lt;li&gt;Online data augmentation - on the fly modifications of the image during train time with configurable probability for each modification.&lt;/li&gt;
+  &lt;li&gt;Combination of both offline and online data augmentation.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;In our case, we are using the third option which is the combination of both.&lt;/p&gt;
+
+&lt;p&gt;The first method that contributes to offline augmentation is a method called image view splitting. This is necessary for us due to different image types: perspective camera images, wide field of view images, 360 degree images in equirectangular format. All these formats and field of views with their respective distortions would complicate the data and make it hard for the model to generalise it and also handle different image types that could be added in the future.&lt;/p&gt;
+
+&lt;p&gt;For this we defined the concept of image views which are an extracted portion (view) of an image with some predefined properties. For example, the perspective projection of 75 by 75 degrees field of view patches from the original image.&lt;/p&gt;
+
+&lt;p&gt;Here we can see a perspective camera image and the image views generated from it:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-5-original-image.png&quot; alt=&quot;Figure 5 - Original image&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 5 - Original image&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-6-image-views-generated.png&quot; alt=&quot;Figure 6 - Two image views generated&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 6 - Two image views generated&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The important thing here is that each generated view is an image on its own with the associated tags. They also have an overlapping area so we have a possibility to contain the same tag in two views but from different perspectives. This brings us to an indirect outcome of the first offline augmentation.&lt;/p&gt;
+
+&lt;p&gt;The second method for offline augmentation is the oversampling of some of the images (views). As mentioned above, we faced the problem of an unbalanced dataset, specifically we were missing tags that occupied high regions of the image, and even though our tagging teams tried to annotate as many as they could find, these were still scarce.&lt;/p&gt;
+
+&lt;p&gt;As our object detection model is an anchor-based detector, we did not even have enough of them to generate the anchor boxes correctly. This could be clearly seen in the accuracy of the previous trained models, as they were performing poorly on bins of big sizes.&lt;/p&gt;
+
+&lt;p&gt;By randomly oversampling images that contained big tags, up to a minimum required number, we managed to have better anchors and increase the recall for those scenarios. As described below, the chosen object detector for blurring was YOLOv4 which offers a large variety of online augmentations. The online augmentations used are saturation, exposure, hue, flip and mosaic.&lt;/p&gt;
+
+&lt;h3 id=&quot;model&quot;&gt;Model&lt;/h3&gt;
+
+&lt;p&gt;As of summer of 2021, the “to go” solution for object detection in images are convolutional neural networks (CNN), being a mature solution able to fulfil the needs efficiently.&lt;/p&gt;
+
+&lt;h4 id=&quot;architecture&quot;&gt;Architecture&lt;/h4&gt;
+
+&lt;p&gt;Most CNN based object detectors have three main parts: Backbone, Neck and (Dense or Sparse Prediction) Heads. From the input image, the backbone extracts features which can be combined in the neck part to be used by the prediction heads to predict object bounding-boxes and their labels.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-7-anatomy-of-object-detectors.png&quot; alt=&quot;Figure 7 - Anatomy of one and two-stage object detectors [1]&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 7 - Anatomy of one and two-stage object detectors [1]&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The backbone is usually a CNN classification network pretrained on some dataset, like ImageNet-1K. The neck combines features from different layers in order to produce rich representations for both large and small objects. Since the objects to be detected have varying sizes, the topmost features are too coarse to represent smaller objects, so the first CNN based object detectors were fairly weak in detecting small sized objects. The multi-scale, pyramid hierarchy is inherent to CNNs so [2] introduced the Feature Pyramid Network which at marginal costs combines features from multiple scales and makes predictions on them. This or improved variants of this technique is used by most detectors nowadays. The head part does the predictions for bounding boxes and their labels.&lt;/p&gt;
+
+&lt;p&gt;YOLO is part of the anchor-based one-stage object detectors family being developed originally in Darknet, an open source neural network framework written in C and CUDA. Back in 2015 it was the first end-to-end differentiable network of this kind that offered a joint learning of object bounding boxes and their labels.&lt;/p&gt;
+
+&lt;p&gt;One reason for the big success of newer YOLO versions is that the authors carefully merged new ideas into one architecture, the overall speed of the model being always the north star.&lt;/p&gt;
+
+&lt;p&gt;YOLOv4 introduces several changes to its v3 predecessor:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Backbone - CSPDarknet53: YOLOv3 Darknet53 backbone was modified to use Cross Stage Partial Network (CSPNet [5]) strategy, which aims to achieve richer gradient combinations by letting the gradient flow propagate through different network paths.&lt;/li&gt;
+  &lt;li&gt;Multiple configurable augmentation and loss function types, so called “Bag of freebies”, which by changing the training strategy can yield higher accuracy without impacting the inference time.&lt;/li&gt;
+  &lt;li&gt;Configurable necks and different activation functions, they call “Bag of specials”.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;insights&quot;&gt;Insights&lt;/h4&gt;
+
+&lt;p&gt;For this task, we found that YOLOv4 gave a good compromise between speed and accuracy as it has doubled the speed of a more accurate two-stage detector while maintaining a very good overall precision/recall. For blurring, the main metric for model selection was the overall recall, while precision and intersection over union (IoU) of the predicted box comes second as we want to catch all personal data even if some are wrong. Having a multitude of possibilities to configure the detector architecture and train it on our own dataset we conducted several experiments with different configurations for backbones, necks, augmentations and loss functions to come up with our current solution.&lt;/p&gt;
+
+&lt;p&gt;We faced challenges in training a good model as the dataset posed a large object/box-level scale imbalance, small objects being over-represented in the dataset. As described in [3] and [4], this affects the scales of the estimated regions and the overall detection performance. In [3] several solutions are proposed for this out of which the SPP [6] blocks and PANet [7] neck used in YOLOv4 together with heavy offline data augmentation increased the performance of the actual model in comparison to the former ones.&lt;/p&gt;
+
+&lt;p&gt;As we have evaluated the model; it still has some issues:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Occlusion of the object, either by the camera view, head accessories or other elements:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/occlusion.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;These cases would need extra annotation in the dataset, just like the faces or licence plates that are really close to the camera and occupy a large region of interest in the image.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;As we have a limited number of annotations of close objects to the camera view, the model has incorrectly learnt this, sometimes producing false positives in these situations:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/annotation.png&quot; /&gt;&lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Again, one solution for this would be to include more of these scenarios in the dataset.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next?&lt;/h2&gt;
+
+&lt;p&gt;Grab spends a lot of effort ensuring privacy protection for its users so we are always looking for ways to further improve our related models and processes.&lt;/p&gt;
+
+&lt;p&gt;As far as efficiency is concerned, there are multiple directions to consider for both the dataset and the model. There are two main factors that drive the costs and the quality: further development of the dataset for additional edge cases (e.g. more training data of people wearing masks) and the operational costs of the model.&lt;/p&gt;
+
+&lt;p&gt;As the vast majority of current models require a fully labelled dataset, this puts a large work effort on the Data Entry team before creating a new model. Our dataset increased 4x for it’s third version, still there is room for improvement as described in the Dataset section.&lt;/p&gt;
+
+&lt;p&gt;As Grab extends its operation in more cities, new data is collected that has to be processed, this puts an increased focus on running detection models more efficiently.&lt;/p&gt;
+
+&lt;p&gt;Directions to pursue to increase our efficiency could be the following:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;As plenty of unlabelled data is available from imagery collection, a natural direction to explore is self-supervised visual representation learning techniques to derive a general vision backbone with superior transferring performance for our subsequent tasks as detection, classification.&lt;/li&gt;
+  &lt;li&gt;Experiment with optimisation techniques like pruning and quantisation to get a faster model without sacrificing too much on accuracy.&lt;/li&gt;
+  &lt;li&gt;Explore new architectures: YOLOv5, EfficientDet or Swin-Transformer for Object Detection.&lt;/li&gt;
+  &lt;li&gt;Introduce semi-supervised learning techniques to improve our model performance on the long tail of the data.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Alexey Bochkovskiy et al.. YOLOv4: Optimal Speed and Accuracy of Object Detection. &lt;a href=&quot;https://arxiv.org/abs/2004.10934v1&quot;&gt;arXiv:2004.10934v1&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Tsung-Yi Lin et al. Feature Pyramid Networks for Object Detection. &lt;a href=&quot;https://arxiv.org/abs/1612.03144v2&quot;&gt;arXiv:1612.03144v2&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Kemal Oksuz et al.. Imbalance Problems in Object Detection: A Review. &lt;a href=&quot;https://arxiv.org/abs/1909.00169v3&quot;&gt;arXiv:1909.00169v3&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Bharat Singh, Larry S. Davis. An Analysis of Scale Invariance in Object Detection - SNIP. &lt;a href=&quot;https://arxiv.org/abs/1711.08189v2&quot;&gt;arXiv:1711.08189v2&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Chien-Yao Wang et al. CSPNet: A New Backbone that can Enhance Learning Capability of CNN. &lt;a href=&quot;https://arxiv.org/abs/1911.11929v1&quot;&gt;arXiv:1911.11929v1&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Kaiming He et al. Spatial Pyramid Pooling in Deep Convolutional Networks for Visual Recognition. &lt;a href=&quot;https://arxiv.org/abs/1406.4729v4&quot;&gt;arXiv:1406.4729v4&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Shu Liu et al. Path Aggregation Network for Instance Segmentation. &lt;a href=&quot;https://arxiv.org/abs/1803.01534v4&quot;&gt;arXiv:1803.01534v4&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;http://blog.nitishmutha.com/equirectangular/360degree/2017/06/12/How-to-project-Equirectangular-image-to-rectilinear-view.html&lt;/li&gt;
+  &lt;li&gt;Kaiyu Yang et al. Study of Face Obfuscation in ImageNet: &lt;a href=&quot;https://arxiv.org/abs/2103.06191&quot;&gt;arxiv.org/abs/2103.06191&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Zhenda Xie et al. Self-Supervised Learning with Swin Transformers.  &lt;a href=&quot;https://arxiv.org/abs/2105.04553v2&quot;&gt;arXiv:2105.04553v2&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 26 Jul 2021 00:40:00 +0000</pubDate>
+        <link>https://engineering.grab.com/protecting-personal-data-in-grabs-imagery</link>
+        <guid isPermaLink="true">https://engineering.grab.com/protecting-personal-data-in-grabs-imagery</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Machine Learning</category>
+        
+        <category>Data</category>
+        
+        <category>Datasets</category>
+        
+        <category>Data Science</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Processing ETL tasks with Ratchet</title>
@@ -1816,216 +2175,6 @@ Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
         <category>Containerisation</category>
         
         <category>Kubernetes</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Customer Support Workforce Routing</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;With Grab’s wide range of services, we get large volumes of queries a day. Our Customer Support teams address concerns and issues from safety issues to general FAQs. The teams delight our consumers through quick resolutions, resulting from world-class support framework and an efficient workforce routing system.&lt;/p&gt;
-
-&lt;p&gt;Our routing workforce system ensures that available resources are efficiently assigned to a request based on the right skillset and deciding factors such as department, country, request priority. Scalability to work across support channels (e.g. voice, chat, or digital) is also another factor considered for routing a request to a particular support specialist.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/customer-support-workforce-routing/image8.gif&quot; alt=&quot;Sample Livechat flow - How it works today&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Sample Livechat flow - How it works today&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Having an efficient workforce routing system ensures that requests are directed to relevant support specialists who are most suited to handle a certain type of issue, resulting in quicker resolution, happier and satisfied consumers, and reduced cost spent on support.&lt;/p&gt;
-
-&lt;p&gt;We initially implemented a third-party solution, however there were a few limitations, such as prioritisation, that motivated us to build our very own routing solution that provides better routing configuration controls and cost reduction from licensing costs.&lt;/p&gt;
-
-&lt;p&gt;This article describes how we built our in-house workforce routing system at Grab and focuses on &lt;em&gt;Livechat&lt;/em&gt;, one of the domains of consumer support.&lt;/p&gt;
-
-&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;/h2&gt;
-
-&lt;p&gt;Let’s run through the issues with our previous routing solution in the next sections.&lt;/p&gt;
-
-&lt;h3 id=&quot;priority-management&quot;&gt;Priority Management&lt;/h3&gt;
-
-&lt;p&gt;The third-party solution didn’t allow us to prioritise a group of requests over others. This was particularly important for handling safety issues that were not impacted due to other low-priority requests like enquiries. So our goal for the in-house solution was to ensure that we were able to configure the priority of the request queues.&lt;/p&gt;
-
-&lt;h3 id=&quot;bespoke-product-customisation&quot;&gt;Bespoke Product Customisation&lt;/h3&gt;
-
-&lt;p&gt;With the third-party solution being a generic service provider, customisations often required long lead times as not all product requests from Grab were well received by the mass market. Building this in-house meant Grab had full controls over the design and configuration over routing. Here are a few sample use cases that were addressed by customisation:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Bulk configuration changes&lt;/strong&gt; - Previously, it was challenging to assign the same configuration to multiple agents. So, we introduced another layer of grouping for agents that share the same configuration. For example, which queues the agents receive chats from and what the proficiency and max concurrency should be.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Resource Constraints&lt;/strong&gt; - To avoid overwhelming resources with unlimited chats and maintaining reasonable wait times for our consumers, we introduced a dynamic queue limit on the number of chat requests enqueued. This limit was based on factors like the number of incoming chats and the agent performance over the last hour.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Remote Work Challenges&lt;/strong&gt; - With the pandemic situation and more of our agents working remotely, network issues were common. So we released an enhancement on the routing system to reroute chats handled by unavailable agents (due to disconnection for an extended period) to another available agent. The seamless experience helped increase consumer satisfaction.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;reporting-and-analytics&quot;&gt;Reporting and Analytics&lt;/h3&gt;
-
-&lt;p&gt;Similar to previous point, having a solution addressing generic use cases didn’t allow us to add further customisations for monitoring. With the custom implementation, we were able to add more granular metrics that are very useful to assess the agent productivity and performance, which helps in planning the resources ahead of time. This is why reporting and analytics were so valuable for workforce planning. Few of the customisations added additionally were:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Agent Time Utilisation&lt;/strong&gt; - While basic agent tracking was available in the out-of-the-box solution, it limited users to three states (online, away, and invisible). With the custom routing solution, we were able to create customised statuses to reflect the time the agent spent in a particular state due to chat connection issues and failures and reflect this on dashboards for immediate attention.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Chat Transfers&lt;/strong&gt; - The number of chat transfers could only be tabulated manually. We then automated this process with a custom implementation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-&lt;p&gt;Now that we’ve covered the issues we’re solving, let’s go over the solutions.&lt;/p&gt;
-
-&lt;h3 id=&quot;prioritising-high-priority-requests&quot;&gt;Prioritising High-priority Requests&lt;/h3&gt;
-
-&lt;p&gt;During routing, the constraint is on the number of resources available. The incoming requests cannot simply be assigned to the first available agent. The issue with this approach is that we would eventually run out of agents to serve the high-priority requests.&lt;/p&gt;
-
-&lt;p&gt;One of the ways to prevent this is to have a separate group of agents to solely handle high-priority requests. This does not solve issues as the high-priority requests and low-priority requests share the same queue and are de-queued in a &lt;em&gt;First-In, First-out (FIFO)&lt;/em&gt; order. As a result, the low-priority requests are directly processed instead of waiting for the queue to fill up before processing high-priority requests. Because of this queuing issue, prioritisation of requests is critical.&lt;/p&gt;
-
-&lt;h4 id=&quot;the-need-to-prioritise&quot;&gt;The Need to Prioritise&lt;/h4&gt;
-
-&lt;p&gt;High-priority requests, such as safety issues, must not be in the queue for a long duration and should be handled as fast as possible even when the system is filled with low-priority requests.&lt;/p&gt;
-
-&lt;p&gt;There are two different kinds of queues: one to handle requests at priority level and the other to handle individual issues that are on the business queues on which the queue limit constraints apply.&lt;/p&gt;
-
-&lt;p&gt;To illustrate further, here are two different scenarios of enqueuing/de-queuing:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Different Issues with Different Priorities&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;In this scenario, the priority is set to de-queue safety issues, which are in the high-priority queue, before picking up the enquiry issues from the low-priority queue.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/customer-support-workforce-routing/image6.png&quot; alt=&quot;Different issues with different priorities&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Different issues with different priorities&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Identical Issues with Different Priorities&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;In this scenario where identical issues have different priorities, the reallocated enquiry issue in the high-priority queue is de-queued first before picking up a low-priority enquiry issue. Reallocations happen when a chat is transferred to another agent or when it was not accepted by the allocated agent. When reallocated, it goes back to the queue with a higher priority.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/customer-support-workforce-routing/image7.png&quot; alt=&quot;Identical issues with different priorities&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Identical issues with different priorities&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;h4 id=&quot;approach&quot;&gt;Approach&lt;/h4&gt;
-
-&lt;p&gt;To implement different levels of priorities, we decided to use separate queues for each of the priorities and denoted the request queues by groups, which could logically exist in any of the priority queues.&lt;/p&gt;
-
-&lt;p&gt;For de-queueing, time slices of varied lengths were assigned to each of the queues to make sure the de-queueing worker spends more time on a higher priority queue.&lt;/p&gt;
-
-&lt;p&gt;The architecture uses multiple de-queueing workers running in parallel, with each worker looping over the queues and waiting for a message in a queue for a certain amount of time, and then allocating it to an agent.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;for i := startIndex; i &amp;lt; len(consumer.priorityQueue); i++ {
- queue := consumer.priorityQueue[i]
- duration := queue.config.ProcessingDurationInMilliseconds
- for now := time.Now(); time.Since(now) &amp;lt; time.Duration(duration)*time.Millisecond; {
-   consumer.processMessage(queue.client, queue.config)
-   // cool down
-   time.Sleep(time.Millisecond * 100)
- }
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The above code snippet iterates over individual priority queues and waits for a message for a certain duration, it then processes the message upon receipt. There is also a cooldown period of 100ms before it moves on to receive a message from a different priority queue.&lt;/p&gt;
-
-&lt;p&gt;The caveat with the above approach is that the worker may end up spending more time than expected when it receives a message at the end of the waiting duration. We addressed this by having multiple workers running concurrently.&lt;/p&gt;
-
-&lt;h4 id=&quot;request-starvation&quot;&gt;Request Starvation&lt;/h4&gt;
-
-&lt;p&gt;Now when priority queues are used, there is a possibility that some of the low-priority requests remain unprocessed for long periods of time. To ensure that this doesn’t happen, the workers are forced to run out of sync by tweaking the order in which priority queues are processed, such that when &lt;em&gt;worker1&lt;/em&gt; is processing a high-priority queue request, &lt;em&gt;worker2&lt;/em&gt; is waiting for a request in the medium-priority queue instead of the high-priority queue.&lt;/p&gt;
-
-&lt;h3 id=&quot;customising-to-our-needs&quot;&gt;Customising to Our Needs&lt;/h3&gt;
-
-&lt;p&gt;We wanted to make sure that agents with the adequate skills are assigned to the right queues to handle the requests. On top of that, we wanted to ensure that there is a limit on the number of requests that a queue can accept at a time, guaranteeing that the system isn’t flushed with too many requests, which can lead to longer waiting times for request allocation.&lt;/p&gt;
-
-&lt;h4 id=&quot;approach-1&quot;&gt;Approach&lt;/h4&gt;
-
-&lt;p&gt;The queues are configured with a dynamic queue limit, which is the upper limit on the number of requests that a queue can accept. Additionally attributes such as country, department, and skills are defined on the queue.&lt;/p&gt;
-
-&lt;p&gt;The dynamic queue limit takes account of the utilisation factor of the queue and the available agents at the given time, which ensures an appropriate waiting time at the queue level.&lt;/p&gt;
-
-&lt;p&gt;A simple approach to assign which queues the agents can receive the requests from is to directly assign the queues to the agents. But this leads to another problem to solve, which is to control the number of concurrent chats an agent can handle and define how proficient an agent is at solving a request. Keeping this in mind, it made sense to have another grouping layer between the queue and agent assignment and to define attributes, such as concurrency, to make sure these groups can be reused.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/customer-support-workforce-routing/image1.png&quot; alt=&quot;Agent assignment&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Agent assignment&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;There are three entities in agent assignment:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Queue&lt;/li&gt;
-  &lt;li&gt;Agent Group&lt;/li&gt;
-  &lt;li&gt;Agent&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;When the request is de-queued, the agent list mapped to the queue is found and then some additional business rules (e.g. proficiency check) are applied to calculate the eligibility score of each mapped agent to decide which agent is the best suited to cater to the request.&lt;/p&gt;
-
-&lt;p&gt;The factors impacting the eligibility score are proficiency (whether the agent is online/offline), current concurrency, max concurrency, and last allocation time.&lt;/p&gt;
-
-&lt;h4 id=&quot;ensuring-the-concurrency-is-not-breached&quot;&gt;Ensuring the Concurrency is Not Breached&lt;/h4&gt;
-
-&lt;p&gt;To make sure that the agent doesn’t receive more chats than their defined concurrency, a locking mechanism is used at per agent level. During agent allocation, the worker acquires a lock on the agent record with an expiry, preventing other workers from allocating a chat to this agent. Only once the allocation process is complete (either failed or successful), the concurrency is updated and the lock is released, allowing other workers to assign more chats to the agent depending on the bandwidth.&lt;/p&gt;
-
-&lt;p&gt;A similar approach was used to ensure that the queue limit doesn’t exceed the desired limit.&lt;/p&gt;
-
-&lt;h4 id=&quot;reallocation-and-transfers&quot;&gt;Reallocation and Transfers&lt;/h4&gt;
-
-&lt;p&gt;Having the routing configuration setup, the reallocation of agents is done using the same steps for agent allocation.&lt;/p&gt;
-
-&lt;p&gt;To transfer a chat to another queue, the request goes back to the queue with a higher priority so that the request is assigned faster.&lt;/p&gt;
-
-&lt;h4 id=&quot;unaccepted-chats&quot;&gt;Unaccepted Chats&lt;/h4&gt;
-
-&lt;p&gt;If the agent fails to accept the request in a given period of time, then the request is put back into the queue, but this time with a higher priority. This is the reason why there’s a corresponding re-allocation queue with a higher priority than the normal queue to make sure that those unaccepted requests don’t have to wait in the queue again.&lt;/p&gt;
-
-&lt;h4 id=&quot;informing-the-frontend-about-allocation&quot;&gt;Informing the Frontend about Allocation&lt;/h4&gt;
-
-&lt;p&gt;When an allocation of an agent happens, the routing system needs to inform the frontend by sending messages over websocket to the frontend. This is done with our super reliable messaging system called &lt;em&gt;Hermes&lt;/em&gt;, which operates at scale in supporting &lt;em&gt;12k concurrent connections&lt;/em&gt; and establishes real-time communication between agents and consumers.&lt;/p&gt;
-
-&lt;h4 id=&quot;finding-the-online-agents&quot;&gt;Finding the Online Agents&lt;/h4&gt;
-
-&lt;p&gt;The routing system should only send the allocation message to the frontend when the agent is online and accepting requests. Frontend uses the same websocket connection used to receive the allocation message to inform the routing system about the availability of agents. This means that if for some reason, the websocket connection is broken due to internet connection issues, the agent would stop receiving any new chat requests.&lt;/p&gt;
-
-&lt;h3 id=&quot;enriched-reporting-and-analytics&quot;&gt;Enriched Reporting and Analytics&lt;/h3&gt;
-
-&lt;p&gt;The routing system is able to push monitoring metrics, such as number of online agents, number of chat requests assigned to the agent, and so on. Because of the fine-grained control that comes with building this system in-house, it gives us the ability to push more custom metrics.&lt;/p&gt;
-
-&lt;p&gt;There are two levels of monitoring offered by this system: real-time monitoring and non-real time monitoring. They can be used for analytics for calculating things like the productivity of the agent and the time they spent on each chat.&lt;/p&gt;
-
-&lt;p&gt;We achieved the discussed solutions with the help of &lt;em&gt;StatsD&lt;/em&gt; for real-time monitoring and for analytical purposes. We sent the data used for Tableau visualisations and reporting to Presto tables.&lt;/p&gt;
-
-&lt;p&gt;Given that the bottleneck for this system is the number of resources (i.e. number of agents), the real time monitoring helps identify which configuration needs to be adjusted when there is a spike in the number of requests. Moreover, the analytical persistent data allows us the ability to predict the traffic and plan the workforce management such that they are efficiently handling the requests.&lt;/p&gt;
-
-&lt;h2 id=&quot;scalability&quot;&gt;Scalability&lt;/h2&gt;
-
-&lt;p&gt;Letting the system behave appropriately when rolled out to multiple regions is a very critical piece that needed to be taken into account. To ensure that there were enough workers to handle requests, horizontal scaling of instances was set when the CPU utilisation increases.&lt;/p&gt;
-
-&lt;p&gt;Now to understand the system limitations and behaviour before releasing to multiple regions, we ran load tests with 10x more traffic than expected. This gave us the understanding on what monitors and alerts we should add to make sure the system is able to function efficiently and reduce our recovery time if something goes wrong.&lt;/p&gt;
-
-&lt;h2 id=&quot;next-steps&quot;&gt;Next Steps&lt;/h2&gt;
-
-&lt;p&gt;We have lined up a few enhancements to reduce the consumer wait time and the time spent by the agents on unresponsive consumers. Aside from chats, we plan to implement this solution to handle digital issues (social media and emails) and voice requests (call).&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Andrea Carlevato and Karen Kue for making sure that the blogpost is interesting and represents the problem we solved accurately.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 05 Feb 2021 00:15:00 +0000</pubDate>
-        <link>https://engineering.grab.com/customer-support-workforce-routing</link>
-        <guid isPermaLink="true">https://engineering.grab.com/customer-support-workforce-routing</guid>
-        
-        <category>Workforce Routing</category>
-        
-        <category>Chat</category>
-        
-        <category>Product</category>
-        
-        <category>Routing</category>
-        
-        <category>Queueing</category>
-        
-        <category>Customer Support</category>
         
         
         <category>Engineering</category>
