@@ -1,4 +1,4 @@
-const mobileMenuBtn = document.querySelector('.hamburger-nav');
+const mobileMenuBtn = document.querySelector('#mobile-menu-btn');
 const mobileMenu = document.querySelector('.mobile-menu-container')
 let menuOpen = false;
 mobileMenuBtn.addEventListener('click', () => {
