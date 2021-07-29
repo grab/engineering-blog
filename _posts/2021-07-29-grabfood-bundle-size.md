@@ -2,17 +2,17 @@
 layout: post
 id: 2021-07-29-grabfood-bundle-size
 title: How We Cut GrabFood.com’s Page JavaScript Asset Sizes by 3x
-date: 2021-07-26 00:40:00
+date: 2021-07-29 01:20:00
 authors: [gibson-cheng]
 categories: [Product]
 tags: [Product, Asset Size, Cloud, Optimisation]
 comments: true
 cover_photo: /img/grabfood-bundle/image11.png
-excerpt: "Find out how the GrabFood team cut their bundle size by 3 times with these 7 Webpack bundle optimisation strategies."
+excerpt: "Find out how the GrabFood team cut their bundle size by 3 times with these 7 webpack bundle optimisation strategies."
 ---
 
 ## Introduction
-Every week, GrabFood.com's cloud infrastructure serves over >1TB network egress and 175 million requests, which increased our costs. To minimise cloud costs, we had to look at optimising (and reducing) GrabFood\.com’s bundle size.
+Every week, GrabFood.com's cloud infrastructure serves over >1TB network egress and 175 million requests, which increased our costs. To minimise cloud costs, we had to look at optimising (and reducing) GrabFood.com’s bundle size.
 
 Any reduction in bundle size helps with:
 
@@ -22,7 +22,7 @@ Any reduction in bundle size helps with:
 *   Faster build times: Fewer dependencies -> less code for webpack to bundle -> faster builds
 *   Smaller builds: Fewer dependencies -> less code -> smaller builds
 
-After applying the 7 Webpack bundle optimisations, we were able to yield the following improvements:
+After applying the 7 webpack bundle optimisations, we were able to yield the following improvements:
 
 *   7% faster page load time from 2600ms to 2400ms
 *   66% faster JS static asset load time from 180ms to 60ms
@@ -70,8 +70,8 @@ What to avoid:
 
 *   Isolating dependencies that are very small (e.g. <20kb). Not worth focusing on this due to very meagre returns.
 
-*   E.g. Business logic like your React code
-*   E.g. Small node dependencies
+  *   E.g. Business logic like your React code
+  *   E.g. Small node dependencies
 
 ### Step B: Investigate the Usage of Your Dependencies (Where are my Dependencies Used?)
 In this step, we are trying to answer this question: “Given a dependency, which files and features are making use of it?”.
@@ -90,7 +90,7 @@ I: Top-down approach: “Where does our project use dependency X?”
 
 II: Bottom-up approach: “How did dependency X get used in my project?”
 
-*   Trace dependencies by manually tracing import() and require() statements
+*   Trace dependencies by manually tracing `import()` and `require()` statements
 *   Alternatively, use dependency visualisation tools such as [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) to identify file interdependencies. Note that output can quickly get noisy for any non-trivial project, so use it for inspecting small groups of files (e.g. single domains).
 
 Our recommendation is to use a **mix** of both Top-down and Bottom-up approaches to identify and isolate dependencies.
@@ -229,7 +229,7 @@ Notes:
 
 *   Alternative approach: Manually define a new cacheGroup to target a specific module ([see more](https://webpack.js.org/plugins/split-chunks-plugin/%23split-chunks-example-2)) with ‘enforce:true’, in order to force webpack to always create a separate chunk for the module. Useful for cases where the single dependency is very large (i.e. >100KB), or when asynchronously loading a module isn’t an option.
 *   Certain libraries that appear in multiple assets (e.g. antd) should not be mistaken as identical dependencies. You can verify this by inspecting each module with one another. If the contents are different, then webpack has already done its job of tree-shaking the dependency and only importing code used by our code.
-*   Webpack relies on the import() statement to identify that a given module is to be explicitly bundled as a separate chunk ([see more](https://webpack.js.org/api/module-methods/%23import-1)).
+*   Webpack relies on the `import()` statement to identify that a given module is to be explicitly bundled as a separate chunk ([see more](https://webpack.js.org/api/module-methods/%23import-1)).
 
 #### 3. Use Libraries that are Exported in ES Modules Format
 
@@ -306,8 +306,8 @@ const getEndpointData = async () => {
 
 Example:
 
-*   Use Case: Replacing axios with fetch() in the anti-abuse library
-*   Action: We observed that our anti-abuse library was relying on axios to make web requests. Since our web app is only targeting modern browsers - most of which support fetch() (with the notable exception of IE) - we refactored the library’s code to use fetch() exclusively.
+*   Use Case: Replacing axios with `fetch()` in the anti-abuse library
+*   Action: We observed that our anti-abuse library was relying on axios to make web requests. Since our web app is only targeting modern browsers - most of which support `fetch()` (with the notable exception of IE) - we refactored the library’s code to use `fetch()` exclusively.
 *   Results: Saved 15KB on anti-abuse library size.
 
 #### 5. Avoid Large Dependencies by Changing your Technical Approach
@@ -388,11 +388,11 @@ After:
 
 ```javascript
 
-import jwt\_decode from ‘jwt-decode’
+import jwt_decode from ‘jwt-decode’
 
 const decodeJwt = (value) => {
 
- const result = jwt\_decode(value)
+ const result = jwt_decode(value)
 
  return result
 
@@ -408,7 +408,7 @@ Example:
 
 #### 7. Optimise your External Dependencies
 
-<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image14.png" alt="“Team: Can you reduce the bundle size further? You:“" style="width:90%"><figcaption align="middle"><i>“Team: Can you reduce the bundle size further? You:“, <a href="https://awesomebyte.com/viral-face-of-the-internet-the-origin-of-hide-the-pain-harold/">Image source</a></i></figcaption>
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image14.png" alt="“Team: Can you reduce the bundle size further? You:“" style="width:90%"><figcaption align="middle"><i>“Team: Can you reduce the bundle size further? You: (nervous grin)“, <a href="https://awesomebyte.com/viral-face-of-the-internet-the-origin-of-hide-the-pain-harold/">Image source</a></i></figcaption>
   </figure>
 </div>
 
@@ -433,9 +433,9 @@ But as always, it’s best to be methodical to measure the impact of your change
 1.  Perform your code changes
 2.  Build the project again and open the bundle analysis report
 3.  Verify the state of a given dependency
-    *   Deleted dependency - you should not be able to find the dependency
-    *   Lazy-loaded dependency - you should see the dependency bundled as a separate chunk
-    *   Non-duplicated dependency - you should only see a single chunk for the non-duplicated dependency
+    *   **Deleted dependency** - you should not be able to find the dependency
+    *   **Lazy-loaded dependency** - you should see the dependency bundled as a separate chunk
+    *   **Non-duplicated dependency** - you should only see a single chunk for the non-duplicated dependency
 4.  Run tests to make sure you didn’t break anything (i.e. unit tests, manual tests)
 
 ### Other Considerations
@@ -451,10 +451,10 @@ But as always, it’s best to be methodical to measure the impact of your change
     *   Only if your project doesn’t already include libraries that rely on node modules.
     *   Allows for fast detection when someone tries to use a library that requires node modules, as the build will fail
 2. Experiment with ‘cacheGroups’
-    *   Most default configurations of Webpack do a pretty good job of identifying and bundling the most commonly used dependencies into a single chunk (usually called vendor.js)
-    *   You can experiment with Webpack [](https://webpack.js.org/plugins/split-chunks-plugin/) [optimisation options](https://webpack.js.org/plugins/split-chunks-plugin) to see if you get better results
-3. Experiment with import() ‘Magic Comments’
-    *   You may experiment with [import() magic comments](https://webpack.js.org/api/module-methods/%23magic-comments) to modify the behaviour of specific import() statements, although the default setting will do just fine for most cases.
+    *   Most default configurations of webpack do a pretty good job of identifying and bundling the most commonly used dependencies into a single chunk (usually called vendor.js)
+    *   You can experiment with webpack [](https://webpack.js.org/plugins/split-chunks-plugin/) [optimisation options](https://webpack.js.org/plugins/split-chunks-plugin) to see if you get better results
+3. Experiment with `import()` ‘Magic Comments’
+    *   You may experiment with [import() magic comments](https://webpack.js.org/api/module-methods/%23magic-comments) to modify the behaviour of specific `import()` statements, although the default setting will do just fine for most cases.
 
 If you can’t remove the dependency:
 *   For all dependencies that must be used, it’s probably best to lazy load all of them so you won’t block the page’s initial rendering ([see more](https://web.dev/first-contentful-paint/)).
