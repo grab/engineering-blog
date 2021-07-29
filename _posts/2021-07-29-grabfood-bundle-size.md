@@ -68,10 +68,9 @@ III: Dependencies that look like they don’t belong (e.g. Why is ‘elliptic’
 
 What to avoid:
 
-*   Isolating dependencies that are very small (e.g. <20kb). Not worth focusing on this due to very meagre returns.
-
-*   E.g. Business logic like your React code
-*   E.g. Small node dependencies
+* Isolating dependencies that are very small (e.g. <20kb). Not worth focusing on this due to very meagre returns.
+    * E.g. Business logic like your React code
+    * E.g. Small node dependencies
 
 ### Step B: Investigate the Usage of Your Dependencies (Where are my Dependencies Used?)
 In this step, we are trying to answer this question: “Given a dependency, which files and features are making use of it?”.
