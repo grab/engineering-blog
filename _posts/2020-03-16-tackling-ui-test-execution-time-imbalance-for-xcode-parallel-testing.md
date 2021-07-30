@@ -5,7 +5,7 @@ title: Tackling UI Test Execution Time Imbalance for Xcode Parallel Testing
 date: 2020-03-16 08:13:20
 authors: [ngoc-thuyen-trinh]
 categories: [Engineering]
-tags: [Xcode, Testing, Mobile, Parallelism, UI tests, CI, IOS]
+tags: [Xcode, Testing, Mobile, Parallelism, UI tests, CI, iOS]
 comments: true
 cover_photo: /img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/cover.png
 excerpt: "This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we overcame a challenge that prevented us from running the tests efficiently."
