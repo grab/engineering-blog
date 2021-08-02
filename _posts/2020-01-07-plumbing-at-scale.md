@@ -6,7 +6,7 @@ subtitle: Event Sourcing and Stream Processing Pipelines at Grab
 date: 2020-01-06 19:00:00
 authors: [karan-kamath]
 categories: [Engineering]
-tags: [Event Sourcing, Stream Processing, Kubernetes, Backend, Platform, Go]
+tags: [Event Sourcing, Stream Processing, Kubernetes, Back End, Platform, Go]
 comments: true
 cover_photo: /img/plumbing-at-scale/cover.jpg
 excerpt: "This article details our journey building and deploying an event sourcing platform in Go, building a stream processing framework over it, and then scaling it (reliably and efficiently) to service over 300 billion events a week."

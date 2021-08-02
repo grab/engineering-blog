@@ -5,7 +5,7 @@ title: Marionette - Enabling E2E User-scenario Simulation
 date: 2019-12-23 21:00:00
 authors: [anish-jha, biju-jacob, phuc-lam-nguyen, vineet-nair, yiwei-yeo]
 categories: [Engineering]
-tags: [Backend, Testing, Microservice]
+tags: [Back End, Testing, Microservice]
 comments: true
 cover_photo: /img/marionette-enabling-e2e-user-scenario-simulation/cover.png
 excerpt: "Do you know how we get early feedback on any breaking changes? Read through our blog to find out how Marionette, an in-house simulation platform, detects breaking changes in booking workflows. It even generates resources for running simulations and facilitates the testing of microservices powering our driver and passenger apps."
