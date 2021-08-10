@@ -45,9 +45,9 @@
           <div class="menu-btn"></div>
         </div>
         <div class="col-sm-3 col-xs-3">
-          <div>
+          <div class="site-title-container">
             <a class="site-title" href="/"></a>
-            <span class="site-subtitle hidden-sm hidden-xs">&nbsp;Tech Blog</span>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
           </div>
         </div>
         <div class="col-sm-9 col-xs-8 text-right">
@@ -170,7 +170,7 @@
     </header>
     <div class="wrapper-content">
       <article class="post-content">
-        <p>One of Grab’s more popular caching solutions is <a href="https://redis.io/">Redis</a> (often in the flavour of the misleadingly named ElastiCache <sup id="fnref:1"><a href="#fn:1" class="footnote">1</a></sup>), and for most cases, it works. Except for that time it didn’t. Follow our story as we investigate how Redis deals with consistency on key expiration.</p>
+        <p>One of Grab’s more popular caching solutions is <a href="https://redis.io/">Redis</a> (often in the flavour of the misleadingly named ElastiCache <sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup>), and for most cases, it works. Except for that time it didn’t. Follow our story as we investigate how Redis deals with consistency on key expiration.</p>
 
 <p>A recent problem we had with our ElastiCache Redis involving our Unicorn API, was that we were serving unusually outdated Unicorns to our clients.</p>
 
@@ -184,7 +184,7 @@
   <img alt="Cacheception" src="/img/key-expired-in-redis/cacheception.png" />
 </div>
 
-<p>Considering that our Common Data Service (CDS) server cache (5 minutes), CDS client cache (1 minute), Grab API cache (5 minutes), and mobile cache (varies, but insignificant) together accounted for at most ~11 minutes of Unicorn change propagation time, this was a rather perplexing find. (Also, we should really consider an inter-service cache invalidation strategy for this <sup id="fnref:2"><a href="#fn:2" class="footnote">2</a></sup>.)</p>
+<p>Considering that our Common Data Service (CDS) server cache (5 minutes), CDS client cache (1 minute), Grab API cache (5 minutes), and mobile cache (varies, but insignificant) together accounted for at most ~11 minutes of Unicorn change propagation time, this was a rather perplexing find. (Also, we should really consider an inter-service cache invalidation strategy for this <sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.)</p>
 
 <h3 id="how-we-cache-unicorns-at-the-api-level">How We Cache Unicorns at the API Level</h3>
 
@@ -194,7 +194,7 @@
   <img alt="Block Diagram" src="/img/key-expired-in-redis/block-diagram.png" />
 </div>
 
-<p>We have a master node used exclusively for writes, and 2 read-only slaves <sup id="fnref:3"><a href="#fn:3" class="footnote">3</a></sup>. This is also a good time to mention that we use Redis 2.x as ElastiCache support for 3.x was only added in October 2016.</p>
+<p>We have a master node used exclusively for writes, and 2 read-only slaves <sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>. This is also a good time to mention that we use Redis 2.x as ElastiCache support for 3.x was only added in October 2016.</p>
 
 <p>As Unicorns are region-specific, we were caching Unicorns based on locations, and consequently, have a rather large number of keys in this Redis (~5594518 at the time). This is also why we encountered cases where different parts of the same city inexplicably had different Unicorns.</p>
 
@@ -237,11 +237,11 @@
 
 <h4 id="how-expires-are-managed-between-master-and-slave-nodes-on-redis-2x">How EXPIREs are Managed Between Master and Slave Nodes on Redis 2.x</h4>
 
-<p>To “maintain consistency”, slaves aren’t allowed to expire keys unless they receive a DEL from the master branch, even if they know the key is expired. The only exception is when a slave becomes master <sup id="fnref:4"><a href="#fn:4" class="footnote">4</a></sup>. So basically, if the master doesn’t send a DEL to the slave, the key (which might have been set with a TTL using the Redis API contract), is not guaranteed to respect the TTL it was set with. This is when you scale to have read slaves, which, apparently, is a shocking requirement in production systems.</p>
+<p>To “maintain consistency”, slaves aren’t allowed to expire keys unless they receive a DEL from the master branch, even if they know the key is expired. The only exception is when a slave becomes master <sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>. So basically, if the master doesn’t send a DEL to the slave, the key (which might have been set with a TTL using the Redis API contract), is not guaranteed to respect the TTL it was set with. This is when you scale to have read slaves, which, apparently, is a shocking requirement in production systems.</p>
 
 <h4 id="how-expires-are-managed-for-keys-that-arent-gotten-from-master">How EXPIREs are Managed for Keys that aren’t “Gotten from Master”</h4>
 
-<p>Since every key needs to be deleted on master first, and some of our keys were expired correctly, there had to be a “passive” manner in which Redis was deleting expired keys that didn’t involve an explicit GET command from the client. The manual <sup id="fnref:5"><a href="#fn:5" class="footnote">5</a></sup>:</p>
+<p>Since every key needs to be deleted on master first, and some of our keys were expired correctly, there had to be a “passive” manner in which Redis was deleting expired keys that didn’t involve an explicit GET command from the client. The manual <sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup>:</p>
 
 <blockquote>
   <p>Redis keys are expired in two ways: a passive way, and an active way.</p>
@@ -306,7 +306,7 @@
 <h3 id="what-we-learnt">What We Learnt</h3>
 
 <ul>
-  <li>The Redis author pointed out and fixed this issue in a later version of Redis <sup id="fnref:6"><a href="#fn:6" class="footnote">6</a></sup></li>
+  <li>The Redis author pointed out and fixed this issue in a later version of Redis <sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">6</a></sup></li>
   <li>Upgrade our Redis more often</li>
   <li>Pay more attention to cache invalidation expectations and strategy during software design</li>
 </ul>
@@ -315,25 +315,25 @@
 
 <h4 id="footnotes">Footnotes</h4>
 
-<div class="footnotes">
+<div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1">
-      <p>ElastiCache is hardly elastic, considering your “scale up” is a deliberate process involving backup, replicate, deploy, and switch, during which time your server is serving peak hour teapots (as reads and writes may be disabled). <a href="http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Scaling.html">http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Scaling.html</a> <a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:1" role="doc-endnote">
+      <p>ElastiCache is hardly elastic, considering your “scale up” is a deliberate process involving backup, replicate, deploy, and switch, during which time your server is serving peak hour teapots (as reads and writes may be disabled). <a href="http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Scaling.html">http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Scaling.html</a> <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2">
-      <p>Turns out that streaming solutions are rather good at this, when we applied them to some of our non-Unicorn offerings. (Writes are streamed, and readers listen and invalidate their cache as required.) <a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:2" role="doc-endnote">
+      <p>Turns out that streaming solutions are rather good at this, when we applied them to some of our non-Unicorn offerings. (Writes are streamed, and readers listen and invalidate their cache as required.) <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3">
-      <p>This, as it turns out, is a bad idea. In case of failovers, AWS updates the master address to point to the new master, but this is not guaranteed for the slaves. So we could end up with an unused slave and a master with reads + writes in the worst case (unless we add some custom code to manage the failover). Best practice is to have read load distributed on master as well. <a href="#fnref:3" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:3" role="doc-endnote">
+      <p>This, as it turns out, is a bad idea. In case of failovers, AWS updates the master address to point to the new master, but this is not guaranteed for the slaves. So we could end up with an unused slave and a master with reads + writes in the worst case (unless we add some custom code to manage the failover). Best practice is to have read load distributed on master as well. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4">
-      <p><a href="https://redis.io/commands/expire#how-expires-are-handled-in-the-replication-link-and-aof-file">https://redis.io/commands/expire#how-expires-are-handled-in-the-replication-link-and-aof-file</a> <a href="#fnref:4" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:4" role="doc-endnote">
+      <p><a href="https://redis.io/commands/expire#how-expires-are-handled-in-the-replication-link-and-aof-file">https://redis.io/commands/expire#how-expires-are-handled-in-the-replication-link-and-aof-file</a> <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5">
-      <p><a href="https://redis.io/commands/expire#how-redis-expires-keys">https://redis.io/commands/expire#how-redis-expires-keys</a> <a href="#fnref:5" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:5" role="doc-endnote">
+      <p><a href="https://redis.io/commands/expire#how-redis-expires-keys">https://redis.io/commands/expire#how-redis-expires-keys</a> <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:6">
-      <p><a href="https://github.com/antirez/redis/issues/1768">https://github.com/antirez/redis/issues/1768</a> (TL;DR: Slaves now use local clock to return null to clients when it thinks keys are expired. The trade-off is the possibility of early expires if a slave’s clock is faster than the master.) <a href="#fnref:6" class="reversefootnote">&#8617;</a></p>
+    <li id="fn:6" role="doc-endnote">
+      <p><a href="https://github.com/antirez/redis/issues/1768">https://github.com/antirez/redis/issues/1768</a> (TL;DR: Slaves now use local clock to return null to clients when it thinks keys are expired. The trade-off is the possibility of early expires if a slave’s clock is faster than the master.) <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>
 </div>
@@ -397,30 +397,22 @@
 </div>
 
     </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
     <footer class="site-footer">
   <div class="wrapper">
     <div class="row">
-      <div class="col-sm-6">
+      <div class="col-sm-6 col-xs-12">
         <h2 class="footer-heading">Grab Tech</h2>
         <ul class="social-media-list">
   
     <li>
       <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
         <i class="fa fa-github fa-lg"></i>
-      </a>
-    </li>
-  
-  
-    <li>
-      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
-        <i class="fa fa-facebook-square fa-lg"></i>
-      </a>
-    </li>
-  
-  
-    <li>
-      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
-        <i class="fa fa-twitter fa-lg"></i>
       </a>
     </li>
   
@@ -438,10 +430,13 @@
   </li>
 </ul>
 
-        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
-        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
       </div>
-      <div class="col-sm-6 hiring-section">
+      <div class="col-sm-6 col-xs-12 hiring-section">
         <h2 class="footer-heading">Join Us</h2>
         <p class="text">
           Want to join us in our mission to revolutionize transportation?
@@ -450,9 +445,6 @@
 
       </div>
     </div>
-  </div>
-</footer>
-
     
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

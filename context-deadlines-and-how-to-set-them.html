@@ -45,9 +45,9 @@
           <div class="menu-btn"></div>
         </div>
         <div class="col-sm-3 col-xs-3">
-          <div>
+          <div class="site-title-container">
             <a class="site-title" href="/"></a>
-            <span class="site-subtitle hidden-sm hidden-xs">&nbsp;Tech Blog</span>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
           </div>
         </div>
         <div class="col-sm-9 col-xs-8 text-right">
@@ -295,7 +295,7 @@
 
 <p>Let’s revisit the scenario from earlier, and assume that service A has set a context timeout of 1 second. If B is still taking 800ms, then the call to C will time out after 200ms. This changes things completely: although there is no longer the resource leak (because both B and C will terminate the call once the context timeout is exceeded), B will have an increase in errors whereas previously it would not (at least until it became overloaded). This may be worse than completing the request after A has given up, depending on the circumstances. There is also a dangerous interaction with <em>circuit breakers</em> which we will discuss in the next section.</p>
 
-<p>If allowing the request to complete is preferable to cancelling it even in the event of a client timeout, the request should be made with a new context decoupled from the parent (ie. <code class="highlighter-rouge">context.Background()</code>). This will ensure that the timeout is not propagated to the remote service. When doing this, it is still a good idea to set a timeout, to avoid waiting indefinitely for it to complete.</p>
+<p>If allowing the request to complete is preferable to cancelling it even in the event of a client timeout, the request should be made with a new context decoupled from the parent (ie. <code class="language-plaintext highlighter-rouge">context.Background()</code>). This will ensure that the timeout is not propagated to the remote service. When doing this, it is still a good idea to set a timeout, to avoid waiting indefinitely for it to complete.</p>
 
 <h3 id="context-and-circuit-breakers">Context and Circuit-breakers</h3>
 
@@ -374,7 +374,7 @@
 
 <p>Note that if A configures its timeout according to this rule, then many of the above issues disappear. There are no wasted resources, because B and C are given the maximum time to complete their requests successfully. There is no chance for B’s circuit-breaker to open unexpectedly, and cascading failure is mostly avoided: a failure in C will be handled and be returned by B, instead of A timing out as well.</p>
 
-<p>A possible alternative would be to rely on context cancellation: allow A to set a shorter timeout, which cancels B and C if the timeout is exceeded. This is an acceptable approach to avoiding cascading failure (and cancellation should be implemented in any case), but it is less optimal than configuring timeouts according to the above formula. One reason is that there is no guarantee of the downstream services handling the timeout gracefully; as mentioned previously, the service must explicitly check for <code class="highlighter-rouge">ctx.Done()</code> and this is rarely followed in practice. It is also impractical to place checks at every point in the code, so there could be a considerable delay between the client cancellation and the server abandoning the processing.</p>
+<p>A possible alternative would be to rely on context cancellation: allow A to set a shorter timeout, which cancels B and C if the timeout is exceeded. This is an acceptable approach to avoiding cascading failure (and cancellation should be implemented in any case), but it is less optimal than configuring timeouts according to the above formula. One reason is that there is no guarantee of the downstream services handling the timeout gracefully; as mentioned previously, the service must explicitly check for <code class="language-plaintext highlighter-rouge">ctx.Done()</code> and this is rarely followed in practice. It is also impractical to place checks at every point in the code, so there could be a considerable delay between the client cancellation and the server abandoning the processing.</p>
 
 <p>A second reason not to set shorter timeouts is that it could lead to unexpected errors on the downstream services. Even if B and C are healthy, a shorter context timeout could lead to errors if A has timed out. Besides the problem of having to handle the cancelled requests, the errors could create noise in the logs, and more importantly could have been avoided. If the downstream services are healthy and responding within their SLA, there is no point in timing out earlier. An exception might be for the edge server (A) to allow for only 1 attempt or fewer retries than the downstream service actually performs. But this is tricky to configure and weakens the resiliency. If it is desirable to shorten the timeouts to decrease latency, it is better to start adjusting the timeouts of the downstream resources first, starting from the innermost service outwards.</p>
 
@@ -409,7 +409,7 @@
 <p>Next, we wrap our call to the external service in a circuit-breaker. The actual circuit-breaker implementation has been omitted for brevity, but there are two important points to consider:</p>
 
 <ul>
-  <li>It should only consider opening the circuit-breaker when <strong>requestTimeout</strong> is reached, not on <code class="highlighter-rouge">ctx.Done()</code>.</li>
+  <li>It should only consider opening the circuit-breaker when <strong>requestTimeout</strong> is reached, not on <code class="language-plaintext highlighter-rouge">ctx.Done()</code>.</li>
   <li>The circuit name should ideally be unique for this specific endpoint</li>
 </ul>
 
@@ -422,7 +422,7 @@
 <p>The last step is to add retries to our request in the case of error. This can be implemented as a simple <strong>for</strong> loop, but there are some key things to include in a complete retry implementation:</p>
 
 <ul>
-  <li><code class="highlighter-rouge">ctx.Done()</code> should be checked after each retry attempt to avoid wasting a call if the client has given up.</li>
+  <li><code class="language-plaintext highlighter-rouge">ctx.Done()</code> should be checked after each retry attempt to avoid wasting a call if the client has given up.</li>
   <li>The request context should be cancelled before the next retry to avoid duplicate concurrent calls and goroutine leaks.</li>
   <li>Not all kinds of requests should be retried.</li>
   <li>A delay should be added before the next retry, using exponential backoff.</li>
@@ -437,7 +437,7 @@
 
 <p>And here we have arrived at our ‘ideal’ implementation of an external call including context handling and propagation, two levels of timeout (parent and request), circuit-breaking and retries. This should be sufficient for a good level of resiliency, avoiding wasted effort on both the client and server.</p>
 
-<p>As a future enhancement, we could consider introducing a ‘minimum time per request’, which the retry loop should use to check for remaining time as well as <code class="highlighter-rouge">ctx.Done()</code> (but not instead - we need to account for client cancellation too). Of course metrics, logging and error handling should also be added as necessary.</p>
+<p>As a future enhancement, we could consider introducing a ‘minimum time per request’, which the retry loop should use to check for remaining time as well as <code class="language-plaintext highlighter-rouge">ctx.Done()</code> (but not instead - we need to account for client cancellation too). Of course metrics, logging and error handling should also be added as necessary.</p>
 
 <h2 id="important-takeaways">Important Takeaways</h2>
 
@@ -451,9 +451,9 @@
 
 <p>The context canceled (context.Canceled) error occurs when the context is manually cancelled. This automatically cancels any child contexts attached to the parent. It is rare for this error to surface on the same service that triggered the cancellation; if cancel is called, it is usually because another error has been detected (such as a timeout) which would be returned instead. Therefore, context canceled is usually caused by an upstream error: either the client timed out and cancelled the request, or cancelled the request because it was no longer needed, or closed the connection (this typically results in a cancelled context from Go libraries).</p>
 
-<p>The context deadline exceeded error occurs only when the time limit was reached. This could have been set locally (by the server processing the request) or by an upstream client. Unfortunately, it’s often difficult to distinguish between them, although they should generally be handled in the same way. If a more granular error is required, it is recommended to use child contexts and explicitly check them for <code class="highlighter-rouge">ctx.Done()</code>, as shown in our model implementation.</p>
+<p>The context deadline exceeded error occurs only when the time limit was reached. This could have been set locally (by the server processing the request) or by an upstream client. Unfortunately, it’s often difficult to distinguish between them, although they should generally be handled in the same way. If a more granular error is required, it is recommended to use child contexts and explicitly check them for <code class="language-plaintext highlighter-rouge">ctx.Done()</code>, as shown in our model implementation.</p>
 
-<p><strong><em>Check for <code class="highlighter-rouge">ctx.Done()</code> before starting any significant work</em></strong></p>
+<p><strong><em>Check for <code class="language-plaintext highlighter-rouge">ctx.Done()</code> before starting any significant work</em></strong></p>
 
 <p>Don’t enter an expensive block of code without checking the context; if the client has already given up, the work will be wasted.</p>
 
@@ -530,30 +530,22 @@
 </div>
 
     </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
     <footer class="site-footer">
   <div class="wrapper">
     <div class="row">
-      <div class="col-sm-6">
+      <div class="col-sm-6 col-xs-12">
         <h2 class="footer-heading">Grab Tech</h2>
         <ul class="social-media-list">
   
     <li>
       <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
         <i class="fa fa-github fa-lg"></i>
-      </a>
-    </li>
-  
-  
-    <li>
-      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
-        <i class="fa fa-facebook-square fa-lg"></i>
-      </a>
-    </li>
-  
-  
-    <li>
-      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
-        <i class="fa fa-twitter fa-lg"></i>
       </a>
     </li>
   
@@ -571,10 +563,13 @@
   </li>
 </ul>
 
-        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
-        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
       </div>
-      <div class="col-sm-6 hiring-section">
+      <div class="col-sm-6 col-xs-12 hiring-section">
         <h2 class="footer-heading">Join Us</h2>
         <p class="text">
           Want to join us in our mission to revolutionize transportation?
@@ -583,9 +578,6 @@
 
       </div>
     </div>
-  </div>
-</footer>
-
     
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

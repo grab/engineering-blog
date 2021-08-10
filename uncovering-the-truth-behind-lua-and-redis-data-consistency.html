@@ -45,9 +45,9 @@
           <div class="menu-btn"></div>
         </div>
         <div class="col-sm-3 col-xs-3">
-          <div>
+          <div class="site-title-container">
             <a class="site-title" href="/"></a>
-            <span class="site-subtitle hidden-sm hidden-xs">&nbsp;Tech Blog</span>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
           </div>
         </div>
         <div class="col-sm-9 col-xs-8 text-right">
@@ -203,7 +203,7 @@
 
 <ul>
   <li>Redis executes the script separately on the master and the replica. We expected the script to execute only on master and the resulting changes to be replicated to the secondary.</li>
-  <li>The Redis command <code class="highlighter-rouge">HGETALL</code> used in the script returns the hash keys in a different order on master compared to the replica.</li>
+  <li>The Redis command <code class="language-plaintext highlighter-rouge">HGETALL</code> used in the script returns the hash keys in a different order on master compared to the replica.</li>
 </ul>
 
 <p>Due to the above reasons, the script causes data inconsistencies between the master and its replica. From that point on, the data between the master and the replica keeps diverging till they become completely distinct. Due to the inconsistency, the data on the secondary does not get deleted correctly thereby growing into an extremely large dataset. Any further operations on the large dataset requires a higher CPU usage, which explains why the replica’s CPU usage is higher than the master.</p>
@@ -218,9 +218,9 @@
 
 <h2 id="hgetall-command-handling-code">HGETALL Command Handling Code</h2>
 
-<p>The <code class="highlighter-rouge">HGETALL</code> command is handled by the function <code class="highlighter-rouge">genericHgetallCommand</code> and it further calls <code class="highlighter-rouge">hashTypeNext</code> to iterate through the Hash object. A snippet of the code is shown as follows:</p>
+<p>The <code class="language-plaintext highlighter-rouge">HGETALL</code> command is handled by the function <code class="language-plaintext highlighter-rouge">genericHgetallCommand</code> and it further calls <code class="language-plaintext highlighter-rouge">hashTypeNext</code> to iterate through the Hash object. A snippet of the code is shown as follows:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/* Move to the next entry in the hash. Return C_OK when the next entry
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/* Move to the next entry in the hash. Return C_OK when the next entry
  * could be found and C_ERR when the iterator reaches the end. */
 int hashTypeNext(hashTypeIterator *hi) {
     if (hi-&gt;encoding == OBJ_ENCODING_ZIPLIST) {
@@ -252,7 +252,7 @@ int hashTypeNext(hashTypeIterator *hi) {
 
 <p>Based on this understanding, we checked the encoding of the problematic hash in staging.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>stg-bookings-qu-002.pcxebj.0001.apse1.cache.amazonaws.com:6379&gt; object encoding queue_stats
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>stg-bookings-qu-002.pcxebj.0001.apse1.cache.amazonaws.com:6379&gt; object encoding queue_stats
 "hashtable"
 
 stg-bookings-qu-001.pcxebj.0001.apse1.cache.amazonaws.com:6379&gt; object encoding queue_stats
@@ -269,7 +269,7 @@ stg-bookings-qu-001.pcxebj.0001.apse1.cache.amazonaws.com:6379&gt; object encodi
 
 <p>To answer this, we further looked through the Redis source to find all the possible places that a Hash object’s representation could be changed and soon found the following code snippet:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/* Load a Redis object of the specified type from the specified file.
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/* Load a Redis object of the specified type from the specified file.
  * On success a newly allocated object is returned, otherwise NULL. */
 robj *rdbLoadObject(int rdbtype, rio *rdb) {
   //...
@@ -290,10 +290,10 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
 
 <ul>
   <li>When restoring from an RDB file, Redis creates a ziplist first for Hash objects.</li>
-  <li>Only when the size of the Hash object is greater than the <code class="highlighter-rouge">hash_max_ziplist_entries</code>, the ziplist is converted to a hashtable.</li>
+  <li>Only when the size of the Hash object is greater than the <code class="language-plaintext highlighter-rouge">hash_max_ziplist_entries</code>, the ziplist is converted to a hashtable.</li>
 </ul>
 
-<p>So, if you have a Redis Hash object encoded as a <code class="highlighter-rouge">hashtable</code> with its length less than <code class="highlighter-rouge">hash_max_ziplist_entries</code> <code class="highlighter-rouge">(512)</code> in the master, when you set up a replica, it is encoded as a <code class="highlighter-rouge">ziplist</code>.</p>
+<p>So, if you have a Redis Hash object encoded as a <code class="language-plaintext highlighter-rouge">hashtable</code> with its length less than <code class="language-plaintext highlighter-rouge">hash_max_ziplist_entries</code> <code class="language-plaintext highlighter-rouge">(512)</code> in the master, when you set up a replica, it is encoded as a <code class="language-plaintext highlighter-rouge">ziplist</code>.</p>
 
 <p>We were able to verify this behaviour in our local setup as well.</p>
 
@@ -396,30 +396,22 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
 </div>
 
     </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
     <footer class="site-footer">
   <div class="wrapper">
     <div class="row">
-      <div class="col-sm-6">
+      <div class="col-sm-6 col-xs-12">
         <h2 class="footer-heading">Grab Tech</h2>
         <ul class="social-media-list">
   
     <li>
       <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
         <i class="fa fa-github fa-lg"></i>
-      </a>
-    </li>
-  
-  
-    <li>
-      <a href="https://facebook.com/grabengineering" target="_blank" rel="nofollow noreferrer">
-        <i class="fa fa-facebook-square fa-lg"></i>
-      </a>
-    </li>
-  
-  
-    <li>
-      <a href="https://twitter.com/grabengineering" target="_blank" rel="nofollow noreferrer">
-        <i class="fa fa-twitter fa-lg"></i>
       </a>
     </li>
   
@@ -437,10 +429,13 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
   </li>
 </ul>
 
-        <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
-        <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
       </div>
-      <div class="col-sm-6 hiring-section">
+      <div class="col-sm-6 col-xs-12 hiring-section">
         <h2 class="footer-heading">Join Us</h2>
         <p class="text">
           Want to join us in our mission to revolutionize transportation?
@@ -449,9 +444,6 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
 
       </div>
     </div>
-  </div>
-</footer>
-
     
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
