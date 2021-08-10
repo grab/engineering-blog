@@ -5,7 +5,7 @@ title: Pharos - Searching Nearby Drivers on Road Network at Scale
 date: 2020-12-22 03:23:00
 authors: [hao-wu, minglei-su, thanh-dat-le, nuo-xu, guanfeng-wang, mihai-stroe]
 categories: [Engineering]
-tags: [Real-Time K Nearest Neighbour Search, Spatial Data Store, Distributed System]
+tags: [Real-Time K Nearest Neighbour Search, Spatial Data Store, Distributed Systems]
 comments: true
 cover_photo: /img/pharos-searching-nearby-drivers-on-road-network-at-scale/cover.png
 excerpt: "Learn how Grab stores driver locations and how these locations are used to find nearby drivers around you."

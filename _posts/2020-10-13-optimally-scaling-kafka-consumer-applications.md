@@ -5,7 +5,7 @@ title: Optimally Scaling Kafka Consumer Applications
 date: 2020-10-13 02:13:54
 authors: [shubham-badkur]
 categories: [Engineering]
-tags: [Event Sourcing, Stream Processing, Kubernetes, Backend, Platform, Go]
+tags: [Event Sourcing, Stream Processing, Kubernetes, Back End, Platform, Go]
 comments: true
 cover_photo: /img/optimally-scaling-kafka-consumer-applications/cover.png
 excerpt: "Read this deep dive on our Kubernetes infrastructure setup for Grab's stream processing framework."

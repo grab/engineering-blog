@@ -5,7 +5,7 @@ title: Being a Principal Engineer at Grab
 date: 2019-09-25 18:14:40
 authors: [roman-atachiants]
 categories: [Engineering]
-tags: [Career, Engineering, Microservices]
+tags: [Career, Engineering, Microservice]
 comments: true
 cover_photo: /img/about-being-a-principal-engineer-at-grab/cover.jpg
 excerpt: "Curious about what a Principal Engineer role at Grab entails? Our Principal Engineers' responsibilities range from solving complex problems, taking care of the system-level architecture, collaborating with cross-functional teams, providing mentorship, and more."

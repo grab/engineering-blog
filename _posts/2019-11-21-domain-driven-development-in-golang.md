@@ -5,7 +5,7 @@ title: How We Implemented Domain-Driven Development in Golang
 date: 2019-11-21 11:00:00
 authors: [kapil-chaurasia, preeti-karkera]
 categories: [Engineering]
-tags: [Backend, Go]
+tags: [Back End, Go]
 comments: true
 cover_photo: /img/domain-driven-development-in-golang/cover.png
 excerpt: "Are you curious how we quickly enabled our partners to self-service using our platform? Have you wondered how some teams at Grab implemented domain-driven development while using Golang? Read this blog post to know more."
