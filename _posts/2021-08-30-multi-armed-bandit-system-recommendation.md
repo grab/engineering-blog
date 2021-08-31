@@ -2,8 +2,8 @@
 layout: post
 id: 2021-08-30-multi-armed-bandit-system-recommendation
 title: Automating Multi-Armed Bandit Testing During Feature Rollout
-date: 2021-08-30 01:20:00
-authors: [weicheng-zhu][zhuolun-li][weilun-wu][da-huang]
+date: 2021-08-31 01:20:00
+authors: [weicheng-zhu, zhuolun-li, weilun-wu, da-huang]
 categories: [Engineering]
 tags: [Engineering, Testing, Optimisation]
 comments: true
@@ -46,7 +46,7 @@ A lightweight system that performs basic operations on Kafka Streams, such as ag
 
 *   Feedback loop
 
-A system that calculates the goal metrics and optimises the model traffic distribution. It runs a metrics server which pulls the data from [Stalker](https://www.google.com/url?q=https://wiki.grab.com/display/TA/RFC%253A%2BStalkerDB&sa=D&source=editors&ust=1630064223377000&usg=AOvVaw2p482PvLMnDbakK1ldJ2J3), which is a time series database that stores the processed events in the last one hour. The metrics server invokes a Spark Job periodically to run the SQL queries that computes the pre-defined goal metrics: the Clickthrough Rate, Conversion Rate and so on, provided by users. The output of the job is dumped into an S3 bucket, and is picked up by optimiser runtime. It runs the Multi-Armed Bandit Optimiser to optimise the model traffic distribution based on the latest goal metrics.
+A system that calculates the goal metrics and optimises the model traffic distribution. It runs a metrics server which pulls the data from Stalker, which is a time series database that stores the processed events in the last one hour. The metrics server invokes a Spark Job periodically to run the SQL queries that computes the pre-defined goal metrics: the Clickthrough Rate, Conversion Rate and so on, provided by users. The output of the job is dumped into an S3 bucket, and is picked up by optimiser runtime. It runs the Multi-Armed Bandit Optimiser to optimise the model traffic distribution based on the latest goal metrics.
 
 *   Dynamic value receiver, or the GrabX variable
 
@@ -79,12 +79,9 @@ The Reward Update module collects a batch of the metrics. It calculates the Succ
 
 ### Multi-Armed Bandit Agent Module
 
-In the Multi-Armed Bandit Agent module, each Arm's metrics are modeled as a Beta distribution which is sampled with Thompson Sampling. The Beta distribution formula is: <div class="post-image-section">
-  <img alt="Formula" src="/img/multi-armed-bandit-system-recommendation/image1.png">
-
-</div>
+In the Multi-Armed Bandit Agent module, each Arm's metrics are modeled as a Beta distribution which is sampled with Thompson Sampling. The Beta distribution formula is: 
+  <img alt="Formula" src="/img/multi-armed-bandit-system-recommendation/image1.png">.
 <p>&nbsp;</p>
-.
 
 The Batched Multi-Armed Bandit algorithm updates the Beta distribution with the batch metrics. The optimisation algorithm can be described in the following method.
 
@@ -144,4 +141,4 @@ The Multi-Armed Bandit Optimiser first runs model validation to ensure all candi
 # Join us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
  
-If you share our vision of driving South East Asia forward, apply to (join)[https://grab.careers/jobs/] our team today.
+If you share our vision of driving South East Asia forward, apply to [join](https://grab.careers/jobs/) our team today.
