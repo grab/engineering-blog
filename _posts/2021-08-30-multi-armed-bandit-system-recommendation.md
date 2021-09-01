@@ -1,8 +1,8 @@
 ---
 layout: post
 id: 2021-08-30-multi-armed-bandit-system-recommendation
-title: Automating Multi-Armed Bandit Testing During Feature Rollout
-date: 2021-08-31 01:20:00
+title: Automating Multi-Armed Bandit testing during feature rollout
+date: 2021-09-01 01:20:00
 authors: [weicheng-zhu, zhuolun-li, weilun-wu, da-huang]
 categories: [Engineering]
 tags: [Engineering, Testing, Optimisation]
@@ -10,9 +10,6 @@ comments: true
 cover_photo: /img/multi-armed-bandit-system-recommendation/image7.jpeg
 excerpt: "Find out how you can run an automated test and simultaneously roll out a new feature."
 ---
-
-Automating Multi-Armed Bandit Testing During Feature Rollout
-============================================================
 
 A/B testing is an experiment where a random e-commerce platform user is given two versions of a variable: a control group and a treatment group, to discover the optimal version that maximizes conversion. When running A/B testing, you can take the Multi-Armed Bandit optimisation approach to minimise the loss of conversion due to low performance.
 
@@ -50,7 +47,7 @@ A system that calculates the goal metrics and optimises the model traffic distri
 
 *   Dynamic value receiver, or the GrabX variable
 
-The optimized model traffic distributions are pushed into a dynamic value receiver (or the GrabX variable) that is set in code. The code then uses the latest probability to distribute the traffic to each model.
+The optimised model traffic distributions are pushed into a dynamic value receiver (or the GrabX variable) that is set in code. The code then uses the latest probability to distribute the traffic to each model.
 
 Multi-Armed Bandit Optimiser modules
 ------------------------------------
@@ -71,23 +68,24 @@ The Multi-Armed Bandit Optimiser consists of the following modules.
 
 The goal of the Multi-Armed Bandit Optimisation is to find the optimal Arm that results in the best predefined metrics, and then allocate the maximum traffic to that Arm.
 
-The solution can be illustrated in the following problem. For K Arm, in which the action space A={1,2,...,K}, the Multi-Arm-Bandit Optimiser goal is to solve the one-shot optimisation problem of ![](images/image2.png).
+The solution can be illustrated in the following problem. For K Arm, in which the action space A={1,2,...,K}, the Multi-Arm-Bandit Optimiser goal is to solve the one-shot optimisation problem of <img alt="Formula" src="/img/multi-armed-bandit-system-recommendation/image2.png">.
+<p>&nbsp;</p>
 
-### Reward Update Module
+### Reward Update module
 
-The Reward Update module collects a batch of the metrics. It calculates the Success and Failure counts, then updates the Beta distribution of each Arm with Batched Multi-Armed Bandit algorithm.
+The Reward Update module collects a batch of the metrics. It calculates the Success and Failure counts, then updates the Beta distribution of each Arm with the Batched Multi-Armed Bandit algorithm.
 
-### Multi-Armed Bandit Agent Module
+### Multi-Armed Bandit Agent module
 
-In the Multi-Armed Bandit Agent module, each Arm's metrics are modeled as a Beta distribution which is sampled with Thompson Sampling. The Beta distribution formula is: 
+In the Multi-Armed Bandit Agent module, each Arm's metrics are modelled as a Beta distribution which is sampled with Thompson Sampling. The Beta distribution formula is:
   <img alt="Formula" src="/img/multi-armed-bandit-system-recommendation/image1.png">.
 <p>&nbsp;</p>
 
 The Batched Multi-Armed Bandit algorithm updates the Beta distribution with the batch metrics. The optimisation algorithm can be described in the following method.
 
 <div class="post-image-section">
-  <img alt="Batched Multi-Armed Bandit Algorithm" src="/img/multi-armed-bandit-system-recommendation/image6.png">
-  <small class="post-image-caption">Batched Multi-Armed Bandit Algorithm</small>
+  <img alt="Batched Multi-Armed Bandit algorithm" src="/img/multi-armed-bandit-system-recommendation/image6.png">
+  <small class="post-image-caption">Batched Multi-Armed Bandit algorithm</small>
 </div>
 <p>&nbsp;</p>
 
@@ -97,17 +95,17 @@ The Monte-Carlo Simulation module runs the simulation for N repeated times to f
 
 To handle different scenarios, we designed two strategies.
 
-*   max strategy: by which we count each Arm’s Success count’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the success rate.
-*   mean strategy: by which we average each Arm’s Beta distribution probabilities’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the averaged probabilities of each Arm.
+*   Max strategy: We count each Arm’s Success count’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the success rate.
+*   Mean strategy: We average each Arm’s Beta distribution probabilities’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the averaged probabilities of each Arm.
 
-### Adaptive Rollout Module
+### Adaptive Rollout module
 
-The Adaptive Rollout module rolls out the sampled distribution of each MAB Arm, in the form of MAB Arm Model ID and distribution, to the experimentation platform’s configuration variable. The resulting variable is then read from the online service. The process repeats as it collects feedback from the Adaptive Rollout metrics’ results in the feedback loop.
+The Adaptive Rollout module rolls out the sampled distribution of each Multi-Armed Bandit Arm, in the form of Multi-Armed Bandit Arm Model ID and distribution, to the experimentation platform’s configuration variable. The resulting variable is then read from the online service. The process repeats as it collects feedback from the Adaptive Rollout metrics’ results in the feedback loop.
 
 Multi-Armed Bandit for Recommendation Solution
 ----------------------------------------------
 
-In the GrabFood Recommended for You widget, there are several food recommendation models that categorize lists of merchants. The choice of the model is controlled through experiments at rollout, and the results of the experiments are analysed offline. After the analysis, data scientists and product managers rectify the model choice based on the experiment results.
+In the _GrabFood Recommended for You_ widget, there are several food recommendation models that categorise lists of merchants. The choice of the model is controlled through experiments at rollout, and the results of the experiments are analysed offline. After the analysis, data scientists and product managers rectify the model choice based on the experiment results.
 
 The Multi-Armed Bandit System for Recommendation solution improves the process by speeding up the feedback loop with the Multi-Armed Bandit system. Instead of depending on offline data which comes out at T+N, the solution responds to minute-level metrics, and adjusts the model faster.
 
@@ -115,30 +113,30 @@ This results in an optimal solution faster. The proposed Multi-Armed Bandit for 
 
 <div class="post-image-section">
   <img alt=" Multi-Armed Bandit for Recommendation Solution Workflow" src="/img/multi-armed-bandit-system-recommendation/image3.png">
-  <small class="post-image-caption"> Multi-Armed Bandit for Recommendation Solution Workflow</small>
+  <small class="post-image-caption"> Multi-Armed Bandit for Recommendation solution workflow</small>
 </div>
 <p>&nbsp;</p>
 
 
-### Optimisation Metrics
+### Optimisation metrics
 
-The GrabFood recommendation uses the Effective Conversion Rate metrics as the optimisation objective. The Effective Conversion Rate is defined as the total number of checkouts through the Recommended for You widget, divided by the total widget viewed and multiplied by the coverage rate.
+The GrabFood recommendation uses the Effective Conversion Rate metrics as the optimisation objective. The Effective Conversion Rate is defined as the total number of checkouts through the _Recommended for You_ widget, divided by the total widget viewed and multiplied by the coverage rate.
 
 The events of views, clicks, and checkouts are collected over a 30-minute aggregation window and the coverage. A request with a checkout is considered as a success event, while a non-converted request is considered as a failure event.
 
-### Multi-Armed Bandit Strategy
+### Multi-Armed Bandit strategy
 
 With the Multi-Armed Bandit Optimiser, the Beta distribution is selected to model the Effective Conversion Rate. The use of the mean strategy in the Monte-Carlo Simulation results in a more stable distribution.
 
-### Rollout Policy
+### Rollout policy
 
 The Multi-Armed Bandit Optimiser uses the eater ID as the unique entity, applies a policy and assigns different percentages of eaters to each model, based on computed distribution at the beginning of each loop.
 
-### Fallback Logic
+### Fallback logic
 
 The Multi-Armed Bandit Optimiser first runs model validation to ensure all candidates are suitable for rolling out. If the scheduled MAB job fails, it falls back to a default distribution that is set to 50-50% for each model.
 
 # Join us
 Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
- 
+
 If you share our vision of driving South East Asia forward, apply to [join](https://grab.careers/jobs/) our team today.
