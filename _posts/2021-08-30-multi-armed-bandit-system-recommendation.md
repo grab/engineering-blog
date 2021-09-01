@@ -51,7 +51,7 @@ A system that calculates the goal metrics and optimises the model traffic distri
 Multi-Armed Bandit Optimiser modules
 ------------------------------------
 
-The Multi-Armed Bandit Optimiser consists of the following modules.
+The Multi-Armed Bandit Optimiser consists of the following modules:
 
 *   Reward Update
 *   Batched Multi-Armed Bandit Agent
