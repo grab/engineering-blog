@@ -60,7 +60,7 @@ I: Large dependencies (fairly obvious, because the box size will be large)
 
 II: Duplicate dependencies (same library that is bundled multiple times across different assets)
 
-![](img/grabfood-bundle/image2.png)![](img/grabfood-bundle/image2.png)
+![](img/grabfood-bundle/image2.png)
 
 III: Dependencies that look like they don’t belong (e.g. Why is ‘elliptic’ in my frontend bundle?)
 
