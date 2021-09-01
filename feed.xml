@@ -6,9 +6,160 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 10 Aug 2021 04:18:53 +0000</pubDate>
-    <lastBuildDate>Tue, 10 Aug 2021 04:18:53 +0000</lastBuildDate>
+    <pubDate>Wed, 01 Sep 2021 12:04:33 +0000</pubDate>
+    <lastBuildDate>Wed, 01 Sep 2021 12:04:33 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Automating Multi-Armed Bandit testing during feature rollout</title>
+        <description>&lt;p&gt;A/B testing is an experiment where a random e-commerce platform user is given two versions of a variable: a control group and a treatment group, to discover the optimal version that maximizes conversion. When running A/B testing, you can take the Multi-Armed Bandit optimisation approach to minimise the loss of conversion due to low performance.&lt;/p&gt;
+
+&lt;p&gt;In the traditional software development process, Multi-Armed Bandit (MAB) testing and rolling out a new feature are usually separate processes. The novel Multi-Armed Bandit System for Recommendation solution, hereafter the Multi-Armed Bandit Optimiser, proposes automating the Multi-Armed Bandit testing simultaneously while rolling out the new feature.&lt;/p&gt;
+
+&lt;h2 id=&quot;advantages&quot;&gt;Advantages&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Automates the MAB testing process during new feature rollouts.&lt;/li&gt;
+  &lt;li&gt;Selects the optimal parameters based on predefined metrics of each use case, which results in an end-to-end solution without the need for user intervention.&lt;/li&gt;
+  &lt;li&gt;Uses the Batched Multi-Armed Bandit and Monte Carlo Simulation, which enables it to process large-scale business scenarios.&lt;/li&gt;
+  &lt;li&gt;Uses a feedback loop to automatically collect recommendation metrics from user event logs and to feed them to the Multi-Armed Bandit Optimiser.&lt;/li&gt;
+  &lt;li&gt;Uses an adaptive rollout method to automatically roll out the best model to the maximum distribution capacity according to the feedback metrics.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;architecture&quot;&gt;Architecture&lt;/h2&gt;
+
+&lt;p&gt;The following diagram illustrates the system architecture.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;System architecture&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image5.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;System architecture&lt;/small&gt;
+&lt;/div&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;The novel Multi-Armed Bandit System for Recommendation solution contains three building blocks.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Stream processing framework&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;A lightweight system that performs basic operations on Kafka Streams, such as aggregation, filtering, and mapping. The proposed solution relies on this framework to pre-process raw events published by mobile apps and backend processes into the proper format that can be fed into the feedback loop.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Feedback loop&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;A system that calculates the goal metrics and optimises the model traffic distribution. It runs a metrics server which pulls the data from Stalker, which is a time series database that stores the processed events in the last one hour. The metrics server invokes a Spark Job periodically to run the SQL queries that computes the pre-defined goal metrics: the Clickthrough Rate, Conversion Rate and so on, provided by users. The output of the job is dumped into an S3 bucket, and is picked up by optimiser runtime. It runs the Multi-Armed Bandit Optimiser to optimise the model traffic distribution based on the latest goal metrics.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Dynamic value receiver, or the GrabX variable&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;multi-armed-bandit-optimiser-modules&quot;&gt;Multi-Armed Bandit Optimiser modules&lt;/h2&gt;
+
+&lt;p&gt;The Multi-Armed Bandit Optimiser consists of the following modules:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Reward Update&lt;/li&gt;
+  &lt;li&gt;Batched Multi-Armed Bandit Agent&lt;/li&gt;
+  &lt;li&gt;Monte-Carlo Simulation&lt;/li&gt;
+  &lt;li&gt;Adaptive Rollout&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Multi-Armed Bandit Optimiser modules&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image4.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Multi-Armed Bandit Optimiser modules&lt;/small&gt;
+&lt;/div&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;The goal of the Multi-Armed Bandit Optimisation is to find the optimal Arm that results in the best predefined metrics, and then allocate the maximum traffic to that Arm.&lt;/p&gt;
+
+&lt;p&gt;The solution can be illustrated in the following problem. For K Arm, in which the action space A={1,2,…,K}, the Multi-Arm-Bandit Optimiser goal is to solve the one-shot optimisation problem of &lt;img alt=&quot;Formula&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image2.png&quot; /&gt;.&lt;/p&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;h3 id=&quot;reward-update-module&quot;&gt;Reward Update module&lt;/h3&gt;
+
+&lt;p&gt;The Reward Update module collects a batch of the metrics. It calculates the Success and Failure counts, then updates the Beta distribution of each Arm with the Batched Multi-Armed Bandit algorithm.&lt;/p&gt;
+
+&lt;h3 id=&quot;multi-armed-bandit-agent-module&quot;&gt;Multi-Armed Bandit Agent module&lt;/h3&gt;
+
+&lt;p&gt;In the Multi-Armed Bandit Agent module, each Arm’s metrics are modelled as a Beta distribution which is sampled with Thompson Sampling. The Beta distribution formula is:
+  &lt;img alt=&quot;Formula&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image1.png&quot; /&gt;.&lt;/p&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;The Batched Multi-Armed Bandit algorithm updates the Beta distribution with the batch metrics. The optimisation algorithm can be described in the following method.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Batched Multi-Armed Bandit algorithm&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image6.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Batched Multi-Armed Bandit algorithm&lt;/small&gt;
+&lt;/div&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;h3 id=&quot;monte-carlo-simulation-module&quot;&gt;Monte-Carlo Simulation module&lt;/h3&gt;
+
+&lt;p&gt;The Monte-Carlo Simulation module runs the simulation for N repeated times to find the best Arm over a configurable simulation window. Then, it applies the simulated results as each Arm’s distribution percentage for the next round.&lt;/p&gt;
+
+&lt;p&gt;To handle different scenarios, we designed two strategies.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Max strategy: We count each Arm’s Success count’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the success rate.&lt;/li&gt;
+  &lt;li&gt;Mean strategy: We average each Arm’s Beta distribution probabilities’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the averaged probabilities of each Arm.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;adaptive-rollout-module&quot;&gt;Adaptive Rollout module&lt;/h3&gt;
+
+&lt;p&gt;The Adaptive Rollout module rolls out the sampled distribution of each Multi-Armed Bandit Arm, in the form of Multi-Armed Bandit Arm Model ID and distribution, to the experimentation platform’s configuration variable. The resulting variable is then read from the online service. The process repeats as it collects feedback from the Adaptive Rollout metrics’ results in the feedback loop.&lt;/p&gt;
+
+&lt;h2 id=&quot;multi-armed-bandit-for-recommendation-solution&quot;&gt;Multi-Armed Bandit for Recommendation Solution&lt;/h2&gt;
+
+&lt;p&gt;In the &lt;em&gt;GrabFood Recommended for You&lt;/em&gt; widget, there are several food recommendation models that categorise lists of merchants. The choice of the model is controlled through experiments at rollout, and the results of the experiments are analysed offline. After the analysis, data scientists and product managers rectify the model choice based on the experiment results.&lt;/p&gt;
+
+&lt;p&gt;The Multi-Armed Bandit System for Recommendation solution improves the process by speeding up the feedback loop with the Multi-Armed Bandit system. Instead of depending on offline data which comes out at T+N, the solution responds to minute-level metrics, and adjusts the model faster.&lt;/p&gt;
+
+&lt;p&gt;This results in an optimal solution faster. The proposed Multi-Armed Bandit for Recommendation solution workflow is illustrated in the following diagram.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot; Multi-Armed Bandit for Recommendation Solution Workflow&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image3.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt; Multi-Armed Bandit for Recommendation solution workflow&lt;/small&gt;
+&lt;/div&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;h3 id=&quot;optimisation-metrics&quot;&gt;Optimisation metrics&lt;/h3&gt;
+
+&lt;p&gt;The GrabFood recommendation uses the Effective Conversion Rate metrics as the optimisation objective. The Effective Conversion Rate is defined as the total number of checkouts through the &lt;em&gt;Recommended for You&lt;/em&gt; widget, divided by the total widget viewed and multiplied by the coverage rate.&lt;/p&gt;
+
+&lt;p&gt;The events of views, clicks, and checkouts are collected over a 30-minute aggregation window and the coverage. A request with a checkout is considered as a success event, while a non-converted request is considered as a failure event.&lt;/p&gt;
+
+&lt;h3 id=&quot;multi-armed-bandit-strategy&quot;&gt;Multi-Armed Bandit strategy&lt;/h3&gt;
+
+&lt;p&gt;With the Multi-Armed Bandit Optimiser, the Beta distribution is selected to model the Effective Conversion Rate. The use of the mean strategy in the Monte-Carlo Simulation results in a more stable distribution.&lt;/p&gt;
+
+&lt;h3 id=&quot;rollout-policy&quot;&gt;Rollout policy&lt;/h3&gt;
+
+&lt;p&gt;The Multi-Armed Bandit Optimiser uses the eater ID as the unique entity, applies a policy and assigns different percentages of eaters to each model, based on computed distribution at the beginning of each loop.&lt;/p&gt;
+
+&lt;h3 id=&quot;fallback-logic&quot;&gt;Fallback logic&lt;/h3&gt;
+
+&lt;p&gt;The Multi-Armed Bandit Optimiser first runs model validation to ensure all candidates are suitable for rolling out. If the scheduled MAB job fails, it falls back to a default distribution that is set to 50-50% for each model.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.&lt;/p&gt;
+
+&lt;p&gt;If you share our vision of driving South East Asia forward, apply to &lt;a href=&quot;https://grab.careers/jobs/&quot;&gt;join&lt;/a&gt; our team today.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 01 Sep 2021 01:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/multi-armed-bandit-system-recommendation</link>
+        <guid isPermaLink="true">https://engineering.grab.com/multi-armed-bandit-system-recommendation</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Testing</category>
+        
+        <category>Optimisation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>How We Cut GrabFood.com’s Page JavaScript Asset Sizes by 3x</title>
@@ -2449,122 +2600,6 @@ export class ChatInput extends Component {
         <category>Machine Learning</category>
         
         <category>Consumer Support</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>How Grab Leveraged Performance Marketing Automation to Improve Conversion Rates by 30%</title>
-        <description>&lt;p&gt;Grab, Southeast Asia’s leading superapp, is a hyperlocal three-sided marketplace that operates across hundreds of cities in Southeast Asia. Grab started out as a taxi hailing company back in 2012 and in less than a decade, the business has evolved tremendously and now offers a diverse range of services for consumers’ everyday needs.&lt;/p&gt;
-
-&lt;p&gt;To fuel our business growth in newer service offerings such as GrabFood, GrabMart and GrabExpress, user acquisition efforts play a pivotal role in ensuring we create a sustainable Grab ecosystem that balances the marketplace dynamics between our consumers, driver-partners and merchant-partners.&lt;/p&gt;
-
-&lt;p&gt;Part of our user growth strategy is centred around our efforts in running direct-response app campaigns to increase trials on our superapp offerings. Executing these campaigns brings about a set of unique challenges against the diverse cultural backdrop present in Southeast Asia, challenging the team to stay hyperlocal in our strategies while driving user volumes at scale. To address these unique challenges, Grab’s performance marketing team is constantly seeking ways to leverage automation and innovate on our operations, improving our marketing efficiency and effectiveness.&lt;/p&gt;
-
-&lt;h2 id=&quot;managing-grabs-ever-expanding-business-geographical-coverage-and-new-user-acquisition&quot;&gt;Managing Grab’s Ever-expanding Business, Geographical Coverage and New User Acquisition&lt;/h2&gt;
-
-&lt;p&gt;Grab’s ever-expanding services, extensive geographical coverage and hyperlocal strategies result in an extremely dynamic, yet complex ad account structure. This also means that whenever there is a new business vertical launch or hyperlocal campaign, the team would spend valuable hours rolling out a large volume of new ads across our accounts in the region.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/learn-how-grab-leveraged-performance-marketing-automation/image1.jpg&quot; alt=&quot;Sample Google Ads account structure&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;A sample of our Google Ads account structure.&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;The granular structure of our Google Ads account provided us with flexibility to execute hyperlocal strategies, but this also resulted in thousands of ad groups that had to be individually maintained.&lt;/p&gt;
-
-&lt;p&gt;In 2019, Grab’s growth was simply outpacing our team’s resources and we finally hit a bottleneck. This challenged the team to take a step back and make the decision to pursue a fully automated solution built on the following principles for long term sustainability:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Building ad-tech solutions in-house instead of acquiring off-the-shelf solutions&lt;/strong&gt;&lt;/p&gt;
-
-    &lt;p&gt;Grab’s unique business model calls for several tailor-made features, none of which the existing ad tech solutions were able to provide.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Shifting our mindset to focus on the infinite game&lt;/strong&gt;&lt;/p&gt;
-
-    &lt;p&gt;In order to sustain the exponential volume in the ads we run, we had to seek the path of automation.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;For our very first automation project, we decided to look into automating creative refresh and upload for our Google Ads account. With thousands of ad groups running multiple creatives each, this had become a growing problem for the team. Overtime, manually monitoring these creatives and refreshing them on a regular basis had become impossible.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-automation-fundamentals&quot;&gt;The Automation Fundamentals&lt;/h2&gt;
-
-&lt;p&gt;Grab’s superapp nature means that any automation solution fundamentally needs to be robust:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Performance-driven&lt;/strong&gt; - to maintain and improve conversion efficiency over time&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Flexibility&lt;/strong&gt; -  to fit needs across business verticals and hyperlocal execution&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Inclusivity&lt;/strong&gt; - to account for future service launches and marketing tech (e.g. product feeds and more)&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Scalability&lt;/strong&gt; - to account for future geography/campaign coverage&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;With these in mind, we incorporated them in our requirements for the custom creative automation tool we planned to build.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Performance-driven&lt;/strong&gt; - while many advertising platforms, such as Google’s App Campaigns, have built-in algorithms to prevent low-performing creatives from being served, the fundamental bottleneck lies in the speed in which these low-performing creatives can be replaced with new assets to improve performance. Thus, solving this bottleneck would become the primary goal of our tool.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Flexibility&lt;/strong&gt; - to accommodate our broad range of services, geographies and marketing objectives, a mapping logic would be required to make sure the right creatives are added into the right campaigns.&lt;/p&gt;
-
-    &lt;p&gt;To solve this, we relied on a standardised creative naming convention, using key attributes in the file name to map an asset to a specific campaign and ad group based on:&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;Market&lt;/li&gt;
-      &lt;li&gt;City&lt;/li&gt;
-      &lt;li&gt;Service type&lt;/li&gt;
-      &lt;li&gt;Language&lt;/li&gt;
-      &lt;li&gt;Creative theme&lt;/li&gt;
-      &lt;li&gt;Asset type&lt;/li&gt;
-      &lt;li&gt;Campaign optimisation goal&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Inclusivity&lt;/strong&gt; - to address coverage of future service offerings and interoperability with existing ad-tech vendors, we designed and built our tool conforming to many industry API and platform standards.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Scalability&lt;/strong&gt; - to ensure full coverage of future geographies/campaigns, the in-house solution’s frontend and backend had to be robust enough to handle volume. Working hand in glove with Google, the solution was built by leveraging multiple APIs including Google Ads and Youtube to host and replace low-performing assets across our ad groups. The solution was then deployed on AWS’ serverless compute engine.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;enter-cara&quot;&gt;Enter CARA&lt;/h2&gt;
-
-&lt;p&gt;CARA is an automation tool that scans for any low-performing creatives and replaces them with new assets from our creative library:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/learn-how-grab-leveraged-performance-marketing-automation/image2.jpg&quot; alt=&quot;CARA Workflow&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;A sneak peek of how CARA works&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;In a controlled experimental launch, we saw nearly &lt;strong&gt;2,000&lt;/strong&gt; underperforming assets automatically replaced across more than &lt;strong&gt;8,000&lt;/strong&gt; active ad groups, translating to an &lt;strong&gt;18-30%&lt;/strong&gt; increase in clickthrough and conversion rates.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/learn-how-grab-leveraged-performance-marketing-automation/image3.jpg&quot; alt=&quot;Subset of results from CARA experimental launch&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;A subset of results from CARA's experimental launch&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;Through automation, Grab’s performance marketing team has been able to significantly improve clickthrough and conversion rates while saving valuable man-hours. We have also established a scalable foundation for future growth. The best part? We are just getting started.&lt;/p&gt;
-
-&lt;hr /&gt;
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Authored on behalf of the performance marketing team @ Grab. Special thanks to the CRM data analytics team, particularly Milhad Miah and Vaibhav Vij for making this a reality.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Mon, 22 Mar 2021 00:13:30 +0000</pubDate>
-        <link>https://engineering.grab.com/learn-how-grab-leveraged-performance-marketing-automation</link>
-        <guid isPermaLink="true">https://engineering.grab.com/learn-how-grab-leveraged-performance-marketing-automation</guid>
-        
-        <category>Automation</category>
-        
-        <category>Engineering</category>
-        
-        <category>Marketing</category>
         
         
         <category>Engineering</category>
