@@ -47,7 +47,6 @@ A system that calculates the goal metrics and optimises the model traffic distri
 
 *   Dynamic value receiver, or the GrabX variable
 
-The optimised model traffic distributions are pushed into a dynamic value receiver (or the GrabX variable) that is set in code. The code then uses the latest probability to distribute the traffic to each model.
 
 Multi-Armed Bandit Optimiser modules
 ------------------------------------
