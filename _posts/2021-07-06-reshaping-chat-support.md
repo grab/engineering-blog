@@ -8,7 +8,7 @@ categories: [Product]
 tags: [Product, Design, Chat Support]
 comments: true
 cover_photo: /img/reshaping-chat-support/cover.png
-excerpt: "Learn how the CSE team reshaped chat support through experimentation and design updates."
+excerpt: "Learn how the Grab Support (GS) TF reshaped chat support through experimentation and design updates."
 ---
 
 Introduction
@@ -153,7 +153,7 @@ What We Learnt from this Project
 
 ---
 
-<small class="credits">Of course, this would not have been possible without the incredible work of several teams: CSE, CE, Comms platform, Driver and Merchant teams.
+<small class="credits">Of course, this would not have been possible without the incredible work of several teams: GS TF, GS, Comms platform, Driver and Merchant teams.
 </small>
 
 ---
