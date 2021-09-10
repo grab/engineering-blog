@@ -24,7 +24,7 @@ Here are the impacts Archivist has already made:
 *   Currently, there are 2 teams with a total of 5 services and about 50 business scenarios using Archivist. The scenarios include fraud prevention (e.g. DriverBan, PassengerBan), payment checks (e.g. PayoutBlockCheck, PromoCheck), and identity check events like PinTrigger.
 *   It takes only a few minutes to onboard a new business scenario (event type), by using the configuration page on the user portal. Previously, it took at least 1 to 2 days.
 *   Each day, Archivist logs down 80 million logs to the ElasticSearch cluster, which is about 200GB of data.
-*   Each week, Customer Experience (CE)/Risk Ops goes to the user portal and checks Archivist logs for about 2,000 distinct customers. They can search based on numerous dimensions such as the Passenger/DriverID, phone number, request ID, booking code and payment fingerprint.
+*   Each week, Grab Support (GS)/Risk Ops goes to the user portal and checks Archivist logs for about 2,000 distinct customers. They can search based on numerous dimensions such as the Passenger/DriverID, phone number, request ID, booking code and payment fingerprint.
 
 ## Background
 
@@ -44,7 +44,7 @@ To answer the questions above, TISS services previously used company-wide Kibana
 
 *   Logs in plain text don’t have any structure and are not friendly to ML model training as most ML models need processed data to make accurate predictions.
 *   Furthermore, there is no fine-granularity access control for developers in Kibana.
-*   Developers, DA and DS have no access control while CEs have no access at all. So CE cannot easily see the data and DA/DS cannot easily process the data.
+*   Developers, DA and DS have no access control while GS has no access at all. So GS cannot easily see the data and DA/DS cannot easily process the data.
 
 To address all the Kibana log issues, we developed ActionTrace, a code library with a well-structured data schema. The logs, also called documents, are stored in a dedicated ElasticSearch cluster with access control implemented. However, after using it for a while, we found that it still needed some improvements.
 
@@ -78,10 +78,10 @@ The key improvements are:
     *   Different services share the same Elastic Cloud Enterprise (ECE) cluster, but they create their own daily file indices so the costs can be split fairly.
 *   Better support for data mining, prediction stats and feedback
     *   Kafka stream data are simultaneously written to AWS S3. DA/DS can use the PrestoDB SQL query engine to mine the data.
-    *   There is an internal web portal for viewing Archivist logs. Customer service teams and Ops can use no-risk data to address CE tickets, while DA, DS and developers can view high-risk data for code/rule debugging.
+    *   There is an internal web portal for viewing Archivist logs. Customer service teams and Ops can use no-risk data to address GS tickets, while DA, DS and developers can view high-risk data for code/rule debugging.
 *   A reduction of development days to support new business launches
     *   Previously, it took a week to modify and deploy the ActionTrace data schema. Now, it only takes several minutes to configure event schemas in the user portal.
-*   Saves time in RiskOps/CE investigations
+*   Saves time in RiskOps/GS investigations
     *   With the new web UI which has access control in place, the different roles in the company, like Customer service and Data analysts, can access the Archivist events with different levels of permissions.
     *   It takes only a few clicks for them to find the relevant events that impact the drivers/passengers.
 
@@ -262,7 +262,7 @@ In Archivist, a prediction/decision is called an event. The event schema can be 
 
 ### A User Portal to Support Querying, Prediction Stats and Feedback
 
-DA, DS, Ops and CE can access the internal user portal to see the prediction events, individually and on an aggregated city level.
+DA, DS, Ops and GS can access the internal user portal to see the prediction events, individually and on an aggregated city level.
 
 <div class="post-image-section"><figure>
   <img src="/img/archivist/image5.gif" alt="A snapshot of the Archivist logs showing the aggregation of the data in each city" style="width:90%"> <figcaption align="middle"><i>A snapshot of the Archivist logs showing the aggregation of the data in each city</i></figcaption>
