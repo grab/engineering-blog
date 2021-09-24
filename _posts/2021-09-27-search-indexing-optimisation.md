@@ -2,7 +2,7 @@
 layout: post
 id: 2021-09-27-search-indexing-optimisation
 title: Search indexing optimisation
-date: 2021-09-23 01:20:00
+date: 2021-09-27 01:20:00
 authors: [weilun-wu, yanguang-hu]
 categories: [Engineering]
 tags: [Engineering, Data, Database, Optimisation]
