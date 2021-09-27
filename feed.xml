@@ -6,9 +6,251 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 10 Sep 2021 02:23:56 +0000</pubDate>
-    <lastBuildDate>Fri, 10 Sep 2021 02:23:56 +0000</lastBuildDate>
+    <pubDate>Mon, 27 Sep 2021 13:25:43 +0000</pubDate>
+    <lastBuildDate>Mon, 27 Sep 2021 13:25:43 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Search indexing optimisation</title>
+        <description>&lt;p&gt;Modern applications commonly utilise various database engines, with each serving a specific need. At Grab Deliveries, MySQL database (DB) is utilised to store canonical forms of data, and ElasticSearch (ES) to provide advanced search capabilities. MySQL serves as the primary data storage for raw data, and ES as the derived storage.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/search-data-flow.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Search data flow&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Efforts have been made to synchronise data between MySQL and ES. In this post, a series of techniques will be introduced on how to optimise incremental search data indexing.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;The synchronisation of data from the primary data storage to the derived data storage is handled by Food-Puxian, a Data Synchronisation Platform (DSP). In a search service context, it is the synchronisation of data between MySQL and ES.
+The data synchronisation process is triggered on every real-time data update to MySQL, which will streamline the updated data to Kafka. DSP consumes the list of Kafka streams and incrementally updates the respective search indexes in ES. This process is also known as Incremental Sync.&lt;/p&gt;
+
+&lt;h3 id=&quot;kafka-to-dsp&quot;&gt;Kafka to DSP&lt;/h3&gt;
+
+&lt;p&gt;DSP uses Kafka streams to implement Incremental Sync. A stream represents an unbounded, continuously updating data set.  A stream is ordered, replayable and is a fault-tolerant sequence of immutable.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/data-synchronisation-process-using-kafka.png&quot; alt=&quot;Data synchronisation process using Kafka&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Data synchronisation process using Kafka&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The above diagram depicts the process of data synchronisation using Kafka. The Data Producer creates a Kafka stream for every operation done on MySQL and sends it to Kafka in real-time. DSP creates a stream consumer for each Kafka stream and the consumer reads data updates from respective Kafka streams and synchronises them to ES.&lt;/p&gt;
+
+&lt;h3 id=&quot;mysql-to-es&quot;&gt;MySQL to ES&lt;/h3&gt;
+
+&lt;p&gt;Indexes in ES correspond to tables in MySQL. MySQL data is stored in tables, while ES data is stored in indexes. Multiple MySQL tables are joined to form an ES index. The below snippet shows the Entity-Relationship mapping in MySQL and ES. Entity A has a one-to-many relationship with entity B. Entity A has multiple associated tables in MySQL, table A1 and A2, and they are joined into a single ES index A.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/er-mapping-in-mysql-and-es.png&quot; alt=&quot;ER mapping in MySQL and ES&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;ER mapping in MySQL and ES&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Sometimes a search index contains both entity A and entity B. In a keyword search query on this index, e.g. “Burger”, objects from both entity A and entity B whose name contains “Burger” are returned in the search response.&lt;/p&gt;
+
+&lt;h2 id=&quot;original-incremental-sync&quot;&gt;Original Incremental Sync&lt;/h2&gt;
+
+&lt;h3 id=&quot;original-kafka-streams&quot;&gt;Original Kafka streams&lt;/h3&gt;
+
+&lt;p&gt;The Data Producers create a Kafka stream for every MySQL table in the ER diagram above. Every time there is an insert/update/delete operation on the MySQL tables, a copy of the data after the operation executes is sent to its Kafka stream. DSP creates different stream consumers for every Kafka stream since their data structures are different.&lt;/p&gt;
+
+&lt;h3 id=&quot;stream-consumer-infrastructure&quot;&gt;Stream Consumer infrastructure&lt;/h3&gt;
+
+&lt;p&gt;Stream Consumer consists of 3 components.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Event Dispatcher: Listens and fetches events from the Kafka stream, pushes them to the Event Buffer and starts a goroutine to run Event Handler for every event whose ID does not exist in the Event Buffer&lt;/li&gt;
+  &lt;li&gt;Event Buffer: Caches events in memory by the primary key (aID, bID, etc). An event is cached in the Buffer until it is picked by a goroutine or replaced when a new event with the same primary key is pushed into the Buffer.&lt;/li&gt;
+  &lt;li&gt;Event Handler: Reads an event from the Event Buffer and the goroutine started by the Event Dispatcher handles it.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/stream-consumer-infrastructure.png&quot; alt=&quot;Stream consumer infrastructure&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Stream consumer infrastructure&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;event-buffer-procedure&quot;&gt;Event Buffer procedure&lt;/h3&gt;
+
+&lt;p&gt;Event Buffer consists of many sub buffers, each with a unique ID which is the primary key of the event cached in it. The maximum size of a sub buffer is 1. This allows Event Buffer to deduplicate events having the same ID in the buffer.
+The below diagram shows the procedure of pushing an event to Event Buffer. When a new event is pushed to the buffer, the old event sharing the same ID will be replaced. The replaced event is therefore not handled.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/pushing-an-event-to-the-event-buffer.png&quot; alt=&quot;Pushing an event to the Event Buffer&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Pushing an event to the Event Buffer&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;event-handler-procedure&quot;&gt;Event Handler procedure&lt;/h3&gt;
+
+&lt;p&gt;The below flowchart shows the procedures executed by the Event Handler. It consists of the common handler flow (in white), and additional procedures for object B events (in green). After creating a new ES document by data loaded from the database, it will get the original document from ES to compare if any field is changed and decide whether it is necessary to send the new document to ES.
+When object B event is being handled, on top of the common handler flow, it also cascades the update to the related object A in the ES index. We name this kind of operation Cascade Update.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/procedures-executed-by-the-event-handler.png&quot; alt=&quot;Procedures executed by the Event Handler&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Procedures executed by the Event Handler&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;issues-in-the-original-infrastructure&quot;&gt;Issues in the original infrastructure&lt;/h2&gt;
+
+&lt;p&gt;Data in an ES index can come from multiple MySQL tables as shown below.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/data-in-an-es-index.png&quot; alt=&quot;Data in an ES index&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Data in an ES index&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The original infrastructure came with a few issues.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Heavy DB load: Consumers read from Kafka streams, treat stream events as notifications then use IDs to load data from the DB to create a new ES document. Data in the stream events are not well utilised. Loading data from the DB every time to create a new ES document results in heavy traffic to the DB. The DB becomes a bottleneck.&lt;/li&gt;
+  &lt;li&gt;Data loss: Producers send data copies to Kafka in application code. Data changes made via MySQL command-line tool (CLT) or other DB management tools are lost.&lt;/li&gt;
+  &lt;li&gt;Tight coupling with MySQL table structure: If producers add a new column to an existing table in MySQL and this column needs to be synchronised to ES, DSP is not able to capture the data changes of this column until the producers make the code change and add the column to the related Kafka Stream.&lt;/li&gt;
+  &lt;li&gt;Redundant ES updates: ES data is a subset of MySQL data. Producers publish data to Kafka streams even if changes are made on fields that are not relevant to ES. These stream events that are irrelevant to ES would still be picked up.&lt;/li&gt;
+  &lt;li&gt;Duplicate cascade updates: Consider a case where the search index contains both object A and object B. A large number of updates to object B are created within a short span of time. All the updates will be cascaded to the index containing both objects A and B. This will bring heavy traffic to the DB.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;optimised-incremental-sync&quot;&gt;Optimised Incremental Sync&lt;/h2&gt;
+
+&lt;h3 id=&quot;mysql-binlog&quot;&gt;MySQL Binlog&lt;/h3&gt;
+
+&lt;p&gt;MySQL binary log (Binlog) is a set of log files that contain information about data modifications made to a MySQL server instance. It contains all statements that update data. There are two types of binary logging:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Statement-based logging: Events contain SQL statements that produce data changes (inserts, updates, deletes).&lt;/li&gt;
+  &lt;li&gt;Row-based logging: Events describe changes to individual rows.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The Grab Caspian team (Data Tech) has built a Change Data Capture (CDC) system based on MySQL row-based Binlog. It captures all the data modifications made to MySQL tables.&lt;/p&gt;
+
+&lt;h3 id=&quot;current-kafka-streams&quot;&gt;Current Kafka streams&lt;/h3&gt;
+&lt;p&gt;The Binlog stream event definition is a common data structure with three main fields: Operation, PayloadBefore and PayloadAfter. The Operation enums are Create, Delete, and Update. Payloads are the data in JSON string format. All Binlog streams follow the same stream event definition. Leveraging PayloadBefore and PayloadAfter in the Binlog event, optimisations of incremental sync on DSP becomes possible.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/binlog-stream-event-main-fields.png&quot; alt=&quot;Binlog stream event main fields&quot; style=&quot;width:30%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Binlog stream event main fields&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;stream-consumer-optimisations&quot;&gt;Stream Consumer optimisations&lt;/h2&gt;
+
+&lt;h3 id=&quot;event-handler-optimisations&quot;&gt;Event Handler optimisations&lt;/h3&gt;
+
+&lt;h4 id=&quot;optimisation-1&quot;&gt;Optimisation 1&lt;/h4&gt;
+
+&lt;p&gt;Remember that there was a redundant ES updates issue mentioned above where the ES data is a subset of the MySQL data. The first optimisation is to filter out irrelevant stream events by checking if the fields that are different between PayloadBefore and PayloadAfter are in the ES data subset.
+Since the payloads in the Binlog event are JSON strings, a data structure only with fields that are present in ES data is defined to parse PayloadBefore and PayloadAfter. By comparing the parsed payloads, it is easy to know whether the change is relevant to ES.
+The below diagram shows the optimised Event Handler flows. As shown in the blue flow, when an event is handled, PayloadBefore and PayloadAfter are compared first. An event will be processed only if there is a difference between PayloadBefore and PayloadAfter. Since the irrelevant events are filtered, it is unnecessary to get the original document from ES.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/event-handler-optimisation-1.png&quot; alt=&quot;Event Handler optimisation 1&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Event Handler optimisation 1&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;achievements&quot;&gt;Achievements&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;No data loss: changes made via MySQL CLT or other DB manage tools can be captured.&lt;/li&gt;
+  &lt;li&gt;No dependency on MySQL table definition: All the data is in JSON string format.&lt;/li&gt;
+  &lt;li&gt;No redundant ES updates and DB reads.&lt;/li&gt;
+  &lt;li&gt;ES reads traffic reduced by 90%: Not a need to get the original document from ES to compare with the newly created document anymore.&lt;/li&gt;
+  &lt;li&gt;55% irrelevant stream events filtered out&lt;/li&gt;
+  &lt;li&gt;DB load reduced by 55%&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/es-event-updates-for-optimisation-1.png&quot; alt=&quot;ES event updates for optimisation 1&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;ES event updates for optimisation 1&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;optimisation-2&quot;&gt;Optimisation 2&lt;/h4&gt;
+
+&lt;p&gt;The PayloadAfter in the event provides updated data. This makes us think about whether a completely new ES document is needed each time, with its data read from several MySQL tables. The second optimisation is to change to a partial update using data differences from the Binlog event.
+The below diagram shows the Event Handler procedure flow with a partial update. As shown in the red flow, instead of creating a new ES document for each event, a check on whether the document exists will be performed first. If the document exists, which happens for the majority of the time, the data is changed in this event, provided the comparison between PayloadBefore and PayloadAfter is updated to the existing ES document.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/event-handler-optimisation-2.png&quot; alt=&quot;Event Handler optimisation 2&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Event Handler optimisation 2&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;achievements-1&quot;&gt;Achievements&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Change most ES relevant events to partial update: Use data in stream events to update ES.&lt;/li&gt;
+  &lt;li&gt;ES load reduced: Only fields that have been changed will be sent to ES.&lt;/li&gt;
+  &lt;li&gt;DB load reduced: DB load reduced by 80% based on Optimisation 1.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/es-event-updates-for optimisation-2.png&quot; alt=&quot;ES event updates for optimisation 2&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;ES event updates for optimisation 2&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;event-buffer-optimisation&quot;&gt;Event Buffer optimisation&lt;/h3&gt;
+
+&lt;p&gt;Instead of replacing the old event, we merge the new event with the old event when the new event is pushed to the Event Buffer.
+The size of each sub buffer in Event Buffer is 1. In this optimisation, the stream event is not treated as a notification anymore. We use the Payloads in the event to perform Partial Updates. The old procedure of replacing old events is no longer suitable for the Binlog stream.
+When the Event Dispatcher pushes a new event to a non-empty sub buffer in the Event Buffer, it will merge event A in the sub buffer and the new event B into a new Binlog event C, whose PayloadBefore is from Event A and PayloadAfter is from Event B.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/merge-operation-for-event-buffer-optimisation.png&quot; alt=&quot;merge-operation-for-event-buffer-optimisation&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Merge operation for Event Buffer optimisation&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;cascade-update-optimisation&quot;&gt;Cascade Update optimisation&lt;/h3&gt;
+
+&lt;h4 id=&quot;optimisation&quot;&gt;Optimisation&lt;/h4&gt;
+
+&lt;p&gt;Use a new stream to handle cascade update events.
+When the producer sends data to the Kafka stream, data sharing the same ID will be stored at the same partition. Every DSP service instance has only one stream consumer. When Kafka streams are consumed by consumers, one partition will be consumed by only one consumer. So the Cascade Update events sharing the same ID will be consumed by one stream consumer on the same EC2 instance. With this special mechanism, the in-memory Event Buffer is able to deduplicate most of the Cascade Update events sharing the same ID.
+The flowchart below shows the optimised Event Handler procedure. Highlighted in green is the original flow while purple highlights the current flow with Cascade Update events.
+When handling an object B event, instead of cascading update the related object A directly, the Event Handler will send a Cascade Update event to the new stream. The consumer of the new stream will handle the Cascade Update event and synchronise the data of object A to the ES.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/event-handler-with-cascade-update-events.png&quot; alt=&quot;Event Handler with Cascade Update events&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Event Handler with Cascade Update events&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;achievements-2&quot;&gt;Achievements&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Cascade Update events deduplicated by 80%&lt;/li&gt;
+  &lt;li&gt;DB load introduced by cascade update reduced&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/cascade-update-events.png&quot; alt=&quot;Cascade Update events&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Cascade Update events&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;p&gt;In this article four different DSP optimisations are explained. After switching to MySQL Binlog streams provided by the Coban team and optimising Stream Consumer, DSP has saved about 91% DB reads and 90% ES reads, and the average queries per second (QPS) of stream traffic processed by Stream Consumer increased from 200 to 800. The max QPS at peak hours could go up to 1000+. With a higher QPS, the duration of processing data and the latency of synchronising data from MySQL to ES was reduced. The data synchronisation ability of DSP has greatly improved after optimisation.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to &lt;em&gt;Jun Ying Lim&lt;/em&gt; and &lt;em&gt;Amira Khazali&lt;/em&gt; for proofreading this article.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 27 Sep 2021 01:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/search-indexing-optimisation</link>
+        <guid isPermaLink="true">https://engineering.grab.com/search-indexing-optimisation</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Data</category>
+        
+        <category>Database</category>
+        
+        <category>Optimisation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Automating Multi-Armed Bandit testing during feature rollout</title>
@@ -2270,336 +2512,6 @@ The backbone is usually a CNN classification network pretrained on some dataset,
         <category>Hermetic Deployments</category>
         
         <category>Automation</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>How We Improved Agent Chat Efficiency with Machine Learning</title>
-        <description>&lt;p&gt;In previous articles (see &lt;a href=&quot;https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web&quot;&gt;Grab’s in-house chat platform&lt;/a&gt;, &lt;a href=&quot;https://engineering.grab.com/customer-support-workforce-routing&quot;&gt;workforce routing&lt;/a&gt;), we shared how chat has grown to become one of the primary channels for support in the last few years.&lt;/p&gt;
-
-&lt;p&gt;With continuous chat growth and a new in-house tool, helping our agents be more efficient and productive was key to ensure a faster support time for our users and scale chat even further.&lt;/p&gt;
-
-&lt;p&gt;Starting from the analysis on the usage of another third-party tool as well as some shadowing sessions, we realised that building a templated-based feature wouldn’t help. We needed to offer personalisation capabilities, as our consumer support specialists care about their writing style and tone, and using templates often feels robotic.&lt;/p&gt;
-
-&lt;p&gt;We decided to build a machine learning model, called &lt;strong&gt;SmartChat&lt;/strong&gt;, which offers contextual suggestions by leveraging several sources of internal data, helping our chat specialists type much faster, and hence serving more consumers.&lt;/p&gt;
-
-&lt;p&gt;In this article, we are going to explain the process from problem discovery to design iterations, and share how the model was implemented from both a data science and software engineering perspective.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-smartchat-works&quot;&gt;How SmartChat Works&lt;/h2&gt;
-
-&lt;p&gt;&lt;img src=&quot;../img/smartchat/image7.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;diving-deeper-into-the-problem&quot;&gt;Diving Deeper into the Problem&lt;/h2&gt;
-
-&lt;p&gt;Agent productivity became a key part in the process of scaling chat as a channel for support.&lt;/p&gt;
-
-&lt;p&gt;After splitting chat time into all its components, we noted that agent typing time represented a big portion of the chat support journey, making it the perfect problem to tackle next.&lt;/p&gt;
-
-&lt;p&gt;After some analysis on the usage of the third-party chat tool, we found out that even with functionalities such as canned messages, &lt;strong&gt;85% of the messages were still free typed&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;Hours of shadowing sessions also confirmed that the consumer support specialists liked to add their own flair. They would often use the template and adjust it to their style, which took more time than just writing it on the spot. With this in mind, it was obvious that templates wouldn’t be too helpful, unless they provided some degree of personalisation.&lt;/p&gt;
-
-&lt;p&gt;We needed something that reduces typing time and also:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Allows some degree of personalisation&lt;/strong&gt;, so that answers don’t seem robotic and repeated.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Works with multiple languages and nuances&lt;/strong&gt;, considering Grab operates in 8 markets, even some of the English markets have some slight differences in commonly used words.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;It’s contextual to the problem&lt;/strong&gt; and takes into account the user type, issue reported, and even the time of the day.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Ideally doesn’t require any maintenance effort&lt;/strong&gt;, such as having to keep templates updated whenever there’s a change in policies.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Considering the constraints, &lt;strong&gt;this seemed to be the perfect candidate for a machine learning-based functionality&lt;/strong&gt;, which predicts sentence completion by considering all the context about the user, issue and even the latest messages exchanged.&lt;/p&gt;
-
-&lt;h2 id=&quot;usability-is-key&quot;&gt;Usability is Key&lt;/h2&gt;
-
-&lt;p&gt;&lt;img src=&quot;../img/smartchat/image3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;To fulfil the hypothesis, there are a few design considerations:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Minimising the learning curve for agents.&lt;/li&gt;
-  &lt;li&gt;Avoiding visual clutter if recommendations are not relevant.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;To increase the probability of predicting an agent’s message, one of the design explorations is to allow agents to select the top 3 predictions (Design 1). To onboard agents, we designed a quick tip to activate SmartChat using keyboard shortcuts.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;../img/smartchat/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;By displaying the top 3 recommendations, we learnt that it slowed agents down as they started to read all options even if the recommendations were not helpful. Besides, by triggering this component upon every recommendable text, it became a distraction as they were forced to pause.&lt;/p&gt;
-
-&lt;p&gt;In our next design iteration, we decided to leverage and reuse the interaction of SmartChat from a familiar platform that agents are using - Gmail’s Smart Compose. As agents are familiar with Gmail, the learning curve for this feature would be less steep. For first time users, agents will see a “Press tab” tooltip, which will activate the text recommendation. The tooltip will disappear after 5 times of use.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;../img/smartchat/image6.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;To relearn the shortcut, agents can hover over the recommended text.&lt;img src=&quot;../img/smartchat/image9.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;how-we-track-progress&quot;&gt;How We Track Progress&lt;/h2&gt;
-
-&lt;p&gt;Knowing that this feature would come in multiple iterations, we had to find ways to track how well we were doing progressively, so we decided to measure the different components of chat time.&lt;/p&gt;
-
-&lt;p&gt;We realised that the agent typing time is affected by:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Percentage of characters saved&lt;/strong&gt;. This tells us that the model predicted correctly, and also saved time. This metric should increase as the model improves.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Model’s effectiveness&lt;/strong&gt;. The agent writes the least number of characters possible before getting the right suggestion, which should decrease as the model learns.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Acceptance rate&lt;/strong&gt;. This tells us how many messages were written with the help of the model. It is a good proxy for feature usage and model capabilities.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Latency&lt;/strong&gt;. If the suggestion is not shown in about 100-200ms, the agent would not notice the text and keep typing.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;architecture&quot;&gt;Architecture&lt;/h2&gt;
-
-&lt;p&gt;&lt;img src=&quot;../img/smartchat/image8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;The architecture involves support specialists initiating the fetch suggestion request, which is sent for evaluation to the machine learning model through API gateway. This ensures that only authenticated requests are allowed to go through and also ensures that we have proper rate limiting applied.&lt;/p&gt;
-
-&lt;p&gt;We have an internal platform called &lt;strong&gt;Catwalk&lt;/strong&gt;, which is a microservice that offers the capability to execute machine learning models as a HTTP service. We used the Presto query engine to calculate and analyse the results from the experiment.&lt;/p&gt;
-
-&lt;h2 id=&quot;designing-the-machine-learning-model&quot;&gt;Designing the Machine Learning Model&lt;/h2&gt;
-
-&lt;p&gt;I am sure all of us can remember an experiment we did in school when we had to catch a falling ruler. For those who have not done this experiment, feel free to try &lt;a href=&quot;https://www.youtube.com/watch?v%3DLheOjO2DJD0&quot;&gt;it&lt;/a&gt; at home! The purpose of this experiment is to define a ballpark number for typical human reaction time (equations also included in the video link).&lt;/p&gt;
-
-&lt;p&gt;Typically, the human reaction time ranges from 100ms to 300ms, with a median of about 250ms (read more &lt;a href=&quot;https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4374455/&quot;&gt;here&lt;/a&gt;). Hence, we decided to set the upper bound for SmartChat response time to be 200ms while deciding the approach. Otherwise, the experience would be affected as the agents would notice a delay in the suggestions. To achieve this, we had to manage the model’s complexity and ensure that it achieves the optimal time performance.&lt;/p&gt;
-
-&lt;p&gt;Taking into consideration network latencies, the machine learning model would need to churn out predictions in less than 100ms, in order for the entire product to achieve a maximum 200ms refresh rate.&lt;/p&gt;
-
-&lt;p&gt;As such, a few key components were considered:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Model Tokenisation
-    &lt;ul&gt;
-      &lt;li&gt;Model input/output tokenisation needs to be implemented along with the model’s core logic so that it is done in one network request.&lt;/li&gt;
-      &lt;li&gt;Model tokenisation needs to be lightweight and cheap to compute.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Model Architecture
-    &lt;ul&gt;
-      &lt;li&gt;This is a typical sequence-to-sequence (seq2seq) task so the model needs to be complex enough to account for the auto-regressive nature of seq2seq tasks.&lt;/li&gt;
-      &lt;li&gt;We could not use pure attention-based models, which are usually state of the art for seq2seq tasks, as they are bulky and computationally expensive.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Model Service
-    &lt;ul&gt;
-      &lt;li&gt;The model serving platform should be executed on a low-level, highly performant framework.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Our proposed solution considers the points listed above. We have chosen to develop in Tensorflow (TF), which is a well-supported framework for machine learning models and application building.&lt;/p&gt;
-
-&lt;p&gt;For Latin-based languages, we used a simple whitespace tokenizer, which is serialisable in the TF graph using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tensorflow-text&lt;/code&gt; package.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import tensorflow_text as text
-
-tokenizer = text.WhitespaceTokenizer()
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;For the model architecture, we considered a few options but eventually settled for a simple recurrent neural network architecture (RNN), in an Encoder-Decoder structure:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Encoder&lt;/strong&gt;
-    &lt;ul&gt;
-      &lt;li&gt;Whitespace tokenisation&lt;/li&gt;
-      &lt;li&gt;Single layered Bi-Directional RNN&lt;/li&gt;
-      &lt;li&gt;Gated-Recurrent Unit (GRU) Cell&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Decoder&lt;/strong&gt;&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;Single layered Uni-Directional RNN&lt;/li&gt;
-      &lt;li&gt;Gated-Recurrent Unit (GRU) Cell&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Optimisation&lt;/strong&gt;
-    &lt;ul&gt;
-      &lt;li&gt;Teacher-forcing in training, Greedy decoding in production&lt;/li&gt;
-      &lt;li&gt;Trained with a cross-entropy loss function&lt;/li&gt;
-      &lt;li&gt;Using ADAM (Kingma and Ba) optimiser&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Features&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;To provide context for the sentence completion tasks, we provided the following features as model inputs:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Past conversations between the chat agent and the user&lt;/li&gt;
-  &lt;li&gt;Time of the day&lt;/li&gt;
-  &lt;li&gt;User type (Driver-partners, Consumers, etc.)&lt;/li&gt;
-  &lt;li&gt;Entrypoint into the chat (e.g. an article on cancelling a food order)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These features give the model the ability to generalise beyond a simple language model, with additional context on the nature of contact for support. Such experiences also provide a better user experience and a more customised user experience.&lt;/p&gt;
-
-&lt;p&gt;For example, the model is better aware of the nature of time in addressing “Good &lt;strong&gt;{Morning/Afternoon/Evening}&lt;/strong&gt;” given the time of the day input, as well as being able to interpret meal times in the case of food orders. E.g. “We have contacted the driver, your &lt;strong&gt;{breakfast/lunch/dinner}&lt;/strong&gt; will be arriving shortly”.&lt;/p&gt;
-
-&lt;h2 id=&quot;typeahead-solution-for-the-user-interface&quot;&gt;Typeahead Solution for the User Interface&lt;/h2&gt;
-
-&lt;p&gt;With our goal to provide a seamless experience in showing suggestions to accepting them, we decided to implement a typeahead solution in the chat input area. This solution had to be implemented with the ReactJS library, as the internal web-app used by our support specialist for handling chats is built in React.&lt;/p&gt;
-
-&lt;p&gt;There were a few ways to achieve this:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Modify the Document Object Model (DOM) using Javascript to show suggestions by positioning them over the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;input&lt;/code&gt; HTML tag based on the cursor position.&lt;/li&gt;
-  &lt;li&gt;Use a content editable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;div&lt;/code&gt; and have the suggestion &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;span&lt;/code&gt; render conditionally.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;After evaluating the complexity in both approaches, the second solution seemed to be the better choice, as it is more aligned with the React way of doing things: avoid DOM manipulations as much as possible.&lt;/p&gt;
-
-&lt;p&gt;However, when a suggestion is accepted we would still need to update the content editable div through DOM manipulation. It cannot be added to React’s state as it creates a laggy experience for the user to visualise what they type.&lt;/p&gt;
-
-&lt;p&gt;Here is a code snippet for the implementation:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import React, { Component } from 'react';
-import liveChatInstance from './live-chat';
-
-export class ChatInput extends Component {
- constructor(props) {
-   super(props);
-   this.state = {
-     suggestion: '',
-   };
- }
-
- getCurrentInput = () =&amp;gt; {
-   const { roomID } = this.props;
-   const inputDiv = document.getElementById(`input_content_${roomID}`);
-   const suggestionSpan = document.getElementById(
-     `suggestion_content_${roomID}`,
-   );
-
-   // put the check for extra safety in case suggestion span is accidentally cleared
-   if (suggestionSpan) {
-     const range = document.createRange();
-     range.setStart(inputDiv, 0);
-     range.setEndBefore(suggestionSpan);
-     return range.toString(); // content before suggestion span in input div
-   }
-   return inputDiv.textContent;
- };
-
- handleKeyDown = async e =&amp;gt; {
-   const { roomID } = this.props;
-   // tab or right arrow for accepting suggestion
-   if (this.state.suggestion &amp;amp;&amp;amp; (e.keyCode === 9 || e.keyCode === 39)) {
-     e.preventDefault();
-     e.stopPropagation();
-     this.insertContent(this.state.suggestion);
-     this.setState({ suggestion: '' });
-   }
-   const parsedValue = this.getCurrentInput();
-   // space
-   if (e.keyCode === 32 &amp;amp;&amp;amp; !this.state.suggestion &amp;amp;&amp;amp; parsedValue) {
-     // fetch suggestion
-     const prediction = await liveChatInstance.getSmartComposePrediction(
-       parsedValue.trim(), roomID);
-     this.setState({ suggestion: prediction })
-   }
- };
-
- insertContent = content =&amp;gt; {
-   // insert content behind cursor
-   const { roomID } = this.props;
-   const inputDiv = document.getElementById(`input_content_${roomID}`);
-   if (inputDiv) {
-     inputDiv.focus();
-     const sel = window.getSelection();
-     const range = sel.getRangeAt(0);
-     if (sel.getRangeAt &amp;amp;&amp;amp; sel.rangeCount) {
-       range.insertNode(document.createTextNode(content));
-       range.collapse();
-     }
-   }
- };
-
- render() {
-   const { roomID } = this.props;
-   return (
-     &amp;lt;div className=&quot;message_wrapper&quot;&amp;gt;
-       &amp;lt;div
-         id={`input_content_${roomID}`}
-         role={'textbox'}
-         contentEditable
-         spellCheck
-         onKeyDown={this.handleKeyDown}
-       &amp;gt;
-         {!!this.state.suggestion.length &amp;amp;&amp;amp; (
-           &amp;lt;span
-             contentEditable={false}
-             id={`suggestion_content_${roomID}`}
-           &amp;gt;
-             {this.state.suggestion}
-           &amp;lt;/span&amp;gt;
-         )}
-       &amp;lt;/div&amp;gt;
-     &amp;lt;/div&amp;gt;
-   );
- }
-}
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The solution uses the spacebar as the trigger for fetching the suggestion from the ML model and stores them in a React state. The ML model prediction is then rendered in a dynamically rendered span.&lt;/p&gt;
-
-&lt;p&gt;We used the &lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/API/Window/getSelection&quot;&gt;window.getSelection()&lt;/a&gt; and &lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/API/Selection/getRangeAt&quot;&gt;range&lt;/a&gt; APIs to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Find the current input value&lt;/li&gt;
-  &lt;li&gt;Insert the suggestion&lt;/li&gt;
-  &lt;li&gt;Clear the input to type a new message&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The implementation has also considered the following:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Caching&lt;/strong&gt;. API calls are made on every space character to fetch the prediction. To reduce the number of API calls, we also cached the prediction until it differs from the user input.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Recover placeholder&lt;/strong&gt;. There are data fields that are specific to the agent and consumer, such as agent name and user phone number, and these data fields are replaced by placeholders for model training. The implementation recovers the placeholders in the prediction before showing it on the UI.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Control rollout&lt;/strong&gt;. Since rollout is by percentage per country, the implementation has to ensure that only certain users can access predictions from their country chat model.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Aggregate and send metrics&lt;/strong&gt;. Metrics are gathered and sent for each chat message.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
-
-&lt;p&gt;The initial experiment results suggested that we managed to save 20% of characters, which improved the &lt;strong&gt;efficiency of our agents by 12%&lt;/strong&gt; as they were able to resolve the queries faster. These numbers exceeded our expectations and as a result, we decided to move forward by rolling SmartChat out regionally.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next?&lt;/h2&gt;
-
-&lt;p&gt;In the upcoming iteration, we are going to focus on &lt;strong&gt;non-Latin language support&lt;/strong&gt;, &lt;strong&gt;caching&lt;/strong&gt;, and &lt;strong&gt;continuous training&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Non-Latin Language Support and Caching&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;The current model only works with Latin languages, where sentences consist of space-separated words. We are looking to provide support for non-Latin languages such as Thai and Vietnamese. The result would also be cached in the frontend to reduce the number of API calls, providing the prediction faster for the agents.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Continuous Training&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;The current machine learning model is built with training data derived from historical chat data. In order to teach the model and improve the metrics mentioned in our goals, we will enhance the model by letting it learn from data gathered in day-to-day chat conversations. Along with this, we are going to train the model to give better responses by providing more context about the conversations.&lt;/p&gt;
-
-&lt;p&gt;Seeing how effective this solution has been for our chat agents, we would also like to expose this to the end consumers to help them express their concerns faster and improve their overall chat experience.&lt;/p&gt;
-
-&lt;hr /&gt;
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to &lt;a href=&quot;mailto:matthew.yeow@grabtaxi.com&quot;&gt;Kok Keong Matthew Yeow&lt;/a&gt;, who helped to build the architecture and implementation in a scalable way.&lt;/small&gt;
-—-&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Mon, 19 Apr 2021 00:08:30 +0000</pubDate>
-        <link>https://engineering.grab.com/how-we-improved-agent-chat-efficiency-with-ml</link>
-        <guid isPermaLink="true">https://engineering.grab.com/how-we-improved-agent-chat-efficiency-with-ml</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Machine Learning</category>
-        
-        <category>Consumer Support</category>
         
         
         <category>Engineering</category>
