@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2021-10-18-designing-products-and-services-based-on-jtbd
-title: Designing products and services based on jobs to be done
+title: Designing products and services based on Jobs to be Done
 date: 2021-10-20 01:20:00
 authors: [tim-lange, soon-hau-chua, sherizan-sheikh]
 categories: [Design]
@@ -15,7 +15,7 @@ excerpt: "In this post, we explain how the Jobs to be Done (JTBD) framework help
 
 In 2016, Clayton Christensen, a Harvard Business School professor, wrote a book called [Competing Against Luck](https://www.amazon.com/Competing-Against-Luck-Innovation-Customer/dp/0062435612). In his book, he talked about the kind of jobs that exist in our everyday life and how we can uncover hidden jobs through the act of non-consumption. Non-consumption is the inability for a consumer to fulfil an important Job to be Done (JTBD).
 
-JTBD is a framework; it is a different way of looking at consumer goals and is based on the notion that people buy products and services to get a job done. In this article, we will walk through what the JTBD framework is, look at an example of a popular JTBD, and look at and look at how we use the JTBD framework in one of Grab's services.
+JTBD is a framework; it is a different way of looking at consumer goals and is based on the notion that people buy products and services to get a job done. In this article, we will walk through what the JTBD framework is, look at an example of a popular JTBD, and look at how we use the JTBD framework in one of Grab's services.
 
 ## JTBD framework
 
@@ -42,7 +42,7 @@ By knowing this, they were able to optimise the job by offering a smaller versio
 
 ## JTBD at GrabFood
 
-A team at GrabFood wanted to prioritise which features or products to build, and performed a prioritisation exercise. The team wanted to figure out which features to prioritise and which product to build. However, there was a lack of fundamental understanding of why our consumers were using GrabFood or any other food delivery services. To gain deeper insights on this, we conducted a JTBD study.
+A team at GrabFood wanted to prioritise which features or products to build, and performed a prioritisation exercise. However, there was a lack of fundamental understanding of why our consumers were using GrabFood or any other food delivery services. To gain deeper insights on this, we conducted a JTBD study.
 
 We applied the JTBD framework in our research investigation. We used the force diagram framework to find out what job a consumer wanted to achieve and the corresponding push and pull factors driving the consumer's decision. A job here is defined as the progress that the consumer is trying to make in a particular context.
 
@@ -51,13 +51,14 @@ We applied the JTBD framework in our research investigation. We used the force d
   </figure>
 </div>
 
-There were four key points in the force diagram.
+There were four key points in the force diagram:
+
 - What jobs are people using GrabFood for?
 - What did people use prior to GrabFood to get the jobs done?
 - What pushed them to seek a new solution? What is attractive about this new solution?
 - What are the things that will make them go back to the old product? What are the anxieties of the new product?
 
-By applying this framework, we progressively asked these questions in our interview sessions.
+By applying this framework, we progressively asked these questions in our interview sessions:
 
 *Can you remind us of the last time you used GrabFood?* — This was to uncover the situation or the circumstances.
 
@@ -74,7 +75,7 @@ Let’s look at this JTBD in more depth. One anxiety that parents had when order
   </figure>
 </div>
 
-There was already a solution for this problem: bundles! Food bundles is a well-known concept from the food & beverage industry; items that complement each other are bundled together for a more efficient checkout experience.
+There was already a solution for this problem: bundles! Food bundles is a well-known concept from the food and beverage industry; items that complement each other are bundled together for a more efficient checkout experience.
 
 <div class="post-image-section"><figure>
   <img src="/img/designing-products-and-services-based-on-jtbd/force-diagram-example-2.png" alt="Search data flow" style="width:80%"> <figcaption align="middle"><i>Force diagram - pull, push</i></figcaption>
