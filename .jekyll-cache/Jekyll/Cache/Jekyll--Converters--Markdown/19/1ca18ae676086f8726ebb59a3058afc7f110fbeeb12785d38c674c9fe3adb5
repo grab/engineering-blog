@@ -1,0 +1,289 @@
+I"KP<h2 id="introduction">Introduction</h2>
+
+<p>At Grab, the scale and fast-moving nature of our business means we need to be vigilant about potential risks to our consumers and to our business. Some of the things we watch for include promotion abuse, or passenger safety on late-night ride allocations. To overcome these issues, the TIS (Trust/Identity/Safety) task force was formed with a group of AI developers dedicated to fraud detection and prevention.</p>
+
+<p>The team’s mission is:</p>
+
+<ul>
+  <li>to keep fraudulent users away from our app or services</li>
+  <li>ensure our consumers’ safety, and</li>
+  <li>Manage user identities to securely login to the Grab app.</li>
+</ul>
+
+<p>The TIS team’s scope covers not just transport, but also our food, deliver and other Grab verticals.</p>
+
+<h2 id="how-we-prevented-fraudulent-transactions-in-the-earlier-days">How We Prevented Fraudulent Transactions in the Earlier Days</h2>
+
+<p>In our early days when Grab was smaller, we used a rules-based approach to block potentially fraudulent transactions. Rules are like boolean conditions that determines if the result will be true or false. These rules were very effective in mitigating fraud risk, and we used to create them manually in the code.</p>
+
+<p>We started with very simple rules. For example:</p>
+
+<p><strong>Rule 1:</strong></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> IF a credit card has been declined today
+
+ THEN this card cannot be used for booking
+</code></pre></div></div>
+
+<p>To quickly incorporate rules in our app or service, we integrated them in our backend service code and deployed our service frequently to use the latest rules.</p>
+
+<p>It worked really well in the beginning. Our logic was relatively simple, and only one developer managed the changes regularly. It was very lightweight to trigger the rule deployment and enforce the rules.</p>
+
+<p>However, as the business rapidly expanded, we had to exponentially increase the rule complexity. For example, consider these two new rules:</p>
+
+<p><strong>Rule 2:</strong></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IF a credit card has been declined today but this passenger has good booking history
+
+THEN we would still allow this booking to go through, but precharge X amount
+</code></pre></div></div>
+
+<p><strong>Rule 3:</strong></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IF a credit card has been declined(but paid off) more than twice in the last 3-months
+
+THEN we would still not allow this booking
+</code></pre></div></div>
+
+<p>The system scans through the rules, one by one, and if it determines that any rule is tripped it will check the other rules. In the example above, if a credit card has been declined more than twice in the last 3-months, the passenger will not be allowed to book even though he has a good booking history.</p>
+
+<p>Though all rules follow a similar pattern, there are subtle differences in the logic and they enable different decisions. Maintaining these complex rules was getting harder and harder.</p>
+
+<p>Now imagine we added more rules as shown in the example below. We first check if the device used by the passenger is a high-risk one. e.g using an emulator for booking. If not, we then check the payment method to evaluate the risk (e.g. any declined booking from the credit card), and then make a decision on whether this booking should be precharged or not. If passenger is using a low-risk  device but is in some risky location where we traditionally see a lot of fraud bookings, we would then run some further checks about the passenger booking history to decide if a pre-charge is also needed.</p>
+
+<p>Now consider that instead of a single passenger, we have thousands of passengers. Each of these passengers can have a large number of rules for review. While not impossible to do, it can be difficult and time-consuming, and it gets exponentially more difficult the more rules you have to take into consideration. Time has to be spent carefully curating these rules.</p>
+
+<div class="post-image-section">
+  <img alt="Rules flow" src="/img/griffin/image3.png" />
+</div>
+
+<p>The more rules you add to increase accuracy, the more difficult it becomes to take them all into consideration.</p>
+
+<p>Our rules were getting 10X more complicated than the example shown above. Consequently, developers had to spend long hours understanding the logic of our rules, and also be very careful to avoid any interference with new rules.</p>
+
+<p>In the beginning, we implemented rules through a three-step process:</p>
+
+<ol>
+  <li>Data Scientists and Analysts dived deep into our transaction data, and discovered patterns.</li>
+  <li>They abstracted these patterns and wrote rules in English (e.g. promotion based booking should be limited to 5 bookings and total finished bookings should be greater than 6, otherwise unallocate current ride)</li>
+  <li>Developers implemented these rules and deployed the changes to production</li>
+</ol>
+
+<p>Sometimes, the use of English between steps 2 and 3 caused inaccurate rule implementation (e.g. for “<em>X should be limited to 5</em>”, should the implementation be <code class="language-plaintext highlighter-rouge">X &lt; 5 or  X &lt;= 5</code>?)</p>
+
+<p>Once a new rule is deployed, we monitored the performance of the rule. For example,</p>
+
+<ul>
+  <li>How often does the rule fire (after minutes, hours, or daily)?</li>
+  <li>Is it over-firing?</li>
+  <li>Does it conflict with other rules?</li>
+</ul>
+
+<p>Based on implementation, each rule had dependency with other rules. For example, if Rule 1 is fired, we should not continue with Rule 2 and Rule 3.</p>
+
+<p>As a result, we couldn’t  keep each rule evaluation independent.  We had no way to observe the performance of a rule with other rules interfering. Consider an example where we change Rule 1:</p>
+
+<p><em>From</em> <code class="language-plaintext highlighter-rouge">IF a credit card has been declined today</code></p>
+
+<p><em>To</em>   <code class="language-plaintext highlighter-rouge">IF a credit card has been declined this week</code></p>
+
+<p>As Rules 2 and 3 depend on Rule 1, their trigger-rate would drop significantly. It means we would have unstable performance metrics for Rule 2 and Rule 3 even though the logic of Rule 2 and Rule 3 does not change. It is very hard for a rule owner to monitor the performance of Rules 2 and Rule 3.</p>
+
+<p>When it comes to the of A/B testing of a new rule, Data Scientists need to put a lot of effort into cleaning up noise from other rules, but most of the time, it is mission-impossible.</p>
+
+<p>After several misfiring events (wrong implementation of rules) and ever longer rule development time (weekly), we realised “<em>No one can handle this manually</em>.“</p>
+
+<h2 id="birth-of-griffin-rule-engine">Birth of Griffin Rule Engine</h2>
+
+<p>We decided to take a step back, sit down and closely review our daily patterns. We realised that our daily patterns fall into two categories:</p>
+
+<ol>
+  <li>Fetching new data:  e.g. “<em>what is the credit card risk score</em>”, or “<em>how many food bookings has this user ordered in last 7 days</em>”, and transform this data for easier consumption.</li>
+  <li>Updating/creating rules: e.g. <em>if a credit card risk score is high, decline a booking</em>.</li>
+</ol>
+
+<p>These two categories are essentially divided into two independent components:</p>
+
+<ol>
+  <li>Data orchestration - collecting/transforming the data from different data sources.</li>
+  <li>Rule-based prediction</li>
+</ol>
+
+<p>Based on these findings, we got started with our Data Orchestrator (open sourced at <a href="https://github.com/grab/symphony">https://github.com/grab/symphony</a>) and Griffin projects.</p>
+
+<p>The intent of Griffin is to provide data scientists and analysts with a way to add new rules to monitor, prevent, and detect fraud across Grab.</p>
+
+<p>Griffin allows technical novices to apply their fraud expertise to add very complex rules that can automate the review of rules without manual intervention.</p>
+
+<p>Griffin now predicts billions of events every day with 100K+ Queries per second(QPS) at peak time (on only 6 regular <a href="https://aws.amazon.com/ec2/">EC2s</a>).</p>
+
+<p>Data scientists and analysts can self-service rule changes on the web portal directly, deploy rules with just a few clicks, experiment and monitor performance in real time.</p>
+
+<h3 id="why-we-came-up-with-griffin-instead-of-using-third-party-tools-in-the-market">Why We Came up with Griffin Instead of Using Third-party Tools in the Market</h3>
+
+<p>Before we decided to create our in-built tool, we did some research for common <a href="https://en.wikipedia.org/wiki/Business_rules_engine">business rule engines</a> available in the market such as <a href="https://en.wikipedia.org/wiki/Drools">Drools</a> and checked if we should use them. In that process, we found:</p>
+
+<ol>
+  <li>Drools has its own Java-based <a href="https://en.wikipedia.org/wiki/Domain-specific_language">DSL</a> with a non-trivial learning curve (whereas our major users are from Python background).</li>
+  <li>Limited [expressive power](https://en.wikipedia.org/wiki/Expressive_power_(computer_science),</li>
+  <li>Limited support for some common math functions (e.g. factorial/ Greatest Common Divisor).</li>
+  <li>Our nature of business needed dynamic dataset for predictions (for example, a rule may need only passenger booking history on Day 1, but it may use passenger booking history, passenger credit balance, and passenger favourite places on Day 2). On the other hand, Drools usually works well with a static list of dataset instead of dynamic dataset.</li>
+</ol>
+
+<p>Given the above constraints, we decided to build our own rule engine which can better fit our needs.</p>
+
+<h2 id="griffin-architecture">Griffin Architecture</h2>
+
+<p>The diagram depicts the high-level flow of making a prediction through Griffin.</p>
+
+<div class="post-image-section">
+  <img alt="High-level flow of making a prediction through Griffin" src="/img/griffin/image10.png" />
+</div>
+
+<h3 id="components">Components</h3>
+
+<ul>
+  <li>Data Orchestration: a service that collects all data needed for predictions</li>
+  <li>Rule Engine: a service that makes prediction based on rules</li>
+  <li>Rule Editor: the portal through which users can create/update rules</li>
+</ul>
+
+<h3 id="workflow">Workflow</h3>
+
+<ol>
+  <li>Users create/update rules in the Rule Editor web portal, and save the rules in the database.</li>
+  <li>Griffin Rule Engine reloads rules immediately as long as it detects any rule changes.</li>
+  <li>Data Orchestrator sends all dataset (features) needed for a prediction (e.g. whether to block a ride based on passenger past ride pattern, credit card risk) to the Rule Engine</li>
+  <li>Griffin Rule Engine makes a prediction.</li>
+</ol>
+
+<h2 id="how-you-can-create-rules-using-griffin">How You can Create Rules Using Griffin</h2>
+
+<p>In an abstract view, a rule inside Griffin is defined as:</p>
+
+<p>Rule:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Input:JSON =&gt; Result:Boolean
+</code></pre></div></div>
+
+<p>We allow users (analysts, data scientists) to write Python-based rules on WebUI to accommodate some very complicated rules like:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>len(list(filter(lambdax: x \&gt;7, (map(lambdax: math.factorial(x), \[1,2,3,4,5,6\]))))) \&gt;2
+</code></pre></div></div>
+
+<p>This significantly optimises the expressive power of rules.</p>
+
+<p>To match and evaluate a rule more efficiently, we also have other key components associated:</p>
+
+<p><strong>Scenarios</strong></p>
+<ul>
+  <li>Here are some examples: <code class="language-plaintext highlighter-rouge">PreBooking</code>, <code class="language-plaintext highlighter-rouge">PostBookingCompletion</code>, <code class="language-plaintext highlighter-rouge">PostFoodDelivery</code></li>
+</ul>
+
+<p><strong>Actions</strong></p>
+<ul>
+  <li>Actions such as <code class="language-plaintext highlighter-rouge">NotAllowBooking</code>, <code class="language-plaintext highlighter-rouge">AuthCapture</code>, <code class="language-plaintext highlighter-rouge">SendNotification</code></li>
+  <li>If a rule result is <em>True</em>, it returns a list of treatments as selected by users, e.g. AuthCapture and SendNotification (the example below is treatments for one Safety-related rule).The one below is for a checkpoint to detect credit-card risk.</li>
+</ul>
+
+<div class="post-image-section">
+  <img alt="Treatments: AuthCapture" src="/img/griffin/image4.png" />
+</div>
+
+<ul>
+  <li>Each checkpoint has a default treatment. If no rule inside this checkpoint is hit, the rule engine would return the default one (in most cases, it is just “<em>do nothing</em>”).</li>
+  <li>A treatment can only belong to one checkpoint, but one checkpoint can have multiple treatments.</li>
+</ul>
+
+<p>For example, the graph below demonstrates a checkpoint <code class="language-plaintext highlighter-rouge">PaxPreRide</code> associated with three treatments: <code class="language-plaintext highlighter-rouge">Pass</code>, <code class="language-plaintext highlighter-rouge">Decline</code>, <code class="language-plaintext highlighter-rouge">Hold</code></p>
+
+<div class="post-image-section">
+  <img alt="Treatments: Adding" src="/img/griffin/image6.png" />
+</div>
+
+<p><strong>Segments</strong></p>
+<ul>
+  <li>The scope/dimension of a rule. Based on the sample segments below, a rule can be applied only to <code class="language-plaintext highlighter-rouge">countries=\[MY,PH\]</code> and <code class="language-plaintext highlighter-rouge">verticals=\[GrabBus, GrabCar\]</code></li>
+  <li>It can be changed at any time on WebUI as well.</li>
+</ul>
+
+<div class="post-image-section">
+  <img alt="Segments" src="/img/griffin/image2.png" />
+</div>
+
+<p><strong>Values of a rule</strong>
+When a rule is hit, more than just treatments, users also want some dynamic values returned. E.g. a max distance of the ride allowed if we believe this booking is medium risk.</p>
+
+<h2 id="does-python-make-griffin-run-slow">Does Python Make Griffin Run Slow?</h2>
+
+<p>We picked Python to enjoy its great expressive power and neatness of syntax, but some people ask: Python is slow, would this cause a latency bottleneck?</p>
+
+<p><em>Our answer is No.</em></p>
+
+<p>The following graph shows the Latency P99 of Prediction Request from load balancer side (actually the real latency for each prediction is &lt; 6ms, the metrics are peaked at 30ms because some batch requests contain 50 predictions in a single call).</p>
+
+<div class="post-image-section">
+  <img alt="Prediction Request Latency P99" src="/img/griffin/image1.png" />
+</div>
+
+<h3 id="what-we-did-to-achieve-this">What We Did to Achieve This</h3>
+
+<ul>
+  <li>The key idea is to make all computations in CPU and memory only (in other words, no extra I/O).</li>
+  <li>We do not fetch the rules from database for each prediction. Instead, we keep a record called <code class="language-plaintext highlighter-rouge">dirty_key</code>, which keeps the latest rule update timestamp. The rule engine would actively check this timestamp and trigger a rule reload only when the <code class="language-plaintext highlighter-rouge">dirty_key</code> timestamp in the DB is newer than the latest rule reload time.</li>
+  <li>Rule engine would not fetch any additional new data, instead, all data should be from Data Orchestrator.</li>
+  <li>So the whole prediction flow is only between CPU &amp; memory (and if the data size is small, it could be on <a href="https://www.prowesscorp.com/computer-latency-at-a-human-scale">CPU cache</a> only).</li>
+  <li><a href="https://wiki.python.org/moin/GlobalInterpreterLock">Python GIL</a> essentially enforces a process to have up to one active thread running at a time, no matter how many cores a CPU has. We have <a href="https://gunicorn.org">Gunicorn</a> to wrap our service, so on the Production machine, we have <code class="language-plaintext highlighter-rouge">(2x$num_cores) + 1 processes</code> (see <a href="http://docs.gunicorn.org/en/latest/design.html#how-many-workers">Gunicorn Design - How Many Workers?</a>). The formula is based on the assumption that for a given core, one worker will be reading or writing from the socket while the other worker is processing a request.</li>
+</ul>
+
+<p>The following screenshot is the process snapshot on <a href="https://aws.amazon.com/ec2/instance-types/c5">C5.large machine</a> with 2 vCPU. Note only green processes are active.</p>
+
+<div class="post-image-section">
+  <img alt="Process snapshot on C5.large machine" src="/img/griffin/image5.png" />
+</div>
+
+<p>A lot of trial and error performance tuning:</p>
+<ul>
+  <li>We used to have <a href="https://github.com/kennknowles/python-jsonpath-rw">python-jsonpath-rw</a> for JSONPath query, but the performance was not strong enough. We switched to <a href="https://github.com/jmespath/jmespath.py">jmespath</a> and observed about 10ms latency reduction.</li>
+  <li>We use <a href="https://www.sqlalchemy.org">sqlalchemy</a> for DB Query and ORM. We enabled cache for some use cases, but turned out it was over-optimised with stale data. We ended up turning off some caching points to ensure the data consistency.</li>
+  <li>For new dict/list creation, we prefer native call (e.g. <code class="language-plaintext highlighter-rouge">{}</code>/<code class="language-plaintext highlighter-rouge">[]</code>) instead of function call (see the comparison below).</li>
+</ul>
+
+<div class="post-image-section">
+  <img alt="Native call and Function call" src="/img/griffin/image9.png" />
+</div>
+
+<ul>
+  <li>Use built-in functions <a href="https://docs.python.org/3/library/functions.html">https://docs.python.org/3/library/functions.html</a>. It is written in C, no one can beat it.</li>
+  <li>Add randomness to rule reload so that not all machines run at the same time causing latency spikes.</li>
+  <li>Caching atomic feature units as they are used so that we don’t have to requery for them each time a checkpoint uses it.</li>
+</ul>
+
+<h2 id="how-griffin-makes-on-call-engineers-relax">How Griffin Makes On-call Engineers Relax</h2>
+
+<p>One of the most popular aspects of Griffin is the WebUI. It opens a door for non-developers to make production changes in real time which significantly boosts organisation productivity. In the past a rule change needed 1 week for code change/test/deployment, now it is just 1 minute.</p>
+
+<p>But this also introduces extra risks. Anyone can turn the whole checkpoint down, whether unintentionally or maliciously.</p>
+
+<p>Hence we implemented Shadow Mode and Percentage-based rollout for each rule. Users can put a rule into Shadow Mode to verify the performance without any production impact, and if needed, rollout of a rule can be from 1% all the way to 100%.</p>
+
+<p>We implemented version control for every rule change, and in case anything unexpected happened, we could rollback to the previous version quickly.</p>
+
+<div class="post-image-section">
+  <img alt="Version control" src="/img/griffin/image8.png" />
+</div>
+
+<div class="post-image-section">
+  <img alt="Rollback button" src="/img/griffin/image7.png" />
+</div>
+
+<p>We also built <a href="https://en.wikipedia.org/wiki/Role-based_access_control">RBAC-based</a> permission system, along with Change Approval flow to make sure any prod change needs at least two people(and approver role has higher permission)</p>
+
+<h2 id="closing-thoughts">Closing Thoughts</h2>
+
+<p>Griffin evolved from a fraud-based rule engine to generic rule engine. It can apply to any rule at Grab. For example, Grab just launched Appeal automation several days ago to reduce 50% of the  human effort it typically takes to review straightforward appeals from our passengers and drivers. It was an unplanned use case, but we are so excited about this.</p>
+
+<p>This could happen because from the very beginning we designed Griffin with minimised business context, so that it can be generic enough.</p>
+
+<p>After the launch of this, we observed an amazing adoption rate for various fraud/safety/identity use cases. More interestingly, people now treat Griffin as an automation point for various integration points.</p>
+:ET

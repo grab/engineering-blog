@@ -1,0 +1,141 @@
+I"H<p>Grab adopts a Service-Oriented Architecture (SOA) to rapidly develop and deploy new feature services. One of the drawbacks of such a design is that team members find it hard to help with debugging production issues that inevitably arise in services belonging to other stakeholders.</p>
+
+<p>This can generally be credited to unfamiliarity with code and architecture from other teams. On top of regular alignment meetings, post-mortem reports end up becoming the glue that adheres the different engineering teams together in understanding problems that arise in the monolithic architecture we have.</p>
+
+<p>Given the importance of such reports, it was surprising to find numerous incidents recorded as shown:</p>
+
+<blockquote>
+  <p>[2015-02-02][11pm] XXX Service Went Down</p>
+
+  <p>At 23:00 hrs, we experienced downtime in XXX service. We looked through the logs and found a bug in DB connections leading to memory leaks.</p>
+
+  <p>XXX Service team has pushed a fix and the problem is resolved.</p>
+</blockquote>
+
+<p>Let’s highlight some of the problems with the example given above:</p>
+
+<ol>
+  <li>It provides zero context. We know nothing of how the service is designed.</li>
+  <li>There is no explanation of what the bug was and how the code was fixed to prevent engineers from committing the same mistake again.</li>
+  <li>We have zero information on the downtime and impact on production.</li>
+  <li>The lack of chronological records undermine the efforts to improve our response procedures and timing.</li>
+  <li>Most importantly, there is nothing detailing the investigation process. An engineer from another team reading it, is just as clueless as before; they have learnt nothing about diagnosing problems on said service.</li>
+</ol>
+
+<p>We have henceforth distilled the benchmark for Grab Engineering post-mortem reports down to 4 requirements: <strong>Chronology</strong>, <strong>Context</strong>, <strong>Empowerment</strong>, <strong>Solutions</strong>.</p>
+
+<h3 id="chronology">Chronology</h3>
+
+<p>A timeline detailing each event is required to track the response time and downtime impact. It becomes incredibly handy in ironing out bottlenecks in our pager processes while highlighting any design flaws in the metric alerts.</p>
+
+<h3 id="context">Context</h3>
+
+<p>Adequate information about the inner workings of the service should be provided. Instead of “found a bug in DB connections”, a better sentence would be:</p>
+
+<blockquote>
+  <p>“XXX service connects to a master DB through the use of a pool of recycled connections. Code added in commit <code class="language-plaintext highlighter-rouge">abc1234</code> [link to git commit] introduced a bug where used connections were not being recycled…”</p>
+</blockquote>
+
+<p>Readers would then be able to read the code with a clearer understanding of how the bug was causing the production issues. We leave the amount of details to the writer’s own fuzzy discretion.</p>
+
+<h3 id="empowerment">Empowerment</h3>
+
+<p>The report should make any engineer reading it feel empowered in helping out with future issues. We break down the approach into several components:</p>
+
+<p><u>Blameless</u> - Reports are supposed to be beneficial to the overall ops efficiency. Nothing demoralises an engineer as quickly as having his name tagged to an issue for eternity.</p>
+
+<p><u>Educational</u> - Reports should act as a tutorial guide to solving production problems. Most people know how to grep logs, but only those with experience know exactly what to grep. A step by step display of how problems are diagnosed and the conclusions they lead to, should be recorded.</p>
+
+<h3 id="solutions">Solutions</h3>
+
+<p>After the above information has all been fleshed out, problems and bottlenecks should be listed out with possible solutions to them. We divide the problems into 3 separate sections.</p>
+
+<p><u>People</u> - This is generally a list of communication inhibitions amongst teams. Any practice that is currently leading to potential miscommunications should be removed or improved upon.</p>
+
+<p><u>Product</u> - Are the services not designed to be sufficiently robust? Is the amount of metric alerts and error triggers currently set up sufficient, or can we do better?</p>
+
+<p><u>Process</u> - More than often, process problems arise when there is a flaw in how various teams approach an issue. Some examples:</p>
+
+<p>a. Engineer A discovers root of problem but has to await Engineer B to approve of the hotfix. However, B is unavailable, leading to unnecessary extended downtime.</p>
+
+<p>b. Heavy reliance on a single party to execute certain operations. Said party experiences network issues and no one else is able to help.</p>
+
+<p>tl;dr Here is what we believe an example template report should look like:</p>
+
+<blockquote>
+  <h3 id="post-mortem-report---20160201">Post Mortem Report - 20160201</h3>
+
+  <p><strong>Initial Symptoms</strong></p>
+
+  <p>XXX metric alert was triggered at XX:XX hours. Notifications were sent to all on-call personnel.</p>
+
+  <p><strong>Timeline</strong></p>
+
+  <p>10:00 - CPU Utilization hit 95%</p>
+
+  <p>10:01 - XXX metric alert triggered</p>
+
+  <p>10:02 - First on-call response acknowledges alert. Begins investigation.</p>
+
+  <p>.</p>
+
+  <p>.</p>
+
+  <p>.</p>
+
+  <p>10:05 - Issue resolved</p>
+
+  <p><strong>Investigation</strong></p>
+
+  <table>
+    <tbody>
+      <tr>
+        <td>Logs were grepped from example-service-2015-02-02.log with filter “error</td>
+        <td> </td>
+        <td>timeout”</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>2015-02-02 10:00:00 - [127.0.0.1] Error timeout on endpoint XXX</p>
+
+  <p>2015-02-02 10:00:00 - [127.0.0.1] Error timeout on endpoint XXX</p>
+
+  <p>2015-02-02 10:00:00 - [127.0.0.1] Error timeout on endpoint XXX</p>
+
+  <p>This indicates that the code at this part of the service is throwing a timeout error.</p>
+
+  <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// code snippet goes here
+</code></pre></div>  </div>
+
+  <p>Further investigation of the endpoint shows that it was refusing connections.</p>
+
+  <p>.</p>
+
+  <p>etc.</p>
+
+  <p>.</p>
+
+  <p><strong>Solution</strong></p>
+
+  <p>The issue was temporarily resolved by a rollback to version 1.2.3 at 10:05. The bug was later fixed in commit <code class="language-plaintext highlighter-rouge">abc1234</code> [link to git commit]</p>
+
+  <p><strong>Improvements</strong></p>
+
+  <p><u>People</u></p>
+
+  <p>Team A realised the problem at 10:03 but felt they had not enough authority to permit a rollback of the service to version X. We should strive to improve on …</p>
+
+  <p><u>Product</u></p>
+
+  <p>The code was added to optimise processes for feature Y, but this caused a side effect where …</p>
+
+  <p><u>Process</u></p>
+
+  <p>Code was reviewed, and deployments were checked on staging servers, but due to the requirement to carry out step J, we had missed out on step K. We attribute this to …</p>
+</blockquote>
+
+<p>Finished reports should be peer reviewed by engineers from another team for further input and improvements before it can be considered finalised. This is to ensure the service context is adequately provided without any personal bias.</p>
+
+<p>By following the rules and guidelines above, we are confident that any organisation new to writing post-mortem reports should be able to write actually useful documentation, instead of producing an unwanted article of little value out of reluctant obligation.</p>
+:ET

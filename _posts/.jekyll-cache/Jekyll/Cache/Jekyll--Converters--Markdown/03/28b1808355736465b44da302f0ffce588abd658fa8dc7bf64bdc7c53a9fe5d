@@ -1,0 +1,223 @@
+I"?a<p>Partnerships have always been core to Grab’s superapp strategy. We believe in collaborating with partners who are the best in what they do - combining their expertise with what we’re good at so that we can bring high-quality new services to our consumers, at the same time create new opportunities for the merchant and driver-partners in our ecosystem.</p>
+
+<p>That’s why we launched GrabPlatform last year. To make it easier for partners to either integrate Grab into their services, or integrate their services into Grab.</p>
+
+<p>In view of that, part of the GrabPlatform’s team mission is to make it easy for partners to integrate with Grab services. These partners are external companies that would like to offer Grab’s services such as ride-booking through their own websites or applications. To do that, we decided to build a website that will serve as a one-stop-shop that would allow them to self-service these integrations.</p>
+
+<h3 id="the-challenges-we-faced-with-the-conventional-approach">The Challenges We Faced with the Conventional Approach</h3>
+
+<p>In the process of building this website, our team noticed that the majority of the functions and responsibilities were added to files without proper segregation. A single file would contain more than 500 lines of code. Each of these files were  imported from different collections of source codes, resulting in an unstructured codebase. Any changes to the existing functions risked breaking existing functionality; we realised then that we needed to proactively plan for the future. Hence, we decided to use the principles of <a href="https://airbrake.io/blog/software-design/domain-driven-design">Domain-Driven Design (DDD)</a> and <a href="https://golang.org/doc/effective_go.html">idiomatic Go</a>. This blog aims to demonstrate the process of how we leveraged those concepts to design a modern application.</p>
+
+<h3 id="how-we-implemented-dddin-our-codebase">How We Implemented DDD in Our Codebase</h3>
+
+<p>Here’s how we went about solving our unstructured codebase using DDD principles.</p>
+
+<h4 id="step-1-gather-domain-business-knowledge">Step 1: Gather Domain (Business) Knowledge</h4>
+<p>We collaborated closely with our domain experts (in our case, this was our product team) to identify functionality and flow. From them, we discovered the following key points:</p>
+
+<ul>
+  <li>After creating a project, developers are added to the project.</li>
+  <li>The domain experts wanted an ability to add other products (e.g. Pricing service, ETA service, GrabPay service) to their projects.</li>
+  <li>They wanted the ability to create multiple authentication clients to access the above products.</li>
+</ul>
+
+<h4 id="step-2-break-down-domain-knowledge-into-bounded-context">Step 2: Break Down Domain Knowledge into Bounded Context</h4>
+<p>Now that we had gathered the required domain knowledge (i.e. what our code needed to reflect to our partners), it was time to use the DDD strategic tool <em>Bounded Context</em> to break down problems into subcontexts. Here is a graphical representation of how we converted the problem into smaller units.</p>
+
+<div class="post-image-section">
+  <img alt="Bounded Context" src="/img/domain-driven-development-in-golang/image2.jpg" />
+</div>
+
+<p>We identified several dependencies on each of the units involved in the project. Take some of these examples:</p>
+<ul>
+  <li>The project domain overlapped with the product and developer domains.</li>
+  <li>Our RideBooking project can only exist if it has some products like Ridebooking APIs and not the other way around.</li>
+</ul>
+
+<p>What this means is a product can exist independent of the project, but a project will have no significance without any product. In the same way, a project is dependent on the developers, but developers can exist whether or not they belong to a project.</p>
+
+<h4 id="step-3-identify-value-objects-or-entities-lowest-layer">Step 3: Identify Value Objects or Entities (Lowest Layer)</h4>
+<p>Looking at the above bounded contexts, we figured out the building blocks (i.e. value objects or entity) to break down the above functionality and flow.</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// ProjectDAO ...</span>
+<span class="k">type</span> <span class="n">ProjectDAO</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">ID</span>            <span class="kt">int64</span>
+  <span class="n">UUID</span>          <span class="kt">string</span>
+  <span class="n">Status</span>        <span class="n">ProjectStatus</span>
+  <span class="n">CreatedAt</span>     <span class="n">time</span><span class="o">.</span><span class="n">Time</span>
+<span class="p">}</span>
+
+<span class="c">// DeveloperDAO ...</span>
+<span class="k">type</span> <span class="n">DeveloperDAO</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">ID</span>            <span class="kt">int64</span>
+  <span class="n">UUID</span>          <span class="kt">string</span>
+  <span class="n">PhoneHash</span>     <span class="o">*</span><span class="kt">string</span>
+  <span class="n">Status</span>        <span class="n">Status</span>
+  <span class="n">CreatedAt</span>     <span class="n">time</span><span class="o">.</span><span class="n">Time</span>
+<span class="p">}</span>
+
+<span class="c">// ProductDAO ...</span>
+<span class="k">type</span> <span class="n">ProductDAO</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">ID</span>            <span class="kt">int64</span>
+  <span class="n">UUID</span>          <span class="kt">string</span>
+  <span class="n">Name</span>          <span class="kt">string</span>
+  <span class="n">Description</span>   <span class="o">*</span><span class="kt">string</span>
+  <span class="n">Status</span>        <span class="n">ProductStatus</span>
+  <span class="n">CreatedAt</span>     <span class="n">time</span><span class="o">.</span><span class="n">Time</span>
+<span class="p">}</span>
+
+<span class="c">// DeveloperProjectDAO to map developer's to a project</span>
+<span class="k">type</span> <span class="n">DeveloperProjectDAO</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">ID</span>            <span class="kt">int64</span>
+  <span class="n">DeveloperID</span>   <span class="kt">int64</span>
+  <span class="n">ProjectID</span>     <span class="kt">int64</span>
+  <span class="n">Status</span>        <span class="n">DeveloperProjectStatus</span>
+<span class="p">}</span>
+
+<span class="c">// ProductProjectDAO to map product's to a project</span>
+<span class="k">type</span> <span class="n">ProductProjectDAO</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">ID</span>            <span class="kt">int64</span>
+  <span class="n">ProjectID</span>     <span class="kt">int64</span>
+  <span class="n">ProductID</span>     <span class="kt">int64</span>
+  <span class="n">Status</span>        <span class="n">ProjectProductStatus</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>All the objects shown above have <code class="language-plaintext highlighter-rouge">ID</code> as a field and can be identifiable, hence they are identified as <strong>entities</strong> and not as <strong>value objects</strong>. But if we apply domain knowledge, <code class="language-plaintext highlighter-rouge">DeveloperProjectDAO</code> and <code class="language-plaintext highlighter-rouge">ProductProjectDAO</code> are actually not independent entities. Project object is the aggregate root since it must exist before the child fields, <code class="language-plaintext highlighter-rouge">DevProjectDAO</code> and <code class="language-plaintext highlighter-rouge">ProdcutProjectDAO</code>, can exist.</p>
+
+<h4 id="step-4-create-the-repositories">Step 4: Create the Repositories</h4>
+<p>As stated above, we created an interface to abstract the working logic of a particular domain (i.e. Repository). Here is an example of how we designed the repositories:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// ProductRepositoryImpl responsible for product functionality</span>
+<span class="k">type</span> <span class="n">ProductRepositoryImpl</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">productDao</span> <span class="n">storage</span><span class="o">.</span><span class="n">IProductDao</span> <span class="c">// private field</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">ProductRepository</span> <span class="k">interface</span> <span class="p">{</span>
+  <span class="n">GetProductsByIDs</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">ids</span> <span class="p">[]</span><span class="kt">int64</span><span class="p">)</span> <span class="p">([]</span><span class="n">IProduct</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c">// DeveloperRepositoryImpl</span>
+<span class="k">type</span> <span class="n">DeveloperRepositoryImpl</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">developerDAO</span> <span class="n">storage</span><span class="o">.</span><span class="n">IDeveloperDao</span> <span class="c">// private field</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">DeveloperRepository</span> <span class="k">interface</span> <span class="p">{</span>
+  <span class="n">FindActiveAllowedByDeveloperIDs</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">developerIDs</span> <span class="p">[]</span><span class="k">interface</span><span class="p">{})</span> <span class="p">([]</span><span class="o">*</span><span class="n">Developer</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+  <span class="n">GetDeveloperDetailByProfile</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">developerProfile</span> <span class="o">*</span><span class="n">appdto</span><span class="o">.</span><span class="n">DeveloperProfile</span><span class="p">)</span> <span class="p">(</span><span class="n">IDeveloper</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here is a look at how we designed our repository for aggregate root project:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// Unexported Struct</span>
+<span class="k">type</span> <span class="n">productProjectRepositoryImpl</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">productProjectDAO</span> <span class="n">storage</span><span class="o">.</span><span class="n">IProjectProductDao</span> <span class="c">// private field</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">ProductProjectRepository</span> <span class="k">interface</span> <span class="p">{</span>
+  <span class="n">GetAllProjectProductByProjectID</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">projectID</span> <span class="kt">int64</span><span class="p">)</span> <span class="p">([]</span><span class="o">*</span><span class="n">ProjectProduct</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c">// Unexported Struct</span>
+<span class="k">type</span> <span class="n">developerProjectRepositoryImpl</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">developerProjectDAO</span> <span class="n">storage</span><span class="o">.</span><span class="n">IDeveloperProjectDao</span> <span class="c">// private field</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">DeveloperProjectRepository</span> <span class="k">interface</span> <span class="p">{</span>
+  <span class="n">GetDevelopersByProjectIDs</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">projectIDs</span> <span class="p">[]</span><span class="k">interface</span><span class="p">{})</span> <span class="p">([]</span><span class="o">*</span><span class="n">DeveloperProject</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+  <span class="n">UpdateMappingWithRole</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">developer</span> <span class="n">IDeveloper</span><span class="p">,</span> <span class="n">project</span> <span class="n">IProject</span><span class="p">,</span> <span class="n">role</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="o">*</span><span class="n">DeveloperProject</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c">// Unexported Struct</span>
+<span class="k">type</span> <span class="n">projectRepositoryImpl</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">projectDao</span> <span class="n">storage</span><span class="o">.</span><span class="n">IProjectDao</span> <span class="c">// private field</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">ProjectRepository</span> <span class="k">interface</span> <span class="p">{</span>
+  <span class="n">GetProjectsByIDs</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">projectIDs</span> <span class="p">[]</span><span class="k">interface</span><span class="p">{})</span> <span class="p">([]</span><span class="o">*</span><span class="n">Project</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+  <span class="n">GetActiveProjectByUUID</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">uuid</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="n">IProject</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+  <span class="n">GetProjectByUUID</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">uuid</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="o">*</span><span class="n">Project</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">ProjectAggregatorImpl</span> <span class="k">struct</span> <span class="p">{</span>
+  <span class="n">projectRepositoryImpl</span>           <span class="c">// private field</span>
+  <span class="n">developerProjectRepositoryImpl</span>  <span class="c">// private field</span>
+  <span class="n">productProjectRepositoryImpl</span>    <span class="c">// private field</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">ProjectAggregator</span> <span class="k">interface</span> <span class="p">{</span>
+  <span class="n">GetProjects</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">)</span> <span class="p">([]</span><span class="o">*</span><span class="n">dto</span><span class="o">.</span><span class="n">Project</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+  <span class="n">AddDeveloper</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">request</span> <span class="o">*</span><span class="n">appdto</span><span class="o">.</span><span class="n">AddDeveloperRequest</span><span class="p">)</span> <span class="p">(</span><span class="o">*</span><span class="n">appdto</span><span class="o">.</span><span class="n">AddDeveloperResponse</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+  <span class="n">GetProjectWithProducts</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">uuid</span> <span class="kt">string</span><span class="p">)</span> <span class="p">(</span><span class="n">IProject</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h4 id="step-5-identify-domain-events">Step 5: Identify Domain Events</h4>
+
+<p>The functions described in <em>Step 4</em> only returns the ID of the developer and product, which conveys no information to the users. In order to provide developer and product information, we use the domain-event technique to return the actual product and developer attributes.</p>
+
+<p>A domain event is something that happened in a bounded context that you want another context of a domain to be aware of. For example, if there are new updates to the developer domain, it’s important to convey these updates to the project domain. This propagation technique is termed as <em>domain event</em>. Domain events enable independence between different classes.</p>
+
+<p>One way to implement it is seen here:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// file: project\_aggregator.go</span>
+<span class="k">func</span> <span class="p">(</span><span class="n">p</span> <span class="o">*</span><span class="n">ProjectAggregatorImpl</span><span class="p">)</span> <span class="n">GetProjects</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">)</span> <span class="p">([]</span><span class="o">*</span><span class="n">dto</span><span class="o">.</span><span class="n">Project</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+  <span class="o">....</span>
+  <span class="o">....</span>
+  <span class="n">developers</span> <span class="o">:=</span> <span class="n">p</span><span class="o">.</span><span class="n">EventHandler</span><span class="o">.</span><span class="n">Handle</span><span class="p">(</span><span class="n">DomainEvent</span><span class="o">.</span><span class="n">FindDeveloperByDeveloperIDs</span><span class="p">{</span><span class="n">DeveloperIDs</span><span class="p">})</span>
+  <span class="o">....</span>
+<span class="p">}</span>
+
+<span class="c">// file: event\_type.go</span>
+<span class="k">type</span> <span class="n">FindDeveloperByDeveloperIDs</span> <span class="k">struct</span><span class="p">{</span> <span class="n">developerID</span> <span class="p">[]</span><span class="k">interface</span><span class="p">{}</span> <span class="p">}</span>
+
+<span class="c">// file: event\_handler.go</span>
+<span class="k">func</span> <span class="p">(</span><span class="n">e</span> <span class="o">*</span><span class="n">EventHandler</span><span class="p">)</span> <span class="n">Handle</span><span class="p">(</span><span class="n">event</span> <span class="k">interface</span><span class="p">{})</span> <span class="k">interface</span><span class="p">{}</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="n">op</span> <span class="o">:=</span> <span class="n">event</span><span class="o">.</span><span class="p">(</span><span class="k">type</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">case</span> <span class="n">FindDeveloperByDeveloperIDs</span><span class="o">:</span>
+            <span class="n">developers</span><span class="p">,</span> <span class="n">_</span> <span class="o">:=</span> <span class="n">e</span><span class="o">.</span><span class="n">developerRepository</span><span class="o">.</span><span class="n">FindDeveloperByDeveloperIDs</span><span class="p">(</span><span class="n">op</span><span class="o">.</span><span class="n">developerIDs</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">developers</span>
+      <span class="k">case</span> <span class="o">....</span>
+      <span class="o">....</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<div class="post-image-section">
+  <img alt="Domain Event" src="/img/domain-driven-development-in-golang/image1.jpg" style="width:50%" />
+</div>
+
+<h3 id="some-common-mistakes-to-avoid-when-implementing-ddd-in-your-codebase">Some Common Mistakes to Avoid When Implementing DDD in Your Codebase</h3>
+
+<ul>
+  <li>Not engaging with domain experts. Not interacting with domain experts is a common mistake when using DDD. Talking to domain experts to get an understanding of the problem domain from their perspective is at the core of DDD. Starting with schemas or data modelling instead of talking to domain experts may create code based on a relational model instead of it built around a domain model.</li>
+  <li>Ignoring the language of the domain experts. Creating a ubiquitous language shared with domain experts is also a core DDD practice. This common language must be used in all discussions as well as in the code, e.g. in class and method names.</li>
+  <li>Not identifying bounded contexts. A common approach to solving a complex problem is breaking it down into smaller parts. Creating <a href="http://martinfowler.com/bliki/BoundedContext.html">bounded contexts</a> is breaking down a large domain into smaller ones, each handling one cohesive part of the domain.</li>
+  <li>Using an anaemic domain model. This is a common sign that a team is not doing DDD and often a symptom of a failure in the modelling process. At first, an <a href="http://www.martinfowler.com/bliki/AnemicDomainModel.html">anaemic domain model</a> often looks like a real domain model with correct names, but the classes lack functionalities. They contain only the <code class="language-plaintext highlighter-rouge">Get</code> and <code class="language-plaintext highlighter-rouge">Set</code> methods.</li>
+</ul>
+
+<h2 id="how-the-ddd-model-improved-our-software-development">How the DDD Model Improved Our Software Development</h2>
+
+<p>Thanks to this brand new clean up, we achieved the following:</p>
+
+<ul>
+  <li>Core functionalities are evenly distributed to the overall codebase and not limited to just a few files.</li>
+  <li>The developers are aware of what each folder is responsible for by simply looking at the file naming and folder structure.</li>
+  <li>The risk of breaking major functionalities by merely making small changes is greatly reduced. Changing a feature is now more efficient.</li>
+</ul>
+
+<p>The team now finds the code well structured and we require less hand-holding for onboarders, thanks to the simplicity of the structure.</p>
+
+<p>Finally, the most important thing, we now have a system oriented towards our business necessities. Everyone ends up using the same language and terms. Developers communicate better with the business team. The work is more efficient when it comes to establishing solutions for the models that reflect how the business operates, instead of how the software operates.</p>
+
+<h2 id="lessons-learnt">Lessons Learnt</h2>
+
+<ul>
+  <li>Use DDD to collaborate among all project disciplines (product, business, partner, and so on) and clearly understand the business requirements.</li>
+  <li>Establish a ubiquitous language to discuss domain-related concepts.</li>
+  <li>Use bounded contexts to break down complex domains into manageable parts.</li>
+  <li>Implement a layered architecture (i.e. DDD building blocks) to focus on particular aspects of the application.</li>
+  <li>To simplify your dependency, use domain event to communicate with sub-bounded context.</li>
+</ul>
+:ET
