@@ -60,11 +60,9 @@ There were four key points in the force diagram:
 
 By applying this framework, we progressively asked these questions in our interview sessions:
 
-*Can you remind us of the last time you used GrabFood?* — This was to uncover the situation or the circumstances.
-
-*Why did you order this food?* — This was to get down to the core of the need.
-
-*Can you tell us, before GrabFood, what did you use to get the same job done?*
+- *Can you remind us of the last time you used GrabFood?* — This was to uncover the situation or the circumstances.
+- *Why did you order this food?* — This was to get down to the core of the need.
+- *Can you tell us, before GrabFood, what did you use to get the same job done?*
 
 From the interview sessions, we were able to uncover a number of JTBDs, one example was working parents buying food for their families. Before GrabFood, most of them were buying from food vendors directly, but that is a time consuming activity and it adds additional friction to an already busy day. This led them in search of a new solution and GrabFood provided that solution.
 
