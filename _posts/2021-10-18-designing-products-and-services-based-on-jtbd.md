@@ -84,7 +84,7 @@ There was already a solution for this problem: bundles! Food bundles is a well-k
 
 However, not all GrabFood merchants created bundles to solve this problem for their consumers. This was an untapped opportunity for the merchants to solve a critical problem for their consumers. Eureka! We knew that we needed to help merchants create bundles in an efficient way to solve for the consumer’s JTBD.
 
-We decided to add a functionality to the GrabMerchant app that allowed merchants to create bundles. We built an algorithm that matched complementary items and bundled them automatically. The merchant only had to tap a button to create a bundle instantly.
+We decided to add a functionality to the GrabMerchant app that allowed merchants to create bundles. We built an algorithm that matched complementary items and automatically suggested these bundles to merchants. The merchant only had to tap a button to create a bundle instantly.
 
 <div class="post-image-section"><figure>
   <img src="/img/designing-products-and-services-based-on-jtbd/bundle.png" alt="Search data flow" style="width:80%"> <figcaption align="middle"><i>Bundle</i></figcaption>
@@ -107,6 +107,6 @@ This article was written based on an episode of the Grab Design Podcast - a conv
 
 ## Join us
 
-Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
 Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
