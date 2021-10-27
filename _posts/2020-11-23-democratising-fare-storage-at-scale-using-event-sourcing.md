@@ -175,7 +175,7 @@ We hope this post helped you to have a closer look at how we used the Event Sour
 
 ---
 
-## Join Us
+## Join us
 
 Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 

@@ -89,8 +89,8 @@ Through automation, Grab’s performance marketing team has been able to signifi
 <small class="credits">Authored on behalf of the performance marketing team @ Grab. Special thanks to the CRM data analytics team, particularly Milhad Miah and Vaibhav Vij for making this a reality.</small>
 
 ----
-## Join Us
+## Join us
 
 Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today! 
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
