@@ -300,9 +300,9 @@ Directions to pursue to increase our efficiency could be the following:
 - Explore new architectures: YOLOv5, EfficientDet or Swin-Transformer for Object Detection.
 - Introduce semi-supervised learning techniques to improve our model performance on the long tail of the data.
 
-## Join Us
+## Join us
 
-Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
 Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
 
