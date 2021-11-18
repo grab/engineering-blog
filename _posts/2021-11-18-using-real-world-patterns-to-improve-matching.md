@@ -3,7 +3,7 @@ layout: post
 id: 2021-11-18-using-real-world-patterns-to-improve-matching
 title: Using Real-World Patterns to Improve Matching in Theory and Practice
 date: 2021-11-18 01:20:00
-authors: [tenindra.a, victor.liang]
+authors: [tenindra-a, victor-liang]
 categories: [Data Science]
 tags: [Data Science, Research]
 comments: true
