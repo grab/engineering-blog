@@ -1,0 +1,215 @@
+I"�P<p>When you open the Grab app and hit book, a series of events are generated that define your personalised experience with us: booking state machines kick into motion, driver-partners are notified, reward points are computed, your feed is generated, etc. While it is important for you to know that a request has been received, a lot happens asynchronously in our back-end services.</p>
+
+<p>As custodians and builders of the streaming platform at Grab operating at massive scale (think terabytes of data ingress each hour), the Coban team’s mission is to provide a NoOps, managed platform for seamless, secure access to event streams in real-time, for every team at Grab.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Coban Sewu Waterfall In Indonesia" height="65%" width="65%" src="/img/plumbing-at-scale/coban-waterfall.jpg" />
+    <figcaption><em>Coban Sewu Waterfall In Indonesia. (Streams, get it?)</em></figcaption>
+  </figure>
+</div>
+
+<p>Streaming systems are often at the heart of event-driven architectures, and what starts as a need for a simple message bus for asynchronous processing of events quickly evolves into one that requires a more sophisticated stream processing paradigms.
+Earlier this year, we saw common patterns of event processing emerge across our Go backend ecosystem, including:</p>
+<ul>
+  <li>Filtering and mapping stream events of one type to another</li>
+  <li>Aggregating events into time windows and materialising them back to the event log or to various types of transactional and analytics databases</li>
+</ul>
+
+<p>Generally, a class of problems surfaced which could be elegantly solved through an event sourcing<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> platform with a stream processing framework built over it, similar to the Keystone platform at Netflix<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup>.</p>
+
+<p>This article details our journey building and deploying an event sourcing platform in Go, building a stream processing framework over it, and then scaling it (reliably and efficiently) to service over 300 billion events a week.</p>
+
+<h2 id="event-sourcing">Event Sourcing</h2>
+<p>Event sourcing is an architectural pattern where changes to an application state are stored as a sequence of events, which can be replayed, recomputed, and queried for state at any time. An implementation of the event sourcing pattern typically has three parts to it:</p>
+<ul>
+  <li>An event log</li>
+  <li>Processor selection logic: The logic that selects which chunk of domain logic to run based on an incoming event</li>
+  <li>Processor domain logic: The domain logic that mutates an application’s state</li>
+</ul>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Event Sourcing" src="/img/plumbing-at-scale/event-sourcing.png" />
+    <figcaption><em>Event Sourcing</em></figcaption>
+  </figure>
+</div>
+
+<p>Event sourcing is a building block on which architectural patterns such as Command Query Responsibility Segregation<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup>, serverless systems, and stream processing pipelines are built.</p>
+
+<h2 id="the-case-for-stream-processing">The Case For Stream Processing</h2>
+<p>Here are some use cases serviced by stream processing, built on event sourcing.</p>
+
+<h4 id="asynchronous-state-management">Asynchronous State Management</h4>
+<p>A pub-sub system allows for change events from one service to be fanned out to multiple interested subscribers without letting any one subscriber block the progress of others. Abstracting the event log and centralising it democratises access to this log to all back-end services. It enables the back-end services to apply changes from this centralised log to their own state, independent of downstream services, and/or publish their state changes to it.</p>
+
+<h4 id="time-windowed-aggregations">Time Windowed Aggregations</h4>
+<p>Time-windowed aggregates are a common requirement for machine learning models (as features) as well as analytics. For example, personalising the Grab app landing page requires counting your interaction with various widget elements in recent history, not any one event in particular. Similarly, an analyst may not be interested in the details of a singular booking in real-time, but in building demand heatmaps segmented by geohashes. For latency-sensitive lookups, especially for the personalisation example, pre-aggregations are preferred instead of post-aggregations.</p>
+
+<h4 id="stream-joins-filtering-mapping">Stream Joins, Filtering, Mapping</h4>
+<p>Event logs are typically sharded by some notion of topics to logically divide events of interest around a theme (booking events, profile updates, etc.). Building bigger topics out of smaller ones, as well as smaller ones from bigger ones are common ways to compose “substreams”  of the log of interest directed towards specific services. For example, a promo service may only be interested in listening to booking events for promotional bookings.</p>
+
+<h4 id="realtime-business-intelligence">Realtime Business Intelligence</h4>
+<p>Outputs of stream processing workloads are also plugged into realtime Business Intelligence (BI) and stream analytics solutions upstream, as raw data for visualizations on operations dashboards.</p>
+
+<h4 id="archival">Archival</h4>
+<p>For offline analytics, as well as reconciliation and disaster recovery, having an archive in a cold store helps for certain mission critical streams.</p>
+
+<h2 id="platform-requirements">Platform Requirements</h2>
+<p>Any processing platform for event sourcing and stream processing has certain expectations around its functionality.</p>
+
+<h4 id="scaling-and-elasticity">Scaling and Elasticity</h4>
+<p>Stream/Event Processing pipelines need to be elastic and responsive to changes in traffic patterns, especially considering that user activity (rides, food, deliveries, payments) varies dramatically during the course of a day or week. A spike in food orders on rainy days shouldn’t cause indefinite order processing latencies.</p>
+
+<h4 id="noops">NoOps</h4>
+<p>For a platform team, it’s important that users can easily onboard and manage their pipeline lifecycles, at their preferred cadence. To scale effectively, the process of scaffolding, configuring, and deploying pipelines needs to be standardised, and infrastructure managed. Both the platform and users are able to leverage common standards of telemetry, configuration, and deployment strategies, and users benefit from a lack of infrastructure management overhead.</p>
+
+<h4 id="multi-tenancy">Multi-tenancy</h4>
+<p>Our platform has quickly scaled to support hundreds of pipelines. Workload isolation, independent processing uptime guarantees, and resource allocation and cost audit are important requirements necessitating multi-tenancy, which help amortise platform overhead costs.</p>
+
+<h4 id="resiliency">Resiliency</h4>
+<p>Whether latency sensitive or latency tolerant, all workloads have certain expectations on processing uptime. From a user’s perspective, there must be guarantees on pipeline uptimes and data completeness, upper bounds on processing delays, instrumentation for alerting, and self-healing properties of the platform for remediation.</p>
+
+<h4 id="tunable-tradeoffs">Tunable Tradeoffs</h4>
+<p>Some pipelines are latency sensitive, and rely on processing completeness seconds after event ingress. Other pipelines are latency tolerant, and can tolerate disruption to processing lasting in tens of minutes. A one size fits all solution is likely to be either cost inefficient or unreliable. Having a way for users to make these tradeoffs consciously becomes important for ensuring efficient processing guarantees at a reasonable cost. Similarly, in the case of upstream failures or unavailability, being able to tune failure modes (like wait, continue, or retry) comes in handy.</p>
+
+<h2 id="stream-processing-framework">Stream Processing Framework</h2>
+<p>While basic event sourcing covers simple use cases like archival, more complicated ones benefit from a common framework that shifts the mental model for processing from per event processing to stream pipeline orchestration.
+Given that Go is a “paved road” for back-end development at Grab, and we have service code and bindings for streaming data in a mono-repository, we built a Go framework with a subset of capabilities provided by other streaming frameworks like Flink<sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup>.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Logic Blocks In A Stream Processing Pipeline" src="/img/plumbing-at-scale/pipeline-life-cycle.png" />
+    <figcaption><em>Logic Blocks In A Stream Processing Pipeline</em></figcaption>
+  </figure>
+</div>
+
+<h4 id="capabilities">Capabilities</h4>
+<p>Some capabilities built into the framework include:</p>
+<ul>
+  <li><strong>Deduplication:</strong>  Enables pipelines to idempotently reprocess data in case of rewinds/replays, and provides some processing guarantees within a time window for certain use cases including sinking to datastores.</li>
+  <li><strong>Filtering and Mapping:</strong> An ability to filter a source stream data and map them onto target streams.</li>
+  <li><strong>Aggregation:</strong> An ability to generate and execute aggregation logic such as sum, avg, max, and min in a window.</li>
+  <li><strong>Windowing:</strong> An ability to window processing into tumbling, sliding, and session windows.</li>
+  <li><strong>Join:</strong> An ability to combine two streams together with certain join keys in a window.</li>
+  <li><strong>Processor Chaining:</strong> Various functionalities can be chained to build more complicated pipelines from simpler ones. For example: filter a large stream into a smaller one, aggregate it over a time window, and then map it to a new stream.</li>
+  <li><strong>Rewind:</strong> The ability to rewind the processing logic by a few hours through configuration.</li>
+  <li><strong>Replay:</strong> The ability to replay archived data into the same or a separate pipeline via configuration.</li>
+  <li><strong>Sinks:</strong> A number of connectors to standard Grab stores are provided, with concerns of auth, telemetry, etc. managed in the runtime.</li>
+  <li><strong>Error Handling:</strong> Providing an easy way to indicate whether to wait, skip, and/or retry in case of upstream failures is an important tuning parameter that users need for making sensible tradeoffs in dimensions of back pressure, latency, correctness, etc.</li>
+</ul>
+
+<h2 id="architecture">Architecture</h2>
+<div class="post-image-section">
+  <figure>
+    <img alt="Coban Platform" src="/img/plumbing-at-scale/coban-platform.png" />
+    <figcaption><em>Coban Platform</em></figcaption>
+  </figure>
+</div>
+
+<p>Our event log is primarily a bunch of critical Kafka clusters, which are being polled by various pipelines deployed by service teams on the platform for incoming events. Each pipeline is an isolated deployment, has an identity, and the ability to connect to various upstream sinks to materialise results into, including the event log itself.
+There is also a metastore available as an intermediate store for processing pipelines, so the pipelines themselves are stateless with their lifecycle completely beholden to the whims of their owners.</p>
+
+<h3 id="anatomy-of-a-processing-pipeline">Anatomy of a Processing Pipeline</h3>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Anatomy Of A Stream Processing Pod" src="/img/plumbing-at-scale/anatomy-of-a-stream-processing-pod.png" />
+    <figcaption><em>Anatomy Of A Stream Processing Pod</em></figcaption>
+  </figure>
+</div>
+
+<p>Anatomy of a Stream Processing Pod
+Each stream processing pod (the smallest unit of a pipeline’s deployment) has three top level components:</p>
+
+<ul>
+  <li><strong>Triggers:</strong> An interface that connects directly to the source of the data and converts it into an event channel.</li>
+  <li><strong>Runtime:</strong> This is the app’s entry point and the orchestrator of the pod. It manages the worker pools, triggers, event channels, and lifecycle events.</li>
+  <li><strong>The Pipeline plugin:</strong> The plugin is provided by the user, and conforms to a contract that the platform team publishes. It contains the domain logic for the pipeline and houses the pipeline orchestration defined by a user based on our Stream Processing Framework.</li>
+</ul>
+
+<h3 id="deployment-infrastructure">Deployment Infrastructure</h3>
+<p>Our deployment infrastructure heavily leverages Kubernetes on AWS. After a (pretty high) initial cost for infrastructure set up, we’ve found scaling to hundreds of pipelines a breeze with the Kubernetes provided controls. We package our stateless pipeline workloads into Kubernetes deployments, with each pod containing a unit of a stream pipeline, with sidecars that integrate them with our monitoring systems. Other cluster wide tooling deployed (usually as DaemonSets) deal with metric collection, log ingestion, and autoscaling. We currently use the Horizontal Pod Autoscaler<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup> to manage traffic elasticity, and the Cluster Autoscaler<sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">6</a></sup> to manage worker node scaling.</p>
+
+<div class="post-image-section">
+  <figure>
+    <img alt="Kubernetes" src="/img/plumbing-at-scale/kubernetes.png" />
+    <figcaption><em>A Typical Kubernetes Set Up On AWS</em></figcaption>
+  </figure>
+</div>
+
+<h4 id="metastore">Metastore</h4>
+<p>Some pipelines require storage for use cases ranging from deduplication to stores for materialised results of time windowed aggregations. All our pipelines have access to clusters of ScyllaDB instances (which we use as our internal store), made available to pipeline authors via interfaces in the Stream Processing Framework. Results of these aggregations are then made available to backend services via our GrabStats service, which is a thin query layer over the latest pipeline results.</p>
+
+<h4 id="compute-isolation">Compute Isolation</h4>
+<p>A nice property of packaging pipelines as Kubernetes deployments is a good degree of compute workload isolation for pipelines. While node resources of pipeline pods are still shared (and there are potential noisy neighbour issues on matters like logging throughput), the pipeline pods of various pods can be scheduled and rescheduled across a wide range of nodes safely and swiftly, with minimal impact to pods of other pipelines.</p>
+
+<h4 id="redundancy">Redundancy</h4>
+<p>Stateless processing pods mean we can set up backup or redundant Kubernetes clusters in hot-hot, hot-warm, or hot-cold modes. We use this to ensure high processing availability despite limited control plane guarantees from any single cluster. (Since EKS SLAs for the Kubernetes control plane guarantee only 99.9% uptime today<sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">7</a></sup>.) Transparent to our users, we make the deployment systems aware of multiple available targets for scheduling.</p>
+
+<h4 id="availability-vs-cost">Availability vs Cost</h4>
+<p>As alluded to in the “Platform Requirements” section, having a way of trading off availability for cost becomes important where the requirements and criticality of each processing pipeline are very different. Given that AWS spot instances are a lot cheaper<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote" rel="footnote">8</a></sup> than on-demand ones, we use user annotated Kubernetes priority classes to determine deployment targets for pipelines. For latency tolerant pipelines, we schedule them on Spot instances which are routinely between 40-90% cheaper than on demand instances on which latency sensitive pipelines run. The caveat is that Spot instances occasionally disappear, and these workloads are disrupted until a replacement node for their scheduling can be found.</p>
+
+<h1 id="whats-next">What’s Next?</h1>
+<ul>
+  <li>Expand the ecosystem of triggers to support custom sources of data i.e. the “event log”, as well as push based (RPC driven) versus just pull based triggers</li>
+  <li>Build a control plane for API integration with pipeline lifecycle management</li>
+  <li>Move some workloads to use the Vertical Pod Autoscaler<sup id="fnref:9" role="doc-noteref"><a href="#fn:9" class="footnote" rel="footnote">9</a></sup> in Kubernetes instead of horizontal scaling, as most of our workloads have a limit on parallelism (which is their partition count in Kafka topics)</li>
+  <li>Move from Go plugins for pipelines to plugins over RPC, like what HashiCorp does<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote" rel="footnote">10</a></sup>, to enable processing logic in non-Go languages.</li>
+  <li>Use either pod gossip or a service mesh with a control plane to set up quotas for shared infrastructure usage per pipeline. This is to protect upstream dependencies and the metastore from surges in event backlogs.</li>
+  <li>Improve availability guarantees for pipeline pods by occasionally redistributing/rescheduling pods across nodes in our Kubernetes cluster to prevent entire workloads being served out of a few large nodes.</li>
+</ul>
+
+<hr />
+
+<p><small class="credits">Authored By Karan Kamath on behalf of the Coban team at Grab-
+Zezhou Yu, Ryan Ooi, Hui Yang, Yuguang Xiao, Ling Zhang, Roy Kim, Matt Hino, Jump Char, Lincoln Lee, Jason Cusick, Shrinand Thakkar, Dean Barlan, Shivam Dixit, Shubham Badkur, Fahad Pervaiz, Andy Nguyen, Ravi Tandon, Ken Fishkin, and Jim Caputo.</small></p>
+
+<hr />
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+<h4 id="footnotes">Footnotes</h4>
+
+<p><em>Coban Sewu Waterfall Photo by Dwinanda Nurhanif Mujito on Unsplash</em></p>
+
+<p><em>Cover Photo by tian kuan on Unsplash</em></p>
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1" role="doc-endnote">
+      <p>https://martinfowler.com/eaaDev/EventSourcing.html <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2" role="doc-endnote">
+      <p>https://medium.com/netflix-techblog/keystone-real-time-stream-processing-platform-a3ee651812a <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3" role="doc-endnote">
+      <p>https://martinfowler.com/bliki/CQRS.html <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4" role="doc-endnote">
+      <p>https://flink.apache.org <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5" role="doc-endnote">
+      <p>https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/ <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:6" role="doc-endnote">
+      <p>https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:7" role="doc-endnote">
+      <p>https://aws.amazon.com/eks/sla/ <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:8" role="doc-endnote">
+      <p>https://aws.amazon.com/ec2/pricing/ <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:9" role="doc-endnote">
+      <p>https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler <a href="#fnref:9" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:10" role="doc-endnote">
+      <p>https://github.com/hashicorp/go-plugin <a href="#fnref:10" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+:ET

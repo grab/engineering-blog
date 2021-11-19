@@ -1,0 +1,187 @@
+I"�A<h2 id="background">Background</h2>
+
+<p>Market-Store is an in-house developed general purpose feature store that is used to serve real-time computed machine learning (ML) features. Market-Store has a stringent SLA around latency, throughput, and availability as it empowers ML models, which are used in Dynamic Pricing and Consumer Experience.</p>
+
+<h2 id="problem">Problem</h2>
+
+<p>As Grab continues to grow, introducing new ML models and handling increased traffic, Market-Store started to experience high latency. Market-Store’s SLA states that 99% of transactions should be within 200ms, but our latency increased to 2 seconds. This affected the availability and accuracy of our models that rely on Market-Store for real-time features.</p>
+
+<h3 id="latency-issue">Latency Issue</h3>
+
+<p>We used different metrics and logs to debug the latency issue but could not find any abnormalities that directly correlated to the API’s performance. We discovered that the problem went away temporarily when we restarted the service. But during the next peak period, the service began to struggle once again and the problem became more prominent as Market-Store’s <a href="https://en.wikipedia.org/wiki/Queries_per_second">query per second (QPS)</a> increased.</p>
+
+<p>The following graph shows an increase in the memory used with time over 12 hours. Even as the system load receded, memory usage continued to increase.</p>
+
+<p><img src="img/market-store/image2.png" alt="" /></p>
+
+<p>The continuous increase in memory consumption indicated the possibility of a memory leak, which occurs when memory is allocated but not returned after its use is over. This results in consistently increasing consumed memory until the service runs out of memory and crashes.</p>
+
+<p>Although we could restart the service and resolve the issue temporarily, the increasing memory use suggested a deeper underlying root cause. This meant that we needed to conduct further investigation with tools that could provide deeper insights into the memory allocations.</p>
+
+<h2 id="debugging-using-go-tools">Debugging Using Go Tools</h2>
+
+<p><a href="https://golang.org/pkg/net/http/pprof/">PPROF</a> is a profiling tool by Golang that helps to visualise and analyse profiles from Go programmes. A profile is a collection of stack traces showing the call sequences in your programme that eventually led to instances of a particular event i.e. allocation. It also provides details such as Heap and CPU information, which could provide insights into the bottlenecks of the Go programme.</p>
+
+<p>By default, PPROF is enabled on all Grab Go services, making it the ideal tool to use in our scenario. To understand how memory is allocated, we used PPROF to generate Market-Store’s Heap profile, which can be used to understand how inuse memory was allocated for the programme.</p>
+
+<p>You can collect the Heap profile by running this command:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>go tool pprof 'http://localhost:6060/debug/pprof/heap'
+</code></pre></div></div>
+
+<p>The command then generates the Heap profile information as shown in the diagram below:</p>
+
+<p align="center">
+ <img src="../img/market-store/image1.png" />
+</p>
+
+<p>From this diagram, we noticed that a lot of memory was allocated and held by the child context created from Async Library even after the tasks were completed.</p>
+
+<p>In Market-Store, we used the <a href="https://github.com/grab/async">Async Library</a>, a Grab open-source library, which typically used to run concurrent tasks. Any contexts created by the Async Library should be cleaned up after the background tasks are completed. This way, memory would be returned to the service.</p>
+
+<p>However, as shown in the diagram, memory was not being returned, resulting in a memory leak, which explains the increasing memory usage even as Market-Store’s system load decreased.</p>
+
+<h3 id="uncovering-the-real-issue">Uncovering the Real Issue</h3>
+
+<p>So we knew that Market-Store’s latency was affected, but we didn’t know why. From the first graph, we saw that memory usage continued to grow even as Market-Store’s system load decreased. Then, PPROF showed us that the memory held by contexts was not cleaned up, resulting in a memory leak.</p>
+
+<p>Through our investigations, we drew a correlation between the increase in memory usage and a degradation in the server’s API latency. In other words, the memory leak resulted in a high memory consumption and eventually, caused the latency issue.</p>
+
+<p>However, there was no change in our service that would have impacted how contexts are created and cleaned up. So what caused the memory leak?</p>
+
+<h2 id="debugging-the-memory-leak">Debugging the Memory Leak</h2>
+
+<p>We needed to look into the Async Library and how it worked. For Market-Store, we updated the cache asynchronously for the write-around caching mechanism. We use the Async Library for running the update tasks in the background.</p>
+
+<p>The following code snippet explains how the Async Library works:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="n">async</span><span class="o">.</span><span class="n">Consume</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">Background</span><span class="p">(),</span> <span class="n">runtime</span><span class="o">.</span><span class="n">NumCPU</span><span class="p">()</span><span class="o">*</span><span class="m">4</span><span class="p">,</span> <span class="n">buffer</span><span class="p">)</span>
+
+<span class="c">// Consume runs the tasks with a specific max concurrency</span>
+
+<span class="k">func</span> <span class="n">Consume</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">concurrency</span> <span class="kt">int</span><span class="p">,</span> <span class="n">tasks</span> <span class="k">chan</span> <span class="n">Task</span><span class="p">)</span> <span class="n">Task</span> <span class="p">{</span>
+
+   <span class="c">// code...</span>
+
+   <span class="k">return</span> <span class="n">Invoke</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="k">func</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">)</span> <span class="p">(</span><span class="k">interface</span><span class="p">{},</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+
+       <span class="n">workers</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="k">chan</span> <span class="kt">int</span><span class="p">,</span> <span class="n">concurrency</span><span class="p">)</span>
+
+       <span class="n">concurrentTasks</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="n">Task</span><span class="p">,</span> <span class="n">concurrency</span><span class="p">)</span>
+
+       <span class="c">// code ...</span>
+
+       <span class="n">t</span><span class="o">.</span><span class="n">Run</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span><span class="o">.</span><span class="n">ContinueWith</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="k">func</span><span class="p">(</span><span class="k">interface</span><span class="p">{},</span> <span class="kt">error</span><span class="p">)</span> <span class="p">(</span><span class="k">interface</span><span class="p">{},</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+
+       <span class="c">// code...</span>
+
+      <span class="p">})</span>
+
+    <span class="p">}</span>
+
+<span class="p">}</span>
+
+<span class="k">func</span> <span class="n">Invoke</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">action</span> <span class="n">Work</span><span class="p">)</span> <span class="n">Task</span> <span class="p">{</span>
+
+    <span class="k">return</span> <span class="n">NewTask</span><span class="p">(</span><span class="n">action</span><span class="p">)</span><span class="o">.</span><span class="n">Run</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+
+<span class="p">}</span>
+
+<span class="k">func</span><span class="p">(</span><span class="n">t</span> <span class="o">*</span><span class="n">task</span><span class="p">)</span> <span class="n">Run</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">)</span> <span class="n">Task</span> <span class="p">{</span>
+
+    <span class="n">ctx</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">cancel</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">WithCancel</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+
+    <span class="k">go</span> <span class="n">t</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">t</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p><em>Note: Code that is not relevant to this article was replaced with <code class="language-plaintext highlighter-rouge">code</code>.</em></p>
+
+<p>As seen in the code snippet above, the Async Library initialises the <code class="language-plaintext highlighter-rouge">Consume</code> method with a background context, which is then passed to all its runners. Background contexts are empty and do not track or have links to child contexts that are created from them.</p>
+
+<p>In Market-Store, we use background contexts because they are not bound by request contexts and can continue running even after a request context is cleaned up. This means that once the task has finished running, the memory consumed by child contexts would be freed up, avoiding the issue of memory leaks altogether.</p>
+
+<p><img src="img/market-store/image3.gif" alt="" /></p>
+
+<h3 id="identifying-the-cause-of-the-memory-leak">Identifying the Cause of the Memory Leak</h3>
+
+<p>Upon further digging, we discovered an <a href="https://github.com/grab/async/commit/d7b10a27c97049564607012efaceb28ccd32e980">MR</a> that was merged into the library to address a task cancellation issue. As shown in the code snippet below, the <code class="language-plaintext highlighter-rouge">Consume</code> method had been modified such that task contexts were being passed to the runners, instead of the empty background contexts.</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span> <span class="n">Consume</span><span class="p">(</span><span class="n">ctx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span> <span class="n">concurrency</span> <span class="kt">int</span><span class="p">,</span> <span class="n">tasks</span> <span class="k">chan</span> <span class="n">Task</span><span class="p">)</span> <span class="n">Task</span> <span class="p">{</span>
+
+     <span class="c">// code...</span>
+
+     <span class="k">return</span> <span class="n">Invoke</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="k">func</span><span class="p">(</span><span class="n">taskCtx</span> <span class="n">context</span><span class="o">.</span><span class="n">Context</span><span class="p">)</span> <span class="p">(</span><span class="k">interface</span><span class="p">{},</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+
+         <span class="n">workers</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">(</span><span class="k">chan</span> <span class="kt">int</span><span class="p">,</span> <span class="n">concurrency</span><span class="p">)</span>
+
+         <span class="n">concurrentTasks</span> <span class="o">:=</span> <span class="nb">make</span><span class="p">([]</span><span class="n">Task</span><span class="p">,</span> <span class="n">concurrency</span><span class="p">)</span>
+
+         <span class="c">// code ...</span>
+
+         <span class="n">t</span><span class="o">.</span><span class="n">Run</span><span class="p">(</span><span class="n">taskCtx</span><span class="p">)</span><span class="o">.</span><span class="n">ContinueWith</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="k">func</span><span class="p">(</span><span class="k">interface</span><span class="p">{},</span> <span class="kt">error</span><span class="p">)</span> <span class="p">(</span><span class="k">interface</span><span class="p">{},</span> <span class="kt">error</span><span class="p">)</span> <span class="p">{</span>
+
+            <span class="c">// code...</span>
+
+        <span class="p">})</span>
+
+     <span class="p">}</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Before we explain the code snippet, we should briefly explain what Golang contexts are. A <a href="https://golang.org/pkg/context/">context</a> is a standard Golang package that carries deadlines, cancellation signals, and other request-scoped values across API boundaries and between processes. We should always remember to cancel contexts after using them.</p>
+
+<h4 id="importance-of-context-cancellation">Importance of Context Cancellation</h4>
+
+<p>When a context is cancelled, all contexts derived from it are also cancelled. This means that there will be no unaccounted contexts or links and it can be achieved by using the Async Library’s <code class="language-plaintext highlighter-rouge">CancelFunc</code>.</p>
+
+<p>The Async Library’s <code class="language-plaintext highlighter-rouge">CancelFunc</code> method will:</p>
+
+<ul>
+  <li>Cancel the created child context and its children</li>
+  <li>Remove the parent reference from the child context</li>
+  <li>Stop any associated timers</li>
+</ul>
+
+<p>We should always make sure to call the <code class="language-plaintext highlighter-rouge">CancelFunc</code> method after using contexts, to ensure that contexts and memory are not leaked.</p>
+
+<h4 id="explaining-the-impact-of-the-mr">Explaining the Impact of the MR</h4>
+
+<p>In the previous code snippet, we see that task contexts are passed to runners and they are not being cancelled. The Async Library created task contexts from non-empty contexts, which means the task contexts are tracked by the parent contexts. So, even if the work associated with these task contexts is complete, they will not be cleaned up by the system (garbage collected).</p>
+
+<p>As we started using task contexts instead of background contexts and did not cancel them, the memory used by these contexts was never returned, thus resulting in a memory leak.</p>
+
+<p><img src="img/market-store/image5.gif" alt="" /></p>
+
+<p>It took us several tries to debug and investigate the root cause of Market-Store’s high latency issue and through this incident, we learnt several important things that would help prevent a memory leak from recurring.</p>
+
+<ul>
+  <li>
+    <p>Always cancel the contexts you’ve created. Leaving it to garbage collection (system cleanup) may result in unexpected memory leaks.</p>
+  </li>
+  <li>
+    <p>Go profiling can provide plenty of insights about your programme, especially when you’re not sure where to start troubleshooting.</p>
+  </li>
+  <li>
+    <p>Always benchmark your dependencies when integrating or updating the versions to ensure they don’t have any performance bottlenecks.</p>
+  </li>
+</ul>
+
+<hr />
+
+<p><small class="credits">Special thanks to <em>Chip Dong Lim</em> for his contributions and for designing the GIFs included in this article.</small></p>
+
+<hr />
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+:ET

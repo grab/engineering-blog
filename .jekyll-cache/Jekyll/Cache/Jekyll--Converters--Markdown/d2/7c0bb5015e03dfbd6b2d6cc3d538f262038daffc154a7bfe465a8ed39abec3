@@ -1,0 +1,101 @@
+I"�"<p>To scale up to the needs of our consumers, we’ve adopted ways to efficiently deliver our services through our everyday superapp - whether it’s through continuous process improvements or coding best practices. For one, <a href="https://en.wikipedia.org/wiki/Library_(computing)">libraries</a> have made it possible for us to increase our development velocity. In the passenger app Android team, we’ve a mix of libraries - from libraries that we’ve built in-house to open source ones.</p>
+
+<p>Every week, we release a new version of our passenger app. Each update contains on average between five to ten library updates. In this article, we will explain how we keep all libraries used by our app up to date, and the different actions we take to avoid defect leaks into production.</p>
+
+<h2 id="how-many-libraries-are-we-using">How Many Libraries are We Using?</h2>
+
+<p>Before we add a new library to a project, it goes through a rigorous assessment process covering many parts, such as security issue detection and usability tests measuring the impact on the app size and app startup time. This process ensures that only libraries up to our standards are added.</p>
+
+<p>In total, there are more than <strong>170 libraries</strong> powering the superapp, including 55 AndroidX artifacts and 22 libraries used for the sole purpose of writing automation testing (Unit Testing or UI Testing).</p>
+
+<h2 id="who-is-responsible-for-updating">Who is Responsible for Updating?</h2>
+
+<p>While we do have an internal process on how to update the libraries, it doesn’t mention who and how often it should be done. In fact, it’s everyone’s responsibility to make sure our libraries are up to date. Each team should be aware of the libraries they’re using and whenever a new version is released.</p>
+
+<p>However, this isn’t really the case. We’ve a few developers taking ownership of the libraries as a whole and trying to maintain it. With more than 170 external libraries, we surveyed the Android developer community on how they manage libraries in the company. The result can be summarised as follow:</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/keeping-170-libraries-up-to-date/infography.png" alt="Survey Results" />
+  <figcaption align="middle"><i>Survey Results</i></figcaption>
+</figure></div>
+
+<p>While most developers are aware of updates, they don’t update a library because the risk of defects leaking into production is too high.</p>
+
+<h2 id="risk-management">Risk Management</h2>
+<p>The risk is to have a defect leaking into production. It can cause regressions on existing features or introduce new crashes in the app. In a worst case scenario, if this isn’t caught before publishing, it can force us to make a hotfix and a certain number of users will be impacted.</p>
+
+<p>Before updating (bump) a library, we evaluate two metrics:</p>
+<ul>
+  <li>the usage of this library in the codebase.</li>
+  <li>the number of changes introduced in the library between the current version and the targeted version.</li>
+</ul>
+
+<p>The risk needs to be assessed between the number of usages of a certain library and the size of the changes. The following chart illustrate this point.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/keeping-170-libraries-up-to-date/radar.png" alt="Risk Assessment Radar" />
+  <figcaption align="middle"><i>Risk Assessment Radar</i></figcaption>
+</figure></div>
+
+<p>This arbitrary scale helps us in deciding if we will require additional sign-off from the QA team. If the estimation places the item on the bottom-left corner, the update will be less risky while if it’s on the top-right corner, it means we should follow extra verification to reduce the risk.</p>
+
+<p><strong>A good practice to reduce the risks of updating a library is to update it frequently, decreasing the diffs hence reducing the scope of impact.</strong></p>
+
+<h2 id="reducing-the-risk">Reducing the Risk</h2>
+
+<p>The first thing we’re doing to reduce the risk is to update our libraries on a weekly basis. As described above, small changes are always less risky than large changes even if the usage of this partial library is wide. By following incremental updates, we avoid accumulating potential issues over a longer period of time.</p>
+
+<p>For example, the Android Jetpack and Firebase libraries follow a two-week release train. So every two weeks, we check for new updates, read the changelogs, and proceed with the update.</p>
+
+<p>In case of a defect detected, we can easily revert the change until we figure out a proper solution or raise the issue to the library owner.</p>
+
+<h3 id="automation">Automation</h3>
+
+<p>To reduce risk on any merge request (not limited to library update), we’ve spent a tremendous amount of effort on automating tests. For each new feature we’ve a set of test cases written in Gherkin syntax.</p>
+
+<p>Automation is implemented as UI tests that run on continuous integration (CI) for every merge request. If those tests fail, we won’t be able to merge any changes.</p>
+
+<p>To further elaborate, let’s take this example: Team A developed a lot of features and now has a total of 1,000 test cases. During regression testing before each release, only a subset of those are executed manually based on the impacted area. With automation in place, team A now has 60% of those tests executed as part of CI. So, when all the tests successfully pass, we’re already 60% confident that no defect is detected. This tremendously increases our confidence level while reducing manual testing.</p>
+
+<h3 id="qa-sign-off">QA Sign-off</h3>
+
+<p>When the update is in the risk threshold area and the automation tests are insufficient, the developer works with QA engineers on analysing impacted areas. They would then execute test cases related to the impacted area.</p>
+
+<p>For example, if we’re updating Facebook library, the impacted area would be the “Login with Facebook” functionality. QA engineers would then run test cases related to social login.</p>
+
+<p>A single or multiple team can be involved. In some cases, QA sign-off can be required by all the teams if they’re all affected by the update.</p>
+
+<p>This process requires a lot of effort from different teams and can affect the current roadmap. To avoid falling into this category, we refine the impacted area analysis to be as specific as possible.</p>
+
+<h2 id="update-before-it-becomes-mandatory">Update Before it Becomes Mandatory</h2>
+
+<p>Google updates the Google Play requirements regularly to ensure that published apps are fully compatible with the latest Android version.</p>
+
+<p>For example, starting 1st November 2020 all apps must target API 29. This change causes <a href="https://developer.android.com/about/versions/10/behavior-changes-10">behaviour changes</a> for some API. New behaviour has to be supported and verified for our code, but also for all the libraries we use. Libraries bundled inside our app are also affected if they’re using Android API. However, the support for newer API is done by each library maintainer. By keeping our libraries up to date, we ensure compatibility with the latest Android API.</p>
+
+<h2 id="key-takeaways">Key Takeaways</h2>
+
+<ul>
+  <li>
+    <p>Keep updating your libraries. If they’re following a release plan, try to match it so it won’t accumulate too many changes. For every new release at Grab, we ship a new version each week, which includes between 5 to 10 libraries bump.</p>
+  </li>
+  <li>
+    <p>For each update, identify the potential risks on your app and find the correct balance between risk and effort required to mitigate this. Don’t overestimate the risk, especially if the changes are minimal and only include some minor bug fixing. Some library updates don’t even change any single line of code and are only documentation updates.</p>
+  </li>
+  <li>
+    <p>Invest in robust automation testing to create a high confidence level when making changes, including potentially large changes like a huge library bump.</p>
+  </li>
+</ul>
+
+<hr />
+
+<p><small class="credits">Authored by Lucas Nelaupe on behalf of the Grab Android Development team. Special thanks to Tridip Thrizu and Karen Kue for the design and copyediting contributions.</small></p>
+
+<hr />
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+:ET

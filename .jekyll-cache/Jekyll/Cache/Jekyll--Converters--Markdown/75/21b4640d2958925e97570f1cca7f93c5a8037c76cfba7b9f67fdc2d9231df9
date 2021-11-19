@@ -1,0 +1,552 @@
+I"R�<h2 id="introduction">Introduction</h2>
+<p>Every week, GrabFood.com’s cloud infrastructure serves over &gt;1TB network egress and 175 million requests, which increased our costs. To minimise cloud costs, we had to look at optimising (and reducing) GrabFood.com’s bundle size.</p>
+
+<p>Any reduction in bundle size helps with:</p>
+
+<ul>
+  <li>Faster site loads! (especially for locations with lower mobile broadband speeds)</li>
+  <li>Cost savings for users: Less data required for each site load</li>
+  <li>Cost savings for Grab: Less network egress required to serve users</li>
+  <li>Faster build times: Fewer dependencies -&gt; less code for webpack to bundle -&gt; faster builds</li>
+  <li>Smaller builds: Fewer dependencies -&gt; less code -&gt; smaller builds</li>
+</ul>
+
+<p>After applying the 7 webpack bundle optimisations, we were able to yield the following improvements:</p>
+
+<ul>
+  <li>7% faster page load time from 2600ms to 2400ms</li>
+  <li>66% faster JS static asset load time from 180ms to 60ms</li>
+  <li>3x smaller JS static assets from 750KB to 250KB</li>
+  <li>1.5x less network egress from 1800GB to 1200GB</li>
+  <li>20% less for CloudFront costs from $1750 to $1400</li>
+  <li>1.4x smaller bundle from 40MB to 27MB</li>
+  <li>3.6x faster build time from ~2000s to ~550s</li>
+</ul>
+
+<h2 id="solution">Solution</h2>
+
+<p>One of the biggest factors influencing bundle size is dependencies. As mentioned earlier, fewer dependencies mean fewer lines of code to compile, which result in a smaller bundle size. Thus, to optimise GrabFood.com’s bundle size, we had to look into our dependencies.</p>
+
+<p>Tldr;</p>
+
+<p>Jump to <a href="#step-c-reducing-your-dependencies">Step C: Reducing your Dependencies</a> to see the 7 strategies we used to cut down our bundle size.</p>
+
+<h3 id="step-a-identify-your-dependencies">Step A: Identify Your Dependencies</h3>
+
+<p>In this step, we need to ask ourselves ‘what are our largest dependencies?’. We used the <a href="https://github.com/webpack-contrib/webpack-bundle-analyzer">webpack-bundle-analyzer</a> to inspect GrabFood.com’s bundles. This gave us an overview of all our dependencies and we could easily see which bundle assets were the largest.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/grabfood-bundle/image12.png" alt="Our grabfood.com bundle analyzer output" style="width:90%" /> <figcaption align="middle"><i>Our grabfood.com bundle analyzer output</i></figcaption>
+  </figure>
+</div>
+
+<ul>
+  <li>For Next.js, you should use <a href="https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer">@next/bundle-analyze</a> instead.</li>
+  <li>Bundle analysis output allows us to easily inspect what’s in our bundle.</li>
+</ul>
+
+<p>What to look out for:</p>
+
+<p>I: Large dependencies (fairly obvious, because the box size will be large)</p>
+
+<p><img src="img/grabfood-bundle/image4.png" alt="" /></p>
+
+<p>II: Duplicate dependencies (same library that is bundled multiple times across different assets)</p>
+
+<p><img src="img/grabfood-bundle/image2.png" alt="" /><img src="img/grabfood-bundle/image2.png" alt="" /></p>
+
+<p>III: Dependencies that look like they don’t belong (e.g. Why is ‘elliptic’ in my frontend bundle?)</p>
+
+<p><img src="img/grabfood-bundle/image8.png" alt="" /></p>
+
+<p>What to avoid:</p>
+
+<ul>
+  <li>Isolating dependencies that are very small (e.g. &lt;20kb). Not worth focusing on this due to very meagre returns.
+    <ul>
+      <li>E.g. Business logic like your React code</li>
+      <li>E.g. Small node dependencies</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="step-b-investigate-the-usage-of-your-dependencies-where-are-my-dependencies-used">Step B: Investigate the Usage of Your Dependencies (Where are my Dependencies Used?)</h3>
+<p>In this step, we are trying to answer this question: “Given a dependency, which files and features are making use of it?”.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/grabfood-bundle/image10.png" alt="Our grabfood.com bundle analyzer output" style="width:90%" /> <a href="https://pixabay.com/photos/architecture-building-geometric-1868547/"><figcaption align="middle"><i>Image source</i></figcaption></a>
+  </figure>
+</div>
+
+<p>There are two broad approaches that can be used to identify how our dependencies are used:</p>
+
+<p>I: Top-down approach: “Where does our project use dependency X?”</p>
+
+<ul>
+  <li>Conceptually identify which feature(s) requires the use of dependency X.</li>
+  <li>E.g. Given that we have ‘<a href="https://github.com/hokaccha/node-jwt-simple">jwt-simple</a>’ as a dependency, which set of features in my project requires JWT encoding/decoding?</li>
+</ul>
+
+<p>II: Bottom-up approach: “How did dependency X get used in my project?”</p>
+
+<ul>
+  <li>Trace dependencies by manually tracing <code class="language-plaintext highlighter-rouge">import()</code> and <code class="language-plaintext highlighter-rouge">require()</code> statements</li>
+  <li>Alternatively, use dependency visualisation tools such as <a href="https://github.com/sverweij/dependency-cruiser">dependency-cruiser</a> to identify file interdependencies. Note that output can quickly get noisy for any non-trivial project, so use it for inspecting small groups of files (e.g. single domains).</li>
+</ul>
+
+<p>Our recommendation is to use a <strong>mix</strong> of both Top-down and Bottom-up approaches to identify and isolate dependencies.</p>
+
+<p>Dos:</p>
+
+<ul>
+  <li>Be methodical when tracing dependencies: Use a document to track your progress as you manually trace inter-file dependencies.</li>
+  <li>Use dependency visualisation tools like <a href="https://github.com/sverweij/dependency-cruiser">dependency-cruiser</a> to quickly view a given file’s dependencies.</li>
+  <li>Consult Dr. Google if you get stuck somewhere, especially if the dependencies are buried deep in a dependency tree i.e. non-1st-degree dependencies (e.g. “<a href="https://stackoverflow.com/questions/42492410/why-webpack-includes-elliptic-bn-js-modules-in-my-bundle">Why webpack includes elliptic bn.js modules in bundle</a>”)</li>
+</ul>
+
+<p>Don’ts:</p>
+
+<ul>
+  <li>Stick to a single approach - Know when to switch between Top-down and Bottom-up approaches to narrow down the search space.</li>
+</ul>
+
+<h3 id="step-c-reducing-your-dependencies">Step C: Reducing Your Dependencies</h3>
+<p>Now that you know what your largest dependencies are and where they are used, the next step is figuring out how you can shrink your dependencies.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/grabfood-bundle/image15.gif" alt="Our grabfood.com bundle analyzer output" style="width:90%" /> <a href="https://i.imgur.com/w8Ydzvb.gif"><figcaption align="middle"><i>Image source</i></figcaption></a>
+  </figure>
+</div>
+
+<p>Here are 7 strategies that you can use to reduce your dependencies:</p>
+
+<ol>
+  <li><a href="#1-lazy-load-large-dependencies-and-less-used-dependencies">Lazy load large dependencies and less-used dependencies</a></li>
+  <li><a href="#2-unify-instances-of-duplicate-modules">Unify instances of duplicate modules</a></li>
+  <li><a href="#3-use-libraries-that-are-exported-in-es-modules-format">Use libraries that are exported in ES Modules format</a></li>
+  <li><a href="#4-replace-libraries-whose-features-are-already-available-on-the-browser-web-api">Replace libraries whose features are already available on the Browser Web API</a></li>
+  <li><a href="#5-avoid-large-dependencies-by-changing-your-technical-approach">Avoid large dependencies by changing your technical approach</a></li>
+  <li><a href="#6-avoid-using-node-dependencies-or-libraries-that-require-node-dependencies">Avoid using node dependencies or libraries that require node dependencies</a></li>
+  <li><a href="#7-optimise-your-external-dependencies">Optimise your external dependencies</a></li>
+</ol>
+
+<p>Note: These strategies have been listed in ascending order of difficulty - focus on the easy wins first 🙂</p>
+
+<h4 id="1-lazy-load-large-dependencies-and-less-used-dependencies">1. Lazy Load Large Dependencies and Less-used Dependencies</h4>
+
+<div class="post-image-section"><figure>
+  <img src="/img/grabfood-bundle/image13.png" alt="When a file adds +2MB worth of dependencies" style="width:90%" /> <figcaption align="middle"><i>“When a file adds +2MB worth of dependencies”, <a href="https://knowyourmeme.com/memes/vault-boy-hold-up">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>Similar to how lazy loading is used to break down large React pages to improve page performance, we can also lazy load libraries that are rarely used, or are not immediately used until prior to certain user actions.</p>
+
+<p>Before:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="kd">const</span> <span class="nx">crypto</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="err">‘</span><span class="nx">crypto</span><span class="err">’</span><span class="p">)</span>
+
+<span class="kd">const</span> <span class="nx">computeHash</span> <span class="o">=</span> <span class="p">(</span><span class="nx">value</span><span class="p">,</span> <span class="nx">secret</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="k">return</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">createHmac</span><span class="p">(</span><span class="nx">value</span><span class="p">,</span> <span class="nx">secret</span><span class="p">)</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>After:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="kd">const</span> <span class="nx">computeHash</span> <span class="o">=</span> <span class="k">async</span> <span class="p">(</span><span class="nx">value</span><span class="p">,</span> <span class="nx">secret</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="kd">const</span> <span class="nx">crypto</span> <span class="o">=</span> <span class="k">await</span> <span class="k">import</span><span class="p">(</span><span class="err">‘</span><span class="nx">crypto</span><span class="err">’</span><span class="p">)</span>
+
+ <span class="k">return</span> <span class="nx">crypto</span><span class="p">.</span><span class="nx">createHmac</span><span class="p">(</span><span class="nx">value</span><span class="p">,</span> <span class="nx">secret</span><span class="p">)</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>Example:</p>
+
+<ul>
+  <li>Scenario: Use of Anti-abuse library prior to sensitive API calls</li>
+  <li>Action: Instead of bundling the anti-abuse library together with the main page asset, we opted to lazy load the library only when we needed to use it (i.e. load the library just before making certain sensitive API calls).</li>
+  <li>Results: Saved 400KB on the main page asset.</li>
+</ul>
+
+<p>Notes:</p>
+
+<ul>
+  <li>Any form of lazy loading will incur some latency on the user, since the asset must be loaded with <a href="https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest">XMLHttpRequest</a>.</li>
+</ul>
+
+<h4 id="2-unify-instances-of-duplicate-modules">2. Unify Instances of Duplicate Modules</h4>
+
+<div class="post-image-section"><figure>
+  <img src="/img/grabfood-bundle/image6.png" alt="" style="width:90%" /> <figcaption align="middle"><i><a href="https://knowyourmeme.com/memes/spider-man-pointing-at-spider-man">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>If you see the same dependency appearing in multiple assets, consider unifying these duplicate dependencies under a single entrypoint.</p>
+
+<p>Before:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="c1">// ComponentOne.jsx</span>
+
+<span class="k">import</span> <span class="nx">GrabMaps</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">grab</span><span class="o">-</span><span class="nx">maps</span><span class="err">’</span>
+
+<span class="c1">// ComponentTwo.jsx</span>
+
+<span class="k">import</span> <span class="nx">GrabMaps</span><span class="p">,</span> <span class="p">{</span> <span class="nx">Marker</span> <span class="p">}</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">grab</span><span class="o">-</span><span class="nx">maps</span><span class="err">’</span>
+
+</code></pre></div></div>
+
+<p>After:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="c1">// grabMapsImportFn.js</span>
+
+<span class="kd">const</span> <span class="nx">grabMapsImportFn</span> <span class="o">=</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="k">import</span><span class="p">(</span><span class="err">‘</span><span class="nx">grab</span><span class="o">-</span><span class="nx">maps</span><span class="err">’</span><span class="p">)</span>
+
+<span class="c1">// ComponentOne.tsx</span>
+
+<span class="kd">const</span> <span class="nx">grabMaps</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">grabMapsImportFn</span><span class="p">()</span>
+
+<span class="kd">const</span> <span class="nx">GrabMaps</span> <span class="o">=</span> <span class="nx">grabMaps</span><span class="p">.</span><span class="k">default</span>
+
+<span class="c1">// ComponentTwo.tsx</span>
+
+<span class="kd">const</span> <span class="nx">grabMaps</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">grabMapsImportFn</span><span class="p">()</span>
+
+<span class="kd">const</span> <span class="nx">GrabMaps</span> <span class="o">=</span> <span class="nx">grabMaps</span><span class="p">.</span><span class="k">default</span>
+
+<span class="kd">const</span> <span class="nx">Marker</span> <span class="o">=</span> <span class="nx">grabMaps</span><span class="p">.</span><span class="nx">Marker</span>
+
+</code></pre></div></div>
+
+<p>Example:</p>
+
+<ul>
+  <li>Scenario: Duplicate ‘grab-maps’ dependencies in bundle</li>
+  <li>Action: We observed that we were bundling the same ‘grab-maps’ dependency in 4 different assets so we refactored the application to use a single entrypoint, ensuring that we only bundled one instance of ‘grab-maps’.</li>
+  <li>Results: Saved 2MB on total bundle size.</li>
+</ul>
+
+<p>Notes:</p>
+
+<ul>
+  <li>Alternative approach: Manually define a new cacheGroup to target a specific module (<a href="https://webpack.js.org/plugins/split-chunks-plugin/%23split-chunks-example-2">see more</a>) with ‘enforce:true’, in order to force webpack to always create a separate chunk for the module. Useful for cases where the single dependency is very large (i.e. &gt;100KB), or when asynchronously loading a module isn’t an option.</li>
+  <li>Certain libraries that appear in multiple assets (e.g. antd) should not be mistaken as identical dependencies. You can verify this by inspecting each module with one another. If the contents are different, then webpack has already done its job of tree-shaking the dependency and only importing code used by our code.</li>
+  <li>Webpack relies on the <code class="language-plaintext highlighter-rouge">import()</code> statement to identify that a given module is to be explicitly bundled as a separate chunk (<a href="https://webpack.js.org/api/module-methods/%23import-1">see more</a>).</li>
+</ul>
+
+<h4 id="3-use-libraries-that-are-exported-in-es-modules-format">3. Use Libraries that are Exported in ES Modules Format</h4>
+
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image1.gif" alt="Did you say ‘tree-shaking’?" style="width:90%" /><figcaption align="middle"><i>“Did you say ‘tree-shaking’?”, <a href="https://www.huffpost.com/entry/commercial-harvesting_n_57a215eee4b04414d1f2df60">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<ul>
+  <li>If a given library has a variant with an ES Module distribution, use that variant instead.</li>
+  <li>ES Modules allows webpack to perform <a href="https://webpack.js.org/guides/tree-shaking/"></a> <a href="https://webpack.js.org/guides/tree-shaking/">tree-shaking</a> automatically, allowing you to save on your bundle size because unused library code is not bundled.</li>
+  <li>Use <a href="https://bundlephobia.com/"></a> <a href="https://bundlephobia.com/">bundlephobia</a> to quickly ascertain if a given library is tree-shakeable (e.g. ‘<a href="https://bundlephobia.com/package/lodash-es@4.17.21">lodash-es</a>’ vs <a href="https://bundlephobia.com/package/lodash@4.17.21"></a> <a href="https://bundlephobia.com/package/lodash@4.17.21">‘lodash</a>’)</li>
+</ul>
+
+<p>Before:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">import</span> <span class="p">{</span> <span class="kd">get</span> <span class="p">}</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">lodash</span><span class="err">’</span>
+
+</code></pre></div></div>
+
+<p>After:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">import</span> <span class="p">{</span> <span class="kd">get</span> <span class="p">}</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">lodash</span><span class="o">-</span><span class="nx">es</span><span class="err">’</span>
+
+</code></pre></div></div>
+
+<p>Example:</p>
+
+<ul>
+  <li>Use Case: Using Lodash utilities</li>
+  <li>Action: Instead of using the standard ‘lodash’ library, you can swap it out with ‘lodash-es’, which is bundled using ES Modules and is functionally equivalent.</li>
+  <li>Results: Saved 0KB - We were already directly importing individual Lodash functions (e.g. ‘lodash/get’), therefore importing only the code we need. Still, ES Modules is a more convenient way to go about this 👍.</li>
+</ul>
+
+<p>Notes:</p>
+
+<ul>
+  <li>Alternative approach: Use babel plugins (e.g. ‘<a href="https://www.npmjs.com/package/babel-plugin-transform-imports">babel-plugin-transform-imports</a>’) to transform your import statements at build time to selectively import specific code for a given library.</li>
+</ul>
+
+<h4 id="4-replace-libraries-whose-features-are-already-available-on-the-browser-web-api">4. Replace Libraries whose Features are Already Available on the Browser Web API</h4>
+
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image3.png" alt="When you replace axios with fetch" style="width:90%" /><figcaption align="middle"><i>“When you replace axios with fetch”, <a href="https://knowyourmeme.com/memes/the-future-is-now-old-man">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>If you are relying on libraries for functionality that is available on the <a href="https://developer.mozilla.org/en-US/docs/Web/API">Web API</a>, you should revise your implementation to leverage on the Web API, allowing you to skip certain libraries when bundling, thus saving on bundle size.</p>
+
+<p>Before:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">import</span> <span class="nx">axios</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">axios</span><span class="err">’</span>
+
+<span class="kd">const</span> <span class="nx">getEndpointData</span> <span class="o">=</span> <span class="k">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="err">‘</span><span class="o">/</span><span class="nx">some</span><span class="o">-</span><span class="nx">endpoint</span><span class="err">’</span><span class="p">)</span>
+
+ <span class="k">return</span> <span class="nx">response</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>After:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="kd">const</span> <span class="nx">getEndpointData</span> <span class="o">=</span> <span class="k">async</span> <span class="p">()</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="err">‘</span><span class="o">/</span><span class="nx">some</span><span class="o">-</span><span class="nx">endpoint</span><span class="err">’</span><span class="p">)</span>
+
+ <span class="k">return</span> <span class="nx">response</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Example:</p>
+
+<ul>
+  <li>Use Case: Replacing axios with <code class="language-plaintext highlighter-rouge">fetch()</code> in the anti-abuse library</li>
+  <li>Action: We observed that our anti-abuse library was relying on axios to make web requests. Since our web app is only targeting modern browsers - most of which support <code class="language-plaintext highlighter-rouge">fetch()</code> (with the notable exception of IE) - we refactored the library’s code to use <code class="language-plaintext highlighter-rouge">fetch()</code> exclusively.</li>
+  <li>Results: Saved 15KB on anti-abuse library size.</li>
+</ul>
+
+<h4 id="5-avoid-large-dependencies-by-changing-your-technical-approach">5. Avoid Large Dependencies by Changing your Technical Approach</h4>
+
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image16.png" alt="" style="width:90%" /><figcaption align="middle"><i><a href="https://knowyourmeme.com/memes/this-is-brilliant-but-i-like-this">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>If it is acceptable to change your technical approach, we can avoid using certain dependencies altogether.</p>
+
+<p>Before:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">import</span> <span class="nx">jwt</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">jwt</span><span class="o">-</span><span class="nx">simple</span><span class="err">’</span>
+
+<span class="kd">const</span> <span class="nx">encodeCookieData</span> <span class="o">=</span> <span class="p">(</span><span class="nx">data</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="kd">const</span> <span class="nx">result</span> <span class="o">=</span> <span class="nx">jwt</span><span class="p">.</span><span class="nx">encode</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span> <span class="err">‘</span><span class="nx">some</span><span class="o">-</span><span class="nx">secret</span><span class="err">’</span><span class="p">)</span>
+
+ <span class="k">return</span> <span class="nx">result</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>After:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="kd">const</span> <span class="nx">encodeCookieData</span> <span class="o">=</span> <span class="p">(</span><span class="nx">data</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="kd">const</span> <span class="nx">result</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+
+ <span class="k">return</span> <span class="nx">result</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>Example:</p>
+
+<ul>
+  <li>Scenario: Encoding for browser cookie persistence</li>
+  <li>Action: As we needed to store certain user preferences in the user’s browser, we previously opted to use JWT encoding; this involved signing JWTs on the client side, which has a hard dependency on ‘crypto’. We revised the implementation to use plain JSON encoding instead, removing the need for ‘crypto’.</li>
+  <li>Results: Saved 250KB per page asset, 13MB in total bundle size.</li>
+</ul>
+
+<h4 id="6-avoid-using-node-dependencies-or-libraries-that-require-node-dependencies">6. Avoid Using Node Dependencies or Libraries that Require Node Dependencies</h4>
+
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image7.png" alt="“When someone does require(‘crypto’)”" style="width:90%" /><figcaption align="middle"><i>“When someone does require(‘crypto’)”, <a href="https://www.memecreator.org/meme/yamero0/">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>You should not need to use node-related dependencies, unless your application relies on a node dependency directly or indirectly.</p>
+
+<p>Examples of node dependencies: ‘Buffer’, ‘crypto’, ‘https’ (<a href="https://nodejs.org/docs/latest-v16.x/api/">see more</a>)</p>
+
+<p>Before:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">import</span> <span class="nx">jwt</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">jsonwebtoken</span><span class="err">’</span>
+
+<span class="kd">const</span> <span class="nx">decodeJwt</span> <span class="o">=</span> <span class="k">async</span> <span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="kd">const</span> <span class="nx">result</span> <span class="o">=</span> <span class="k">await</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">((</span><span class="nx">resolve</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="nx">jwt</span><span class="p">.</span><span class="nx">verify</span><span class="p">(</span><span class="nx">token</span><span class="p">,</span> <span class="dl">'</span><span class="s1">some-secret</span><span class="dl">'</span><span class="p">,</span> <span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">decoded</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="nx">resolve</span><span class="p">(</span><span class="nx">decoded</span><span class="p">))</span>
+
+ <span class="p">})</span>
+
+ <span class="k">return</span> <span class="nx">result</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>After:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="k">import</span> <span class="nx">jwt_decode</span> <span class="k">from</span> <span class="err">‘</span><span class="nx">jwt</span><span class="o">-</span><span class="nx">decode</span><span class="err">’</span>
+
+<span class="kd">const</span> <span class="nx">decodeJwt</span> <span class="o">=</span> <span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+
+ <span class="kd">const</span> <span class="nx">result</span> <span class="o">=</span> <span class="nx">jwt_decode</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span>
+
+ <span class="k">return</span> <span class="nx">result</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>Example:</p>
+
+<ul>
+  <li>Scenario: Decoding JWTs on the client side</li>
+  <li>Action: In terms of JWT usage on the client side, we only need to decode JWTs - we do not need any logic related to encoding JWTs. Therefore, we can opt to use libraries that perform just decoding (e.g. ‘<a href="https://github.com/auth0/jwt-decode">jwt-decode</a>’) instead of libraries (e.g. ‘<a href="https://github.com/auth0/node-jsonwebtoken">jsonwebtoken</a>’) that performs the full suite of JWT-related operations (e.g. signing, verifying).</li>
+  <li>Results: Same as in Point 5: Example. (i.e. no need to decode JWTs anymore, since we aren’t using JWT encoding for browser cookie persistence)</li>
+</ul>
+
+<h4 id="7-optimise-your-external-dependencies">7. Optimise your External Dependencies</h4>
+
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image14.png" alt="“Team: Can you reduce the bundle size further? You:“" style="width:90%" /><figcaption align="middle"><i>“Team: Can you reduce the bundle size further? You: (nervous grin)“, <a href="https://awesomebyte.com/viral-face-of-the-internet-the-origin-of-hide-the-pain-harold/">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>We can do a deep-dive into our dependencies to identify possible size optimisations by applying all the aforementioned techniques. If your size optimisation changes get accepted, regardless of whether it’s publicly (e.g. GitHub) or privately hosted (own company library), it’s a win-win for everybody! 🥳</p>
+
+<p>Example:</p>
+
+<ul>
+  <li>Scenario: Creating custom ‘node-forge’ builds for our Anti-abuse library</li>
+  <li>Action: Our Anti-abuse library only uses certain features of ‘node-forge’. Thankfully, the ‘node-forge’ maintainers have provided an easy way to make custom builds that only bundle selective features (<a href="https://github.com/digitalbazaar/forge/blob/c666282c812d6dc18e97b419b152dd6ad98c802c/webpack.config.js%23L15-L61">see more</a>).</li>
+  <li>Results: Saved 85KB in Anti-abuse library size and reduced bundle size for all other dependent projects.</li>
+</ul>
+
+<h3 id="step-d-verify-that-you-have-modified-the-dependencies">Step D: Verify that You have Modified the Dependencies</h3>
+
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image9.png" alt="Now… where did I put that needle?" style="width:90%" /><figcaption align="middle"><i>“Now… where did I put that needle?”, <a href="https://pixabay.com/photos/haystack-bale-of-straw-fields-hay-401882/">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>So, you’ve found some opportunities for major bundle size savings, that’s great!</p>
+
+<p>But as always, it’s best to be methodical to measure the impact of your changes, and to make sure no features have been broken.</p>
+
+<ol>
+  <li>Perform your code changes</li>
+  <li>Build the project again and open the bundle analysis report</li>
+  <li>Verify the state of a given dependency
+    <ul>
+      <li><strong>Deleted dependency</strong> - you should not be able to find the dependency</li>
+      <li><strong>Lazy-loaded dependency</strong> - you should see the dependency bundled as a separate chunk</li>
+      <li><strong>Non-duplicated dependency</strong> - you should only see a single chunk for the non-duplicated dependency</li>
+    </ul>
+  </li>
+  <li>Run tests to make sure you didn’t break anything (i.e. unit tests, manual tests)</li>
+</ol>
+
+<h3 id="other-considerations">Other Considerations</h3>
+
+<p><em>Preventive Measures</em></p>
+
+<ul>
+  <li>Periodically monitor your bundle size to identify increases in bundle size</li>
+  <li>Periodically monitor your site load times to identify increases in site load times</li>
+</ul>
+
+<p><em>Webpack Configuration Options</em></p>
+
+<ol>
+  <li>Disable bundling node modules with ‘node: false’
+    <ul>
+      <li>Only if your project doesn’t already include libraries that rely on node modules.</li>
+      <li>Allows for fast detection when someone tries to use a library that requires node modules, as the build will fail</li>
+    </ul>
+  </li>
+  <li>Experiment with ‘cacheGroups’
+    <ul>
+      <li>Most default configurations of webpack do a pretty good job of identifying and bundling the most commonly used dependencies into a single chunk (usually called vendor.js)</li>
+      <li>You can experiment with webpack <a href="https://webpack.js.org/plugins/split-chunks-plugin/"></a> <a href="https://webpack.js.org/plugins/split-chunks-plugin">optimisation options</a> to see if you get better results</li>
+    </ul>
+  </li>
+  <li>Experiment with <code class="language-plaintext highlighter-rouge">import()</code> ‘Magic Comments’
+    <ul>
+      <li>You may experiment with <a href="https://webpack.js.org/api/module-methods/%23magic-comments">import() magic comments</a> to modify the behaviour of specific <code class="language-plaintext highlighter-rouge">import()</code> statements, although the default setting will do just fine for most cases.</li>
+    </ul>
+  </li>
+</ol>
+
+<p>If you can’t remove the dependency:</p>
+<ul>
+  <li>For all dependencies that must be used, it’s probably best to lazy load all of them so you won’t block the page’s initial rendering (<a href="https://web.dev/first-contentful-paint/">see more</a>).</li>
+</ul>
+
+<hr />
+
+<h1 id="conclusion">Conclusion</h1>
+
+<div class="post-image-section"><figure><img src="/img/grabfood-bundle/image5.png" alt="" style="width:90%" /><figcaption align="middle"><i><a href="https://pixabay.com/photos/zen-meditation-yoga-spirituality-5533537/">Image source</a></i></figcaption>
+  </figure>
+</div>
+
+<p>To summarise, here’s how you can go about this business of reducing your bundle size.</p>
+
+<p>Namely…</p>
+
+<ol>
+  <li>Identify Your Dependencies</li>
+  <li>Investigate the Usage of Your Dependencies</li>
+  <li>Reduce Your Dependencies</li>
+  <li>Verify that You have Modified the Dependencies</li>
+</ol>
+
+<p>And by using these 7 strategies…</p>
+
+<ol>
+  <li>Lazy load large dependencies and less-used dependencies</li>
+  <li>Unify instance of duplicate modules</li>
+  <li>Use libraries that are exported in ES Modules format</li>
+  <li>Replace libraries whose features are already available on the Browser Web API</li>
+  <li>Avoid large dependencies by changing your technical approach</li>
+  <li>Avoid using node dependencies</li>
+  <li>Optimise your external dependencies</li>
+</ol>
+
+<p>You can have…</p>
+
+<ul>
+  <li>Faster page load time (smaller individual pages)</li>
+  <li>Smaller bundle (fewer dependencies)</li>
+  <li>Lower network egress costs (smaller assets)</li>
+  <li>Faster builds (fewer dependencies to handle)</li>
+</ul>
+
+<p>Now armed with this information, may your eyes be keen, your bundles be lean, your sites be fast, and your cloud costs be low! 🚀 ✌️</p>
+
+<hr />
+
+<p><small class="credits">Special thanks to Han Wu, Melvin Lee, Yanye Li, and Shujuan Cheong for proofreading this article. 🙂</small></p>
+
+<hr />
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+:ET

@@ -1,0 +1,181 @@
+I"�1<p>Grab serves millions of consumers in Southeast Asia, taking care of their everyday needs such as rides, food delivery, logistics, financial services, and cashless payments.</p>
+
+<p>To delight our consumers, we’re always looking at new features to launch, or how we can improve existing features. This means we need to develop fast, but also at high quality - which is not an easy balance to strike. To tackle this, we innovated around testing, resulting in Mockers - a tool to expand the scope of local box testing. In local box testing, developers can test their microservices without depending on an integrated test environment. It is an approach to implement Shift Left testing, in which testing is performed earlier in the product life cycle. Early testing makes it easier and less expensive to fix bugs.</p>
+
+<p>Grab employs a microservice architecture with over 250 microservices working together. Think of our application as a clockwork with coordinating gears. Each gear may evolve and change over time, but the overall system continues to work.</p>
+
+<p><img src="/img/mockers/image_1.png" alt="" /></p>
+
+<p>Each microservice runs on its own and communicates with others through lightweight protocols like HTTP and gRPC, and each has its own development life cycle. This architecture allows Grab to quickly scale its applications. It takes less time to implement and deploy a new feature as a microservice.</p>
+
+<p>However the complexity of a microservices architecture makes testing much harder. Here are some common challenges:</p>
+
+<ul>
+  <li>
+    <p>Each team is responsible only for its microservices, so there’s little centralised management.</p>
+  </li>
+  <li>
+    <p>Teams use different programming languages, data stores, etc. for each microservice, so it’s hard to construct and maintain a good test environment that covers everything.</p>
+  </li>
+  <li>
+    <p>Some microservices have been around since the start, some were created last week, some were refactored a month ago. This means they may be at very different maturity levels.</p>
+  </li>
+  <li>
+    <p>As the number of microservices keeps growing, so does the number of tests needed for coverage.</p>
+  </li>
+</ul>
+
+<h2 id="why-conventional-testing-is-not-enough">Why Conventional Testing is Not Enough</h2>
+
+<p>The conventional approach to testing involves heavy unit testing on local boxes, and maintains one or more test environments with all microservices  - these are usually called staging environments. Teams run integration, contract, and other tests on the staging environment, making it the primary test area. After comprehensive testing on staging, teams promote the microservice to production. Once it reaches production, very little or no testing is done.</p>
+
+<p>(The testing terminologies used here such as unit tests, integration tests, contract tests, etc are defined in <a href="http://www.testingstandards.co.uk/bs_7925-1_online.htm">http://www.testingstandards.co.uk/bs_7925-1_online.htm</a> and <a href="https://martinfowler.com/bliki/ContractTest.html">https://martinfowler.com/bliki/ContractTest.html</a>.)</p>
+
+<p><img src="/img/mockers/image_2.png" alt="" /></p>
+
+<p>However, testing on a staging environment has its limitations:</p>
+
+<ul>
+  <li>
+    <p><strong>Ambiguity of ownership</strong> - Staging is usually nobody’s responsibility as there is no centralized management. Issues on staging take longer to resolve because questions such as ‘who fixes’, ‘who coordinates’, and ‘who maintains’ can go unanswered. Further, one failed microservice results in a testing blocker as many microservices may depend on it.</p>
+  </li>
+  <li>
+    <p><strong>High cost of finding and fixing bugs</strong> - Staging is where teams try to uncover complex bugs. Quite often, the cost of testing and debugging is high and confidence over results is low because:</p>
+
+    <ul>
+      <li>
+        <p>State of test environment is constantly changing as independent teams deploy their microservices, leading to false test failures</p>
+      </li>
+      <li>
+        <p>Data and configuration become inconsistent over time due to:</p>
+
+        <ul>
+          <li>
+            <p>Orphaned testing that leaves data inconsistent across microservices</p>
+          </li>
+          <li>
+            <p>Multiple users overusing staging for different purposes such as manual testing, providing demos and training, etc</p>
+          </li>
+          <li>
+            <p>Manually hacking or hard coding data to simulate dependent functionality</p>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>
+    <p><strong>Difficulty in testing negative cases</strong> - How would my microservice respond if the dependency times out or returns a bad response, or if the response payload is too big? Such negative cases are hard to simulate in staging as they either require extensive data set up or an intentional dependency failure.</p>
+  </li>
+</ul>
+
+<h2 id="introducing-mockers---now-you-can-run-your-tests-locally">Introducing Mockers - Now You can Run Your Tests Locally</h2>
+
+<p>Mockers is a Go SDK coupled with a CLI tool for managing a central monorepo of mock servers at Grab.</p>
+
+<p>Mockers simulates a staging environment on developer local boxes. It expands the scope of testing at the local box level, and lets you run functional, resiliency, and contract tests on local boxes or on your CI (Continuous Integration) such as Jenkins. This enables you to catch complex bugs at lower costs as bugs are now found much earlier in the development life cycle. This key advantage makes Mockers a better testing tool than the conventional approach where testing primarily happens on staging, resulting in higher costs.</p>
+
+<p>It lets you create mock servers for mimicking the behaviour of your microservice dependencies, and you can easily set positive or negative expectations in your tests to simulate complex scenarios.</p>
+
+<p><img src="/img/mockers/image_3.png" alt="" /></p>
+
+<p>The idea is to have one standard mock server per microservice at Grab, kept up-to-date with the microservice definition. Our monorepo makes any new mock server available to all teams for testing.</p>
+
+<p>Mockers generates mock servers for both HTTP and gRPC microservices. To set up a mock server for a HTTP microservice, you need to provide its API Swagger specification. For a gRPC mock server, you need to provide the protobuf file.</p>
+
+<p>Simple CLI commands in Mockers let you generate or update mock servers with the latest microservice definitions, as well as list all available mock servers.</p>
+
+<p>Here is an example for generating a gRPC mock server. The path to the protobuf file, in this case &lt;gitlab.net/…/pb&gt;, is provided in the servergen command.</p>
+
+<p><img src="/img/mockers/image_4.png" alt="" /></p>
+
+<p><img src="/img/mockers/image_5.png" alt="" /></p>
+
+<p>The Go SDK sets expectations for testing, and manages the mock server life cycle.</p>
+
+<p>For example, there’s a microservice, <em>booking</em>, that has a mock server. To test your microservice, which depends on <em>booking</em>,you start <em>booking</em>’s mock server and set up test expectations (requests to <em>booking</em> and responses from <em>booking</em>) in your test file. If the mock server is not in sync with the latest changes to <em>booking</em>, you use a simple CLI command to update it, and then run your tests and evaluate the results.</p>
+
+<p><img src="/img/mockers/image_6.png" alt="" /></p>
+
+<p>Note that mock servers provide responses to requests from a microservice being tested, but do not process the requests with any internal logic. They just return the specified response for that request.</p>
+
+<h2 id="whats-great-about-mockers">What’s Great About Mockers</h2>
+
+<p>Here are some of Mockers’ features and their benefits:</p>
+
+<ul>
+  <li>Automatic contract verification - We generate a mock server based on a microservice’s API specification. It provides code hooks to set expectations using the microservice defined request and response structs. In the code below, assume the CarType struct field is deleted from the <em>booking</em> microservice. Now, when we update the mock server using CLI, this test generates a compile time error saying “CarType” struct field is unknown, indicating a contract mismatch.</li>
+</ul>
+
+<p><img src="/img/mockers/image_7.png" alt="" /></p>
+
+<ul>
+  <li>
+    <p>Out-of-the-box resiliency testing with repeatable tests - Building on top of our in-house chaos SDK, we inject a middleware into the mock server enabling developers to bring all sorts of chaos scenarios to life. Want to check if your retries are working properly or code fallback actually works? Just add a resiliency test to fail the mock server by 50% and check if retries work, or fail 100% to check if code fallback actually executes. You can also simulate latency, memory leaks, CPU spike, etc.</p>
+  </li>
+  <li>
+    <p>No overhead of maintaining code mocks when dependent microservices change; a simple CLI command updates the mock server.</p>
+  </li>
+  <li>
+    <p>As shown in the following examples, it’s simple to write tests. As mock servers send their mock results at the network level, you don’t have to expose your microservice’s guts to inject code mocks. Developers can treat their microservice as a black box. Note that these are not complete test cases, but they show the basics of testing using mock servers.</p>
+  </li>
+</ul>
+
+<p>Here is an example test.</p>
+
+<p><img src="/img/mockers/image_8.png" alt="" /></p>
+
+<p>Here is an example of resiliency testing.</p>
+
+<p><img src="/img/mockers/image_9.png" alt="" /></p>
+
+<h2 id="common-questions-about-mockers">Common Questions about Mockers</h2>
+
+<ol>
+  <li><em>How is this different from my unit tests with code mocks for dependencies?</em></li>
+</ol>
+
+<p>In unit tests, you mock the interfaces for your microservice dependencies. With Mockers, you avoid this overhead and use mock servers started on network ports. This tests your outbound API calls over the network to dependent mock servers, and tests your microservice at a layer closer to integration.</p>
+
+<ol>
+  <li><em>How do I know my mock server is up-to-date with the latest API contracts?</em></li>
+</ol>
+
+<p>Currently, you need to update the mock server using the CLI. If there is an API contract mismatch after the update, your Mockers based tests start to break. In future, we will add the last updated info for each mock server in the mockers ls CLI command.</p>
+
+<ol>
+  <li><em>I ran functional tests locally using Mockers. Should I still write and maintain integration tests for my microservice on staging?</em></li>
+</ol>
+
+<p>Yes. The integration tests run against real microservice dependencies with real data, and other streaming infrastructure on a distributed <em>Staging</em> environment. Hence, you should have integration tests for your microservice to catch issues before promoting to production.</p>
+
+<h2 id="road-ahead">Road Ahead</h2>
+
+<p>We’ve identified Grab’s mobile app as a candidate to benefit from using mock servers. To this end, we are working on building a microservice that acts as a mock server supporting both HTTP and TCP protocols.</p>
+
+<p>With this microservice, mobile developers and test engineers can use our user interface (UI) to set their expected responses to mobile app calls. The mobile app is then pointed to the mock server for sending and receiving responses.</p>
+
+<p>Benefits:</p>
+
+<ul>
+  <li>
+    <p>Mobile teams can test an app’s rendering and functionality aspects without being fully dependent on an integrated staging environment for the backend.</p>
+  </li>
+  <li>
+    <p>Backend flows currently under production can be easily tested using custom JSON responses during the mobile app development phase.</p>
+  </li>
+</ul>
+
+<h2 id="in-conclusion">In Conclusion</h2>
+
+<p>Mockers deals with microservice testing challenges, which helps you meet your consumers’ demands.</p>
+
+<p>Mockers adoption has seen a steady growth among our critical microservices. Since Mockers was launched at Grab, many teams have adopted it to test their microservices. Our adoption rate has increased every month in 2018 so far, and we see no reason why this won’t continue until we run out of non-Mockers using microservices.</p>
+
+<p><img src="/img/mockers/image_10.png" alt="" /></p>
+
+<p>Depth rather than breadth of Mockers usage has increased. In the last few months, teams adopting Mockers wrote a large number of tests that use mock servers.</p>
+
+<p><img src="/img/mockers/image_11.png" alt="" /></p>
+
+<p>If you have any comments or questions about Mockers, please leave a comment.</p>
+:ET
