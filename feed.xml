@@ -6,9 +6,206 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 27 Oct 2021 04:51:06 +0000</pubDate>
-    <lastBuildDate>Wed, 27 Oct 2021 04:51:06 +0000</lastBuildDate>
+    <pubDate>Fri, 19 Nov 2021 07:36:29 +0000</pubDate>
+    <lastBuildDate>Fri, 19 Nov 2021 07:36:29 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Using real-world patterns to improve matching in theory and practice</title>
+        <description>&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;A research publication authored by Tenindra Abeywickrama (Grab), Victor Liang (Grab) and Kian-Lee Tan (NUS) based on their work, which was awarded the Best Scalable Data Science Paper Award for 2021.&lt;/small&gt;&lt;/p&gt;
+
+&lt;p&gt;Matching the right passengers to the right driver-partners is a critically important task in ride-hailing services. Doing this suboptimally can lead to passengers taking longer to reach their destinations and drivers losing revenue. Perhaps, the most challenging of all is that this is a continuous process with a constant stream of new ride requests and new driver-partners becoming available. This makes computing matchings a very computationally expensive task requiring high throughput.&lt;/p&gt;
+
+&lt;p&gt;We discovered that one component of the typically used algorithm to find matchings has a significant impact on efficiency that has hitherto gone unnoticed. However, we also discovered a useful property of real-world optimal matchings that allows us to improve the algorithm, in an interesting scenario of practice informing theory.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-real-world-example&quot;&gt;A real-world example&lt;/h2&gt;
+
+&lt;p&gt;Let us consider a simple matching algorithm as depicted in Figure 1, where passengers and driver-partners are matched by travel time. In the figure, we have three driver-partners (D1, D2, and D3) and three passengers (P1, P2, and P3).&lt;/p&gt;
+
+&lt;p&gt;Finding the travel time involves computing the fastest route from each driver-partner to each passenger, for example the dotted routes from D1 to P1, P2 and P3 respectively. Finding the assignment of driver-partners to passengers that minimise the overall travel time involves representing the problem in a more abstract way as a bipartite graph shown below.&lt;/p&gt;
+
+&lt;p&gt;In the bipartite graph, the set of passengers and the set of driver-partners form the two bipartite sets, respectively. The edges connecting them represent the travel time of the fastest routes, and their costs are shown in the cost matrix on the right.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig1.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1. Example driver-to-passenger matching scenario&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Finding the optimal assignment is known as solving the minimum weight bipartite matching problem (also known as the assignment problem). This problem is often solved using a technique called the Kuhn-Munkres (KM) algorithm&lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; (also known as the Hungarian Method).&lt;/p&gt;
+
+&lt;p&gt;If we were to run the algorithm on the scenario shown in Figure 1, we would find the optimal matching highlighted in red on the cost matrix shown in the figure. However, there is an important step that we have not paid great attention to so far, and that is the computation of the cost matrix. As it turns out, this step has quite a significant impact on performance in real-world settings.&lt;/p&gt;
+
+&lt;h2 id=&quot;impact-of-the-cost-matrix&quot;&gt;Impact of the cost matrix&lt;/h2&gt;
+
+&lt;p&gt;Past work that solves the assignment problem assumes the cost matrix is given as input, but we observe that the time taken to compute the cost matrix is not always trivial. This is especially true in our real-world scenario. Firstly, matching driver-partners and passengers is a continuous process, as we mentioned earlier. Costs are not fixed; they change over time as driver-partners move and new passenger requests are received.&lt;/p&gt;
+
+&lt;p&gt;This means the matrix must be recomputed each time we attempt a matching (for example every X seconds). Not only is finding the shortest path between a single passenger and driver-partner computationally expensive, we must do this for all pairs of passengers and driver-partners. In fact, in the real world, the time taken to compute the matrix is longer than the time taken to compute the optimal assignment! A simple consideration of time complexity suggests that this is true.&lt;/p&gt;
+
+&lt;p&gt;If m is the number of driver-partners/passengers we are trying to match, the KM algorithm typically runs in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;O(m^3)&lt;/code&gt;. If &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;n&lt;/code&gt; is the number of nodes in the road network, then computing the cost matrix runs in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;O(m x n log n)&lt;/code&gt; using Dijkstra’s algorithm&lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;We know that n is around 400,000 for Singapore’s road network (and much larger for bigger cities), thus we can reasonably expect &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;O(m x n log n)&lt;/code&gt; to dominate &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;O(m^3)&lt;/code&gt; for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;m &amp;lt; 1500&lt;/code&gt;, which is the kind of value for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;m&lt;/code&gt; we expect in the real-world. We ran experiments on Singapore’s road network to verify this, as shown in Figure 2.&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig2a.png&quot; alt=&quot;&quot; /&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig2b.png&quot; alt=&quot;&quot; /&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2. Proportion of time to compute the matrix vs. assignment for varying m on the Singapore road network&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Figure 2a, we can see that m must be greater than 2500, before the assignment time overtakes the matrix computation time. Even if we use a modern and advanced technique like Contraction Hierarchies&lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; to compute the fastest path, the observation holds, as shown in Figure 2b. This shows we can significantly improve overall matching performance if we can reduce the matrix computation time.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-redeeming-intuition-spatial-locality-of-matching&quot;&gt;A redeeming intuition: Spatial locality of matching&lt;/h2&gt;
+
+&lt;p&gt;While studying real-world locations of passengers and driver-partners, we observed an interesting property, which we dubbed “spatial locality of matching”. We find that the passenger assigned to each driver-partner in an optimal matching is one of the nearest passengers to the driver-partner (it might not be the nearest). This makes intuitive sense as passengers and driver-partners will be distributed throughout a city and it’s unlikely that the best match for a particular driver-partner is on the other side of the city.&lt;/p&gt;
+
+&lt;p&gt;In Figure 3, we see an example scenario exhibiting spatial locality of matching. While this is an idealised case to demonstrate the principle, it is not a significant departure from the real-world. From the cost matrix shown, it is very easy to see which assignment will give the lowest total travel time.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig3.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3. Example driver-partner to passenger matching scenario exhibiting spatial locality of matching&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Now, it begs the question, do we even need to compute the other costs to find the optimal matching? For example, can we avoid computing the cost from D3 to P1, which are very far apart and unlikely to be matched?&lt;/p&gt;
+
+&lt;h2 id=&quot;incremental-kuhn-munkres&quot;&gt;Incremental Kuhn-Munkres&lt;/h2&gt;
+
+&lt;p&gt;As it turns out, there is a way to take advantage of spatial locality of matching to reduce cost computation time. We propose an Incremental KM algorithm that computes costs only when they are required, and (hopefully) avoids computing all of them. Our modified KM algorithm incorporates an inexpensive lower-bounding technique to achieve this without adding significant overhead, as we will elaborate in the next section.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig4.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 4. System overview of Incremental Kuhn-Munkres implementation&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Retrieving objects nearest to a query point by their fastest route is a very well studied problem (commonly referred to as k-Nearest Neighbour search)&lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;. We employ this concept to implement a priority queue &lt;code&gt;Q&lt;sup&gt;i&lt;/sup&gt;&lt;/code&gt; for each driver &lt;code&gt;u&lt;sub&gt;i&lt;/sub&gt;&lt;/code&gt;, as displayed in Figure 4. These priority queues allow retrieving the nearest passengers by a lower-bound on the travel time. The top of a priority queue implies a lower-bound on the travel time for &lt;strong&gt;all&lt;/strong&gt; passengers that have not been retrieved yet. We can then use this minimum lower-bound as a lower-bound edge cost for all bipartite edges associated with that driver-partner for which we have not computed the exact cost so far.&lt;/p&gt;
+
+&lt;p&gt;Now, the KM algorithm can proceed as usual, using the virtual edge cost implied by the relevant priority queue, to avoid computing the exact edge cost. Of course, there may be circumstances where the virtual edge cost is insufficiently accurate for KM to compute the optimal matching. To solve this, we propose refinement rules that detect when a virtual edge cost is insufficient.&lt;/p&gt;
+
+&lt;p&gt;If a rule is triggered, we refine the queue by retrieving the top element and computing its exact edges; this is where the “incremental” part comes from. In almost all cases, this will also increase the minimum key (lower-bound) in the priority queue.&lt;/p&gt;
+
+&lt;p&gt;If you’re interested in finding out more, you can delve deeper into the pruning rules, inner workings of the algorithm and mathematical proofs of correctness by reading our research paper&lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;For now, it suffices to say that the Incremental KM algorithm produces the exact same result as the original KM algorithm. It just does so in an optimistic incremental way, hoping that we can find the result without computing all possible costs. This is perfectly suited to take advantage of spatial locality of matching. Moreover, not only do we save time by avoiding computing exact costs, we avoid computing longer fastest paths/travel times to further away passengers that are more computationally expensive than those for nearby passengers.&lt;/p&gt;
+
+&lt;h2 id=&quot;experimental-investigation&quot;&gt;Experimental investigation&lt;/h2&gt;
+
+&lt;h3 id=&quot;competition&quot;&gt;Competition&lt;/h3&gt;
+
+&lt;p&gt;We conducted a thorough experimental investigation to verify the practical performance of the proposed techniques. We implemented two variants of our Incremental KM technique, differing in the implementation of the priority queue and the shortest path technique used.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;IKM-DIJK: Uses Dijkstra’s algorithm to compute shortest paths. Priority queues are simply the priority queue of the Dijkstra’s search from each driver-partner. This adds no overhead over the regular KM algorithm, so any speedup comes for free.&lt;/li&gt;
+  &lt;li&gt;IKM-GAC: Uses state-of-the-art lower-bound technique COLT&lt;sup id=&quot;fnref:6&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt; to implement the priority queues and G-tree&lt;sup id=&quot;fnref:4:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;, a fast technique to compute shortest paths. The COLT index must be built for each assignment, and this overhead is included in all running times.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We compared our proposed variants against the regular KM algorithm using Dijkstra and G-tree, respectively, to compute the entire cost matrix up front. Thus, we can make an apples-to-apples comparison to see how effective our techniques are.&lt;/p&gt;
+
+&lt;h3 id=&quot;datasets&quot;&gt;Datasets&lt;/h3&gt;
+
+&lt;p&gt;We ran experiments using the real-world road network for Singapore. For the Singapore dataset, we also use a real production workload consisting of Grab bookings over a 7-day period from December 2018.&lt;/p&gt;
+
+&lt;h3 id=&quot;performance-evaluation&quot;&gt;Performance evaluation&lt;/h3&gt;
+
+&lt;p&gt;To test our technique on the Singapore workload, we created an assignment problem by first choosing the window size &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;W&lt;/code&gt; in seconds. Then, we batched all the bookings in a randomly selected window of that size and used the passenger and driver-partner locations from these bookings to create the bipartite sets. Next, we found an optimal matching using each technique and reported the results averaged over several randomly selected windows for several metrics.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig5.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 5. Average percentage of the cost matrix computed by each technique vs. batching window size&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Figure 5, we verify that our proposed techniques are indeed computing fewer exact costs compared to their counterparts. Naturally, the original KM variants compute 100% of the matrix.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig6.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 6. Average running time to find an optimal assignment by each technique vs. batching window size&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Figure 6, we can see the running times of each technique. The results in the figure confirm that the reduced computation of exact costs translates to a significant reduction of running time by over an order of magnitude. This verifies that the time saved is greater than any overhead added. Remember, the improvement of IKM-DIJK comes essentially for free! On the other hand, using IKM-GAC can achieve very low running times.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-real-world-patterns-to-improve-matching/fig7.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 7. Maximum throughput supported by each technique vs. batching window size&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Figure 7, we report a slightly different metric. We measure &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;m&lt;/code&gt;, the maximum number of passengers/driver-partners that can be batched within the time window &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;W&lt;/code&gt;. This can be considered as the maximum throughput of each technique. Our technique supports significantly higher throughput.&lt;/p&gt;
+
+&lt;p&gt;Note that the improvement is smaller than in other cases because real-world values of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;m&lt;/code&gt; rarely reach these levels, where the assignment time starts to take up a greater proportion of the overall computation time.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;In summary, computing assignment costs do indeed have a significant impact on the running time of finding optimal assignments. However, we show that by utilising the spatial locality of matching inherent in real-world assignment problems, we can avoid computing exact costs, unless absolutely necessary, by modifying the KM algorithm to work incrementally.&lt;/p&gt;
+
+&lt;p&gt;We presented an interesting case where practice informs the theory, with our novel modifications to the classical KM algorithm. Moreover, our technique can be potentially applied beyond driver-partner and passenger matching in ride-hailing services.&lt;/p&gt;
+
+&lt;p&gt;For example, the Route Inspection algorithm also uses shortest path edge costs to find a minimum-weight bipartite matching, and our technique could be a drop-in replacement. It would also be interesting to see if these principles can be generalised and applied to other domains where the assignment problem is used.&lt;/p&gt;
+
+&lt;h3 id=&quot;acknowledgements&quot;&gt;Acknowledgements&lt;/h3&gt;
+
+&lt;p&gt;This research was jointly conducted between Grab and the Grab-NUS AI Lab within the Institute of Data Science at the National University of Singapore (NUS). Tenindra Abeywickrama was previously a postdoctoral fellow at the lab and now a data scientist with Grab.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Kian-Lee Tan from NUS for co-authoring this paper.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;!-- &lt;placeholder image of Tenindra and Victor with the plaque - Caption: Tenindra and Victor with the Best Scalable Data Science Paper Award, XX 2021&gt; --&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;!-- [^1]: H. W. Kuhn. 1955. The Hungarian method for the assignment problem. Naval Research Logistics Quarterly 2, 1-2 (1955), 83–97
+[^2]: Dijkstra, E.W. A note on two problems in connexion with graphs. Numer. Math. 1, 269–271 (1959)
+[^3]:  Robert Geisberger, Peter Sanders, Dominik Schultes, and Daniel Delling. 2008. Contraction Hierarchies: Faster and Simpler Hierarchical Routing in Road Networks. In WEA. 319–333
+[^4]:  Tenindra Abeywickrama, Victor Liang, and Kian-Lee Tan. 2021. Optimizing bipartite matching in real-world applications by incremental cost computation. Proc. VLDB Endow. 14, 7 (March 2021), 1150–1158
+[^5]:  Tenindra Abeywickrama, Muhammad Aamir Cheema, and Sabine Storandt. 2020. Hierarchical Graph Traversal for Aggregate k Nearest Neighbors Search in Road Networks. In ICAPS. 2–10
+[^6]:  Ruicheng Zhong, Guoliang Li, Kian-Lee Tan, Lizhu Zhou, and Zhiguo Gong. 2015. G-Tree: An Efficient and Scalable Index for Spatial Search on Road Networks. IEEE Trans. Knowl. Data Eng. 27, 8 (2015), 2175–2189 --&gt;
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;H. W. Kuhn. 1955. The Hungarian method for the assignment problem. Naval Research Logistics Quarterly 2, 1-2 (1955), 83–97 &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Dijkstra, E.W. A note on two problems in connexion with graphs. Numer. Math. 1, 269–271 (1959) &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Robert Geisberger, Peter Sanders, Dominik Schultes, and Daniel Delling. 2008. Contraction Hierarchies: Faster and Simpler Hierarchical Routing in Road Networks. In WEA. 319–333 &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Ruicheng Zhong, Guoliang Li, Kian-Lee Tan, Lizhu Zhou, and Zhiguo Gong. 2015. G-Tree: An Efficient and Scalable Index for Spatial Search on Road Networks. IEEE Trans. Knowl. Data Eng. 27, 8 (2015), 2175–2189 &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt; &lt;a href=&quot;#fnref:4:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;sup&gt;2&lt;/sup&gt;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Tenindra Abeywickrama, Victor Liang, and Kian-Lee Tan. 2021. Optimizing bipartite matching in real-world applications by incremental cost computation. Proc. VLDB Endow. 14, 7 (March 2021), 1150–1158 &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:6&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Tenindra Abeywickrama, Muhammad Aamir Cheema, and Sabine Storandt. 2020. Hierarchical Graph Traversal for Aggregate k Nearest Neighbors Search in Road Networks. In ICAPS. 2–10 &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Thu, 18 Nov 2021 01:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/using-real-world-patterns-to-improve-matching</link>
+        <guid isPermaLink="true">https://engineering.grab.com/using-real-world-patterns-to-improve-matching</guid>
+        
+        <category>Data Science</category>
+        
+        <category>Research</category>
+        
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>Designing products and services based on Jobs to be Done</title>
@@ -2152,349 +2349,6 @@ The backbone is usually a CNN classification network pretrained on some dataset,
         <category>Debugging</category>
         
         <category>Memory Leak</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Building a Hyper Self-Service, Distributed Tracing and Feedback System for Rule &amp; Machine Learning (ML) Predictions</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In Grab, the Trust, Identity, Safety, and Security (TISS) is a team of software engineers and AI developers working on fraud detection, login identity check, safety issues, etc. There are many TISS services, like grab-fraud, grab-safety, and grab-id. They make billions of business decisions daily using the &lt;a href=&quot;https://engineering.grab.com/griffin&quot;&gt;Griffin rule engine&lt;/a&gt;, which determines if a passenger can book a trip, get a food promotion, or if a driver gets a delivery booking.&lt;/p&gt;
-
-&lt;p&gt;There is a natural demand to log down all these important business decisions, store them and query them interactively or in batches. Data analysts and scientists need to use the data to train their machine learning models. RiskOps and customer service teams can query the historical data and help consumers.&lt;/p&gt;
-
-&lt;p&gt;That’s where Archivist comes in; it is a new tracing, statistics and feedback system for rule and machine learning-based predictions. It is reliable and performant. Its innovative data schema is flexible for storing events from different business scenarios. Finally, it provides a user-friendly UI, which has access control for classified data.&lt;/p&gt;
-
-&lt;p&gt;Here are the impacts Archivist has already made:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Currently, there are 2 teams with a total of 5 services and about 50 business scenarios using Archivist. The scenarios include fraud prevention (e.g. DriverBan, PassengerBan), payment checks (e.g. PayoutBlockCheck, PromoCheck), and identity check events like PinTrigger.&lt;/li&gt;
-  &lt;li&gt;It takes only a few minutes to onboard a new business scenario (event type), by using the configuration page on the user portal. Previously, it took at least 1 to 2 days.&lt;/li&gt;
-  &lt;li&gt;Each day, Archivist logs down 80 million logs to the ElasticSearch cluster, which is about 200GB of data.&lt;/li&gt;
-  &lt;li&gt;Each week, Grab Support (GS)/Risk Ops goes to the user portal and checks Archivist logs for about 2,000 distinct customers. They can search based on numerous dimensions such as the Passenger/DriverID, phone number, request ID, booking code and payment fingerprint.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Each day, TISS services make billions of business decisions (predictions), based on the Griffin rule engine and ML models.&lt;/p&gt;
-
-&lt;p&gt;After the predictions are made, there are still some tough questions for these services to answer.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;If Risk Ops believes a prediction is false-positive, a consumer could be banned. If this happens, how can consumers or Risk Ops report or feedback this information to the new rule and ML model training quickly?&lt;/li&gt;
-  &lt;li&gt;As CustomService/Data Scientists investigating any tickets opened due to TISS predictions/decisions, how do you know which rules and data were used? E.g. why the passenger triggered a selfie, or why a booking was blocked.&lt;/li&gt;
-  &lt;li&gt;After Data Analysts/Data Scientists (DA/DS) launch a new rule/model, how can they track the performance in fine-granularity and in real-time? E.g. week-over-week rule performance in a country or city.&lt;/li&gt;
-  &lt;li&gt;How can DA/DS access all prediction data for data analysis or model training?&lt;/li&gt;
-  &lt;li&gt;How can the system keep up with Grab’s business launch speed, with maximum self-service?&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;/h2&gt;
-
-&lt;p&gt;To answer the questions above, TISS services previously used company-wide Kibana to log predictions.  For example, a log looks like: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PassengerID:123,Scenario:PinTrigger,Decision:Trigger,...&lt;/code&gt;. This logging method had some obvious issues:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Logs in plain text don’t have any structure and are not friendly to ML model training as most ML models need processed data to make accurate predictions.&lt;/li&gt;
-  &lt;li&gt;Furthermore, there is no fine-granularity access control for developers in Kibana.&lt;/li&gt;
-  &lt;li&gt;Developers, DA and DS have no access control while GS has no access at all. So GS cannot easily see the data and DA/DS cannot easily process the data.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To address all the Kibana log issues, we developed ActionTrace, a code library with a well-structured data schema. The logs, also called documents, are stored in a dedicated ElasticSearch cluster with access control implemented. However, after using it for a while, we found that it still needed some improvements.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Each business scenario involves different types of entities and ActionTrace is not fully self-service. This means that a lot of development work was needed to support fast-launching business scenarios. Here are some examples:
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;The main entities in the taxi business are Driver and Passenger,&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;The main entities in the food business can be Merchant, Driver and Consumer.&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-
-    &lt;p&gt;All these entities will need to be manually added into the ActionTrace data schema.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt; Each business scenario may have their own custom information logged. Because there is no overlap, each of them will correspond to a new field in the data schema. For example:
-    &lt;ul&gt;
-      &lt;li&gt;For any scenario involving payment, a valid payment method and expiration date is logged.&lt;/li&gt;
-      &lt;li&gt;For the taxi business, the geohash is logged.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;  To store the log data from ActionTrace, different teams need to set up and manage their own ElasticSearch clusters. This increases hardware and maintenance costs.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;There was a simple Web UI created for viewing logs from ActionTrace, but there was still no access control in fine granularity.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;We developed Archivist, a new tracing, statistics, and feedback system for ML/rule-based prediction events. It’s centralised, performant and flexible. It answers all the issues mentioned above, and it is an improvement over all the existing solutions we have mentioned previously.&lt;/p&gt;
-
-&lt;p&gt;The key improvements are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;User-defined entities and custom fields
-    &lt;ul&gt;
-      &lt;li&gt;There are no predefined entity types. Users can define up to 5 entity types (E.g. PassengerId, DriverId, PhoneNumber, PaymentMethodId, etc.).&lt;/li&gt;
-      &lt;li&gt;Similarly, there are a limited number of custom data fields to use, in addition to the common data fields shared by all business scenarios.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;A dedicated service shared by all other services
-    &lt;ul&gt;
-      &lt;li&gt;Each service writes its prediction events to a Kafka stream. Archivist then reads the stream and writes to the ElasticSearch cluster.&lt;/li&gt;
-      &lt;li&gt;The data writes are buffered, so it is easy to handle traffic surges in peak time.&lt;/li&gt;
-      &lt;li&gt;Different services share the same Elastic Cloud Enterprise (ECE) cluster, but they create their own daily file indices so the costs can be split fairly.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Better support for data mining, prediction stats and feedback
-    &lt;ul&gt;
-      &lt;li&gt;Kafka stream data are simultaneously written to AWS S3. DA/DS can use the PrestoDB SQL query engine to mine the data.&lt;/li&gt;
-      &lt;li&gt;There is an internal web portal for viewing Archivist logs. Customer service teams and Ops can use no-risk data to address GS tickets, while DA, DS and developers can view high-risk data for code/rule debugging.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;A reduction of development days to support new business launches
-    &lt;ul&gt;
-      &lt;li&gt;Previously, it took a week to modify and deploy the ActionTrace data schema. Now, it only takes several minutes to configure event schemas in the user portal.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Saves time in RiskOps/GS investigations
-    &lt;ul&gt;
-      &lt;li&gt;With the new web UI which has access control in place, the different roles in the company, like Customer service and Data analysts, can access the Archivist events with different levels of permissions.&lt;/li&gt;
-      &lt;li&gt;It takes only a few clicks for them to find the relevant events that impact the drivers/passengers.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;architecture-details&quot;&gt;Architecture Details&lt;/h3&gt;
-
-&lt;p&gt;Archivist’s system architecture is shown in the diagram below.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/archivist/image7.png&quot; alt=&quot;Archivist system architecture&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Archivist system architecture&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Different services (like fraud-detection, safety-allocation, etc.) use a simple SDK to write data to a Kafka stream (the left side of the diagram).&lt;/li&gt;
-  &lt;li&gt;In the centre of Archivist is an event processor. It reads data from Kafka, and writes them to ElasticSearch (ES).&lt;/li&gt;
-  &lt;li&gt;The Kafka stream writes to the Amazon S3 data lake, so DA/DS can use the Presto SQL query engine to query them.&lt;/li&gt;
-  &lt;li&gt;The user portal (bottom right) can be used to view the Archivist log and update configurations. It also sends all the web requests to the API Handler in the centre.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The following diagram shows how internal and external users use Archivist as well as the interaction between the &lt;a href=&quot;https://engineering.grab.com/griffin&quot;&gt;Griffin rule engine&lt;/a&gt; and Archivist.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/archivist/image11.png&quot; alt=&quot;Archivist use cases&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Archivist use cases&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;flexible-event-schema&quot;&gt;Flexible Event Schema&lt;/h3&gt;
-
-&lt;p&gt;In Archivist, a prediction/decision is called an event. The event schema can be divided into 3 main parts conceptually.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Data partitioning: Fields like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;service_name&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;event_type&lt;/code&gt; categorise data by services and business scenarios.
-    &lt;table class=&quot;table&quot;&gt;
-   &lt;thead&gt;
-     &lt;tr&gt;
-       &lt;th&gt;Field name&lt;/th&gt;
-       &lt;th&gt;Type&lt;/th&gt;
-       &lt;th&gt;Example&lt;/th&gt;
-       &lt;th&gt;Notes&lt;/th&gt;
-     &lt;/tr&gt;
-   &lt;/thead&gt;
-   &lt;tbody&gt;
-     &lt;tr&gt;
-       &lt;td&gt;service_name&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;GrabFraud&lt;/td&gt;
-       &lt;td&gt;Name of the Service&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;event_type&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;PreRide&lt;/td&gt;
-       &lt;td&gt;PaxBan/SafeAllocation&lt;/td&gt;
-     &lt;/tr&gt;
-   &lt;/tbody&gt;
- &lt;/table&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Business decision making: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;request_id&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;decisions&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;reasons&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;event_content&lt;/code&gt; are used to record the business decision, the reason and the context (E.g. The input features of machine learning algorithms).
-    &lt;table class=&quot;table&quot;&gt;
-   &lt;thead&gt;
-     &lt;tr&gt;
-       &lt;th&gt;Field name&lt;/th&gt;
-       &lt;th&gt;Type&lt;/th&gt;
-       &lt;th&gt;Example&lt;/th&gt;
-       &lt;th&gt;Notes&lt;/th&gt;
-     &lt;/tr&gt;
-   &lt;/thead&gt;
-   &lt;tbody&gt;
-     &lt;tr&gt;
-       &lt;td&gt;request_id&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;a16756e8-efe2-472b-b614-ec6ae08a5912&lt;/td&gt;
-       &lt;td&gt;a 32-digit id for web requests&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;event_content&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-       &lt;td&gt;Event context&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;decisions&lt;/td&gt;
-       &lt;td&gt;[string]&lt;/td&gt;
-       &lt;td&gt;[&quot;NotAllowBook&quot;, &quot;SMS&quot;]&lt;/td&gt;
-       &lt;td&gt;A list&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;reasons&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-       &lt;td&gt;json payload string of the response from engine.&lt;/td&gt;
-     &lt;/tr&gt;
-   &lt;/tbody&gt;
- &lt;/table&gt;
-  &lt;/li&gt;
-  &lt;li&gt;Customisation: Archivist provides user-defined entities and custom fields that we feel are sufficient and flexible for handling different business scenarios.
-    &lt;table class=&quot;table&quot;&gt;
-   &lt;thead&gt;
-     &lt;tr&gt;
-       &lt;th&gt;Field name&lt;/th&gt;
-       &lt;th&gt;Type&lt;/th&gt;
-       &lt;th&gt;Example&lt;/th&gt;
-       &lt;th&gt;Notes&lt;/th&gt;
-     &lt;/tr&gt;
-   &lt;/thead&gt;
-   &lt;tbody&gt;
-     &lt;tr&gt;
-       &lt;td&gt;entity_type_1&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;Passenger&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;entity_id_1&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;12151&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;entity_type_2&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;Driver&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;entity_id_2&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;341521-rdxf36767&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;...&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;entity_id_5&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;custom_field_type_1&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;“MessageToUser”&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;custom_field_1&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;&quot;please contact Ops&quot;&lt;/td&gt;
-       &lt;td&gt;User defined fields&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;custom_field_type_2&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-       &lt;td&gt;“Prediction rule:”&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;custom_field_2&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;“ML rule: 123, version:2”&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;...&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-     &lt;tr&gt;
-       &lt;td&gt;custom_field_6&lt;/td&gt;
-       &lt;td&gt;string&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-       &lt;td&gt;&lt;/td&gt;
-     &lt;/tr&gt;
-   &lt;/tbody&gt;
- &lt;/table&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;a-user-portal-to-support-querying-prediction-stats-and-feedback&quot;&gt;A User Portal to Support Querying, Prediction Stats and Feedback&lt;/h3&gt;
-
-&lt;p&gt;DA, DS, Ops and GS can access the internal user portal to see the prediction events, individually and on an aggregated city level.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/archivist/image5.gif&quot; alt=&quot;A snapshot of the Archivist logs showing the aggregation of the data in each city&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;A snapshot of the Archivist logs showing the aggregation of the data in each city&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;There are graphs on the portal, showing the rule/model performance on individual customers over a period of time.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/archivist/image10.gif&quot; alt=&quot;Rule performance on a customer over a period of time&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Rule performance on a customer over a period of time&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;how-to-use-archivist-for-your-service&quot;&gt;How to Use Archivist for Your Service&lt;/h2&gt;
-
-&lt;p&gt;If you want to get onboard Archivist, the coding effort is minimal. Here is an example of a code snippet to log an event:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/archivist/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/archivist/image2.png&quot; alt=&quot;Code snippet to log an event&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Code snippet to log an event&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;lessons&quot;&gt;Lessons&lt;/h2&gt;
-
-&lt;p&gt;During the implementation of Archivist, we learnt some things:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;A good system needs to support multi-tenants from the beginning. Originally, we thought we could use just one Kafka stream, and put all the documents from different teams into one ElasticSearch (ES) index. But after one team insisted on keeping their data separately from others, we created more Kafka streams and ES indexes. We realised that this way, it’s easier for us to manage data and share the cost fairly.&lt;/li&gt;
-  &lt;li&gt;Shortly after we launched Archivist, there was an incident where the ES data writes were choked. Because each document write is a goroutine, the number of goroutines increased to 400k and the memory usage reached 100% within minutes. We added a patch (2 lines of code) to limit the maximum number of goroutines in our system. Since then, we haven’t had any more severe incidents in Archivist.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Mon, 24 May 2021 00:11:20 +0000</pubDate>
-        <link>https://engineering.grab.com/building-hyper-self-service-distributed-tracing-feedback-system</link>
-        <guid isPermaLink="true">https://engineering.grab.com/building-hyper-self-service-distributed-tracing-feedback-system</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Machine Learning</category>
-        
-        <category>Statistics</category>
-        
-        <category>Distributed Tracing</category>
         
         
         <category>Engineering</category>
