@@ -105,14 +105,14 @@ We ran experiments using the real-world road network for Singapore. For the Sing
 To test our technique on the Singapore workload, we created an assignment problem by first choosing the window size `W` in seconds. Then, we batched all the bookings in a randomly selected window of that size and used the passenger and driver-partner locations from these bookings to create the bipartite sets. Next, we found an optimal matching using each technique and reported the results averaged over several randomly selected windows for several metrics.
 
 <div class="post-image-section"><figure>
-  <img src="/img/using-real-world-patterns-to-improve-matching/fig5.png" alt="Search data flow" style="width:80%"> <figcaption align="middle"><i>Figure 5. Average percentage of the cost matrix computed by each technique vs. batching window size</i></figcaption>
+  <img src="/img/using-real-world-patterns-to-improve-matching/fig5.png" alt="Search data flow" style="width:70%"> <figcaption align="middle"><i>Figure 5. Average percentage of the cost matrix computed by each technique vs. batching window size</i></figcaption>
   </figure>
 </div>
 
 In Figure 5, we verify that our proposed techniques are indeed computing fewer exact costs compared to their counterparts. Naturally, the original KM variants compute 100% of the matrix.
 
 <div class="post-image-section"><figure>
-  <img src="/img/using-real-world-patterns-to-improve-matching/fig6.png" alt="Search data flow" style="width:80%"> <figcaption align="middle"><i>Figure 6. Average running time to find an optimal assignment by each technique vs. batching window size</i></figcaption>
+  <img src="/img/using-real-world-patterns-to-improve-matching/fig6.png" alt="Search data flow" style="width:70%"> <figcaption align="middle"><i>Figure 6. Average running time to find an optimal assignment by each technique vs. batching window size</i></figcaption>
   </figure>
 </div>
 
