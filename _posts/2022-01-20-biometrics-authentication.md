@@ -4,7 +4,7 @@ id: 2022-01-20-biometrics-authentication
 title: Biometric authentication - Why do we need it?
 date: 2022-01-16 00:20:00
 authors: [chad-burgess, rachel-fong]
-categories: [Engineering]
+categories: [Security]
 tags: [Engineering, Security]
 comments: true
 cover_photo: /img/biometrics-authentication/cover.jpg
