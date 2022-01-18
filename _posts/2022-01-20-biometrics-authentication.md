@@ -11,8 +11,6 @@ cover_photo: /img/biometrics-authentication/cover.jpg
 excerpt: "As cyberattacks get more advanced, authentication methods like one-time passwords (OTPs) and personal identification numbers (PINs) are no longer enough to protect your users. Find out how biometric authentication can help enhance security."
 ---
 
-## Abstract
-
 In recent years, Identity and Access Management has gained importance within technology industries as attackers continue to target large corporations in order to gain access to private data and services. To address this issue, the Grab Identity team has been using a 6-digit PIN to authenticate a user during a sensitive transaction such as accessing a GrabPay Wallet. We also use SMS one-time passwords (OTPs) to log a user into the application.
 
 We look at existing mechanisms that Grab uses to authenticate its users and how biometric authentication helps strengthen application security and save costs. We also look at the various technical decisions taken to ensure the robustness of this feature as well as some key learnings.
