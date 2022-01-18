@@ -7,7 +7,7 @@ authors: [chad-burgess, rachel-fong]
 categories: [Security]
 tags: [Engineering, Security]
 comments: true
-cover_photo: /img/biometrics-authentication/cover.jpg
+cover_photo: /img/biometrics-authentication/cover.png
 excerpt: "As cyberattacks get more advanced, authentication methods like one-time passwords (OTPs) and personal identification numbers (PINs) are no longer enough to protect your users. Find out how biometric authentication can help enhance security."
 ---
 
