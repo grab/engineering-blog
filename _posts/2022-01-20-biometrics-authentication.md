@@ -21,7 +21,7 @@ The mechanisms we use to authenticate our users have evolved as the Grab Identit
 
 * OTP and Personal Identification Number (PIN) are susceptible to hacking and social engineering.
 * These methods have high user friction (e.g. delay or failure to receive SMS, need to launch Facebook/Google).
-* Shared/Rented driver accounts cause safety concerns for passengers and increases potential for fraud.
+* Shared/rented driver accounts cause safety concerns for passengers and increases potential for fraud.
 * High OTP costs at $0.03/SMS.
 
 Social engineering efforts have gotten more advanced - attackers could pretend to be your friends and ask for your OTP or even post phishing advertisements that prompt for your personal information.
