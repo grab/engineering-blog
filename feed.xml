@@ -6,9 +6,182 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 20 Dec 2021 05:01:35 +0000</pubDate>
-    <lastBuildDate>Mon, 20 Dec 2021 05:01:35 +0000</lastBuildDate>
+    <pubDate>Thu, 20 Jan 2022 02:33:28 +0000</pubDate>
+    <lastBuildDate>Thu, 20 Jan 2022 02:33:28 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Biometric authentication - Why do we need it?</title>
+        <description>&lt;p&gt;In recent years, Identity and Access Management has gained importance within technology industries as attackers continue to target large corporations in order to gain access to private data and services. To address this issue, the Grab Identity team has been using a 6-digit PIN to authenticate a user during a sensitive transaction such as accessing a GrabPay Wallet. We also use SMS one-time passwords (OTPs) to log a user into the application.&lt;/p&gt;
+
+&lt;p&gt;We look at existing mechanisms that Grab uses to authenticate its users and how biometric authentication helps strengthen application security and save costs. We also look at the various technical decisions taken to ensure the robustness of this feature as well as some key learnings.&lt;/p&gt;
+
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;The mechanisms we use to authenticate our users have evolved as the Grab Identity team consistently refines our approach. Over the years, we have observed several things:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;OTP and Personal Identification Number (PIN) are susceptible to hacking and social engineering.&lt;/li&gt;
+  &lt;li&gt;These methods have high user friction (e.g. delay or failure to receive SMS, need to launch Facebook/Google).&lt;/li&gt;
+  &lt;li&gt;Shared/rented driver accounts cause safety concerns for passengers and increases potential for fraud.&lt;/li&gt;
+  &lt;li&gt;High OTP costs at $0.03/SMS.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Social engineering efforts have gotten more advanced - attackers could pretend to be your friends and ask for your OTP or even post phishing advertisements that prompt for your personal information.&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;img src=&quot;/img/biometrics-authentication/image3.png&quot; alt=&quot;Search data flow&quot; /&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;img src=&quot;/img/biometrics-authentication/image1.png&quot; alt=&quot;Search data flow&quot; /&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/biometrics-authentication/image2.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;With more sophisticated social engineering attacks on the rise, we need solutions that can continue to protect our users and Grab in the long run.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;When we looked into developing solutions for these problems, which was mainly about cost and security, we went back to basics and looked at what a secure system meant.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Knowledge Factor: Something that you know (password, PIN, some other data)&lt;/li&gt;
+  &lt;li&gt;Possession Factor: Something physical that you have (device, keycards)&lt;/li&gt;
+  &lt;li&gt;Inherent Factor: Something that you are (face ID, fingerprint, voice)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We then compared the various authentication mechanisms that the Grab app currently uses, as shown in the following table:&lt;/p&gt;
+
+&lt;table border=&quot;1&quot; style=&quot;text-align: center&quot;&gt;
+&lt;tr style=&quot;text-align:center&quot;&gt;
+  &lt;td&gt; &lt;strong&gt;Authentication factor&lt;/strong&gt;&lt;/td&gt;
+  &lt;td&gt; &lt;strong&gt;1. Something that you know&lt;/strong&gt; &lt;/td&gt;
+  &lt;td&gt; &lt;strong&gt;2. Something physical that you have&lt;/strong&gt; &lt;/td&gt;
+  &lt;td&gt; &lt;strong&gt;3. Something that you are&lt;/strong&gt; &lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+  &lt;td&gt;OTP&lt;/td&gt;
+  &lt;td&gt;✔️&lt;/td&gt;
+  &lt;td&gt;✔️&lt;/td&gt;
+  &lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+  &lt;td&gt;Social&lt;/td&gt;
+  &lt;td&gt;✔️&lt;/td&gt;
+  &lt;td&gt;&lt;/td&gt;
+  &lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+  &lt;td&gt;PIN&lt;/td&gt;
+  &lt;td&gt;✔️&lt;/td&gt;
+  &lt;td&gt;&lt;/td&gt;
+  &lt;td&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+  &lt;td&gt;Biometrics&lt;/td&gt;
+  &lt;td&gt;&lt;/td&gt;
+  &lt;td&gt;✔️&lt;/td&gt;
+  &lt;td&gt;✔️&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p&gt;With methods based on the knowledge and possession factors, it is still possible for attackers to get users to reveal sensitive account information. On the other hand, biometrics are something you are born with and that makes it more complex to mimic. Hence, we have added biometrics as an additional layer to enhance Grab’s existing authentication methods and build a more secure platform for our users.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;Biometric authentication powered by device biometrics provides a robust platform to enhance trust. This is because modern phones provide a few key features that allow client server trust to be established:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Biometric sensor (fingerprint or face ID).&lt;/li&gt;
+  &lt;li&gt;Advent of devices with secure enclaves.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;A secure enclave, being a part of the device, is separate from the main operating system (OS) at the kernel level. The enclave is used to store private keys that can be unlocked only by the biometrics on the device.&lt;/p&gt;
+
+&lt;p&gt;Any changes to device security such as changing a PIN or adding another fingerprint will invalidate all prior access to this secure enclave. This means that when we enroll a user in biometrics this way, we can be sure that any payload from said device that matches the public part of said private key is authorised by the user that created it.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/biometrics-authentication/image4.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/biometrics-authentication/image6.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h3&gt;
+
+&lt;p&gt;The important part of the approach lies in the enrollment flow. The process is quite simple and can be described in the following steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Create an elevated public/private key pair that requires users authentication.&lt;/li&gt;
+  &lt;li&gt;Ask users to authenticate in order to prove they are the device holders.&lt;/li&gt;
+  &lt;li&gt;Sign payload with confirmed unlocked private key and send public key to finish enrolling.&lt;/li&gt;
+  &lt;li&gt;Store returned reference id in the encrypted shared preferences/keychain.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/biometrics-authentication/image5.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;implementation&quot;&gt;Implementation&lt;/h3&gt;
+
+&lt;p&gt;The key implementation details is as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Grab’s HellfireSDK confirms if the device is not rooted.&lt;/li&gt;
+  &lt;li&gt;Uses SHA512withECDSA for hashing algorithm.&lt;/li&gt;
+  &lt;li&gt;Encrypted shared preferences/keychain to store data.&lt;/li&gt;
+  &lt;li&gt;Secure enclave to store private keys.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;These key technologies allow us to create trust between devices and services. The raw biometric data stays within the device and instead sends an encrypted signature of biometry data to Grab for verification purposes.&lt;/p&gt;
+
+&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
+
+&lt;p&gt;Biometric login aims to resolve the many problems highlighted earlier in this article such as reducing user friction and saving SMS OTP costs.&lt;/p&gt;
+
+&lt;p&gt;We are still experimenting with this feature so we do not have insights on business impact yet. However, from early experiment runs, we estimate over 90% adoption rate and a success rate of nearly 90% for biometric logins.&lt;/p&gt;
+
+&lt;h2 id=&quot;learningsconclusion&quot;&gt;Learnings/Conclusion&lt;/h2&gt;
+
+&lt;p&gt;As methods of executing identity theft or social engineering get more creative, simply using passwords and PINs is not enough. Grab, and many other organisations, are realising that it’s important to augment existing security measures with methods that are inherent and unique to users.&lt;/p&gt;
+
+&lt;p&gt;By using biometrics as an added layer of security in a multi-factor authentication strategy, we can keep our users safe and decrease the probability of successful attacks. Not only do we ensure that the user is a legitimate entity, we also ensure that we protect their privacy by ensuring that the biometric data remains on the user’s device.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;IdentitySDK - this feature will be moved into an SDK so other teams integrate it via plug and play.&lt;/li&gt;
+  &lt;li&gt;Standalone biometrics - biometric authentication is currently tightly coupled with PIN i.e. biometric authentication happens in place of PIN if biometric authentication is set up. Therefore, users would never see both PIN and biometric in the same session, which limits our robustness in terms of multi-factor authentication.&lt;/li&gt;
+  &lt;li&gt;Integration with DAX and beyond - We plan to enable this feature for all teams who need to use biometric authentication.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 20 Jan 2022 00:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/biometrics-authentication</link>
+        <guid isPermaLink="true">https://engineering.grab.com/biometrics-authentication</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Security</category>
+        
+        
+        <category>Security</category>
+        
+      </item>
     
       <item>
         <title>Using real-world patterns to improve matching in theory and practice</title>
@@ -2146,212 +2319,6 @@ The backbone is usually a CNN classification network pretrained on some dataset,
         
         
         <category>Product</category>
-        
-      </item>
-    
-      <item>
-        <title>Debugging High Latency Due to Context Leaks</title>
-        <description>&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Market-Store is an in-house developed general purpose feature store that is used to serve real-time computed machine learning (ML) features. Market-Store has a stringent SLA around latency, throughput, and availability as it empowers ML models, which are used in Dynamic Pricing and Consumer Experience.&lt;/p&gt;
-
-&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;/h2&gt;
-
-&lt;p&gt;As Grab continues to grow, introducing new ML models and handling increased traffic, Market-Store started to experience high latency. Market-Store’s SLA states that 99% of transactions should be within 200ms, but our latency increased to 2 seconds. This affected the availability and accuracy of our models that rely on Market-Store for real-time features.&lt;/p&gt;
-
-&lt;h3 id=&quot;latency-issue&quot;&gt;Latency Issue&lt;/h3&gt;
-
-&lt;p&gt;We used different metrics and logs to debug the latency issue but could not find any abnormalities that directly correlated to the API’s performance. We discovered that the problem went away temporarily when we restarted the service. But during the next peak period, the service began to struggle once again and the problem became more prominent as Market-Store’s &lt;a href=&quot;https://en.wikipedia.org/wiki/Queries_per_second&quot;&gt;query per second (QPS)&lt;/a&gt; increased.&lt;/p&gt;
-
-&lt;p&gt;The following graph shows an increase in the memory used with time over 12 hours. Even as the system load receded, memory usage continued to increase.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/market-store/image2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;The continuous increase in memory consumption indicated the possibility of a memory leak, which occurs when memory is allocated but not returned after its use is over. This results in consistently increasing consumed memory until the service runs out of memory and crashes.&lt;/p&gt;
-
-&lt;p&gt;Although we could restart the service and resolve the issue temporarily, the increasing memory use suggested a deeper underlying root cause. This meant that we needed to conduct further investigation with tools that could provide deeper insights into the memory allocations.&lt;/p&gt;
-
-&lt;h2 id=&quot;debugging-using-go-tools&quot;&gt;Debugging Using Go Tools&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://golang.org/pkg/net/http/pprof/&quot;&gt;PPROF&lt;/a&gt; is a profiling tool by Golang that helps to visualise and analyse profiles from Go programmes. A profile is a collection of stack traces showing the call sequences in your programme that eventually led to instances of a particular event i.e. allocation. It also provides details such as Heap and CPU information, which could provide insights into the bottlenecks of the Go programme.&lt;/p&gt;
-
-&lt;p&gt;By default, PPROF is enabled on all Grab Go services, making it the ideal tool to use in our scenario. To understand how memory is allocated, we used PPROF to generate Market-Store’s Heap profile, which can be used to understand how inuse memory was allocated for the programme.&lt;/p&gt;
-
-&lt;p&gt;You can collect the Heap profile by running this command:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;go tool pprof 'http://localhost:6060/debug/pprof/heap'
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The command then generates the Heap profile information as shown in the diagram below:&lt;/p&gt;
-
-&lt;p align=&quot;center&quot;&gt;
- &lt;img src=&quot;../img/market-store/image1.png&quot; /&gt;
-&lt;/p&gt;
-
-&lt;p&gt;From this diagram, we noticed that a lot of memory was allocated and held by the child context created from Async Library even after the tasks were completed.&lt;/p&gt;
-
-&lt;p&gt;In Market-Store, we used the &lt;a href=&quot;https://github.com/grab/async&quot;&gt;Async Library&lt;/a&gt;, a Grab open-source library, which typically used to run concurrent tasks. Any contexts created by the Async Library should be cleaned up after the background tasks are completed. This way, memory would be returned to the service.&lt;/p&gt;
-
-&lt;p&gt;However, as shown in the diagram, memory was not being returned, resulting in a memory leak, which explains the increasing memory usage even as Market-Store’s system load decreased.&lt;/p&gt;
-
-&lt;h3 id=&quot;uncovering-the-real-issue&quot;&gt;Uncovering the Real Issue&lt;/h3&gt;
-
-&lt;p&gt;So we knew that Market-Store’s latency was affected, but we didn’t know why. From the first graph, we saw that memory usage continued to grow even as Market-Store’s system load decreased. Then, PPROF showed us that the memory held by contexts was not cleaned up, resulting in a memory leak.&lt;/p&gt;
-
-&lt;p&gt;Through our investigations, we drew a correlation between the increase in memory usage and a degradation in the server’s API latency. In other words, the memory leak resulted in a high memory consumption and eventually, caused the latency issue.&lt;/p&gt;
-
-&lt;p&gt;However, there was no change in our service that would have impacted how contexts are created and cleaned up. So what caused the memory leak?&lt;/p&gt;
-
-&lt;h2 id=&quot;debugging-the-memory-leak&quot;&gt;Debugging the Memory Leak&lt;/h2&gt;
-
-&lt;p&gt;We needed to look into the Async Library and how it worked. For Market-Store, we updated the cache asynchronously for the write-around caching mechanism. We use the Async Library for running the update tasks in the background.&lt;/p&gt;
-
-&lt;p&gt;The following code snippet explains how the Async Library works:&lt;/p&gt;
-
-&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
-&lt;span class=&quot;n&quot;&gt;async&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Consume&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Background&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;runtime&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NumCPU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;m&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-&lt;span class=&quot;c&quot;&gt;// Consume runs the tasks with a specific max concurrency&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Consume&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tasks&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-   &lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;
-
-   &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Invoke&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-       &lt;span class=&quot;n&quot;&gt;workers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-       &lt;span class=&quot;n&quot;&gt;concurrentTasks&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-       &lt;span class=&quot;c&quot;&gt;// code ...&lt;/span&gt;
-
-       &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ContinueWith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-       &lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;
-
-      &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Invoke&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;action&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Work&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NewTask&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;action&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cancel&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;WithCancel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;go&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;
-
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;em&gt;Note: Code that is not relevant to this article was replaced with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;code&lt;/code&gt;.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;As seen in the code snippet above, the Async Library initialises the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Consume&lt;/code&gt; method with a background context, which is then passed to all its runners. Background contexts are empty and do not track or have links to child contexts that are created from them.&lt;/p&gt;
-
-&lt;p&gt;In Market-Store, we use background contexts because they are not bound by request contexts and can continue running even after a request context is cleaned up. This means that once the task has finished running, the memory consumed by child contexts would be freed up, avoiding the issue of memory leaks altogether.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/market-store/image3.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;identifying-the-cause-of-the-memory-leak&quot;&gt;Identifying the Cause of the Memory Leak&lt;/h3&gt;
-
-&lt;p&gt;Upon further digging, we discovered an &lt;a href=&quot;https://github.com/grab/async/commit/d7b10a27c97049564607012efaceb28ccd32e980&quot;&gt;MR&lt;/a&gt; that was merged into the library to address a task cancellation issue. As shown in the code snippet below, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Consume&lt;/code&gt; method had been modified such that task contexts were being passed to the runners, instead of the empty background contexts.&lt;/p&gt;
-
-&lt;div class=&quot;language-go highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Consume&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tasks&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-     &lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;
-
-     &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Invoke&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;taskCtx&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;context&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-         &lt;span class=&quot;n&quot;&gt;workers&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;chan&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-         &lt;span class=&quot;n&quot;&gt;concurrentTasks&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;make&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([]&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;concurrency&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-         &lt;span class=&quot;c&quot;&gt;// code ...&lt;/span&gt;
-
-         &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;taskCtx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ContinueWith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ctx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;interface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{},&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-            &lt;span class=&quot;c&quot;&gt;// code...&lt;/span&gt;
-
-        &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-
-     &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Before we explain the code snippet, we should briefly explain what Golang contexts are. A &lt;a href=&quot;https://golang.org/pkg/context/&quot;&gt;context&lt;/a&gt; is a standard Golang package that carries deadlines, cancellation signals, and other request-scoped values across API boundaries and between processes. We should always remember to cancel contexts after using them.&lt;/p&gt;
-
-&lt;h4 id=&quot;importance-of-context-cancellation&quot;&gt;Importance of Context Cancellation&lt;/h4&gt;
-
-&lt;p&gt;When a context is cancelled, all contexts derived from it are also cancelled. This means that there will be no unaccounted contexts or links and it can be achieved by using the Async Library’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CancelFunc&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;The Async Library’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CancelFunc&lt;/code&gt; method will:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Cancel the created child context and its children&lt;/li&gt;
-  &lt;li&gt;Remove the parent reference from the child context&lt;/li&gt;
-  &lt;li&gt;Stop any associated timers&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We should always make sure to call the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CancelFunc&lt;/code&gt; method after using contexts, to ensure that contexts and memory are not leaked.&lt;/p&gt;
-
-&lt;h4 id=&quot;explaining-the-impact-of-the-mr&quot;&gt;Explaining the Impact of the MR&lt;/h4&gt;
-
-&lt;p&gt;In the previous code snippet, we see that task contexts are passed to runners and they are not being cancelled. The Async Library created task contexts from non-empty contexts, which means the task contexts are tracked by the parent contexts. So, even if the work associated with these task contexts is complete, they will not be cleaned up by the system (garbage collected).&lt;/p&gt;
-
-&lt;p&gt;As we started using task contexts instead of background contexts and did not cancel them, the memory used by these contexts was never returned, thus resulting in a memory leak.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/market-store/image5.gif&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;It took us several tries to debug and investigate the root cause of Market-Store’s high latency issue and through this incident, we learnt several important things that would help prevent a memory leak from recurring.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Always cancel the contexts you’ve created. Leaving it to garbage collection (system cleanup) may result in unexpected memory leaks.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Go profiling can provide plenty of insights about your programme, especially when you’re not sure where to start troubleshooting.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Always benchmark your dependencies when integrating or updating the versions to ensure they don’t have any performance bottlenecks.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to &lt;em&gt;Chip Dong Lim&lt;/em&gt; for his contributions and for designing the GIFs included in this article.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 30 Jun 2021 00:08:20 +0000</pubDate>
-        <link>https://engineering.grab.com/debugging-high-latency-market-store</link>
-        <guid isPermaLink="true">https://engineering.grab.com/debugging-high-latency-market-store</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Latency</category>
-        
-        <category>Debugging</category>
-        
-        <category>Memory Leak</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
