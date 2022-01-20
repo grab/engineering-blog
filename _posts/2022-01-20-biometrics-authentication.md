@@ -2,7 +2,7 @@
 layout: post
 id: 2022-01-20-biometrics-authentication
 title: Biometric authentication - Why do we need it?
-date: 2022-01-16 00:20:00
+date: 2022-01-20 00:20:00
 authors: [chad-burgess, rachel-fong]
 categories: [Security]
 tags: [Engineering, Security]
@@ -21,7 +21,7 @@ The mechanisms we use to authenticate our users have evolved as the Grab Identit
 
 * OTP and Personal Identification Number (PIN) are susceptible to hacking and social engineering.
 * These methods have high user friction (e.g. delay or failure to receive SMS, need to launch Facebook/Google).
-* Shared/Rented driver accounts cause safety concerns for passengers and increases potential for fraud
+* Shared/Rented driver accounts cause safety concerns for passengers and increases potential for fraud.
 * High OTP costs at $0.03/SMS.
 
 Social engineering efforts have gotten more advanced - attackers could pretend to be your friends and ask for your OTP or even post phishing advertisements that prompt for your personal information.
@@ -85,8 +85,8 @@ With methods based on the knowledge and possession factors, it is still possible
 
 Biometric authentication powered by device biometrics provides a robust platform to enhance trust. This is because modern phones provide a few key features that allow client server trust to be established:
 
-1. Biometric sensor (fingerprint or face ID)
-2. Advent of devices with secure enclaves
+1. Biometric sensor (fingerprint or face ID).
+2. Advent of devices with secure enclaves.
 
 A secure enclave, being a part of the device, is separate from the main operating system (OS) at the kernel level. The enclave is used to store private keys that can be unlocked only by the biometrics on the device.
 
@@ -106,10 +106,10 @@ Any changes to device security such as changing a PIN or adding another fingerpr
 
 The important part of the approach lies in the enrollment flow. The process is quite simple and can be described in the following steps:
 
-1. Create an elevated public/private key pair that requires users authentication
-2. Ask users to authenticate in order to prove they are the device holders
-3. Sign payload with confirmed unlocked private key and send public key to finish enrolling
-4. Store returned reference id in the encrypted shared preferences/keychain
+1. Create an elevated public/private key pair that requires users authentication.
+2. Ask users to authenticate in order to prove they are the device holders.
+3. Sign payload with confirmed unlocked private key and send public key to finish enrolling.
+4. Store returned reference id in the encrypted shared preferences/keychain.
 
 <div class="post-image-section"><figure>
   <img src="/img/biometrics-authentication/image5.png" alt="Search data flow" style="width:60%">
@@ -121,9 +121,9 @@ The important part of the approach lies in the enrollment flow. The process is q
 The key implementation details is as follows:
 
 1. Grab’s HellfireSDK confirms if the device is not rooted.
-2. Uses SHA512withECDSA for hashing algorithm
-3. Encrypted shared preferences/keychain to store data
-4. Secure enclave to store private keys
+2. Uses SHA512withECDSA for hashing algorithm.
+3. Encrypted shared preferences/keychain to store data.
+4. Secure enclave to store private keys.
 
 These key technologies allow us to create trust between devices and services. The raw biometric data stays within the device and instead sends an encrypted signature of biometry data to Grab for verification purposes.
 
@@ -144,3 +144,9 @@ By using biometrics as an added layer of security in a multi-factor authenticati
 * IdentitySDK - this feature will be moved into an SDK so other teams integrate it via plug and play.
 * Standalone biometrics - biometric authentication is currently tightly coupled with PIN i.e. biometric authentication happens in place of PIN if biometric authentication is set up. Therefore, users would never see both PIN and biometric in the same session, which limits our robustness in terms of multi-factor authentication.
 * Integration with DAX and beyond - We plan to enable this feature for all teams who need to use biometric authentication.
+
+## Join us
+
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
+
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
