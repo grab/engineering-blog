@@ -8,7 +8,7 @@ categories: [Product]
 tags: [Engineering, Ads, Design]
 comments: true
 cover_photo: /img/scalable-ads-server/cover.png
-excerpt: "Like every business, Grab leverages on ads to create awareness or increase engagements with our consumers. Read to find out why the GrabAds team decided to build an ad server that could scale according to our growing consumer base."
+excerpt: "Like many businesses, Grab leverages ads to create awareness and increase engagement with our consumers. Read to find out how the GrabAds team built an ad server that could scale according to our growing consumer base."
 ---
 
 ### Why ads?
