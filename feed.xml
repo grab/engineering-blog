@@ -6,9 +6,87 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 20 Jan 2022 02:33:28 +0000</pubDate>
-    <lastBuildDate>Thu, 20 Jan 2022 02:33:28 +0000</lastBuildDate>
+    <pubDate>Fri, 11 Feb 2022 06:08:30 +0000</pubDate>
+    <lastBuildDate>Fri, 11 Feb 2022 06:08:30 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>How Grab built a scalable, high-performance ad server</title>
+        <description>&lt;h3 id=&quot;why-ads&quot;&gt;Why ads?&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.grab.com/sg/business/ads/&quot;&gt;GrabAds&lt;/a&gt; is a service that provides businesses with an opportunity to market their products to Grab’s consumer base. During the pandemic, as the demand for food delivery grew, we realised that ads could be a service we offer to our small restaurant merchant-partners to expand their reach. This would allow them to not only mitigate the loss of in-person traffic but also grow by attracting more customers.&lt;/p&gt;
+
+&lt;p&gt;Many of these small merchant-partners had no experience with digital advertising and we provided an easy-to-use, scalable option that could match their business size. On the other side of the equation, our large network of merchant-partners provided consumers with more choices. For hungry consumers stuck at home, personalised ads and promotions helped them satisfy their cravings, thus fulfilling their intent of opening the Grab app in the first place!&lt;/p&gt;
+
+&lt;h3 id=&quot;why-build-our-own-ad-server&quot;&gt;Why build our own ad server?&lt;/h3&gt;
+
+&lt;p&gt;Building an ad server is an ambitious undertaking and one might rightfully ask why we should invest the time and effort to build a technically complex distributed system when there are several reasonable off-the-shelf solutions available.&lt;/p&gt;
+
+&lt;p&gt;The answer is we didn’t, at least not at first. We used one of these off-the-shelf solutions to move fast and build a minimally viable product (MVP). The result of this experiment was a resounding success; we were providing clear value to our merchant-partners, our consumers and Grab’s overall business.&lt;/p&gt;
+
+&lt;p&gt;However, to take things to the &lt;strong&gt;&lt;em&gt;next level&lt;/em&gt;&lt;/strong&gt; meant scaling the ads business up exponentially. Apart from being one of the few companies with the user engagement to support an ads business at scale, we also have an ecosystem that combines our network of merchant-partners, an understanding of our consumers’ interactions across multiple services in the Grab superapp, and a payments solution, GrabPay, to close the loop. Furthermore, given the hyperlocal nature of our business, the in-app user experience is highly customised by location. In order to integrate seamlessly with this ecosystem, scale as Grab’s overall business grows and handle personalisation using machine learning (ML), we needed an in-house solution.&lt;/p&gt;
+
+&lt;h3 id=&quot;what-we-built&quot;&gt;What we built&lt;/h3&gt;
+
+&lt;p&gt;We designed and built a set of microservices, streams and pipelines which orchestrated the core ad serving functionality, as shown below.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/scalable-ads-server/image1.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Targeting&lt;/strong&gt; - This is the first step in the ad serving flow. We fetch a set of candidate ads specifically targeted to the request based on keywords the user searched for, the user’s location, the time of day, and the data we have about the user’s preferences or other characteristics. We chose ElasticSearch as the data store for our ads repository as it allows us to query based on a disparate set of targeting criteria.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Capping&lt;/strong&gt; - In this step, we filter out candidate ads which have exceeded various caps. This includes cases where an advertising campaign has already reached its budget goal, as well as custom requirements about the frequency an ad is allowed to be shown to the same user. In order to make this decision, we need to know how much budget has already been spent and how many times an ad has already been shown. We chose ScyllaDB to store these “stats”, which is scalable, low-cost and can handle the large read and write requirements of this process (more on how this data gets written to ScyllaDB in the Tracking step).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pacing&lt;/strong&gt; - In this step, we alter the probability that a matching ad candidate can be served, based on a specific campaign goal. For example, in some cases, it is desirable for an ad to be shown evenly throughout the day instead of exhausting the entire ad budget as soon as possible. Similar to Capping, we require access to information on how many times an ad has already been served and use the same ScyllaDB stats store for this.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scoring&lt;/strong&gt; - In this step, we score each ad. There are a number of factors that can be used to calculate this score including predicted clickthrough rate (pCTR), predicted conversion rate (pCVR) and other heuristics that represent how relevant an ad is for a given user.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Ranking&lt;/strong&gt; - This is where we compare the scored candidate ads with each other and make the final decision on which candidate ads should be served. This can be done in several ways such as running a lottery or performing an auction. Having our own ad server allows us to customise the ranking algorithm in countless ways, including incorporating ML predictions for user behaviour. The team has a ton of exciting ideas on how to optimise this step and now that we have our own stack, we’re ready to execute on those ideas.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pricing&lt;/strong&gt; - After choosing the winning ads, the final step before actually returning those ads in the API response is to determine what price we will charge the advertiser. In an auction, this is called the clearing price and can be thought of as the minimum bid price required to outbid all the other candidate ads. Depending on how the ad campaign is set up, the advertiser will pay this price if the ad is seen (i.e. an impression occurs), if the ad is clicked, or if the ad results in a purchase.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Tracking&lt;/strong&gt; - Here, we close the feedback loop and track what users do when they are shown an ad. This can include viewing an ad and ignoring it, watching a video ad, clicking on an ad, and more. The best outcome is for the ad to trigger a purchase on the Grab app. For example, placing a GrabFood order with a merchant-partner; providing that merchant-partner with a new consumer. We track these events using a series of API calls, Kafka streams and data pipelines. The data ultimately ends up in our ScyllaDB stats store and can then be used by the Capping and Pacing steps above.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;principles&quot;&gt;Principles&lt;/h3&gt;
+
+&lt;p&gt;In addition to all the usual distributed systems best practices, there are a few key principles that we focused on when building our system.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Latency&lt;/strong&gt; - Latency is important for ads. If the user scrolls faster than an ad can load, the ad won’t be seen. The longer an ad remains on the screen, the more likely the user will notice it, have their interest piqued and click on it. As such, we set strict limits on the latency of the ad serving flow. We spent a large amount of effort tuning ElasticSearch so that it could return targeted ads in the shortest amount of time possible. We parallelised parts of the serving flow wherever possible and we made sure to A/B test all changes both for business impact and to ensure they did not increase our API latency.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Graceful fallbacks&lt;/strong&gt; - We need user-specific information to make personalised decisions about which ads to show to a given user. This data could come in the form of segmentation of our users, attributes of a single user or scores derived from ML models. All of these require the ad server to make dependency calls that could add latency to the serving flow. We followed the principle of setting strict timeouts and having graceful fallbacks when we can’t fetch the data needed to return the most optimal result. This could be due to network failures or dependencies operating slower than usual. It’s often better to return a non-personalised result than no result at all.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Global optimisation&lt;/strong&gt; - Predicting supply (the amount of users viewing the app) and demand (the amount of advertisers wanting to show ads to those users) is difficult. As a superapp, we support multiple types of ads on various screens. For example, we have image ads, video ads, search ads, and rewarded ads. These ads could be shown on the home screen, when booking a ride, or when searching for food delivery. We intentionally decided to have a single ad server supporting all of these scenarios. This allows us to optimise across all users and app locations. This also ensures that engineering improvements we make in one place translate everywhere where ads or promoted content are shown.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h3&gt;
+
+&lt;p&gt;Grab’s ads business is just getting started. As the number of users and use cases grow, ads will become a more important part of the mix. We can help our merchant-partners grow their own businesses while giving our users more options and a better experience.&lt;/p&gt;
+
+&lt;p&gt;Some of the big challenges ahead are:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Optimising our real-time ad decisions, including exciting work on using ML for more personalised results. There are many factors that can be considered in ad personalisation such as past purchase history, the user’s location and in-app browsing behaviour. Another area of optimisation is improving our auction strategy to ensure we have the most efficient ad marketplace possible.&lt;/li&gt;
+  &lt;li&gt;Expanding the types of ads we support, including experimenting with new types of content, finding the best way to add value as Grab expands its breadth of services.&lt;/li&gt;
+  &lt;li&gt;Scaling our services so that we can match Grab’s velocity and handle growth while maintaining low latency and high reliability.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 11 Feb 2022 00:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/scalable-ads-server</link>
+        <guid isPermaLink="true">https://engineering.grab.com/scalable-ads-server</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Ads</category>
+        
+        <category>Design</category>
+        
+        
+        <category>Product</category>
+        
+      </item>
     
       <item>
         <title>Biometric authentication - Why do we need it?</title>
@@ -2151,174 +2229,6 @@ The backbone is usually a CNN classification network pretrained on some dataset,
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Reshaping Chat Support for Our Users</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;The Grab support team plays a key role in ensuring our users receive support when things don’t go as expected or whenever there are questions on our products and services.&lt;/p&gt;
-
-&lt;p&gt;In the past, when users required real-time support, their only option was to call our hotline and wait in the queue to talk to an agent. But voice support has its downsides: sometimes it is complex to describe an issue in the app, and it requires the user’s full attention on the call.&lt;/p&gt;
-
-&lt;p&gt;With chat messaging apps growing massively in the last years, chat has become the expected support channel users are familiar with. It offers real-time support with the option of multitasking and easily explaining the issue by sharing pictures and documents. Compared to voice support, chat provides access to the conversation for future reference.&lt;/p&gt;
-
-&lt;p&gt;With chat growth, building a chat system tailored to our support needs and integrated with internal data, seemed to be the next natural move.&lt;/p&gt;
-
-&lt;p&gt;In our previous articles, we covered the tech challenges of &lt;a href=&quot;https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web&quot;&gt;building the chat platform for the web&lt;/a&gt;, our &lt;a href=&quot;https://engineering.grab.com/customer-support-workforce-routing&quot;&gt;workforce routing system&lt;/a&gt; and &lt;a href=&quot;https://engineering.grab.com/how-we-improved-agent-chat-efficiency-with-ml&quot;&gt;improving agent efficiency with machine learning&lt;/a&gt;. In this article, we will explain our approach and key learnings when building our in-house chat for support from a Product and Design angle.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reshaping-chat-support/image6.gif&quot; alt=&quot;A glimpse at agent and user experience&quot; style=&quot;width:80%&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;A glimpse at agent and user experience&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;why-reinvent-the-wheel&quot;&gt;Why Reinvent the Wheel&lt;/h2&gt;
-
-&lt;p&gt;We wanted to deliver a product that would fully delight our users. That’s why we decided to build an in-house chat tool that can:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Prevent chat disconnections and ensure a consistent chat experience&lt;/strong&gt;: Building a native chat experience allowed us to ensure a stable chat session, even when users leave the app. Besides, leveraging on the existing Grab chat infrastructure helped us achieve this fast and ensure the chat experience is consistent throughout the app. You can read more about the chat architecture &lt;a href=&quot;https://engineering.grab.com/how-we-built-our-in-house-chat-platform-for-the-web&quot;&gt;here&lt;/a&gt;.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Improve productivity and provide faster support turnarounds&lt;/strong&gt;: By building the agent experience in the CRM tool, we could reduce the number of tools the support team uses and build features tailored to our internal processes. This helped to provide faster help for our users.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Allow integration with internal systems and services&lt;/strong&gt;: Chat can be easily integrated with in-house AI models or chatbot, which helps us personalise the user experience and improve agent productivity.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Route our users to the best support specialist available&lt;/strong&gt;: Our newly built routing system accounts for all the use cases we were wishing for such as prioritising certain requests, better distribution of the chat load during peak hours, making changes at scale and ensuring each chat is routed to the best support specialist available.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;fail-fast-with-an-mvp&quot;&gt;Fail Fast with an MVP&lt;/h2&gt;
-
-&lt;p&gt;Before building a full-fledged solution, we needed to prove the concept, an MVP that would have the key features and yet, would not take too much effort if it fails. To kick start our experiment, we established the success criteria for our MVP; how do we measure its success or failure?&lt;/p&gt;
-
-&lt;h3 id=&quot;defining-what-success-looks-like&quot;&gt;Defining What Success Looks Like&lt;/h3&gt;
-
-&lt;p&gt;Any experiment requires a hypothesis - something you’re trying to prove or disprove and it should relate to your final product. To tailor the final product around the success criteria, we need to understand how success is measured in our situation. In our case, disconnections during chat support was one of the key challenges faced so our hypothesis was:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/reshaping-chat-support/image4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;starting-with-design-sprint&quot;&gt;Starting with Design Sprint&lt;/h3&gt;
-
-&lt;p&gt;Our design sprint aimed to &lt;strong&gt;solutionise a series of problem statements, and generate a prototype to validate our hypothesis&lt;/strong&gt;. To spark ideation, we run sketching exercises such as &lt;a href=&quot;https://designsprintkit.withgoogle.com/methodology/phase3-sketch/crazy-8s&quot;&gt;Crazy 8&lt;/a&gt;, &lt;a href=&quot;https://designsprintkit.withgoogle.com/methodology/phase3-sketch/solution-sketch&quot;&gt;Solution sketch&lt;/a&gt; and end off with sharing and voting.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reshaping-chat-support/image12.jpg&quot; style=&quot;width:60%&quot; /&gt;
-    &lt;img src=&quot;/img/reshaping-chat-support/image1.jpg&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Some of the prototypes built during the Design sprint&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;defining-mvp-scope-to-run-the-experiment&quot;&gt;Defining MVP Scope to Run the Experiment&lt;/h3&gt;
-
-&lt;p&gt;To test our hypothesis quickly, we had to cut the scope by focusing on the basic functionality of allowing chat message exchanges with one agent.&lt;/p&gt;
-
-&lt;p&gt;Here is the main flow and a sneak peek of the design:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-   &lt;img src=&quot;/img/reshaping-chat-support/image13.jpg&quot; alt=&quot;Accepting chats&quot; style=&quot;width:80%&quot; /&gt;
-   &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Accepting chats&lt;/i&gt;&lt;/figcaption&gt;
- &lt;/figure&gt;&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-   &lt;img src=&quot;/img/reshaping-chat-support/image8.gif&quot; alt=&quot;Handling concurrent chats&quot; style=&quot;width:80%&quot; /&gt;
-   &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Handling concurrent chats&lt;/i&gt;&lt;/figcaption&gt;
- &lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;what-we-learnt-from-the-experiment&quot;&gt;What We Learnt from the Experiment&lt;/h3&gt;
-
-&lt;p&gt;During the experiment, we had to constantly put ourselves in our users’ shoes as ‘we are not our users’. We decided to shadow our chat support agents and get a sense of the potential issues our users actually face. By doing so, we learnt a lot about how the tool was used and spotted several problems to address in the next iterations.&lt;/p&gt;
-
-&lt;p&gt;In the end, &lt;strong&gt;the experiment confirmed our hypothesis that having a native in-app chat was more stable than the previous chat in use&lt;/strong&gt;, resulting in a better user experience overall.&lt;/p&gt;
-
-&lt;h2 id=&quot;starting-with-the-end-in-mind&quot;&gt;Starting with the End in Mind&lt;/h2&gt;
-
-&lt;p&gt;Once the experiment was successful, we focused on scaling. We defined the most critical jobs to be done for our users so that we could scale the product further. When designing solutions to tackle each of them, we ensured that the product would be flexible enough to address future pain points. Would this work for more channels, more users, more products, more countries?&lt;/p&gt;
-
-&lt;p&gt;Before scaling, the problems to solve were:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Monitoring the performance of the system in real-time&lt;/strong&gt;, so that swift operational changes can be made to ensure users receive fast support;&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Routing each chat to the best agent available&lt;/strong&gt;, considering skills, occupancy, as well as issue prioritisation. You can read more about the our routing system design &lt;a href=&quot;https://engineering.grab.com/customer-support-workforce-routing&quot;&gt;here&lt;/a&gt;;&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Easily communicate with users and show empathy&lt;/strong&gt;, for which we built file-sharing capabilities for both users and agents, as well as allowing emojis, which create a more personalised experience.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;scaling-efficiently&quot;&gt;Scaling Efficiently&lt;/h2&gt;
-
-&lt;p&gt;We broke down the chat support journey to determine what areas could be improved.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;img/reshaping-chat-support/image10.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;reducing-waiting-time&quot;&gt;Reducing Waiting Time&lt;/h3&gt;
-
-&lt;p&gt;When analysing the current wait time, we realised that when there was a surge in support requests, the average waiting time increased drastically. In these cases, most users would be unresponsive by the time an agent finally attends to them.&lt;/p&gt;
-
-&lt;p&gt;To solve this problem, the team worked on a dynamic queue limit concept based on &lt;a href=&quot;https://en.wikipedia.org/wiki/Little%2527s_law&quot;&gt;Little’s law&lt;/a&gt;. The idea is that considering the number of incoming chats and the agents’ capacity, we can forecast the number of users we can handle in a reasonable time, and prevent the remaining from initiating a chat. When this happens, we ensure there’s a backup channel for support so that no user is left unattended.&lt;/p&gt;
-
-&lt;p&gt;This allowed us to &lt;strong&gt;reduce chat waiting time by ~30% and reduce unresponsive users by ~7%&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;reducing-time-to-reply&quot;&gt;Reducing Time to Reply&lt;/h3&gt;
-
-&lt;p&gt;A big part of the chat time is spent typing the message to send to the user. Although the previous tool had templated messages, we observed that 85% of them were free-typed. This is because agents felt the templates were impersonal and wanted to add their personal style to the messages.&lt;/p&gt;
-
-&lt;p&gt;With this information in mind, we knew we could help by providing autocomplete suggestions  while the agents are typing. We built a machine learning based feature that considers several factors such as user type, the entry point to support, and the last messages exchanged, to suggest how the agent should complete the sentence. When this feature was first launched, we &lt;strong&gt;reduced the average chat time by 12%&lt;/strong&gt;!&lt;/p&gt;
-
-&lt;p&gt;Read &lt;a href=&quot;https://engineering.grab.com/how-we-improved-agent-chat-efficiency-with-ml&quot;&gt;this&lt;/a&gt; to find out more about how we built this machine learning feature, from defining the problem space to its implementation.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reshaping-chat-support/image11.gif&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;reducing-the-overall-chat-time&quot;&gt;Reducing the Overall Chat Time&lt;/h3&gt;
-
-&lt;p&gt;Looking at the average chat time, we realised that there was still room for improvement. How can we help our agents to manage their time better so that we can reduce the waiting time for users in the queue?&lt;/p&gt;
-
-&lt;p&gt;We needed to provide visibility of chat durations so that our agents could manage their time better. So, we added a timer at the top of each chat window to indicate how long the chat was taking.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-   &lt;img src=&quot;/img/reshaping-chat-support/image15.png&quot; alt=&quot;Timer in the minimised chat&quot; style=&quot;width:80%&quot; /&gt;
-   &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Timer in the minimised chat&lt;/i&gt;&lt;/figcaption&gt;
- &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;We also added nudges to remind agents that they had other users to attend to while they were in the chat.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reshaping-chat-support/image2.png&quot; alt=&quot;Timer in the maximised chat&quot; style=&quot;width:80%&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Timer in the maximised chat&lt;/i&gt;&lt;/figcaption&gt;
-&lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;By providing visibility via prompts and colour-coded indicators to prevent exceeding the expected chat duration, we &lt;strong&gt;reduced the average chat time by 22%&lt;/strong&gt;!&lt;/p&gt;
-
-&lt;h2 id=&quot;what-we-learnt-from-this-project&quot;&gt;What We Learnt from this Project&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Start with the end in mind.&lt;/strong&gt; When you embark on a big project like this, have a clear vision of how the end state looks like and plan each step backwards. How does success look like and how are we going to measure it? How do we get there?&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Data is king.&lt;/strong&gt; Data helped us spot issues in real-time and guided us through all the iterations following the MVP. It helped us prioritise the most impactful problems and take the right design decisions. Instrumentation must be part of your MVP scope!&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Remote user testing is better than no user testing at all.&lt;/strong&gt; Ideally, you want to do user testing in the exact environment your users will be using the tool but a pandemic might make things a bit more complex. Don’t let this stop you! The qualitative feedback we received from real users, even with a prototype on a video call, helped us optimise the tool for their needs.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Address the root cause, not the symptoms.&lt;/strong&gt; Whenever you are tasked with solving a big problem, break it down into its components by asking “Why?” until you find the root cause. In the first phases, we realised the tool had a longer chat time compared to 3rd party softwares. By iteratively splitting the problem into smaller ones, we were able to address the root causes instead of the symptoms.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Shadow your users whenever you can.&lt;/strong&gt; By looking at the users in action, we learned a ton about their creative ways to go around the tool’s limitations. This allowed us to iterate further on the design and help them be more efficient.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Of course, this would not have been possible without the incredible work of several teams: GS TF, GS, Comms platform, Driver and Merchant teams.
-&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 07 Jul 2021 00:18:20 +0000</pubDate>
-        <link>https://engineering.grab.com/reshaping-chat-support</link>
-        <guid isPermaLink="true">https://engineering.grab.com/reshaping-chat-support</guid>
-        
-        <category>Product</category>
-        
-        <category>Design</category>
-        
-        <category>Chat Support</category>
-        
-        
-        <category>Product</category>
         
       </item>
     
