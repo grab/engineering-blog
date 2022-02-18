@@ -6,9 +6,183 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 11 Feb 2022 06:08:30 +0000</pubDate>
-    <lastBuildDate>Fri, 11 Feb 2022 06:08:30 +0000</lastBuildDate>
+    <pubDate>Fri, 18 Feb 2022 06:32:15 +0000</pubDate>
+    <lastBuildDate>Fri, 18 Feb 2022 06:32:15 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Exposing a Kafka Cluster via a VPC Endpoint Service</title>
+        <description>&lt;p&gt;In large organisations, it is a common practice to isolate the cloud resources of different verticals. Amazon Web Services (AWS) Virtual Private Cloud (VPC) is a convenient way of doing so. At Grab, while our core AWS services reside in a main VPC, a number of Grab Tech Families (TFs) have their own dedicated VPC. One such example is &lt;a href=&quot;https://www.grab.com/id/kios/&quot;&gt;GrabKios&lt;/a&gt;. Previously known as “Kudo”, GrabKios was acquired by Grab in 2017 and has always been residing in its own AWS account and dedicated VPC.&lt;/p&gt;
+
+&lt;p&gt;In this article, we explore how we exposed an Apache Kafka cluster across multiple Availability Zones (AZs) in Grab’s main VPC, to producers and consumers residing in the GrabKios VPC, via a &lt;a href=&quot;https://docs.aws.amazon.com/vpc/latest/privatelink/endpoint-service.html&quot;&gt;VPC Endpoint Service&lt;/a&gt;. This design is part of Coban unified stream processing platform at Grab.&lt;/p&gt;
+
+&lt;p&gt;There are several ways of enabling communication between applications across distinct VPCs; VPC peering is the most straightforward and affordable option. However, it potentially exposes the entire VPC networks to each other, needlessly increasing the attack surface.&lt;/p&gt;
+
+&lt;p&gt;Security has always been one of Grab’s top concerns and with Grab’s increasing growth, there is a need to deprecate VPC peering and shift to a method of only exposing services that require remote access. The AWS VPC Endpoint Service allows us to do exactly that for TCP/IPv4 communications within a single &lt;a href=&quot;https://aws.amazon.com/about-aws/global-infrastructure/regions_az/&quot;&gt;AWS region&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Setting up a VPC Endpoint Service compared to VPC peering is already relatively complex. On top of that, we need to expose an Apache Kafka cluster via such an endpoint, which comes with an extra challenge. Apache Kafka requires clients, called producers and consumers, to be able to deterministically establish a TCP connection to all &lt;a href=&quot;https://jaceklaskowski.gitbooks.io/apache-kafka/content/kafka-brokers.html&quot;&gt;brokers&lt;/a&gt; forming the cluster, not just any one of them.&lt;/p&gt;
+
+&lt;p&gt;Last but not least, we need a design that optimises performance and cost by limiting data transfer across AZs.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Note: &lt;strong&gt;All&lt;/strong&gt; variable names, port numbers and other details used in this article are only used as examples.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;architecture-overview&quot;&gt;Architecture overview&lt;/h2&gt;
+
+&lt;p&gt;As shown in this diagram, the Kafka cluster resides in the service provider VPC (Grab’s main VPC) while local Kafka producers and consumers reside in the service consumer VPC (GrabKios VPC).&lt;/p&gt;
+
+&lt;p&gt;In Grab’s main VPC, we created a Network Load Balancer (NLB) and set it up across all three AZs, enabling cross-zone load balancing. We then created a VPC Endpoint Service associated with that NLB.&lt;/p&gt;
+
+&lt;p&gt;Next, we created a VPC Endpoint Network Interface in the GrabKios VPC, also set up across all three AZs, and attached it to the remote VPC endpoint service in Grab’s main VPC. Apart from this, we also created a Route 53 Private Hosted Zone &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.grab&lt;/code&gt; and a CNAME record &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt; that points to the VPC Endpoint Network Interface hostname.&lt;/p&gt;
+
+&lt;p&gt;Lastly, we configured producers and consumers to use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab:10000&lt;/code&gt; as their Kafka bootstrap server endpoint, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10000/tcp&lt;/code&gt; being an arbitrary port of our choosing. We will explain the significance of these in later sections.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/exposing-kafka-cluster/image2.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;network-load-balancer-setup&quot;&gt;Network Load Balancer setup&lt;/h2&gt;
+
+&lt;p&gt;On the NLB in Grab’s main VPC, we set up the corresponding bootstrap listener on port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10000/tcp&lt;/code&gt;, associated with a target group containing all of the Kafka brokers forming the cluster. But this listener alone is not enough.&lt;/p&gt;
+
+&lt;p&gt;As mentioned earlier, Apache Kafka requires producers and consumers to be able to deterministically establish a TCP connection to all brokers. That’s why we created one listener for every broker in the cluster, incrementing the TCP port number for each new listener, so each broker endpoint would have the same name but with different port numbers, e.g. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab:10001&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab:10002&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;We then associated each listener with a dedicated target group containing only the targeted Kafka broker, so that remote producers and consumers could differentiate between the brokers by their TCP port number.&lt;/p&gt;
+
+&lt;p&gt;The following listeners and associated target groups were set up on the NLB:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10000/tcp&lt;/code&gt; (bootstrap) -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 101, broker 201, broker 301]&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10001/tcp&lt;/code&gt; -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 101]&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10002/tcp&lt;/code&gt; -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 201]&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10003/tcp&lt;/code&gt; -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 301]&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;security-group-rules&quot;&gt;Security Group rules&lt;/h2&gt;
+
+&lt;p&gt;In the Kafka brokers’ Security Group (SG), we added an ingress SG rule allowing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; traffic from each of the three private IP addresses of the NLB. As mentioned earlier, the NLB was set up across all three AZs, with each having its own private IP address.&lt;/p&gt;
+
+&lt;p&gt;On the GrabKios VPC (consumer side), we created a new SG and attached it to the VPC Endpoint Network Interface. We also added ingress rules to allow all producers and consumers to connect to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tcp/10000-10003&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;kafka-setup&quot;&gt;Kafka setup&lt;/h2&gt;
+
+&lt;p&gt;Kafka brokers typically come with a listener on port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9092/tcp&lt;/code&gt;, advertising the brokers by their private IP addresses. We kept that default listener so that local producers and consumers in Grab’s main VPC could still connect directly.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ kcat -L -b 10.0.0.1:9092
+ 3 brokers:
+ broker 101 at 10.0.0.1:9092 (controller)  
+ broker 201 at 10.0.0.2:9092
+ broker 301 at 10.0.0.3:9092
+... truncated output ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We also configured all brokers with an additional listener on port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; that advertises the brokers by:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Their shared private name &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;Their distinct TCP ports previously set up on the NLB’s dedicated listeners.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ kcat -L -b 10.0.0.1:9094
+ 3 brokers:
+ broker 101 at kafka.grab:10001 (controller)  
+ broker 201 at kafka.grab:10002
+ broker 301 at kafka.grab:10003
+... truncated output ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Note that there is a difference in how the broker’s endpoints are advertised in the two outputs above. The latter enables connection to any particular broker from the GrabKios VPC via the VPC Endpoint Service.&lt;/p&gt;
+
+&lt;p&gt;It would definitely be possible to advertise the brokers directly with the remote VPC Endpoint Interface hostname instead of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt;, but relying on such a private name presents at least two advantages.&lt;/p&gt;
+
+&lt;p&gt;First, it decouples the Kafka deployment in the service provider VPC from the infrastructure deployment in the service consumer VPC. Second, it makes the Kafka cluster easier to expose to other remote VPCs, should we need it in the future.&lt;/p&gt;
+
+&lt;h2 id=&quot;limiting-data-transfer-across-availability-zones&quot;&gt;Limiting data transfer across Availability Zones&lt;/h2&gt;
+
+&lt;p&gt;At this stage of the setup, our Kafka cluster is &lt;strong&gt;fully reachable&lt;/strong&gt; from producers and consumers in the GrabKios VPC. Yet, the design is not optimal.&lt;/p&gt;
+
+&lt;p&gt;When a producer or a consumer in the GrabKios VPC needs to connect to a particular broker, it uses its individual endpoint made up of the shared name &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt; and the broker’s dedicated TCP port.&lt;/p&gt;
+
+&lt;p&gt;The shared name arbitrarily resolves into one of the three IP addresses of the VPC Endpoint Network Interface, one for each AZ.&lt;/p&gt;
+
+&lt;p&gt;Hence, there is a fair chance that the obtained IP address is neither in the client’s AZ nor in that of the target Kafka broker. The probability of this happening can be as high as 2/3 when both client and broker reside in the same AZ and 1/3 when they do not.&lt;/p&gt;
+
+&lt;p&gt;While that is of little concern for the initial bootstrap connection, it becomes a serious drawback for actual data transfer, impacting the performance and incurring unnecessary data transfer cost.&lt;/p&gt;
+
+&lt;p&gt;For this reason, we created &lt;strong&gt;three additional&lt;/strong&gt; CNAME records in the Private Hosted Zone in the GrabKios VPC, one for each AZ, with each pointing to the VPC Endpoint Network Interface zonal hostname in the corresponding AZ:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka-az1.grab&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka-az2.grab&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka-az3.grab&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Note that we used az1, az2, az3 instead of the typical AWS 1a, 1b, 1c suffixes, because the latter’s mapping is not consistent across AWS accounts.&lt;/p&gt;
+
+&lt;p&gt;We also reconfigured each Kafka broker in Grab’s main VPC by setting their &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; listener to advertise brokers by their new zonal private names.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ kcat -L -b 10.0.0.1:9094
+ 3 brokers:
+ broker 101 at kafka-az1.grab:10001 (controller)  
+ broker 201 at kafka-az2.grab:10002
+ broker 301 at kafka-az3.grab:10003
+... truncated output ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Our private zonal names are shared by all brokers in the same AZ while TCP ports remain distinct for each broker. However, this is not clearly shown in the output above because our cluster only counts three brokers, one in each AZ.&lt;/p&gt;
+
+&lt;p&gt;The previous common name &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt; remains in the GrabKios VPC’s Private Hosted Zone and allows connections to any broker via an arbitrary, likely non-optimal route. GrabKios VPC producers and consumers still use that highly-available endpoint to initiate bootstrap connections to the cluster.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/exposing-kafka-cluster/image1.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;future-improvements&quot;&gt;Future improvements&lt;/h2&gt;
+
+&lt;p&gt;For this setup, scalability is our main challenge. If we add a new broker to this Kafka cluster, we would need to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Assign a new TCP port number to it.&lt;/li&gt;
+  &lt;li&gt;Set up a new dedicated listener on that TCP port on the NLB.&lt;/li&gt;
+  &lt;li&gt;Configure the newly spun up Kafka broker to advertise its service with the same TCP port number and the private zonal name corresponding to its AZ.&lt;/li&gt;
+  &lt;li&gt;Add the new broker to the target group of the bootstrap listener on the NLB.&lt;/li&gt;
+  &lt;li&gt;Update the network SG rules on the service consumer side to allow connections to the newly allocated TCP port.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We rely on Terraform to dynamically deploy all AWS infrastructure and on Jenkins and Ansible to deploy and configure Apache Kafka. There is limited overhead but there are still a few manual actions due to a lack of integration. These include transferring newly allocated TCP ports and their corresponding EC2 instances’ IP addresses to our Ansible inventory, commit them to our codebase and trigger a Jenkins job deploying the new Kafka broker.&lt;/p&gt;
+
+&lt;p&gt;Another concern of this setup is that it is only applicable for AWS. As we are aiming to be multi-cloud, we may need to port it to Microsoft Azure and leverage the &lt;a href=&quot;https://docs.microsoft.com/en-us/azure/private-link/private-link-service-overview&quot;&gt;Azure Private Link service&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;In both cases, running Kafka on Kubernetes with the Strimzi operator would be helpful in addressing the scalability challenge and reducing our adherence to one particular cloud provider. We will explain how this solution has helped us address these challenges in a future article.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to David Virgil Naranjo whose &lt;a href=&quot;https://dvirgiln.github.io/exposing-kafka-throw-different-aws-vpcs/&quot;&gt;blog post&lt;/a&gt; inspired this work.
+&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 18 Feb 2022 00:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/exposing-kafka-cluster</link>
+        <guid isPermaLink="true">https://engineering.grab.com/exposing-kafka-cluster</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Cloud</category>
+        
+        <category>Kafka</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>How Grab built a scalable, high-performance ad server</title>
@@ -2114,118 +2288,6 @@ The backbone is usually a CNN classification network pretrained on some dataset,
         <category>ETL</category>
         
         <category>Engineering</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>App Modularisation at Scale</title>
-        <description>&lt;p&gt;Grab a coffee ☕️, sit back and enjoy reading. 😃&lt;/p&gt;
-
-&lt;p&gt;Wanna know how we improved our app’s build time performance and developer experience at Grab? Continue reading…&lt;/p&gt;
-
-&lt;h2 id=&quot;where-it-all-began&quot;&gt;Where it all began&lt;/h2&gt;
-
-&lt;p&gt;Imagine you are working on an app that grows continuously as more and more features are added to it, it becomes challenging to manage the code at some point. Code conflicts increase due to coupling, development slows down, releases take longer to ship, collaboration becomes difficult, and so on.&lt;/p&gt;
-
-&lt;p&gt;Grab superapp is one such app that offers many services like booking taxis, ordering food, payments using an e-wallet, transferring money to friends/families, paying at merchants, and many more, across Southeast Asia.&lt;/p&gt;
-
-&lt;p&gt;Grab app followed a monolithic architecture initially where the entire code was held in a single module containing all the UI and business logic for almost all of its features. But as the app grew, new developers were hired, and more features were built, it became difficult to work on the codebase. We had to think of better ways to maintain the codebase, and that’s when the team decided to modularise the app to solve the issues faced.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-is-modularisation&quot;&gt;What is Modularisation?&lt;/h2&gt;
-
-&lt;p&gt;Breaking the monolithic app module into smaller, independent, and interchangeable modules to segregate functionality so that every module is responsible for executing a specific functionality and will contain everything necessary to execute that functionality.&lt;/p&gt;
-
-&lt;p&gt;Modularising the Grab app was not an easy task as it brought many challenges along with it because of its complicated structure due to the high amount of code coupling.&lt;/p&gt;
-
-&lt;h2 id=&quot;approach-and-design&quot;&gt;Approach and Design&lt;/h2&gt;
-
-&lt;p&gt;We divided the task into the following sub-tasks to ensure that only one out of many functionalities in the app was impacted at a time.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Setting up the infrastructure by creating &lt;strong&gt;Base/Core modules&lt;/strong&gt; for Networking, Analytics, Experimentation, Storage, Config, and so on.&lt;/li&gt;
-  &lt;li&gt;Building &lt;strong&gt;Shared Library modules&lt;/strong&gt; for Styling, Common-UI, Utils, etc.&lt;/li&gt;
-  &lt;li&gt;Incrementally building &lt;strong&gt;Feature modules&lt;/strong&gt; for user-facing features like Payments Home, Wallet Top Up, Peer-to-Merchant (P2M) Payments, GrabCard and many others.&lt;/li&gt;
-  &lt;li&gt;Creating &lt;strong&gt;Kit modules&lt;/strong&gt; to enable inter-module communication. This step helped us in building the feature modules in parallel.&lt;/li&gt;
-  &lt;li&gt;Finally, the &lt;strong&gt;App module&lt;/strong&gt; was used as a hub to connect all the other modules together using dependency injection (Dagger).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/app-modularisation-at-scale/image1.png&quot; alt=&quot;Modularised app structure&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Modularised app structure&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;In the above diagram, &lt;em&gt;payments-home&lt;/em&gt;, &lt;em&gt;wallet top-up&lt;/em&gt;, and &lt;em&gt;grabcard&lt;/em&gt; are different features provided by the Grab app. &lt;em&gt;top-up-kit&lt;/em&gt; and &lt;em&gt;grabcard-kit&lt;/em&gt; are bridges that expose functionalities from &lt;em&gt;topup&lt;/em&gt; and &lt;em&gt;grabcard&lt;/em&gt; modules to the payments-home module, respectively.&lt;/p&gt;
-
-&lt;p&gt;In the process of modularising the Grab app, we ensured that a feature module did not directly depend on other feature modules so that they could be built in parallel using the available CPU cores of the machine, hence reducing the overall build time of the app.&lt;/p&gt;
-
-&lt;p&gt;With the &lt;em&gt;Kit&lt;/em&gt; module approach, we separated our code into independent layers by depending only on abstractions instead of concrete implementation.&lt;/p&gt;
-
-&lt;h2 id=&quot;modularisation-benefits&quot;&gt;Modularisation Benefits&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Faster build times and hence faster CI&lt;/strong&gt;: Gradle build system compiles only the changed modules and uses the binaries of all the non-affected modules from its cache. So the compilation becomes faster as independent modules are run in parallel on different threads.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Fine dependency graph&lt;/strong&gt;: Dependencies of a module are well defined.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Reusability across other apps&lt;/strong&gt;: Modules can be used across different apps by converting them into an AAR/SDK.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Scale and maintainability&lt;/strong&gt;: Teams can work independently on the modules owned by them without blocking each other.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Well-defined code ownership&lt;/strong&gt;: Easier to define ownership per module in the codebase.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;limitations&quot;&gt;Limitations&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Requires more effort and time to modularise an app.&lt;/li&gt;
-  &lt;li&gt;Separate configuration files to be maintained for each module.&lt;/li&gt;
-  &lt;li&gt;Gradle sync time starts to grow.&lt;/li&gt;
-  &lt;li&gt;IDE becomes very slow and its memory usage goes up a lot.&lt;/li&gt;
-  &lt;li&gt;Parallel execution of the module depends on the machine’s capabilities.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;where-we-are-now&quot;&gt;Where we are now&lt;/h2&gt;
-
-&lt;p&gt;There are more than 1,000 modules in the Grab app and are still counting.&lt;/p&gt;
-
-&lt;p&gt;At Grab, we have many sub-teams which take care of different features available in the app. Grab Financial Group (GFG) is one such sub-team that handles everything related to payments in the app. For example: P2P &amp;amp; P2M money transfers, e-Wallet activation, KYC, and so on.&lt;/p&gt;
-
-&lt;p&gt;We started modularising payments further in July 2020 as it was already bombarded with too many features and it was difficult for the team to work on the single payments module. The result of payments modularisation is shown in the following chart.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/app-modularisation-at-scale/image2.png&quot; alt=&quot;Build time graph of payments module&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Build time graph of payments module&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;&lt;/div&gt;
-
-&lt;p&gt;As of today, we have about 200+ modules in GFG and more than 95% of the modules take less than 15s to build.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Modularisation has helped us a lot in reducing the overall build time of the app and also, in improving the developer experience by breaking dependencies and allowing us to define code ownership. Having said that, modularisation is not an easy or a small task, especially for large projects with legacy code. However, with careful planning and the right design, modularisation can help in forming a well-structured and maintainable project.&lt;/p&gt;
-
-&lt;p&gt;Hope you enjoyed reading. Don’t forget to 👏.&lt;/p&gt;
-
-&lt;p&gt;References:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://proandroiddev.com/build-a-modular-android-app-architecture-25342d99de82&quot;&gt;https://proandroiddev.com/build-a-modular-android-app-architecture-25342d99de82&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://medium.com/google-developer-experts/modularizing-android-applications-9e2d18f244a0&quot;&gt;https://medium.com/google-developer-experts/modularizing-android-applications-9e2d18f244a0&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://medium.com/@mydogtom/modularization-part-1-application-structure-overview-9e465909a9bc&quot;&gt;https://medium.com/@mydogtom/modularization-part-1-application-structure-overview-9e465909a9bc&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 13 Jul 2021 00:04:40 +0000</pubDate>
-        <link>https://engineering.grab.com/app-modularisation-at-scale</link>
-        <guid isPermaLink="true">https://engineering.grab.com/app-modularisation-at-scale</guid>
-        
-        <category>App</category>
-        
-        <category>Build Time</category>
-        
-        <category>Engineering</category>
-        
-        <category>Monorepo</category>
         
         
         <category>Engineering</category>

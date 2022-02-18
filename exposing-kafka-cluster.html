@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Exposing a Kafka Cluster via a VPC Endpoint Service</title>
+    <meta name="description" content="Establishing communications between cloud resources that are hosted on different Virtual Private Clouds (VPC) can be complex and costly. Find out how the Coban team used a VPC Endpoint Service to expose an Apache Kafka cluster across multiple Availability Zones to a different VPC.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/exposing-kafka-cluster">
+    <meta property="og:title" content="Exposing a Kafka Cluster via a VPC Endpoint Service">
+    <meta property="og:description" content="Establishing communications between cloud resources that are hosted on different Virtual Private Clouds (VPC) can be complex and costly. Find out how the Coban team used a VPC Endpoint Service to expose an Apache Kafka cluster across multiple Availability Zones to a different VPC.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/exposing-kafka-cluster/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/exposing-kafka-cluster">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/exposing-kafka-cluster/cover.jpg" class="post-cover-photo" alt="Exposing a Kafka Cluster via a VPC Endpoint Service cover photo">
+      
+        
+        <a class="post-category" href="/categories/Engineering">Engineering </a>
+      
+
+      <h1 class="post-title">Exposing a Kafka Cluster via a VPC Endpoint Service</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/fabrice-harbulot.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#fabrice-harbulot">Fabrice Harbulot</a>
+                  
+                
+              </span>
+              <span class="post-date-large">18 Feb 2022 | 8 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p>In large organisations, it is a common practice to isolate the cloud resources of different verticals. Amazon Web Services (AWS) Virtual Private Cloud (VPC) is a convenient way of doing so. At Grab, while our core AWS services reside in a main VPC, a number of Grab Tech Families (TFs) have their own dedicated VPC. One such example is <a href="https://www.grab.com/id/kios/">GrabKios</a>. Previously known as “Kudo”, GrabKios was acquired by Grab in 2017 and has always been residing in its own AWS account and dedicated VPC.</p>
+
+<p>In this article, we explore how we exposed an Apache Kafka cluster across multiple Availability Zones (AZs) in Grab’s main VPC, to producers and consumers residing in the GrabKios VPC, via a <a href="https://docs.aws.amazon.com/vpc/latest/privatelink/endpoint-service.html">VPC Endpoint Service</a>. This design is part of Coban unified stream processing platform at Grab.</p>
+
+<p>There are several ways of enabling communication between applications across distinct VPCs; VPC peering is the most straightforward and affordable option. However, it potentially exposes the entire VPC networks to each other, needlessly increasing the attack surface.</p>
+
+<p>Security has always been one of Grab’s top concerns and with Grab’s increasing growth, there is a need to deprecate VPC peering and shift to a method of only exposing services that require remote access. The AWS VPC Endpoint Service allows us to do exactly that for TCP/IPv4 communications within a single <a href="https://aws.amazon.com/about-aws/global-infrastructure/regions_az/">AWS region</a>.</p>
+
+<p>Setting up a VPC Endpoint Service compared to VPC peering is already relatively complex. On top of that, we need to expose an Apache Kafka cluster via such an endpoint, which comes with an extra challenge. Apache Kafka requires clients, called producers and consumers, to be able to deterministically establish a TCP connection to all <a href="https://jaceklaskowski.gitbooks.io/apache-kafka/content/kafka-brokers.html">brokers</a> forming the cluster, not just any one of them.</p>
+
+<p>Last but not least, we need a design that optimises performance and cost by limiting data transfer across AZs.</p>
+
+<p><em>Note: <strong>All</strong> variable names, port numbers and other details used in this article are only used as examples.</em></p>
+
+<h2 id="architecture-overview">Architecture overview</h2>
+
+<p>As shown in this diagram, the Kafka cluster resides in the service provider VPC (Grab’s main VPC) while local Kafka producers and consumers reside in the service consumer VPC (GrabKios VPC).</p>
+
+<p>In Grab’s main VPC, we created a Network Load Balancer (NLB) and set it up across all three AZs, enabling cross-zone load balancing. We then created a VPC Endpoint Service associated with that NLB.</p>
+
+<p>Next, we created a VPC Endpoint Network Interface in the GrabKios VPC, also set up across all three AZs, and attached it to the remote VPC endpoint service in Grab’s main VPC. Apart from this, we also created a Route 53 Private Hosted Zone <code class="language-plaintext highlighter-rouge">.grab</code> and a CNAME record <code class="language-plaintext highlighter-rouge">kafka.grab</code> that points to the VPC Endpoint Network Interface hostname.</p>
+
+<p>Lastly, we configured producers and consumers to use <code class="language-plaintext highlighter-rouge">kafka.grab:10000</code> as their Kafka bootstrap server endpoint, <code class="language-plaintext highlighter-rouge">10000/tcp</code> being an arbitrary port of our choosing. We will explain the significance of these in later sections.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/exposing-kafka-cluster/image2.png" alt="Search data flow" style="width:60%" />
+  </figure>
+</div>
+
+<h2 id="network-load-balancer-setup">Network Load Balancer setup</h2>
+
+<p>On the NLB in Grab’s main VPC, we set up the corresponding bootstrap listener on port <code class="language-plaintext highlighter-rouge">10000/tcp</code>, associated with a target group containing all of the Kafka brokers forming the cluster. But this listener alone is not enough.</p>
+
+<p>As mentioned earlier, Apache Kafka requires producers and consumers to be able to deterministically establish a TCP connection to all brokers. That’s why we created one listener for every broker in the cluster, incrementing the TCP port number for each new listener, so each broker endpoint would have the same name but with different port numbers, e.g. <code class="language-plaintext highlighter-rouge">kafka.grab:10001</code> and <code class="language-plaintext highlighter-rouge">kafka.grab:10002</code>.</p>
+
+<p>We then associated each listener with a dedicated target group containing only the targeted Kafka broker, so that remote producers and consumers could differentiate between the brokers by their TCP port number.</p>
+
+<p>The following listeners and associated target groups were set up on the NLB:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">10000/tcp</code> (bootstrap) -&gt; <code class="language-plaintext highlighter-rouge">9094/tcp</code> @ [broker 101, broker 201, broker 301]</li>
+  <li><code class="language-plaintext highlighter-rouge">10001/tcp</code> -&gt; <code class="language-plaintext highlighter-rouge">9094/tcp</code> @ [broker 101]</li>
+  <li><code class="language-plaintext highlighter-rouge">10002/tcp</code> -&gt; <code class="language-plaintext highlighter-rouge">9094/tcp</code> @ [broker 201]</li>
+  <li><code class="language-plaintext highlighter-rouge">10003/tcp</code> -&gt; <code class="language-plaintext highlighter-rouge">9094/tcp</code> @ [broker 301]</li>
+</ul>
+
+<h2 id="security-group-rules">Security Group rules</h2>
+
+<p>In the Kafka brokers’ Security Group (SG), we added an ingress SG rule allowing <code class="language-plaintext highlighter-rouge">9094/tcp</code> traffic from each of the three private IP addresses of the NLB. As mentioned earlier, the NLB was set up across all three AZs, with each having its own private IP address.</p>
+
+<p>On the GrabKios VPC (consumer side), we created a new SG and attached it to the VPC Endpoint Network Interface. We also added ingress rules to allow all producers and consumers to connect to <code class="language-plaintext highlighter-rouge">tcp/10000-10003</code>.</p>
+
+<h2 id="kafka-setup">Kafka setup</h2>
+
+<p>Kafka brokers typically come with a listener on port <code class="language-plaintext highlighter-rouge">9092/tcp</code>, advertising the brokers by their private IP addresses. We kept that default listener so that local producers and consumers in Grab’s main VPC could still connect directly.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ kcat -L -b 10.0.0.1:9092
+ 3 brokers:
+ broker 101 at 10.0.0.1:9092 (controller)  
+ broker 201 at 10.0.0.2:9092
+ broker 301 at 10.0.0.3:9092
+... truncated output ...
+</code></pre></div></div>
+
+<p>We also configured all brokers with an additional listener on port <code class="language-plaintext highlighter-rouge">9094/tcp</code> that advertises the brokers by:</p>
+
+<ul>
+  <li>Their shared private name <code class="language-plaintext highlighter-rouge">kafka.grab</code>.</li>
+  <li>Their distinct TCP ports previously set up on the NLB’s dedicated listeners.</li>
+</ul>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ kcat -L -b 10.0.0.1:9094
+ 3 brokers:
+ broker 101 at kafka.grab:10001 (controller)  
+ broker 201 at kafka.grab:10002
+ broker 301 at kafka.grab:10003
+... truncated output ...
+</code></pre></div></div>
+
+<p>Note that there is a difference in how the broker’s endpoints are advertised in the two outputs above. The latter enables connection to any particular broker from the GrabKios VPC via the VPC Endpoint Service.</p>
+
+<p>It would definitely be possible to advertise the brokers directly with the remote VPC Endpoint Interface hostname instead of <code class="language-plaintext highlighter-rouge">kafka.grab</code>, but relying on such a private name presents at least two advantages.</p>
+
+<p>First, it decouples the Kafka deployment in the service provider VPC from the infrastructure deployment in the service consumer VPC. Second, it makes the Kafka cluster easier to expose to other remote VPCs, should we need it in the future.</p>
+
+<h2 id="limiting-data-transfer-across-availability-zones">Limiting data transfer across Availability Zones</h2>
+
+<p>At this stage of the setup, our Kafka cluster is <strong>fully reachable</strong> from producers and consumers in the GrabKios VPC. Yet, the design is not optimal.</p>
+
+<p>When a producer or a consumer in the GrabKios VPC needs to connect to a particular broker, it uses its individual endpoint made up of the shared name <code class="language-plaintext highlighter-rouge">kafka.grab</code> and the broker’s dedicated TCP port.</p>
+
+<p>The shared name arbitrarily resolves into one of the three IP addresses of the VPC Endpoint Network Interface, one for each AZ.</p>
+
+<p>Hence, there is a fair chance that the obtained IP address is neither in the client’s AZ nor in that of the target Kafka broker. The probability of this happening can be as high as 2/3 when both client and broker reside in the same AZ and 1/3 when they do not.</p>
+
+<p>While that is of little concern for the initial bootstrap connection, it becomes a serious drawback for actual data transfer, impacting the performance and incurring unnecessary data transfer cost.</p>
+
+<p>For this reason, we created <strong>three additional</strong> CNAME records in the Private Hosted Zone in the GrabKios VPC, one for each AZ, with each pointing to the VPC Endpoint Network Interface zonal hostname in the corresponding AZ:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">kafka-az1.grab</code></li>
+  <li><code class="language-plaintext highlighter-rouge">kafka-az2.grab</code></li>
+  <li><code class="language-plaintext highlighter-rouge">kafka-az3.grab</code></li>
+</ul>
+
+<p>Note that we used az1, az2, az3 instead of the typical AWS 1a, 1b, 1c suffixes, because the latter’s mapping is not consistent across AWS accounts.</p>
+
+<p>We also reconfigured each Kafka broker in Grab’s main VPC by setting their <code class="language-plaintext highlighter-rouge">9094/tcp</code> listener to advertise brokers by their new zonal private names.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ kcat -L -b 10.0.0.1:9094
+ 3 brokers:
+ broker 101 at kafka-az1.grab:10001 (controller)  
+ broker 201 at kafka-az2.grab:10002
+ broker 301 at kafka-az3.grab:10003
+... truncated output ...
+</code></pre></div></div>
+
+<p>Our private zonal names are shared by all brokers in the same AZ while TCP ports remain distinct for each broker. However, this is not clearly shown in the output above because our cluster only counts three brokers, one in each AZ.</p>
+
+<p>The previous common name <code class="language-plaintext highlighter-rouge">kafka.grab</code> remains in the GrabKios VPC’s Private Hosted Zone and allows connections to any broker via an arbitrary, likely non-optimal route. GrabKios VPC producers and consumers still use that highly-available endpoint to initiate bootstrap connections to the cluster.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/exposing-kafka-cluster/image1.png" alt="Search data flow" style="width:60%" />
+  </figure>
+</div>
+
+<h2 id="future-improvements">Future improvements</h2>
+
+<p>For this setup, scalability is our main challenge. If we add a new broker to this Kafka cluster, we would need to:</p>
+
+<ul>
+  <li>Assign a new TCP port number to it.</li>
+  <li>Set up a new dedicated listener on that TCP port on the NLB.</li>
+  <li>Configure the newly spun up Kafka broker to advertise its service with the same TCP port number and the private zonal name corresponding to its AZ.</li>
+  <li>Add the new broker to the target group of the bootstrap listener on the NLB.</li>
+  <li>Update the network SG rules on the service consumer side to allow connections to the newly allocated TCP port.</li>
+</ul>
+
+<p>We rely on Terraform to dynamically deploy all AWS infrastructure and on Jenkins and Ansible to deploy and configure Apache Kafka. There is limited overhead but there are still a few manual actions due to a lack of integration. These include transferring newly allocated TCP ports and their corresponding EC2 instances’ IP addresses to our Ansible inventory, commit them to our codebase and trigger a Jenkins job deploying the new Kafka broker.</p>
+
+<p>Another concern of this setup is that it is only applicable for AWS. As we are aiming to be multi-cloud, we may need to port it to Microsoft Azure and leverage the <a href="https://docs.microsoft.com/en-us/azure/private-link/private-link-service-overview">Azure Private Link service</a>.</p>
+
+<p>In both cases, running Kafka on Kubernetes with the Strimzi operator would be helpful in addressing the scalability challenge and reducing our adherence to one particular cloud provider. We will explain how this solution has helped us address these challenges in a future article.</p>
+
+<hr />
+
+<p><small class="credits">Special thanks to David Virgil Naranjo whose <a href="https://dvirgiln.github.io/exposing-kafka-throw-different-aws-vpcs/">blog post</a> inspired this work.
+</small></p>
+
+<hr />
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#cloud" class="label tags-label">Cloud</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#kafka" class="label tags-label">Kafka</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Exposing a Kafka Cluster via a VPC Endpoint Service&url=https://engineering.grab.com/exposing-kafka-cluster&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/exposing-kafka-cluster" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/exposing-kafka-cluster&title=Exposing a Kafka Cluster via a VPC Endpoint Service
+&summary=Establishing communications between cloud resources that are hosted on different Virtual Private Clouds (VPC) can be complex and costly. Find out how the Coban team used a VPC Endpoint Service to expose an Apache Kafka cluster across multiple Availability Zones to a different VPC.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/exposing-kafka-cluster';
+    this.page.identifier = '/exposing-kafka-cluster';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
