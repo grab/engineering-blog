@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2022-01-21-exposing-kafka-cluster
+id: 2022-01-18-exposing-kafka-cluster
 title: Exposing a Kafka Cluster via a VPC Endpoint Service
-date: 2022-02-17 00:20:00
+date: 2022-02-18 00:20:00
 authors: [fabrice-harbulot]
 categories: [Engineering]
 tags: [Engineering, Cloud, Kafka]
@@ -75,8 +75,8 @@ $ kcat -L -b 10.0.0.1:9092
 
 We also configured all brokers with an additional listener on port `9094/tcp` that advertises the brokers by:
 
-*   Their shared private name `kafka.grab`
-*   Their distinct TCP ports previously set up on the NLB's dedicated listeners
+*   Their shared private name `kafka.grab`.
+*   Their distinct TCP ports previously set up on the NLB's dedicated listeners.
 
 ```
 $ kcat -L -b 10.0.0.1:9094
@@ -137,11 +137,11 @@ The previous common name `kafka.grab` remains in the GrabKios VPC’s Private Ho
 
 For this setup, scalability is our main challenge. If we add a new broker to this Kafka cluster, we would need to:
 
-*   Assign a new TCP port number to it
-*   Set up a new dedicated listener on that TCP port on the NLB
-*   Configure the newly spun up Kafka broker to advertise its service with the same TCP port number and the private zonal name corresponding to its AZ
-*   Add the new broker to the target group of the bootstrap listener on the NLB
-*   Update the network SG rules on the service consumer side to allow connections to the newly allocated TCP port
+*   Assign a new TCP port number to it.
+*   Set up a new dedicated listener on that TCP port on the NLB.
+*   Configure the newly spun up Kafka broker to advertise its service with the same TCP port number and the private zonal name corresponding to its AZ.
+*   Add the new broker to the target group of the bootstrap listener on the NLB.
+*   Update the network SG rules on the service consumer side to allow connections to the newly allocated TCP port.
 
 We rely on Terraform to dynamically deploy all AWS infrastructure and on Jenkins and Ansible to deploy and configure Apache Kafka. There is limited overhead but there are still a few manual actions due to a lack of integration. These include transferring newly allocated TCP ports and their corresponding EC2 instances’ IP addresses to our Ansible inventory, commit them to our codebase and trigger a Jenkins job deploying the new Kafka broker.
 
