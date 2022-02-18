@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2022-01-22-exposing-kafka-cluster
+id: 2022-01-21-exposing-kafka-cluster
 title: Exposing a Kafka Cluster via a VPC Endpoint Service
 date: 2022-02-17 00:20:00
 authors: [fabrice-harbulot]
