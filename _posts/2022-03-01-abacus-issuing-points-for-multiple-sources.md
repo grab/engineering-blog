@@ -23,7 +23,7 @@ As we continue to grow our consumer base and our product offerings, a more robus
 The number of Grab’s product offerings has grown as part of Grab’s goal in becoming a superapp. The demand for rewarding GRP increased as each product team looked for ways to retain consumer loyalty. For this, we needed a platform which could support the different requirements from each product team.
 
 ### External partnerships
-Grab’s external partnerships consist of both one- and two-way point exchanges. With selected partners, Grab users are able to convert their GRP for the partner's loyalty program points, and the other way around.
+Grab’s external partnerships consist of both one- and two-way point exchanges. With selected partners, Grab users are able to convert their GRP for the partner's loyalty programme points, and the other way around.
 
 ## Use cases
 Besides the need to cater for the growing number of products and external partnerships, Grab needed a centralised points management system which could cater to various use cases of points rewarding. Let’s take a look at the use cases.
@@ -31,7 +31,7 @@ Besides the need to cater for the growing number of products and external partne
 ### Any product, any points
 There are many products in Grab and each product should be able to reward different GRP for different scenarios. Each product rewards GRP based on the goal they are trying to achieve.
 
-The following are some examples of the different scenarios
+The following examples illustrate the different scenarios:
 
 **GrabCar**: Reward 100 GRP for when a driver cancels a booking as a form of compensation or to reward GRP for every ride a consumer makes.
 
@@ -77,7 +77,7 @@ Apart from computing the number of GRP to be rewarded for a transaction and then
 The Point Calculation module calculates the GRP using the data and multipliers that are unique to each transaction.
 
 #### Point Calculation dependencies for internal services
-Point calculation dependencies are the multipliers needed to calculate the number of points. The Point Calculation module fetches the correct point multipliers for each transaction. The multipliers are configured by specific country teams when the product is launched. They may vary by country to allow country teams the flexibility to achieve their growth and retention targets. There are different types of multipliers.
+Point Calculation dependencies are the multipliers needed to calculate the number of points. The Point Calculation module fetches the correct point multipliers for each transaction. The multipliers are configured by specific country teams when the product is launched. They may vary by country to allow country teams the flexibility to achieve their growth and retention targets. There are different types of multipliers.
 
 **Vertical multiplier**: The multiplier for each vertical. A vertical is a service or product offered by Grab. Examples of verticals are GrabCar and GrabFood. The multiplier can be different for each vertical.
 
@@ -98,7 +98,7 @@ The Point Calculation module uses a formula to calculate GRP. The formula is the
 
 **GRP = Amount * Vertical multiplier * EPPF multiplier * Cashless multiplier * Tier multiplier**
 
-The following are examples for calculating GRP.
+The following are examples for calculating GRP:
 
 ***Example 1:***
 
@@ -122,7 +122,7 @@ From this transaction, Bob earns 180 GRP.
 
 ***Example 2:***
 
-Jane is a Gold member of Grab. She orders lunch in Indonesia for Rp150000 using GrabPay as the payment method. Let’s assume  the following:
+Jane is a Gold member of Grab. She orders lunch in Indonesia for Rp150000 using GrabPay as the payment method. Let’s assume the following:
 
 *Vertical multiplier* = 2
 
@@ -147,19 +147,19 @@ From this transaction, Jane earns 60 GRP.
 </div>
 
 #### Point Calculation dependencies for external clients
-External partners supply the point calculation dependencies which are then configured in our backend at the time of integration. These external partners can set their own multipliers instead of using the above mentioned multipliers which are specific to Grab. This [document](https://developer.grab.com/assets/docs/grab-rewards/Rewards_Events_API.pdf) details the APIs which are used to award points for external clients.
+External partners supply the Point Calculation dependencies which are then configured in our backend at the time of integration. These external partners can set their own multipliers instead of using the above mentioned multipliers which are specific to Grab. This [document](https://developer.grab.com/assets/docs/grab-rewards/Rewards_Events_API.pdf) details the APIs which are used to award points for external clients.
 
 ### Simple Queue Service
 Abacus uses Amazon Simple Queue Service (SQS) to ensure that the points system process is robust and fault tolerant.
 
 #### Point Awarding SQS
-If there are no errors during the point calculation process, the Point Calculation module will send a message containing the points to be awarded to the Point Awarding SQS.
+If there are no errors during the Point Calculation process, the Point Calculation module will send a message containing the points to be awarded to the Point Awarding SQS.
 
 #### Retry SQS
-The Point Calculation module may not receive the required data when there is a downtime in the point calculation dependencies. If this occurs,  an error is triggered and the Point Calculation module will send a message to Retry SQS. Messages sent to the Retry SQS will be re-processed by the Point Calculation module. This ensures that the points are properly calculated despite having outages on dependencies. Every message that we push to either the Point Awarding SQS or Retry SQS will have a field called Idempotency key which is used to ensure that we reward the points only once to a particular transaction.
+The Point Calculation module may not receive the required data when there is a downtime in the Point Calculation dependencies. If this occurs,  an error is triggered and the Point Calculation module will send a message to Retry SQS. Messages sent to the Retry SQS will be re-processed by the Point Calculation module. This ensures that the points are properly calculated despite having outages on dependencies. Every message that we push to either the Point Awarding SQS or Retry SQS will have a field called Idempotency key which is used to ensure that we reward the points only once to a particular transaction.
 
 ### Point Awarding module
-The successful calculation of GRP triggers a message to the Point Awarding module via the Point SQS. The Point Awarding module tries to reward GRP to the consumer’s account. Upon successful completion, an ACK is sent back to the Point SQS signalling that the message was successfully processed and triggers deletion of the message. If Point SQS does not receive an ACK, the message is redelivered after an interval.  This process ensures that the points system is robust and fault tolerant.
+The successful calculation of GRP triggers a message to the Point Awarding module via the Point SQS. The Point Awarding module tries to reward GRP to the consumer’s account. Upon successful completion, an ACK is sent back to the Point SQS signalling that the message was successfully processed and triggers deletion of the message. If Point SQS does not receive an ACK, the message is redelivered after an interval. This process ensures that the points system is robust and fault tolerant.
 
 ### Ledger
 GRP is rewarded to the consumer once it is updated in the Ledger. The Ledger tracks how many GRP a consumer has accumulated, what they were earned for, and the running total number of GRP.
@@ -168,10 +168,10 @@ GRP is rewarded to the consumer once it is updated in the Ledger. The Ledger tra
 Once the Ledger is updated, the Notification service sends the consumer a message about the GRP they receive.
 
 ### Point Kafka stream
-For all successful GRP transactions, Abacus sends a message to the Point Kafka stream. Downstream services listen to this stream to identify the consumer’s behavior and take the appropriate actions. Services of this stream can listen to events they are interested in and execute their business logic accordingly. For example, a service can use the information from the Point Kafka stream to determine a consumer’s membership tier.
+For all successful GRP transactions, Abacus sends a message to the Point Kafka stream. Downstream services listen to this stream to identify the consumer’s behaviour and take the appropriate actions. Services of this stream can listen to events they are interested in and execute their business logic accordingly. For example, a service can use the information from the Point Kafka stream to determine a consumer’s membership tier.
 
 ## Points expiry
-Further addition to Abacus is the handling of points expiry. The Expiry Extension module enables activity-based points expiry. This enables GRP to not expire as long as the consumer makes one Grab transaction within the next three or six months of their last transaction.
+Further addition to Abacus is the handling of points expiry. The Expiry Extension module enables activity-based points expiry. This enables GRP to not expire as long as the consumer makes one Grab transaction within the next three or six months from their last transaction.
 
 The Expiry Extension module updates the point expiry date to the database after successfully rewarding GRP to the consumer. At the end of each month, a process loads all consumers whose points will expire in that particular month and sends it to the Point Expiry SQS. The Point Expiry Consumer will then expire all the points for the consumers and this data is updated in the Ledger. This process repeats on a monthly basis.
 
