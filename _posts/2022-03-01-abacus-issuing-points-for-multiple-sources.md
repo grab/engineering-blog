@@ -2,7 +2,7 @@
 layout: post
 id: 2022-03-01
 title: Abacus - Issuing points for multiple sources
-date: 2022-03-01 00:20:00
+date: 2022-02-20 00:20:00
 authors: [chandrakanth]
 categories: [Engineering]
 tags: [Engineering, Event processing, Optimisation, Stream Processing]
@@ -11,9 +11,9 @@ cover_photo: /img/abacus-issuing-points-for-multiple-sources/cover.png
 excerpt: "Learn about the challenges of points rewarding and how GrabRewards Points are rewarded for different Grab offerings."
 ---
 ## Introduction
-Earlier in 2021 we published an article on [Trident](https://engineering.grab.com/trident-real-time-event-processing-at-scale), Grab’s in-house real-time if this, then that (IFTTT) engine which manages campaigns for the Grab Loyalty Program. The Grab Loyalty Program encourages consumers to make Grab transactions by rewarding points when transactions are made. Grab rewards two types of points namely OVOPoints and GrabRewards Points (GRP). OVOPoints are issued for transactions made in Indonesia and GRP are for the transactions that are made in all other markets. In this article, the term GRP will be used to refer to both OVOPoints and GrabRewards Points.
+Earlier in 2021 we published an article on [Trident](https://engineering.grab.com/trident-real-time-event-processing-at-scale), Grab’s in-house real-time if this, then that (IFTTT) engine which manages campaigns for the Grab Loyalty Programme. The Grab Loyalty Programme encourages consumers to make Grab transactions by rewarding points when transactions are made. Grab rewards two types of points namely OVOPoints and GrabRewards Points (GRP). OVOPoints are issued for transactions made in Indonesia and GRP are for the transactions that are made in all other markets. In this article, the term GRP will be used to refer to both OVOPoints and GrabRewards Points.
 
-Rewarding GRP is one of the main components of the Grab Loyalty Program. By rewarding GRP, our consumers are incentivised to transact within the Grab ecosystem. Consumers can then redeem their GRP for a range of exciting items on the GrabRewards catalogue or to offset the cost of their spendings.
+Rewarding GRP is one of the main components of the Grab Loyalty Programme. By rewarding GRP, our consumers are incentivised to transact within the Grab ecosystem. Consumers can then redeem their GRP for a range of exciting items on the GrabRewards catalogue or to offset the cost of their spendings.
 
 As we continue to grow our consumer base and our product offerings, a more robust platform is needed to ensure successful points transactions. In this post, we will share the challenges in rewarding GRP and how Abacus, our Point Issuance platform helps to overcome these challenges while managing various use cases.
 
