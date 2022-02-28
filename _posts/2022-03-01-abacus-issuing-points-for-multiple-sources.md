@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2022-03-01
+id: 2022-03-01-abacus-issuing-points-for-multiple-sources
 title: Abacus - Issuing points for multiple sources
 date: 2022-03-01 00:20:00
 authors: [chandrakanth]
