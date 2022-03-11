@@ -1,38 +1,38 @@
 ---
 layout: post
 id: 2022-03-11-real-time-data-ingestion
-title: Real time data ingestion in Grab
+title: Real-time data ingestion in Grab
 date: 2022-03-10 00:20:00
 authors: [shuguang-xiang, irfan-hanif, feng-cheng]
 categories: [Engineering, Data Science]
 tags: [Engineering, Data ingestion]
 comments: true
 cover_photo: /img/real-time-data-ingestion/cover.jpg
-excerpt: "When it comes to data ingestion, there are several prevailing issues that come to mind: data inconsistency, integrity and maintenance. Find out how the Caspian team leveraged real time data ingestion to help address these pain points."
+excerpt: "When it comes to data ingestion, there are several prevailing issues that come to mind: data inconsistency, integrity and maintenance. Find out how the Caspian team leveraged real-time data ingestion to help address these pain points."
 ---
 Typically, modern applications use various database engines for their service needs; within Grab, these would be MySQL, Aurora and DynamoDB. Lately, the Caspian team has observed an increasing need to consume real-time data for many service teams. These real-time changes in database records help to support online and offline business decisions for hundreds of teams.
 
-Because of that, we have invested time into synchronising data from MySQL, Aurora and Dynamodb to the message queue, i.e. Kafka. In this blog, we share how real time data ingestion has helped since it was launched.
+Because of that, we have invested time into synchronising data from MySQL, Aurora and Dynamodb to the message queue, i.e. Kafka. In this blog, we share how real-time data ingestion has helped since it was launched.
 
 ## Introduction
 Over the last few years, service teams had to write all transactional data twice: once into Kafka and once into the database. This helped to solve the inter-service communication challenges and obtain audit trail logs. However, if the transactions fail, data integrity becomes a prominent issue. Moreover, it is a daunting task for developers to maintain the schema of data written into Kafka.
 
-With real time ingestion, there is a notably better schema evolution and guaranteed data consistency; service teams no longer need to write data twice.
+With real-time ingestion, there is a notably better schema evolution and guaranteed data consistency; service teams no longer need to write data twice.
 
 You might be wondering, why don’t we have a single transaction that spans the services’ databases and Kafka, to make data consistent? This would not work as Kafka does not support being enlisted in distributed transactions. In some situations, we might end up having new data persisting into the services’ databases, but not having the corresponding message sent to Kafka topics.
 
-Instead of registering or modifying the mapped table schema in Golang writer into Kafka beforehand, service teams tend to avoid such schema maintenance tasks entirely. In such cases, real time ingestion can be adopted where data exchange among the heterogeneous databases or replication between source and replica nodes is required.
+Instead of registering or modifying the mapped table schema in Golang writer into Kafka beforehand, service teams tend to avoid such schema maintenance tasks entirely. In such cases, real-time ingestion can be adopted where data exchange among the heterogeneous databases or replication between source and replica nodes is required.
 
-While reviewing the key challenges around real time data ingestion, we realised that there were many potential user requirements to include. To build a standardised solution, we identified several points that we felt were high priority:
+While reviewing the key challenges around real-time data ingestion, we realised that there were many potential user requirements to include. To build a standardised solution, we identified several points that we felt were high priority:
 
 * Make transactional data readily available in real time to drive business decisions at scale.
 * Capture audit trails of any given database.
 * Get rid of the [burst read](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Storage.html) on databases caused by SQL-based query ingestion.
 
-To empower Grabbers with real time data to drive their business decisions, we decided to take a scalable event-driven approach, which is being facilitated with a bunch of internal products, and designed a solution for real time ingestion.  
+To empower Grabbers with real-time data to drive their business decisions, we decided to take a scalable event-driven approach, which is being facilitated with a bunch of internal products, and designed a solution for real-time ingestion.  
 
 ## Anatomy of architecture
-The solution for real time ingestion has several key components:
+The solution for real-time ingestion has several key components:
 *   Stream data storage
 *   Event producer
 *   Message queue
@@ -81,27 +81,27 @@ This is the distributed data store optimised for ingesting and processing data i
 The stream processor consumes messages in Kafka and writes into S3 every minute. There are a number of options readily available in the market; Spark and Flink are the most common choices. Within Grab, we deploy a Golang library to deal with the traffic.
 
 ## Use cases
-Now that we’ve covered how real time data ingestion is done in Grab, let’s look at some of the situations that could benefit from real time data ingestion.
+Now that we’ve covered how real-time data ingestion is done in Grab, let’s look at some of the situations that could benefit from real-time data ingestion.
 
 ### 1. Data pipelines
-We have thousands of pipelines running hourly in Grab. Some tables have significant growth and generate workload beyond what a SQL-based query can handle. An hourly data pipeline would incur a read spike on the production database shared among various services, draining CPU and memory resources. This deteriorates other services’ performance and could even block them from reading. With real time ingestion, the query from data pipelines would be incremental and span over a period of time.
+We have thousands of pipelines running hourly in Grab. Some tables have significant growth and generate workload beyond what a SQL-based query can handle. An hourly data pipeline would incur a read spike on the production database shared among various services, draining CPU and memory resources. This deteriorates other services’ performance and could even block them from reading. With real-time ingestion, the query from data pipelines would be incremental and span over a period of time.
 
-Another scenario where we switch to real time ingestion is when a missing index is detected on the table. To speed up the query, SQL-based query ingestion requires indexing on columns such as `created_at`, `updated_at` and `id`. Without this, SQL based query ingestion would either result in high CPU and memory usage, or fail entirely.
+Another scenario where we switch to real-time ingestion is when a missing index is detected on the table. To speed up the query, SQL-based query ingestion requires indexing on columns such as `created_at`, `updated_at` and `id`. Without indexing, SQL based query ingestion would either result in high CPU and memory usage, or fail entirely.
 
 Although adding indexes for these columns would resolve this issue, it comes with a cost, i.e. a copy of the indexed column and primary key is created on disk and the index is kept in memory. Creating and maintaining an index on a huge table is much costlier than for small tables. With performance consideration in mind, it is *not* recommended to add indexes to an existing huge table.
 
-Instead, real time ingestion overshadows SQL-based ingestion. We can spawn a new connector, archiver (Coban team’s golang library that dumps data from Kafka at minutes-level frequency) and compaction job to bubble up the table record from `binlog` to the destination table in the Grab data lake.
+Instead, real-time ingestion overshadows SQL-based ingestion. We can spawn a new connector, archiver (Coban team’s Golang library that dumps data from Kafka at minutes-level frequency) and compaction job to bubble up the table record from `binlog` to the destination table in the Grab data lake.
 
 <div class="post-image-section"><figure>
-  <img src="/img/real-time-data-ingestion/image5.png" alt="Using real time ingestion for data pipelines" style="width:60%"><figcaption align="middle"><i>Figure 4. Using real time ingestion for data pipelines</i></figcaption>
+  <img src="/img/real-time-data-ingestion/image5.png" alt="Using real-time ingestion for data pipelines" style="width:60%"><figcaption align="middle"><i>Figure 4. Using real-time ingestion for data pipelines</i></figcaption>
   </figure>
 </div>
 
 ### 2. Drive business decisions
 
-A key use case of enabling real time ingestion is driving business decisions at scale without even touching the source services. [Saga](https://microservices.io/patterns/data/saga.html) pattern is commonly adopted in the microservice world. Each service has its own database, splitting an overarching database transaction into a series of multiple database transactions. Communication is established among services via message queue i.e. Kafka.
+A key use case of enabling real-time ingestion is driving business decisions at scale without even touching the source services. [Saga](https://microservices.io/patterns/data/saga.html) pattern is commonly adopted in the microservice world. Each service has its own database, splitting an overarching database transaction into a series of multiple database transactions. Communication is established among services via message queue i.e. Kafka.
 
-In an earlier [tech blog](https://engineering.grab.com/search-indexing-optimisation) published by the Grab Search team, we talked about how real time ingestion with Debezium optimised and boosted search capabilities. Each MySQL table is mapped to a Kafka topic and one or multiple topics build up a search index within Elasticsearch.
+In an earlier [tech blog](https://engineering.grab.com/search-indexing-optimisation) published by the Grab Search team, we talked about how real-time ingestion with Debezium optimised and boosted search capabilities. Each MySQL table is mapped to a Kafka topic and one or multiple topics build up a search index within Elasticsearch.
 
 With this new approach, there is no data loss, i.e. changes via MySQL command line tool or other DB management tools can be captured. Schema evolution is also naturally supported; the new schema defined within a MySQL table is inherited and stored in Kafka. No producer code change is required to make the schema consistent with that in MySQL. Moreover, the database read has been reduced by 90 percent including the efforts of the Data Synchronisation Platform.
 
@@ -121,7 +121,7 @@ The GrabFood team exemplifies mostly similar advantages in the DynamoDB area. Th
 
 Another use case we did not originally have in mind is incremental data replication for disaster recovery. Within Grab, we enable DynamoDB streams for tier 0 and critical DynamoDB tables. Any `insert`, `delete`, `modify` operations would be propagated to the disaster recovery table in another availability zone.
 
-When migrating or replicating databases, we use the [strangler fig pattern](https://martinfowler.com/bliki/StranglerFigApplication.html), which offers an incremental, reliable process for migrating databases. This is a method whereby a new system slowly grows on top of an old system and is gradually adopted until the old system is “strangled” and can simply be removed. Figure 7 depicts how DynamoDB streams drive real time synchronisation between tables in different regions.
+When migrating or replicating databases, we use the [strangler fig pattern](https://martinfowler.com/bliki/StranglerFigApplication.html), which offers an incremental, reliable process for migrating databases. This is a method whereby a new system slowly grows on top of an old system and is gradually adopted until the old system is “strangled” and can simply be removed. Figure 7 depicts how DynamoDB streams drive real-time synchronisation between tables in different regions.
 
 <div class="post-image-section"><figure>
   <img src="/img/real-time-data-ingestion/image3.png" alt="Data replication among DynamoDB tables across different regions in DBOps team" style="width:60%"><figcaption align="middle"><i>Figure 7. Data replication among DynamoDB tables across different regions in DBOps team</i></figcaption>
@@ -142,15 +142,15 @@ Reasons for maintaining data audit trails are manifold in Grab: regulatory requi
 Real time ingestion is playing a pivotal role in Grab’s ecosystem. It:
 
 * boosts data pipelines with less read pressure imposed on databases shared among various services;
-* empowers real time business decisions with assured resource efficiency;
+* empowers real-time business decisions with assured resource efficiency;
 * provides data replication among tables residing in various regions; and
 * delivers audit trails that either keep complete history or help unearth fraudulent operations.
 
-Since this project launched, we have made crucial enhancements to facilitate daily operations with several inhouse products that are used for data onboarding, quality checking, maintaining freshness, etc.
+Since this project launched, we have made crucial enhancements to facilitate daily operations with several in-house products that are used for data onboarding, quality checking, maintaining freshness, etc.
 
-We will continuously improve our platform to provide users with a seamless experience in data ingestion, starting with unifying our internal tools. Apart from providing a unified platform, we will also contribute more ideas to the ingestion, extending it to Azure and GCP, supporting multi catalogue and offering multi-tenancy.
+We will continuously improve our platform to provide users with a seamless experience in data ingestion, starting with unifying our internal tools. Apart from providing a unified platform, we will also contribute more ideas to the ingestion, extending it to Azure and GCP, supporting multi-catalogue and offering multi-tenancy.
 
-In our next blog, we will drill down to other interesting features of real time ingestion, such as how ordering is achieved in different cases and custom partitioning in real time ingestion. Stay tuned!
+In our next blog, we will drill down to other interesting features of real-time ingestion, such as how ordering is achieved in different cases and custom partitioning in real-time ingestion. Stay tuned!
 
 ## Join us
 Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
