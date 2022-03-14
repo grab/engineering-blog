@@ -6,9 +6,178 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 08 Mar 2022 10:20:29 +0000</pubDate>
-    <lastBuildDate>Tue, 08 Mar 2022 10:20:29 +0000</lastBuildDate>
+    <pubDate>Mon, 14 Mar 2022 02:50:32 +0000</pubDate>
+    <lastBuildDate>Mon, 14 Mar 2022 02:50:32 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Real-time data ingestion in Grab</title>
+        <description>&lt;p&gt;Typically, modern applications use various database engines for their service needs; within Grab, these would be MySQL, Aurora and DynamoDB. Lately, the Caspian team has observed an increasing need to consume real-time data for many service teams. These real-time changes in database records help to support online and offline business decisions for hundreds of teams.&lt;/p&gt;
+
+&lt;p&gt;Because of that, we have invested time into synchronising data from MySQL, Aurora and Dynamodb to the message queue, i.e. Kafka. In this blog, we share how real-time data ingestion has helped since it was launched.&lt;/p&gt;
+
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Over the last few years, service teams had to write all transactional data twice: once into Kafka and once into the database. This helped to solve the inter-service communication challenges and obtain audit trail logs. However, if the transactions fail, data integrity becomes a prominent issue. Moreover, it is a daunting task for developers to maintain the schema of data written into Kafka.&lt;/p&gt;
+
+&lt;p&gt;With real-time ingestion, there is a notably better schema evolution and guaranteed data consistency; service teams no longer need to write data twice.&lt;/p&gt;
+
+&lt;p&gt;You might be wondering, why don’t we have a single transaction that spans the services’ databases and Kafka, to make data consistent? This would not work as Kafka does not support being enlisted in distributed transactions. In some situations, we might end up having new data persisting into the services’ databases, but not having the corresponding message sent to Kafka topics.&lt;/p&gt;
+
+&lt;p&gt;Instead of registering or modifying the mapped table schema in Golang writer into Kafka beforehand, service teams tend to avoid such schema maintenance tasks entirely. In such cases, real-time ingestion can be adopted where data exchange among the heterogeneous databases or replication between source and replica nodes is required.&lt;/p&gt;
+
+&lt;p&gt;While reviewing the key challenges around real-time data ingestion, we realised that there were many potential user requirements to include. To build a standardised solution, we identified several points that we felt were high priority:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Make transactional data readily available in real time to drive business decisions at scale.&lt;/li&gt;
+  &lt;li&gt;Capture audit trails of any given database.&lt;/li&gt;
+  &lt;li&gt;Get rid of the &lt;a href=&quot;https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Storage.html&quot;&gt;burst read&lt;/a&gt; on databases caused by SQL-based query ingestion.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To empower Grabbers with real-time data to drive their business decisions, we decided to take a scalable event-driven approach, which is being facilitated with a bunch of internal products, and designed a solution for real-time ingestion.  &lt;/p&gt;
+
+&lt;h2 id=&quot;anatomy-of-architecture&quot;&gt;Anatomy of architecture&lt;/h2&gt;
+&lt;p&gt;The solution for real-time ingestion has several key components:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Stream data storage&lt;/li&gt;
+  &lt;li&gt;Event producer&lt;/li&gt;
+  &lt;li&gt;Message queue&lt;/li&gt;
+  &lt;li&gt;Stream processor&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image2.png&quot; alt=&quot;Real time ingestion architecture&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1. Real time ingestion architecture&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;stream-storage&quot;&gt;Stream storage&lt;/h3&gt;
+&lt;p&gt;Stream storage acts as a repository that stores the data transactions in order with &lt;a href=&quot;https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html&quot;&gt;exactly-once guarantee&lt;/a&gt;. However, the level of order in stream storage differs with regards to different databases.&lt;/p&gt;
+
+&lt;p&gt;For MySQL or Aurora, transaction data is stored in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; files in sequence and rotated, thus ensuring global order. Data with global order assures that all MySQL records are ordered and reflects the real life situation. For example, when transaction logs are replayed or consumed by downstream consumers, consumer A’s Grab food order at 12:01:44 pm will &lt;strong&gt;always appear before&lt;/strong&gt; consumer B’s order at 12:01:45 pm.&lt;/p&gt;
+
+&lt;p&gt;However, this does not necessarily hold true for DynamoDB stream storage as DynamoDB streams are partitioned. Audit trails of a given record show that they go into the same partition in the same order, ensuring consistent partitioned order. Thus when replay happens, consumer B’s order might appear before consumer A’s.&lt;/p&gt;
+
+&lt;p&gt;Moreover, there are multiple formats to choose from for both MySQL &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; and DynamoDB stream records. We eventually set &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ROW&lt;/code&gt; for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; formats and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NEW_AND_OLD_IMAGES&lt;/code&gt; for DynamoDB stream records. This depicts the detailed information before and after modifying any given table record. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; and DynamoDB stream main fields are tabulated in Figures 2 and 3 respectively.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image8.png&quot; alt=&quot;Binlog record schema&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2. Binlog record schema&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image6.png&quot; alt=&quot;DynamoDB stream record schema&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3. DynamoDB stream record schema&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;event-producer&quot;&gt;Event producer&lt;/h3&gt;
+&lt;p&gt;Event producers take in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; messages or stream records and output to the message queue. We evaluated several technologies for the different database engines.&lt;/p&gt;
+
+&lt;p&gt;For MySQL or Aurora, three solutions were evaluated: Debezium, Maxwell, and Canal. We chose to onboard Debezium as it is deeply integrated with the Kafka Connect framework. Also, we see the potential of extending solutions among other external systems whenever moving large collections of data in and out of the Kafka cluster.&lt;/p&gt;
+
+&lt;p&gt;One such example is the &lt;a href=&quot;https://github.com/trustpilot/kafka-connect-dynamodb&quot;&gt;open source project&lt;/a&gt; that attempts to build a custom DynamoDB connector extending the Kafka Connect (KC) framework. It self manages checkpointing via an additional DynamoDB table and can be deployed on KC smoothly.&lt;/p&gt;
+
+&lt;p&gt;However, the DynamoDB connector fails to exploit the fundamental nature of storage DynamoDB streams: dynamic partitioning and auto-scaling based on the traffic. Instead, it spawns only a single thread task to process all shards of a given DynamoDB table. As a result, downstream services suffer from data latency the most when write traffic surges.&lt;/p&gt;
+
+&lt;p&gt;In light of this, the lambda function becomes the most suitable candidate as the event producer. Not only does the concurrency of lambda functions scale in and out based on actual traffic, but the trigger frequency is also adjustable at your discretion.&lt;/p&gt;
+
+&lt;h3 id=&quot;kafka&quot;&gt;Kafka&lt;/h3&gt;
+&lt;p&gt;This is the distributed data store optimised for ingesting and processing data in real time. It is widely adopted due to its high scalability, fault-tolerance, and parallelism. The messages in Kafka are abstracted and encoded into Protobuf. &lt;/p&gt;
+
+&lt;h3 id=&quot;stream-processor&quot;&gt;Stream processor&lt;/h3&gt;
+&lt;p&gt;The stream processor consumes messages in Kafka and writes into S3 every minute. There are a number of options readily available in the market; Spark and Flink are the most common choices. Within Grab, we deploy a Golang library to deal with the traffic.&lt;/p&gt;
+
+&lt;h2 id=&quot;use-cases&quot;&gt;Use cases&lt;/h2&gt;
+&lt;p&gt;Now that we’ve covered how real-time data ingestion is done in Grab, let’s look at some of the situations that could benefit from real-time data ingestion.&lt;/p&gt;
+
+&lt;h3 id=&quot;1-data-pipelines&quot;&gt;1. Data pipelines&lt;/h3&gt;
+&lt;p&gt;We have thousands of pipelines running hourly in Grab. Some tables have significant growth and generate workload beyond what a SQL-based query can handle. An hourly data pipeline would incur a read spike on the production database shared among various services, draining CPU and memory resources. This deteriorates other services’ performance and could even block them from reading. With real-time ingestion, the query from data pipelines would be incremental and span over a period of time.&lt;/p&gt;
+
+&lt;p&gt;Another scenario where we switch to real-time ingestion is when a missing index is detected on the table. To speed up the query, SQL-based query ingestion requires indexing on columns such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;created_at&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;id&lt;/code&gt;. Without indexing, SQL based query ingestion would either result in high CPU and memory usage, or fail entirely.&lt;/p&gt;
+
+&lt;p&gt;Although adding indexes for these columns would resolve this issue, it comes with a cost, i.e. a copy of the indexed column and primary key is created on disk and the index is kept in memory. Creating and maintaining an index on a huge table is much costlier than for small tables. With performance consideration in mind, it is &lt;em&gt;not&lt;/em&gt; recommended to add indexes to an existing huge table.&lt;/p&gt;
+
+&lt;p&gt;Instead, real-time ingestion overshadows SQL-based ingestion. We can spawn a new connector, archiver (Coban team’s Golang library that dumps data from Kafka at minutes-level frequency) and compaction job to bubble up the table record from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; to the destination table in the Grab data lake.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image5.png&quot; alt=&quot;Using real-time ingestion for data pipelines&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 4. Using real-time ingestion for data pipelines&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;2-drive-business-decisions&quot;&gt;2. Drive business decisions&lt;/h3&gt;
+
+&lt;p&gt;A key use case of enabling real-time ingestion is driving business decisions at scale without even touching the source services. &lt;a href=&quot;https://microservices.io/patterns/data/saga.html&quot;&gt;Saga&lt;/a&gt; pattern is commonly adopted in the microservice world. Each service has its own database, splitting an overarching database transaction into a series of multiple database transactions. Communication is established among services via message queue i.e. Kafka.&lt;/p&gt;
+
+&lt;p&gt;In an earlier &lt;a href=&quot;https://engineering.grab.com/search-indexing-optimisation&quot;&gt;tech blog&lt;/a&gt; published by the Grab Search team, we talked about how real-time ingestion with Debezium optimised and boosted search capabilities. Each MySQL table is mapped to a Kafka topic and one or multiple topics build up a search index within Elasticsearch.&lt;/p&gt;
+
+&lt;p&gt;With this new approach, there is no data loss, i.e. changes via MySQL command line tool or other DB management tools can be captured. Schema evolution is also naturally supported; the new schema defined within a MySQL table is inherited and stored in Kafka. No producer code change is required to make the schema consistent with that in MySQL. Moreover, the database read has been reduced by 90 percent including the efforts of the Data Synchronisation Platform.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image4.png&quot; alt=&quot;Grab Search team use case&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 5. Grab Search team use case&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The GrabFood team exemplifies mostly similar advantages in the DynamoDB area. The only differences compared to MySQL are that the frequency of the lambda functions is adjustable and parallelism is auto-scaled based on the traffic. By auto-scaling, we mean that more lambda functions will be auto-deployed to cater to a sudden spike in traffic, or destroyed as the traffic falls.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image1.png&quot; alt=&quot;Grab Food team use case&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 6. Grab Food team use case&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;3-database-replication&quot;&gt;3. Database replication&lt;/h3&gt;
+
+&lt;p&gt;Another use case we did not originally have in mind is incremental data replication for disaster recovery. Within Grab, we enable DynamoDB streams for tier 0 and critical DynamoDB tables. Any &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;insert&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;delete&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;modify&lt;/code&gt; operations would be propagated to the disaster recovery table in another availability zone.&lt;/p&gt;
+
+&lt;p&gt;When migrating or replicating databases, we use the &lt;a href=&quot;https://martinfowler.com/bliki/StranglerFigApplication.html&quot;&gt;strangler fig pattern&lt;/a&gt;, which offers an incremental, reliable process for migrating databases. This is a method whereby a new system slowly grows on top of an old system and is gradually adopted until the old system is “strangled” and can simply be removed. Figure 7 depicts how DynamoDB streams drive real-time synchronisation between tables in different regions.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image3.png&quot; alt=&quot;Data replication among DynamoDB tables across different regions in DBOps team&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 7. Data replication among DynamoDB tables across different regions in DBOps team&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;4-deliver-audit-trails&quot;&gt;4. Deliver audit trails&lt;/h3&gt;
+
+&lt;p&gt;Reasons for maintaining data audit trails are manifold in Grab: regulatory requirements might mandate businesses to keep complete historical information of a consumer or to apply machine learning techniques to detect fraudulent transactions made by consumers. Figure 8 demonstrates how we deliver audit trails in Grab.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-ingestion/image9.png&quot; alt=&quot;Data replication among DynamoDB tables across different regions in DBOps team&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 8. Deliver audit trails in Grab&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;p&gt;Real time ingestion is playing a pivotal role in Grab’s ecosystem. It:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;boosts data pipelines with less read pressure imposed on databases shared among various services;&lt;/li&gt;
+  &lt;li&gt;empowers real-time business decisions with assured resource efficiency;&lt;/li&gt;
+  &lt;li&gt;provides data replication among tables residing in various regions; and&lt;/li&gt;
+  &lt;li&gt;delivers audit trails that either keep complete history or help unearth fraudulent operations.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Since this project launched, we have made crucial enhancements to facilitate daily operations with several in-house products that are used for data onboarding, quality checking, maintaining freshness, etc.&lt;/p&gt;
+
+&lt;p&gt;We will continuously improve our platform to provide users with a seamless experience in data ingestion, starting with unifying our internal tools. Apart from providing a unified platform, we will also contribute more ideas to the ingestion, extending it to Azure and GCP, supporting multi-catalogue and offering multi-tenancy.&lt;/p&gt;
+
+&lt;p&gt;In our next blog, we will drill down to other interesting features of real-time ingestion, such as how ordering is achieved in different cases and custom partitioning in real-time ingestion. Stay tuned!&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 14 Mar 2022 00:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/real-time-data-ingestion</link>
+        <guid isPermaLink="true">https://engineering.grab.com/real-time-data-ingestion</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Data ingestion</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>Abacus - Issuing points for multiple sources</title>
@@ -1938,389 +2107,6 @@ When handling an object B event, instead of cascading update the related object 
         
         
         <category>Product</category>
-        
-      </item>
-    
-      <item>
-        <title>Protecting Personal Data in Grab's Imagery</title>
-        <description>&lt;h2 id=&quot;image-collection-using-kartaview&quot;&gt;Image Collection Using KartaView&lt;/h2&gt;
-
-&lt;p&gt;A few years ago, we realised a strong demand to better understand the streets where our driver-partners and consumers go, with the purpose to better fulfil their needs and also, to quickly adapt ourselves to the rapidly changing environment in the Southeast Asian cities.&lt;/p&gt;
-
-&lt;p&gt;One way to fulfil that demand was to create an image collection platform named KartaView which is Grab Geo’s platform for geotagged imagery. It empowers collection, indexing, storage, retrieval of imagery, and map data extraction.&lt;/p&gt;
-
-&lt;p&gt;KartaView is a public, partially open-sourced product, used both internally and externally by the OpenStreetMap community and other users. As of 2021, KartaView has public imagery in over 100 countries with various coverage degrees, and 60+ cities of Southeast Asia. Check it out at &lt;a href=&quot;http://www.kartaview.com/&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-1-kartaview-platform.png&quot; alt=&quot;Figure 1 - KartaView platform&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 1 - KartaView platform&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;why-image-blurring-is-important&quot;&gt;Why Image Blurring is Important&lt;/h2&gt;
-
-&lt;p&gt;Incidentally, many people and licence plates are in the collected images, whose privacy is a serious concern. We deeply respect all of them and consequently, we are using image obfuscation as the most effective anonymisation method for ensuring privacy protection.&lt;/p&gt;
-
-&lt;p&gt;Because manually annotating the regions in the picture where faces and licence plates are located is impractical, this problem should be solved using machine learning and engineering techniques. Hence we detect and blur all faces and licence plates which could be considered as personal data.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-2-sample-blurred-picture.jpg&quot; alt=&quot;Figure 2 - Sample blurred picture&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 2 - Sample blurred picture&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In our case, we have a wide range of picture types: regular planar, very wide and 360 pictures in equirectangular format collected with 360 cameras. Also, because we are collecting imagery globally, the vehicle types, licence plates, and human environments are quite diverse in appearance, and are not handled well by off-the-shelf blurring software. So we built our own custom blurring solution which yielded higher accuracy and better cost efficiency overall with respect to blurring of personal data.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-3-equirectangular-image.png&quot; alt=&quot;Figure 3 - Example of equirectangular image where personal data has to be blurred&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 3 - Example of equirectangular image where personal data has to be blurred&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Behind the scenes, in KartaView, there are a set of cool services which can derive useful information from the pictures like image quality, traffic signs, roads, etc. A big part of them are using deep learning algorithms which potentially can be negatively affected by running them over blurred pictures. In fact, based on the assessment we have done so far, the impact is extremely low, similar to the one reported in a well known study of face obfuscation in ImageNet &lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;outline-of-grabs-blurring-process&quot;&gt;Outline of Grab’s Blurring Process&lt;/h3&gt;
-
-&lt;p&gt;At a high level, this is how Grab goes about the blurring process:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Transform each picture into a set of planar images. In this way, we further process all pictures, whatever the format they had, in the same way.&lt;/li&gt;
-  &lt;li&gt;Use an object detector able to detect all faces and licence plates in a planar image having a standard field of view.&lt;/li&gt;
-  &lt;li&gt;Transform the coordinates of the detected regions into original coordinates and blur those regions.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-4-picture-processing-steps.png&quot; alt=&quot;Figure 4 - Picture’s processing steps&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 4 - Picture’s processing steps&lt;/i&gt;&lt;/figcaption&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;
-In the following section, we are going to describe in detail the interesting aspects of the second step, sharing the challenges and how we were solving them. Let’s start with the first and most important part, the dataset.&lt;/p&gt;
-
-&lt;h3 id=&quot;dataset&quot;&gt;Dataset&lt;/h3&gt;
-
-&lt;p&gt;Our current dataset consists of images from a wide range of cameras, including normal perspective cameras from mobile phones, wide field of view cameras and also 360 degree cameras.&lt;/p&gt;
-
-&lt;p&gt;It is the result of a series of data collections contributed by Grab’s data tagging teams, which may contain 2 classes of dataset that are of interest for us: FACE and LICENSE_PLATE.&lt;/p&gt;
-
-&lt;p&gt;The data was collected using Grab internal tools, stored in queryable databases, making it a system that gives the possibility to revisit and correct the data if necessary, but also making it possible for data engineers to select and filter the data of interest.&lt;/p&gt;
-
-&lt;h4 id=&quot;dataset-evolution&quot;&gt;Dataset Evolution&lt;/h4&gt;
-
-&lt;p&gt;Each iteration of the dataset was made to address certain issues discovered while having models used in a production environment and observing situations where the model lacked in performance.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;&lt;/th&gt;
-      &lt;th&gt;Dataset v1&lt;/th&gt;
-      &lt;th&gt;Dataset v2&lt;/th&gt;
-      &lt;th&gt;Dataset v3&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Nr. images&lt;/td&gt;
-      &lt;td&gt;15226&lt;/td&gt;
-      &lt;td&gt;17636&lt;/td&gt;
-      &lt;td&gt;30538&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Nr. of labels&lt;/td&gt;
-      &lt;td&gt;64119&lt;/td&gt;
-      &lt;td&gt;86676&lt;/td&gt;
-      &lt;td&gt;242534&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;If the first version was basic, containing a rough tagging strategy we quickly noticed that it was not detecting some special situations that appeared due to the pandemic situation: people wearing masks.&lt;/p&gt;
-
-&lt;p&gt;This led to another round of data annotation to include those scenarios.
-The third iteration addressed a broader range of issues:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Small regions of interest (objects far away from the camera)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/small-region-of-interest.jpg&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Objects in very dark backgrounds&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/objects-in-very-dark-backgrounds.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Rotated objects or even upside down&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/rotated-objects.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Variation of the licence plate design due to images from different countries and regions&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/licence-plate.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;People wearing masks&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/masks.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Faces in the mirror - see below the mirror of the motorcycle&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/faces-in-mirror.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;But the main reason was because of a scenario where the recording had at the start or end (but not only) close-ups of the operator who was checking the camera. This led to images with large regions of interest containing the camera operator’s face - too large to be detected by the model.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/face.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We investigated the dataset structure by splitting the data into bins based on the bbox sizes (in pixels). This made something clear to us: the dataset was unbalanced.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/detection-counts-graph.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We made bins for tag sizes with a stride of 100 pixels and went up to the maximum value present in the dataset which accounted for 1 sample of size 2000 pixels. The majority of the labels were small in size and the higher we would go with the size, the fewer tags we would have. This made it clear that we would need more targeted annotations for our dataset to try to balance it.&lt;/p&gt;
-
-&lt;p&gt;All these scenarios required the tagging team to revisit the data multiple times and also change the tagging strategy by including more tags that were considered at a certain limit. It also required them to pay more attention to small details that may have been missed in a previous iteration.&lt;/p&gt;
-
-&lt;h4 id=&quot;data-splitting&quot;&gt;Data Splitting&lt;/h4&gt;
-
-&lt;p&gt;To better understand the strategy chosen for splitting the data, we also need to understand the source of the data. The images come from different devices that are used in different geographical locations (different countries) and are from a continuous trip recording. The annotation team used an internal tool to visualise the trips image by image and mark the faces and licence plates present in them. We would then have access to all those images and their respective metadata.&lt;/p&gt;
-
-&lt;p&gt;The chosen ratios for splitting are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Train 70%&lt;/li&gt;
-  &lt;li&gt;Validation 10%&lt;/li&gt;
-  &lt;li&gt;Test 20%&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Number of train images&lt;/td&gt;
-      &lt;td&gt;12733&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Number of validation images&lt;/td&gt;
-      &lt;td&gt;1682&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Number of test images&lt;/td&gt;
-      &lt;td&gt;3221&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Number of labelled classes in train set&lt;/td&gt;
-      &lt;td&gt;60630&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Number of labelled classes in validation set&lt;/td&gt;
-      &lt;td&gt;7658&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Number of of labelled classes in test set&lt;/td&gt;
-      &lt;td&gt;18388&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;The split is not so trivial as we have some requirements and need to complete some conditions:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;An image can have multiple tags from one or both classes but must belong to just one subset.&lt;/li&gt;
-  &lt;li&gt;The tags should be split as close as possible to the desired ratios.&lt;/li&gt;
-  &lt;li&gt;As different images can belong to the same trip in a close geographical relation, we need to force them in the same subset. By doing so, we avoid similar tags in train and test subsets, resulting in incorrect evaluations.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;data-augmentation&quot;&gt;Data Augmentation&lt;/h4&gt;
-
-&lt;p&gt;The application of data augmentation plays a crucial role while training the machine learning model. There are mainly three ways in which data augmentation techniques can be applied:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Offline data augmentation - enriching a dataset by physically multiplying some of its images and applying modifications to them.&lt;/li&gt;
-  &lt;li&gt;Online data augmentation - on the fly modifications of the image during train time with configurable probability for each modification.&lt;/li&gt;
-  &lt;li&gt;Combination of both offline and online data augmentation.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;In our case, we are using the third option which is a combination of both.&lt;/p&gt;
-
-&lt;p&gt;The first method that contributes to offline augmentation is a method called image view splitting. This is necessary for us due to different image types: perspective camera images, wide field of view images, 360 degree images in equirectangular format. All these formats and field of views with their respective distortions would complicate the data and make it hard for the model to generalise it and also handle different image types that could be added in the future.&lt;/p&gt;
-
-&lt;p&gt;For this, we defined the concept of image views which are an extracted portion (view) of an image with some predefined properties. For example, the perspective projection of 75 by 75 degrees field of view patches from the original image.&lt;/p&gt;
-
-&lt;p&gt;Here we can see a perspective camera image and the image views generated from it:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-5-original-image.png&quot; alt=&quot;Figure 5 - Original image&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 5 - Original image&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-6-image-views-generated.png&quot; alt=&quot;Figure 6 - Two image views generated&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 6 - Two image views generated&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The important thing here is that each generated view is an image on its own with the associated tags. They also have an overlapping area so we have a possibility to contain the same tag in two views but from different perspectives. This brings us to an indirect outcome of the first offline augmentation.&lt;/p&gt;
-
-&lt;p&gt;The second method for offline augmentation is the oversampling of some of the images (views). As mentioned above, we faced the problem of an unbalanced dataset, specifically we were missing tags that occupied high regions of the image, and even though our tagging teams tried to annotate as many as they could find, these were still scarce.&lt;/p&gt;
-
-&lt;p&gt;As our object detection model is an anchor-based detector, we did not even have enough of them to generate the anchor boxes correctly. This could be clearly seen in the accuracy of the previous trained models, as they were performing poorly on bins of big sizes.&lt;/p&gt;
-
-&lt;p&gt;By randomly oversampling images that contained big tags, up to a minimum required number, we managed to have better anchors and increase the recall for those scenarios. As described below, the chosen object detector for blurring was YOLOv4 which offers a large variety of online augmentations. The online augmentations used are saturation, exposure, hue, flip and mosaic.&lt;/p&gt;
-
-&lt;h3 id=&quot;model&quot;&gt;Model&lt;/h3&gt;
-
-&lt;p&gt;As of summer of 2021, the “go to” solution for object detection in images are convolutional neural networks (CNN), being a mature solution able to fulfil the needs efficiently.&lt;/p&gt;
-
-&lt;h4 id=&quot;architecture&quot;&gt;Architecture&lt;/h4&gt;
-
-&lt;p&gt;Most CNN based object detectors have three main parts: Backbone, Neck and (Dense or Sparse Prediction) Heads. From the input image, the backbone extracts features which can be combined in the neck part to be used by the prediction heads to predict object bounding-boxes and their labels.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/figure-7-anatomy-of-object-detectors.png&quot; alt=&quot;Figure 7 - Anatomy of one and two-stage object detectors&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Figure 7 - Anatomy of one and two-stage object detectors&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;
-The backbone is usually a CNN classification network pretrained on some dataset, like ImageNet-1K. The neck combines features from different layers in order to produce rich representations for both large and small objects. Since the objects to be detected have varying sizes, the topmost features are too coarse to represent smaller objects, so the first CNN based object detectors were fairly weak in detecting small sized objects. The multi-scale, pyramid hierarchy is inherent to CNNs so Tsung-Yi Lin et al &lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; introduced the Feature Pyramid Network which at marginal costs combines features from multiple scales and makes predictions on them. This or improved variants of this technique is used by most detectors nowadays. The head part does the predictions for bounding boxes and their labels.&lt;/p&gt;
-
-&lt;p&gt;YOLO is part of the anchor-based one-stage object detectors family being developed originally in Darknet, an open source neural network framework written in C and CUDA. Back in 2015, it was the first end-to-end differentiable network of this kind that offered a joint learning of object bounding boxes and their labels.&lt;/p&gt;
-
-&lt;p&gt;One reason for the big success of newer YOLO versions is that the authors carefully merged new ideas into one architecture, the overall speed of the model being always the north star.&lt;/p&gt;
-
-&lt;p&gt;YOLOv4 introduces several changes to its v3 predecessor:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Backbone - CSPDarknet53: YOLOv3 Darknet53 backbone was modified to use Cross Stage Partial Network (CSPNet &lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;) strategy, which aims to achieve richer gradient combinations by letting the gradient flow propagate through different network paths.&lt;/li&gt;
-  &lt;li&gt;Multiple configurable augmentation and loss function types, so called “Bag of freebies”, which by changing the training strategy can yield higher accuracy without impacting the inference time.&lt;/li&gt;
-  &lt;li&gt;Configurable necks and different activation functions, they call “Bag of specials”.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;insights&quot;&gt;Insights&lt;/h4&gt;
-
-&lt;p&gt;For this task, we found that YOLOv4 gave a good compromise between speed and accuracy as it has doubled the speed of a more accurate two-stage detector while maintaining a very good overall precision/recall. For blurring, the main metric for model selection was the overall recall, while precision and intersection over union (IoU) of the predicted box comes second as we want to catch all personal data even if some are wrong. Having a multitude of possibilities to configure the detector architecture and train it on our own dataset we conducted several experiments with different configurations for backbones, necks, augmentations and loss functions to come up with our current solution.&lt;/p&gt;
-
-&lt;p&gt;We faced challenges in training a good model as the dataset posed a large object/box-level scale imbalance, small objects being over-represented in the dataset. As described in &lt;sup id=&quot;fnref:6&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt; and &lt;sup id=&quot;fnref:4:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;, this affects the scales of the estimated regions and the overall detection performance. In &lt;sup id=&quot;fnref:6:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt; several solutions are proposed for this out of which the SPP &lt;sup id=&quot;fnref:7&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;7&lt;/a&gt;&lt;/sup&gt; blocks and PANet &lt;sup id=&quot;fnref:8&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;8&lt;/a&gt;&lt;/sup&gt; neck used in YOLOv4 together with heavy offline data augmentation increased the performance of the actual model in comparison to the former ones.&lt;/p&gt;
-
-&lt;p&gt;As we have evaluated, the model still has some issues:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Occlusion of the object, either by the camera view, head accessories or other elements:&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/occlusion.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;These cases would need extra annotations in the dataset, just like the faces or licence plates that are really close to the camera and occupy a large region of interest in the image.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;As we have a limited number of annotations of close objects to the camera view, the model has incorrectly learnt this, sometimes producing false positives in these situations:&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/protecting-personal-data-in-grabs-imagery/annotation.png&quot; /&gt;&lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Again, one solution for this would be to include more of these scenarios in the dataset.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next?&lt;/h2&gt;
-
-&lt;p&gt;Grab spends a lot of effort ensuring privacy protection for its users so we are always looking for ways to further improve our related models and processes.&lt;/p&gt;
-
-&lt;p&gt;As far as efficiency is concerned, there are multiple directions to consider for both the dataset and the model. There are two main factors that drive the costs and the quality: further development of the dataset for additional edge cases (e.g. more training data of people wearing masks) and the operational costs of the model.&lt;/p&gt;
-
-&lt;p&gt;As the vast majority of current models require a fully labelled dataset, this puts a large work effort on the Data Entry team before creating a new model. Our dataset increased 4x for its third version, but still there is room for improvement as described in the Dataset section.&lt;/p&gt;
-
-&lt;p&gt;As Grab extends its operations in more cities, new data is collected that has to be processed, this puts an increased focus on running detection models more efficiently.&lt;/p&gt;
-
-&lt;p&gt;Directions to pursue to increase our efficiency could be the following:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;As plenty of unlabelled data is available from imagery collection, a natural direction to explore is self-supervised visual representation learning techniques to derive a general vision backbone with superior transferring performance for our subsequent tasks as detection, classification.&lt;/li&gt;
-  &lt;li&gt;Experiment with optimisation techniques like pruning and quantisation to get a faster model without sacrificing too much on accuracy.&lt;/li&gt;
-  &lt;li&gt;Explore new architectures: YOLOv5, EfficientDet or Swin-Transformer for Object Detection.&lt;/li&gt;
-  &lt;li&gt;Introduce semi-supervised learning techniques to improve our model performance on the long tail of the data.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-
-&lt;h4 id=&quot;references&quot;&gt;References&lt;/h4&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Bharat Singh, Larry S. Davis. An Analysis of Scale Invariance in Object Detection - SNIP. &lt;a href=&quot;https://arxiv.org/abs/1711.08189v2&quot;&gt;arXiv:1711.08189v2&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;Zhenda Xie et al. Self-Supervised Learning with Swin Transformers.  &lt;a href=&quot;https://arxiv.org/abs/2105.04553v2&quot;&gt;arXiv:2105.04553v2&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h4&gt;
-
-&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
-  &lt;ol&gt;
-    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Kaiyu Yang et al. Study of Face Obfuscation in ImageNet: &lt;a href=&quot;https://arxiv.org/abs/2103.06191&quot;&gt;arxiv.org/abs/2103.06191&lt;/a&gt; &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Nitish S. Mutha &lt;a href=&quot;http://blog.nitishmutha.com/equirectangular/360degree/2017/06/12/How-to-project-Equirectangular-image-to-rectilinear-view.html&quot;&gt;How to map Equirectangular projection to Rectilinear projection&lt;/a&gt; &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Alexey Bochkovskiy et al.. YOLOv4: Optimal Speed and Accuracy of Object Detection. &lt;a href=&quot;https://arxiv.org/abs/2004.10934v1&quot;&gt;arXiv:2004.10934v1&lt;/a&gt; &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Tsung-Yi Lin et al. Feature Pyramid Networks for Object Detection. &lt;a href=&quot;https://arxiv.org/abs/1612.03144v2&quot;&gt;arXiv:1612.03144v2&lt;/a&gt; &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt; &lt;a href=&quot;#fnref:4:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;sup&gt;2&lt;/sup&gt;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Chien-Yao Wang et al. CSPNet: A New Backbone that can Enhance Learning Capability of CNN. &lt;a href=&quot;https://arxiv.org/abs/1911.11929v1&quot;&gt;arXiv:1911.11929v1&lt;/a&gt; &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:6&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Kemal Oksuz et al.. Imbalance Problems in Object Detection: A Review. &lt;a href=&quot;https://arxiv.org/abs/1909.00169v3&quot;&gt;arXiv:1909.00169v3&lt;/a&gt; &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt; &lt;a href=&quot;#fnref:6:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;sup&gt;2&lt;/sup&gt;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:7&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Kaiming He et al. Spatial Pyramid Pooling in Deep Convolutional Networks for Visual Recognition. &lt;a href=&quot;https://arxiv.org/abs/1406.4729v4&quot;&gt;arXiv:1406.4729v4&lt;/a&gt; &lt;a href=&quot;#fnref:7&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:8&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Shu Liu et al. Path Aggregation Network for Instance Segmentation. &lt;a href=&quot;https://arxiv.org/abs/1803.01534v4&quot;&gt;arXiv:1803.01534v4&lt;/a&gt; &lt;a href=&quot;#fnref:8&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;/ol&gt;
-&lt;/div&gt;
-</description>
-        <pubDate>Mon, 26 Jul 2021 00:40:00 +0000</pubDate>
-        <link>https://engineering.grab.com/protecting-personal-data-in-grabs-imagery</link>
-        <guid isPermaLink="true">https://engineering.grab.com/protecting-personal-data-in-grabs-imagery</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Machine Learning</category>
-        
-        <category>Data</category>
-        
-        <category>Datasets</category>
-        
-        <category>Data Science</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
