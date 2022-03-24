@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2022-03-25-telematics-at-grab
+id: 2022-03-24-telematics-at-grab
 title: How telematics helps Grab to improve safety
-date: 2022-03-22 00:20:00
+date: 2022-03-24 00:20:00
 authors: [wilson-burhan]
 categories: [Engineering, Data Science]
 tags: [Engineering, Data Science, Driving patterns, Safety, Analytics]
@@ -19,7 +19,7 @@ As Grab grows to meet our consumers’ needs, the number of driver-partners has 
 
 Through our data, we hope to improve our driver-partners’ driving habits and reduce the likelihood of driving-related incidents on our platform. This telemetry data also helps us determine optimal insurance premiums for driver-partners with risky driving patterns and reward driver-partners who have better driving habits.
 
-In addition to this, we also merge telematics data with spatial data to further identify areas where dangerous driving manoeuvres happen frequently. This data is used to inform our driver-partners to be alert and drive more safely in such areas.
+In addition, we also merge telematics data with spatial data to further identify areas where dangerous driving manoeuvres happen frequently. This data is used to inform our driver-partners to be alert and drive more safely in such areas.
 
 ## Background
 
@@ -52,7 +52,7 @@ This synchronisation process is done in two steps:
 1.  Interpolation to uniform time grid at a reasonably higher frequency.
 2.  Decimation from the higher frequency to the output data rate for accelerometer and gyroscope data.
 
-We then use [Fourier Transform](https://betterexplained.com/articles/an-interactive-guide-to-the-fourier-transform/) to transform a signal from time domain to frequency domain for compression. These components are then written to a text file on the mobile device, compressed, and uploaded after the end of each ride.
+We then use the [Fourier Transform](https://betterexplained.com/articles/an-interactive-guide-to-the-fourier-transform/) to transform a signal from time domain to frequency domain for compression. These components are then written to a text file on the mobile device, compressed, and uploaded after the end of each ride.
 
 ## Learnings/Conclusion
 
