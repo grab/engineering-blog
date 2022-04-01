@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2022-03-31-supporting-large-campaigns-at-scale
+id: 2022-04-1-supporting-large-campaigns-at-scale
 title: Supporting large campaigns at scale
-date: 2022-03-31 00:20:00
+date: 2022-04-1 00:20:00
 authors: [jie-zhang, abdullah-mamun]
 categories: [Engineering]
 tags: [A/B Testing, Event Processing]
