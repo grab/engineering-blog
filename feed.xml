@@ -6,9 +6,192 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 24 Mar 2022 05:25:06 +0000</pubDate>
-    <lastBuildDate>Thu, 24 Mar 2022 05:25:06 +0000</lastBuildDate>
+    <pubDate>Fri, 01 Apr 2022 08:05:15 +0000</pubDate>
+    <lastBuildDate>Fri, 01 Apr 2022 08:05:15 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Supporting large campaigns at scale</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;At Grab, we run large marketing campaigns every day. A typical campaign may require executing multiple actions for millions of users all at once. The actions may include sending rewards, awarding points, and sending messages. Here is what a campaign may look like: On 1st Jan 2022, send two ride rewards to all the users in the “heavy users” segment. Then, send them a congratulatory message informing them about the reward.&lt;/p&gt;
+
+&lt;p&gt;Years ago, Grab’s marketing team used to stay awake at midnight to manually trigger such campaigns. They would upload a file at 12 am and then wait for a long time for the campaign execution to complete. To solve this pain point and support more capabilities down this line, we developed a “batch job” service, which is part of our in-house real-time automation engine, &lt;a href=&quot;https://engineering.grab.com/trident-real-time-event-processing-at-scale&quot;&gt;Trident&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The following are some services we use to support Grab’s marketing teams:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Rewards: responsible for managing rewards.&lt;/li&gt;
+  &lt;li&gt;Messaging: responsible for sending messages to users. For example, push notifications.&lt;/li&gt;
+  &lt;li&gt;Segmentation: responsible for storing and retrieving segments of users based on certain criteria.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For simplicity, only the services above will be referenced for this article. The “batch job” service we built uses rewards and messaging services for executing actions, and uses the segmentation service for fetching users in a segment.&lt;/p&gt;
+
+&lt;h2 id=&quot;system-requirements&quot;&gt;System requirements&lt;/h2&gt;
+
+&lt;h3 id=&quot;functional-requirements&quot;&gt;Functional requirements&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;Apply a sequence of actions targeting a large segment of users at a scheduled time, display progress to the campaign manager and provide a final report.
+    &lt;ul&gt;
+      &lt;li&gt;For each user, the actions must be executed in sequence; the latter action can only be executed if the preceding action is successful.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;non-functional-requirements&quot;&gt;Non-functional requirements&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;Quick execution and high turnover rate.
+    &lt;ul&gt;
+      &lt;li&gt;Definition of turnover rate: the number of scheduled jobs completed per unit time.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Maximise resource utilisation and balance server load.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For the sake of brevity, we will not cover the scheduling logic, nor the generation of the report. We will focus specifically on executing actions.&lt;/p&gt;
+
+&lt;h2 id=&quot;naive-approach&quot;&gt;Naive approach&lt;/h2&gt;
+&lt;p&gt;Let’s start thinking from the most naive solution, and improve from there to reach an optimised solution.&lt;/p&gt;
+
+&lt;p&gt;Here is the pseudocode of a naive action executor.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;def executeActionOnSegment(segment, actions):
+   for user in fetchUsersInSegment(segment):
+       for action in actions:
+           success := doAction(user, action)
+           if not success:
+               break
+           recordActionResult(user, action)
+
+def doAction(user, action):
+   if action.type == &quot;awardReward&quot;:
+       rewardService.awardReward(user, action.meta)
+   elif action.type == &quot;sendMessage&quot;:
+       messagingService.sendMessage(user, action.meta)
+   else:
+       # other action types ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;One may be able to quickly tell that the naive solution does not satisfy our non-functional requirements for the following reasons:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Execution is slow:
+    &lt;ul&gt;
+      &lt;li&gt;The programme is single-threaded.&lt;/li&gt;
+      &lt;li&gt;Actions are executed for users one by one in sequence.&lt;/li&gt;
+      &lt;li&gt;Each call to the rewards and messaging services will incur network trip time, which impacts time cost.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Resource utilisation is low: The actions will only be executed on one server. When we have a cluster of servers, the other servers will sit idle.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Here are our alternatives for fixing the above issues:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Actions for different users should be executed in parallel.&lt;/li&gt;
+  &lt;li&gt;API calls to other services should be minimised.&lt;/li&gt;
+  &lt;li&gt;Distribute the work of executing actions evenly among different servers.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Note&lt;/strong&gt;: Actions for the same user have to be executed in sequence. For example, if a sequence of required actions are (1) award a reward, (2) send a message informing the user to use the reward, then we can only execute action (2) after action (1) is successfully done for logical reasons and to avoid user confusion.&lt;/p&gt;
+
+&lt;h2 id=&quot;our-approach&quot;&gt;Our approach&lt;/h2&gt;
+&lt;p&gt;A message queue is a well-suited solution to distribute work among multiple servers. We selected Kafka, among numerous message services, due to its following characteristics:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;High throughput: Kafka can accept reads and writes at a very high speed.&lt;/li&gt;
+  &lt;li&gt;Robustness: Events in Kafka are distributedly stored with redundancy, without a need to worry about data loss.&lt;/li&gt;
+  &lt;li&gt;Pull-based consumption: Consumers can consume events at their own speed. This helps to avoid overloading our servers.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When a scheduled campaign is triggered, we retrieve the users from the segment in batches; each batch comprises around 100 users. We write the batches into a Kafka stream, and all our servers consume from the stream to execute the actions for the batches. The following diagram illustrates the overall flow.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/supporting-large-campaigns-at-scale/flow.png&quot; alt=&quot;Flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Data in Kafka is stored in partitions. The partition configuration is important to ensure that the batches are evenly distributed among servers:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Number of partitions: Ensure that the number of stream partitions is greater than or equal to the max number of servers we will have in our cluster. This is because one Kafka partition can only be consumed by one consumer. If we have more consumers than partitions, some consumers will not receive any data.&lt;/li&gt;
+  &lt;li&gt;Partition key: For each batch, assign a hash value as the partition key to randomly allocate batches into different partitions.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Now that work is distributed among servers in batches, we can consider how to process each batch faster. If we follow the naive logic, for each user in the batch, we need to call the rewards or messaging service to execute the actions. This will create very high QPS (queries per second) to those services, and incur significant network round trip time.&lt;/p&gt;
+
+&lt;p&gt;To solve this issue, we decided to build batch endpoints in rewards and messaging services. Each batch endpoint takes in a list of user IDs and action metadata as input parameters, and returns the action result for each user, regardless of success or failure. With that, our batch processing logic looks like the following:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;def processBatch(userBatch, actions):
+   users = userBatch
+   for action in actions:
+       successUsers, failedUsers = doAction(users, action)
+       recordFailures(failedUsers, action)
+       users = successUsers
+
+def doAction(users, action):
+   resp = {}
+   if action.type == &quot;awardReward&quot;:
+       resp = rewardService.batchAwardReward(users, action.meta)
+   elif action.type == &quot;sendMessage&quot;:
+       resp = messagingService.batchSendMessage(users, action.meta)
+   else:
+   # other action types ...
+
+   return getSuccessUsers(resp), getFailedUsers(resp)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In the implementation of batch endpoints, we also made optimisations to reduce latency. For example, when awarding rewards, we need to write the records of a reward being given to a user in multiple database tables. If we make separate DB queries for each user in the batch, it will cause high QPS to DB and incur high network time cost. Therefore, we grouped all the users in the batch into one DB query for each table update instead.&lt;/p&gt;
+
+&lt;p&gt;Benchmark tests show that using the batch DB query reduced API latency by up to 85%.&lt;/p&gt;
+
+&lt;h2 id=&quot;further-optimisations&quot;&gt;Further optimisations&lt;/h2&gt;
+&lt;p&gt;As more campaigns started running in the system, we came across various bottlenecks. Here are the optimisations we implemented for some major examples.&lt;/p&gt;
+
+&lt;h3 id=&quot;shard-stream-by-action-type&quot;&gt;Shard stream by action type&lt;/h3&gt;
+&lt;p&gt;Two widely used actions are awarding rewards and sending messages to users. We came across situations where the sending of messages was blocked because a different campaign of awarding rewards had already started. If millions of users were targeted for rewards, this could result in significant waiting time before messages are sent, ultimately leading them to become irrelevant.&lt;/p&gt;
+
+&lt;p&gt;We found out the API latency of awarding rewards is significantly higher than sending messages. Hence, to make sure messages are not blocked by long-running awarding jobs, we created a dedicated Kafka topic for messages. By having different Kafka topics based on the action type, we were able to run different types of campaigns in parallel.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/supporting-large-campaigns-at-scale/shard-stream.png&quot; alt=&quot;Flow&quot; style=&quot;width:60%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;shard-stream-by-country&quot;&gt;Shard stream by country&lt;/h3&gt;
+&lt;p&gt;Grab operates in multiple countries. We came across situations where a campaign of awarding rewards to a small segment of users in one country was delayed by another campaign that targeted a huge segment of users in another country. The campaigns targeting a small set of users are usually more time-sensitive.&lt;/p&gt;
+
+&lt;p&gt;Similar to the above solution, we added different Kafka topics for each country to enable the processing of campaigns in different countries in parallel.&lt;/p&gt;
+
+&lt;h3 id=&quot;remove-unnecessary-waiting&quot;&gt;Remove unnecessary waiting&lt;/h3&gt;
+&lt;p&gt;We observed that in the case of chained actions, messaging actions are generally the last action in the action list. For example, after awarding a reward, a congratulatory message would be sent to the user.&lt;/p&gt;
+
+&lt;p&gt;We realised that it was not necessary to wait for a sending message action to complete before processing the next batch of users. Moreover, the latency of the sending messages API is lower than awarding rewards. Hence, we adjusted the sending messages API to be asynchronous, so that the task of awarding rewards to the next batch of users can start while messages are being sent to the previous batch.&lt;/p&gt;
+
+&lt;h3 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h3&gt;
+&lt;p&gt;We have architected our batch jobs system in such a way so that it can be enhanced and optimised without redoing its work. For example, although we currently obtain the list of targeted users from a segmentation service, in the future, we may obtain this list from a different source, for example, all Grab Platinum tier members.&lt;/p&gt;
+
+&lt;h3 id=&quot;join-us&quot;&gt;Join us&lt;/h3&gt;
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 01 Apr 2022 00:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/supporting-large-campaigns-at-scale</link>
+        <guid isPermaLink="true">https://engineering.grab.com/supporting-large-campaigns-at-scale</guid>
+        
+        <category>Kafka</category>
+        
+        <category>Scheduling</category>
+        
+        <category>Stream processing</category>
+        
+        <category>Batch processing</category>
+        
+        <category>Scheduled job</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>How telematics helps Grab to improve safety</title>
@@ -1473,158 +1656,6 @@ When handling an object B event, instead of cascading update the related object 
         <category>Data</category>
         
         <category>Database</category>
-        
-        <category>Optimisation</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Automating Multi-Armed Bandit testing during feature rollout</title>
-        <description>&lt;p&gt;A/B testing is an experiment where a random e-commerce platform user is given two versions of a variable: a control group and a treatment group, to discover the optimal version that maximizes conversion. When running A/B testing, you can take the Multi-Armed Bandit optimisation approach to minimise the loss of conversion due to low performance.&lt;/p&gt;
-
-&lt;p&gt;In the traditional software development process, Multi-Armed Bandit (MAB) testing and rolling out a new feature are usually separate processes. The novel Multi-Armed Bandit System for Recommendation solution, hereafter the Multi-Armed Bandit Optimiser, proposes automating the Multi-Armed Bandit testing simultaneously while rolling out the new feature.&lt;/p&gt;
-
-&lt;h2 id=&quot;advantages&quot;&gt;Advantages&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Automates the MAB testing process during new feature rollouts.&lt;/li&gt;
-  &lt;li&gt;Selects the optimal parameters based on predefined metrics of each use case, which results in an end-to-end solution without the need for user intervention.&lt;/li&gt;
-  &lt;li&gt;Uses the Batched Multi-Armed Bandit and Monte Carlo Simulation, which enables it to process large-scale business scenarios.&lt;/li&gt;
-  &lt;li&gt;Uses a feedback loop to automatically collect recommendation metrics from user event logs and to feed them to the Multi-Armed Bandit Optimiser.&lt;/li&gt;
-  &lt;li&gt;Uses an adaptive rollout method to automatically roll out the best model to the maximum distribution capacity according to the feedback metrics.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;architecture&quot;&gt;Architecture&lt;/h2&gt;
-
-&lt;p&gt;The following diagram illustrates the system architecture.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;System architecture&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image5.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;System architecture&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;The novel Multi-Armed Bandit System for Recommendation solution contains three building blocks.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Stream processing framework&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;A lightweight system that performs basic operations on Kafka Streams, such as aggregation, filtering, and mapping. The proposed solution relies on this framework to pre-process raw events published by mobile apps and backend processes into the proper format that can be fed into the feedback loop.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Feedback loop&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;A system that calculates the goal metrics and optimises the model traffic distribution. It runs a metrics server which pulls the data from Stalker, which is a time series database that stores the processed events in the last one hour. The metrics server invokes a Spark Job periodically to run the SQL queries that computes the pre-defined goal metrics: the Clickthrough Rate, Conversion Rate and so on, provided by users. The output of the job is dumped into an S3 bucket, and is picked up by optimiser runtime. It runs the Multi-Armed Bandit Optimiser to optimise the model traffic distribution based on the latest goal metrics.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Dynamic value receiver, or the GrabX variable&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;multi-armed-bandit-optimiser-modules&quot;&gt;Multi-Armed Bandit Optimiser modules&lt;/h2&gt;
-
-&lt;p&gt;The Multi-Armed Bandit Optimiser consists of the following modules:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Reward Update&lt;/li&gt;
-  &lt;li&gt;Batched Multi-Armed Bandit Agent&lt;/li&gt;
-  &lt;li&gt;Monte-Carlo Simulation&lt;/li&gt;
-  &lt;li&gt;Adaptive Rollout&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Multi-Armed Bandit Optimiser modules&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image4.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Multi-Armed Bandit Optimiser modules&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;The goal of the Multi-Armed Bandit Optimisation is to find the optimal Arm that results in the best predefined metrics, and then allocate the maximum traffic to that Arm.&lt;/p&gt;
-
-&lt;p&gt;The solution can be illustrated in the following problem. For K Arm, in which the action space A={1,2,…,K}, the Multi-Arm-Bandit Optimiser goal is to solve the one-shot optimisation problem of &lt;img alt=&quot;Formula&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image2.png&quot; /&gt;.&lt;/p&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;h3 id=&quot;reward-update-module&quot;&gt;Reward Update module&lt;/h3&gt;
-
-&lt;p&gt;The Reward Update module collects a batch of the metrics. It calculates the Success and Failure counts, then updates the Beta distribution of each Arm with the Batched Multi-Armed Bandit algorithm.&lt;/p&gt;
-
-&lt;h3 id=&quot;multi-armed-bandit-agent-module&quot;&gt;Multi-Armed Bandit Agent module&lt;/h3&gt;
-
-&lt;p&gt;In the Multi-Armed Bandit Agent module, each Arm’s metrics are modelled as a Beta distribution which is sampled with Thompson Sampling. The Beta distribution formula is:
-  &lt;img alt=&quot;Formula&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image1.png&quot; /&gt;.&lt;/p&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;The Batched Multi-Armed Bandit algorithm updates the Beta distribution with the batch metrics. The optimisation algorithm can be described in the following method.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Batched Multi-Armed Bandit algorithm&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image6.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Batched Multi-Armed Bandit algorithm&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;h3 id=&quot;monte-carlo-simulation-module&quot;&gt;Monte-Carlo Simulation module&lt;/h3&gt;
-
-&lt;p&gt;The Monte-Carlo Simulation module runs the simulation for N repeated times to find the best Arm over a configurable simulation window. Then, it applies the simulated results as each Arm’s distribution percentage for the next round.&lt;/p&gt;
-
-&lt;p&gt;To handle different scenarios, we designed two strategies.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Max strategy: We count each Arm’s Success count’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the success rate.&lt;/li&gt;
-  &lt;li&gt;Mean strategy: We average each Arm’s Beta distribution probabilities’s result in Monte-Carlo Simulation, and then compute the next round distribution according to the averaged probabilities of each Arm.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;adaptive-rollout-module&quot;&gt;Adaptive Rollout module&lt;/h3&gt;
-
-&lt;p&gt;The Adaptive Rollout module rolls out the sampled distribution of each Multi-Armed Bandit Arm, in the form of Multi-Armed Bandit Arm Model ID and distribution, to the experimentation platform’s configuration variable. The resulting variable is then read from the online service. The process repeats as it collects feedback from the Adaptive Rollout metrics’ results in the feedback loop.&lt;/p&gt;
-
-&lt;h2 id=&quot;multi-armed-bandit-for-recommendation-solution&quot;&gt;Multi-Armed Bandit for Recommendation Solution&lt;/h2&gt;
-
-&lt;p&gt;In the &lt;em&gt;GrabFood Recommended for You&lt;/em&gt; widget, there are several food recommendation models that categorise lists of merchants. The choice of the model is controlled through experiments at rollout, and the results of the experiments are analysed offline. After the analysis, data scientists and product managers rectify the model choice based on the experiment results.&lt;/p&gt;
-
-&lt;p&gt;The Multi-Armed Bandit System for Recommendation solution improves the process by speeding up the feedback loop with the Multi-Armed Bandit system. Instead of depending on offline data which comes out at T+N, the solution responds to minute-level metrics, and adjusts the model faster.&lt;/p&gt;
-
-&lt;p&gt;This results in an optimal solution faster. The proposed Multi-Armed Bandit for Recommendation solution workflow is illustrated in the following diagram.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot; Multi-Armed Bandit for Recommendation Solution Workflow&quot; src=&quot;/img/multi-armed-bandit-system-recommendation/image3.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt; Multi-Armed Bandit for Recommendation solution workflow&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;h3 id=&quot;optimisation-metrics&quot;&gt;Optimisation metrics&lt;/h3&gt;
-
-&lt;p&gt;The GrabFood recommendation uses the Effective Conversion Rate metrics as the optimisation objective. The Effective Conversion Rate is defined as the total number of checkouts through the &lt;em&gt;Recommended for You&lt;/em&gt; widget, divided by the total widget viewed and multiplied by the coverage rate.&lt;/p&gt;
-
-&lt;p&gt;The events of views, clicks, and checkouts are collected over a 30-minute aggregation window and the coverage. A request with a checkout is considered as a success event, while a non-converted request is considered as a failure event.&lt;/p&gt;
-
-&lt;h3 id=&quot;multi-armed-bandit-strategy&quot;&gt;Multi-Armed Bandit strategy&lt;/h3&gt;
-
-&lt;p&gt;With the Multi-Armed Bandit Optimiser, the Beta distribution is selected to model the Effective Conversion Rate. The use of the mean strategy in the Monte-Carlo Simulation results in a more stable distribution.&lt;/p&gt;
-
-&lt;h3 id=&quot;rollout-policy&quot;&gt;Rollout policy&lt;/h3&gt;
-
-&lt;p&gt;The Multi-Armed Bandit Optimiser uses the eater ID as the unique entity, applies a policy and assigns different percentages of eaters to each model, based on computed distribution at the beginning of each loop.&lt;/p&gt;
-
-&lt;h3 id=&quot;fallback-logic&quot;&gt;Fallback logic&lt;/h3&gt;
-
-&lt;p&gt;The Multi-Armed Bandit Optimiser first runs model validation to ensure all candidates are suitable for rolling out. If the scheduled MAB job fails, it falls back to a default distribution that is set to 50-50% for each model.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 01 Sep 2021 01:20:00 +0000</pubDate>
-        <link>https://engineering.grab.com/multi-armed-bandit-system-recommendation</link>
-        <guid isPermaLink="true">https://engineering.grab.com/multi-armed-bandit-system-recommendation</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Testing</category>
         
         <category>Optimisation</category>
         
