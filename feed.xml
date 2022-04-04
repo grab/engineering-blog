@@ -6,191 +6,9 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 04 Apr 2022 14:27:38 +0000</pubDate>
-    <lastBuildDate>Mon, 04 Apr 2022 14:27:38 +0000</lastBuildDate>
+    <pubDate>Mon, 04 Apr 2022 15:25:34 +0000</pubDate>
+    <lastBuildDate>Mon, 04 Apr 2022 15:25:34 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
-    
-      <item>
-        <title>How Kafka Connect helps move data seamlessly</title>
-        <description>&lt;p&gt;Grab’s real-time data platform team a.k.a. Coban has written about &lt;a href=&quot;https://engineering.grab.com/plumbing-at-scale&quot;&gt;Plumbing at scale&lt;/a&gt;, &lt;a href=&quot;https://engineering.grab.com/optimally-scaling-kafka-consumer-applications&quot;&gt;Optimally scaling Kakfa consumer applications&lt;/a&gt;, and &lt;a href=&quot;https://engineering.grab.com/exposing-kafka-cluster&quot;&gt;Exposing Kafka via VPCE&lt;/a&gt;. In this article, we will cover the importance of being able to easily move data in and out of Kafka in a low-code way and how we achieved this with Kafka Connect.&lt;/p&gt;
-
-&lt;p&gt;To build a &lt;a href=&quot;https://www.cio.com/article/220351/what-is-noops-the-quest-for-fully-automated-it-operations.html&quot;&gt;NoOps&lt;/a&gt; managed streaming platform in Grab, the Coban team has:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Engineered an ecosystem on top of Apache Kafka.&lt;/li&gt;
-  &lt;li&gt;Successfully adopted it to production for both transactional and analytical use cases.&lt;/li&gt;
-  &lt;li&gt;Made it a battle-tested industrial-standard platform.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In 2021, the Coban team embarked on a new journey (Kafka Connect) that enables and empowers Grabbers to move data in and out of Apache Kafka seamlessly and conveniently.&lt;/p&gt;
-
-&lt;h2 id=&quot;kafka-connect-stack-in-grab&quot;&gt;Kafka Connect stack in Grab&lt;/h2&gt;
-
-&lt;p&gt;This is what Coban’s Kafka Connect stack looks like today. Multiple data sources and data sinks, such as MySQL, S3 and Azure Data Explorer, have already been supported and productionised.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image4.png&quot; alt=&quot;Kafka Connect stack in Grab&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The Coban team has been using Protobuf as the serialisation-deserialisation (SerDes) format in Kafka. Therefore, the role of Confluent schema registry (shown at the top of the figure) is crucial to the Kafka Connect ecosystem, as it serves as the building block for conversions such as Protobuf-to-Avro, Protobuf-to-JSON and Protobuf-to-Parquet.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-problems-are-we-trying-to-solve&quot;&gt;What problems are we trying to solve?&lt;/h2&gt;
-
-&lt;h3 id=&quot;problem-1-change-data-capture-cdc&quot;&gt;Problem 1: Change Data Capture (CDC)&lt;/h3&gt;
-
-&lt;p&gt;In a big organisation like Grab, we handle large volumes of data and changes across many services on a daily basis, so it is important for these changes to be reflected in real time.&lt;/p&gt;
-
-&lt;p&gt;In addition, there are other technical challenges to be addressed:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;As shown in the figure below, data is written twice in the code base - once into the database (DB) and once as a message into Kafka. In order for the data in the DB and Kafka to be consistent, the two writes have to be atomic in a two-phase commit protocol (or other atomic commitment protocols), which is non-trivial and impacts availability.&lt;/li&gt;
-  &lt;li&gt;Some use cases require data both before and after a change.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image5.png&quot; alt=&quot;Change Data Capture flow&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;problem-2-message-mirroring-for-disaster-recovery&quot;&gt;Problem 2: Message mirroring for disaster recovery&lt;/h3&gt;
-
-&lt;p&gt;The Coban team has done some research on Kafka MirrorMaker, an open-source solution. While it can ensure better data consistency, it takes significant effort to adopt it onto existing Kubernetes infrastructure hosted by the Coban team and achieve high availability.&lt;/p&gt;
-
-&lt;p&gt;Another major challenge that the Coban team faces is offset mirroring and translation, which is a known challenge in Kafka communities. In order for Kafka consumers to seamlessly resume their work with a backup Kafka after a disaster, we need to cater for &lt;a href=&quot;https://cwiki.apache.org/confluence/display/KAFKA/KIP-545%3A+support+automated+consumer+offset+sync+across+clusters+in+MM+2.0#:~:text=The%20offset%20translation%20is%20great,off%20at%20the%20primary%20cluster%2C&quot;&gt;offset translation&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;data-ingestion-into-azure-event-hubs&quot;&gt;Data ingestion into Azure Event Hubs&lt;/h3&gt;
-
-&lt;p&gt;Azure Event Hubs has a Kafka-compatible interface and natively supports JSON and Avro schema. The Coban team uses Protobuf as the SerDes framework, which is not supported by Azure Event Hubs. It means that conversions have to be done for message ingestion into Azure Event Hubs.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;To tackle these problems, the Coban team has picked Kafka Connect because:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;It is an open-source framework with a relatively big community that we can consult if we run into issues.&lt;/li&gt;
-  &lt;li&gt;It has the ability to plug in transformations and custom conversion logic.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Let us see how Kafka Connect can be used to resolve the previously mentioned problems.&lt;/p&gt;
-
-&lt;h3 id=&quot;kafka-connect-with-debezium-connectors&quot;&gt;Kafka Connect with Debezium connectors&lt;/h3&gt;
-
-&lt;p&gt;Debezium is a framework built for capturing data changes on top of Apache Kafka and the Kafka Connect framework. It provides a series of connectors for various databases, such as MySQL, MongoDB and Cassandra.&lt;/p&gt;
-
-&lt;p&gt;Here are the benefits of MySQL &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; streams:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;They not only provide changes on data, but also give snapshots of data before and after a specific change.&lt;/li&gt;
-  &lt;li&gt;Some producers no longer have to push a message to Kafka after writing a row to a MySQL database. With Debezium connectors, services can choose not to deal with Kafka and only handle MySQL data stores.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;architecture&quot;&gt;Architecture&lt;/h4&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image6.png&quot; alt=&quot;Kafka Connect architecture&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;in-case-of-db-upgrades-and-outages&quot;&gt;In case of DB upgrades and outages&lt;/h4&gt;
-
-&lt;p&gt;DB Data Definition Language (DDL) changes, migrations, splits and outages are common in database operations, and each operation type has a systematic resolution.&lt;/p&gt;
-
-&lt;p&gt;Firstly, the Debezium connector has built-in features to handle DDL changes made by DB migration tools, such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pt-online-schema-change&lt;/code&gt;, which is used by the Grab DB Ops team.&lt;/p&gt;
-
-&lt;p&gt;To deal with MySQL instance changes and database splits, the Coban team leverages on the Kafka Connect framework’s ability to change the offsets of connectors. By changing the offsets, Debezium connectors can properly function after DB migrations and resume binlog synchronisation from any position in any binlog file on a MySQL instance.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image1.png&quot; alt=&quot;Database upgrades and outages&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Refer to the &lt;a href=&quot;https://debezium.io/documentation/faq/%23how_to_change_the_offsets_of_the_source_database&quot;&gt;Debezium documentation&lt;/a&gt; for more details.&lt;/p&gt;
-
-&lt;h4 id=&quot;success-stories&quot;&gt;Success stories&lt;/h4&gt;
-
-&lt;p&gt;The CDC project on MySQL via Debezium connectors has been greatly successful in Grab. One of the biggest examples is its adoption in the Elasticsearch optimisation carried out by GrabFood, which has been published in &lt;a href=&quot;https://engineering.grab.com/search-indexing-optimisation&quot;&gt;another blog&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;mirrormaker2-with-offset-translation&quot;&gt;MirrorMaker2 with offset translation&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://github.com/apache/kafka/tree/trunk/connect/mirror&quot;&gt;Kafka MirrorMaker2&lt;/a&gt; (MM2), developed in and shipped together with the Apache Kafka project, is a utility to mirror messages and consumer offsets. However, in the Coban team, the MM2 stack is deployed on the Kafka Connect framework per connector because:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;A few Kafka Connect clusters have already been provisioned.&lt;/li&gt;
-  &lt;li&gt;Compared to launching 3 connectors bundled in MM2, Coban can have finer controls on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MirrorSourceConnector&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MirrorCheckpointConnector&lt;/code&gt;, and manage both of them in an infrastructure-as-code way via Hashicorp Terraform.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image7.png&quot; alt=&quot;MirrorMaker2 flow&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;success-stories-1&quot;&gt;Success stories&lt;/h4&gt;
-
-&lt;p&gt;Ensuring business continuity is a key priority for Grab and this includes the ability to recover from incidents quickly. In 2021H2, there was a campaign that ran across many teams to examine the readiness and robustness of various services and middlewares. Coban’s Kafka is one of these services that proved to be robust after rounds of chaos engineering. With MM2 on Kafka Connect to mirror both messages and consumer offsets, critical services and pipelines could safely be replicated and launched across AWS regions if outages occur.&lt;/p&gt;
-
-&lt;p&gt;Because the Coban team has proven itself as the battle-tested Kafka service provider in Grab, other teams have also requested to migrate streams from self-managed Kafka clusters to ones managed by Coban. MM2 has been used in such migrations and brought zero downtime to the streams’ producers and consumers.&lt;/p&gt;
-
-&lt;h3 id=&quot;mirror-to-azure-event-hubs-with-an-in-house-converter&quot;&gt;Mirror to Azure Event Hubs with an in-house converter&lt;/h3&gt;
-
-&lt;p&gt;The Analytics team runs some real time ingestion and analytics projects on Azure. To support this cross-cloud use case, the Coban team has adopted MM2 for message mirroring to Azure Event Hubs.&lt;/p&gt;
-
-&lt;p&gt;Typically, Event Hubs only accept JSON and Avro bytes, which is incompatible with the existing SerDes framework. The Coban team has developed a custom converter that converts bytes serialised in Protobuf to JSON bytes at runtime.&lt;/p&gt;
-
-&lt;p&gt;These steps explain how the converter works:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Deserialise bytes in Kafka to a Protobuf &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DynamicMessage&lt;/code&gt; according to a schema retrieved from the Confluent™ schema registry.&lt;/li&gt;
-  &lt;li&gt;Perform a recursive post-order depth-first-search on each field descriptor in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DynamicMessage&lt;/code&gt;.&lt;/li&gt;
-  &lt;li&gt;Convert every Protobuf field descriptor to a JSON node.&lt;/li&gt;
-  &lt;li&gt;Serialise the root JSON node to bytes.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;The converter has not been open sourced yet.&lt;/p&gt;
-
-&lt;h2 id=&quot;deployment&quot;&gt;Deployment&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image2.png&quot; alt=&quot;Deployment&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Docker containers are the Coban team’s preferred infrastructure, especially since some production Kafka clusters are already deployed on Kubernetes. The long-term goal is to provide Kafka in a software-as-a-service (SaaS) model, which is why Kubernetes was picked. The diagram below illustrates how Kafka Connect clusters are built and deployed.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image3.png&quot; alt=&quot;Terraform for connectors&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;The Coban team is iterating on a unified control plane to manage resources like Kafka topics, clusters and Kafka Connect. In the foreseeable future, internal users should be able to provision Kafka Connect connectors via RESTful APIs and a graphical user interface (GUI).&lt;/p&gt;
-
-&lt;p&gt;At the same time, the Coban team is closely working with the Data Engineering team to make Kafka Connect the preferred tool in Grab for moving data in and out of external storages (S3 and Apache Hudi).&lt;/p&gt;
-
-&lt;h2 id=&quot;coban-is-hiring&quot;&gt;Coban is hiring!&lt;/h2&gt;
-&lt;p&gt;The Coban (Real time Data Platform) team at Grab in Singapore is hiring software and site reliability engineers at all levels as we double down on growing our platform capabilities.&lt;/p&gt;
-
-&lt;p&gt;Join us in building state-of-the-art, mission critical, TB/hour scale data platforms that enable thousands of engineers, data scientists, and analysts to serve millions of consumers, businesses, and partners across Southeast Asia!&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
-Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Sun, 03 Apr 2022 00:20:00 +0000</pubDate>
-        <link>https://engineering.grab.com/kafka-connect</link>
-        <guid isPermaLink="true">https://engineering.grab.com/kafka-connect</guid>
-        
-        <category>Kafka</category>
-        
-        <category>Data processing</category>
-        
-        <category>Real-Time</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
     
       <item>
         <title>Supporting large campaigns at scale</title>
@@ -1593,6 +1411,256 @@ Powered by technology and driven by heart, our mission is to drive Southeast Asi
         
         
         <category>Design</category>
+        
+      </item>
+    
+      <item>
+        <title>Search indexing optimisation</title>
+        <description>&lt;p&gt;Modern applications commonly utilise various database engines, with each serving a specific need. At Grab Deliveries, MySQL database (DB) is utilised to store canonical forms of data, and Elasticsearch to provide advanced search capabilities. MySQL serves as the primary data storage for raw data, and Elasticsearch as the derived storage.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/search-data-flow.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Search data flow&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Efforts have been made to synchronise data between MySQL and Elasticsearch. In this post, a series of techniques will be introduced on how to optimise incremental search data indexing.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;The synchronisation of data from the primary data storage to the derived data storage is handled by Food-Puxian, a Data Synchronisation Platform (DSP). In a search service context, it is the synchronisation of data between MySQL and Elasticsearch.&lt;/p&gt;
+
+&lt;p&gt;The data synchronisation process is triggered on every real-time data update to MySQL, which will streamline the updated data to Kafka. DSP consumes the list of Kafka streams and incrementally updates the respective search indexes in Elasticsearch. This process is also known as &lt;em&gt;Incremental Sync&lt;/em&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;kafka-to-dsp&quot;&gt;Kafka to DSP&lt;/h3&gt;
+
+&lt;p&gt;DSP uses Kafka streams to implement Incremental Sync. A stream represents an unbounded, continuously updating data set, which is ordered, replayable and fault-tolerant.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/data-synchronisation-process-using-kafka.png&quot; alt=&quot;Data synchronisation process using Kafka&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Data synchronisation process using Kafka&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The above diagram depicts the process of data synchronisation using Kafka. The Data Producer creates a Kafka stream for every operation done on MySQL and sends it to Kafka in real-time. DSP creates a stream consumer for each Kafka stream and the consumer reads data updates from respective Kafka streams and synchronises them to Elasticsearch.&lt;/p&gt;
+
+&lt;h3 id=&quot;mysql-to-elasticsearch&quot;&gt;MySQL to Elasticsearch&lt;/h3&gt;
+
+&lt;p&gt;Indexes in Elasticsearch correspond to tables in MySQL. MySQL data is stored in tables, while Elasticsearch data is stored in indexes. Multiple MySQL tables are joined to form an Elasticsearch index. The below snippet shows the Entity-Relationship mapping in MySQL and Elasticsearch. Entity A has a one-to-many relationship with entity B. Entity A has multiple associated tables in MySQL, table A1 and A2, and they are joined into a single Elasticsearch index A.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/er-mapping-in-mysql-and-es.png&quot; alt=&quot;ER mapping in MySQL and Elasticsearch&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;ER mapping in MySQL and Elasticsearch&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Sometimes a search index contains both entity A and entity B. In a keyword search query on this index, e.g. “Burger”, objects from both entity A and entity B whose name contains “Burger” are returned in the search response.&lt;/p&gt;
+
+&lt;h2 id=&quot;original-incremental-sync&quot;&gt;Original Incremental Sync&lt;/h2&gt;
+
+&lt;h3 id=&quot;original-kafka-streams&quot;&gt;Original Kafka streams&lt;/h3&gt;
+
+&lt;p&gt;The Data Producers create a Kafka stream for every MySQL table in the ER diagram above. Every time there is an insert, update, or delete operation on the MySQL tables, a copy of the data after the operation executes is sent to its Kafka stream. DSP creates different stream consumers for every Kafka stream since their data structures are different.&lt;/p&gt;
+
+&lt;h3 id=&quot;stream-consumer-infrastructure&quot;&gt;Stream Consumer infrastructure&lt;/h3&gt;
+
+&lt;p&gt;Stream Consumer consists of 3 components.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Event Dispatcher&lt;/strong&gt;: Listens and fetches events from the Kafka stream, pushes them to the Event Buffer and starts a goroutine to run Event Handler for every event whose ID does not exist in the Event Buffer.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Event Buffer&lt;/strong&gt;: Caches events in memory by the primary key (aID, bID, etc). An event is cached in the Buffer until it is picked by a goroutine or replaced when a new event with the same primary key is pushed into the Buffer.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Event Handler&lt;/strong&gt;: Reads an event from the Event Buffer and the goroutine started by the Event Dispatcher handles it.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/stream-consumer-infrastructure.png&quot; alt=&quot;Stream consumer infrastructure&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Stream consumer infrastructure&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;event-buffer-procedure&quot;&gt;Event Buffer procedure&lt;/h3&gt;
+
+&lt;p&gt;Event Buffer consists of many sub buffers, each with a unique ID which is the primary key of the event cached in it. The maximum size of a sub buffer is 1. This allows the Event Buffer to deduplicate events having the same ID in the buffer.&lt;/p&gt;
+
+&lt;p&gt;The below diagram shows the procedure of pushing an event to the Event Buffer. When a new event is pushed to the buffer, the old event sharing the same ID will be replaced. The replaced event is therefore not handled.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/pushing-an-event-to-the-event-buffer.png&quot; alt=&quot;Pushing an event to the Event Buffer&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Pushing an event to the Event Buffer&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;event-handler-procedure&quot;&gt;Event Handler procedure&lt;/h3&gt;
+
+&lt;p&gt;The below flowchart shows the procedures executed by the &lt;em&gt;Event Handler&lt;/em&gt;. It consists of the common handler flow (in white), and additional procedures for object B events (in green). After creating a new Elasticsearch document by data loaded from the database, it will get the original document from Elasticsearch to compare if any field is changed and decide whether it is necessary to send the new document to Elasticsearch.&lt;/p&gt;
+
+&lt;p&gt;When object B event is being handled, on top of the common handler flow, it also cascades the update to the related object A in the Elasticsearch index. We name this kind of operation Cascade Update.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/procedures-executed-by-the-event-handler.png&quot; alt=&quot;Procedures executed by the Event Handler&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Procedures executed by the Event Handler&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;issues-in-the-original-infrastructure&quot;&gt;Issues in the original infrastructure&lt;/h2&gt;
+
+&lt;p&gt;Data in an Elasticsearch index can come from multiple MySQL tables as shown below.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/data-in-an-es-index.png&quot; alt=&quot;Data in an Elasticsearch index&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Data in an Elasticsearch index&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The original infrastructure came with a few issues.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Heavy DB load&lt;/strong&gt;: Consumers read from Kafka streams, treat stream events as notifications then use IDs to load data from the DB to create a new Elasticsearch document. Data in the stream events are not well utilised. Loading data from the DB every time to create a new Elasticsearch document results in heavy traffic to the DB. The DB becomes a bottleneck.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Data loss&lt;/strong&gt;: Producers send data copies to Kafka in application code. Data changes made via MySQL command-line tool (CLT) or other DB management tools are lost.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Tight coupling with MySQL table structure&lt;/strong&gt;: If producers add a new column to an existing table in MySQL and this column needs to be synchronised to Elasticsearch, DSP is not able to capture the data changes of this column until the producers make the code change and add the column to the related Kafka Stream.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Redundant Elasticsearch updates&lt;/strong&gt;: Elasticsearch data is a subset of MySQL data. Producers publish data to Kafka streams even if changes are made on fields that are not relevant to Elasticsearch. These stream events that are irrelevant to Elasticsearch would still be picked up.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Duplicate cascade updates&lt;/strong&gt;: Consider a case where the search index contains both object A and object B. A large number of updates to object B are created within a short span of time. All the updates will be cascaded to the index containing both objects A and B. This will bring heavy traffic to the DB.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;optimised-incremental-sync&quot;&gt;Optimised Incremental Sync&lt;/h2&gt;
+
+&lt;h3 id=&quot;mysql-binlog&quot;&gt;MySQL Binlog&lt;/h3&gt;
+
+&lt;p&gt;MySQL binary log (Binlog) is a set of log files that contain information about data modifications made to a MySQL server instance. It contains all statements that update data. There are two types of binary logging:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Statement-based logging&lt;/strong&gt;: Events contain SQL statements that produce data changes (inserts, updates, deletes).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Row-based logging&lt;/strong&gt;: Events describe changes to individual rows.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The Grab Caspian team (Data Tech) has built a Change Data Capture (CDC) system based on MySQL row-based Binlog. It captures all the data modifications made to MySQL tables.&lt;/p&gt;
+
+&lt;h3 id=&quot;current-kafka-streams&quot;&gt;Current Kafka streams&lt;/h3&gt;
+&lt;p&gt;The Binlog stream event definition is a common data structure with three main fields: Operation, PayloadBefore and PayloadAfter. The Operation enums are Create, Delete, and Update. Payloads are the data in JSON string format. All Binlog streams follow the same stream event definition. Leveraging PayloadBefore and PayloadAfter in the Binlog event, optimisations of incremental sync on DSP becomes possible.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/binlog-stream-event-main-fields.png&quot; alt=&quot;Binlog stream event main fields&quot; style=&quot;width:30%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Binlog stream event main fields&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;stream-consumer-optimisations&quot;&gt;Stream Consumer optimisations&lt;/h2&gt;
+
+&lt;h3 id=&quot;event-handler-optimisations&quot;&gt;Event Handler optimisations&lt;/h3&gt;
+
+&lt;h4 id=&quot;optimisation-1&quot;&gt;Optimisation 1&lt;/h4&gt;
+
+&lt;p&gt;Remember that there was a redundant Elasticsearch updates issue mentioned above where the Elasticsearch data is a subset of the MySQL data. The first optimisation is to filter out irrelevant stream events by checking if the fields that are different between PayloadBefore and PayloadAfter are in the Elasticsearch data subset.&lt;/p&gt;
+
+&lt;p&gt;Since the payloads in the Binlog event are JSON strings, a data structure only with fields that are present in Elasticsearch data is defined to parse PayloadBefore and PayloadAfter. By comparing the parsed payloads, it is easy to know whether the change is relevant to Elasticsearch.&lt;/p&gt;
+
+&lt;p&gt;The below diagram shows the optimised Event Handler flows. As shown in the blue flow, when an event is handled, PayloadBefore and PayloadAfter are compared first. An event will be processed only if there is a difference between PayloadBefore and PayloadAfter. Since the irrelevant events are filtered, it is unnecessary to get the original document from Elasticsearch.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/event-handler-optimisation-1.png&quot; alt=&quot;Event Handler optimisation 1&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Event Handler optimisation 1&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;achievements&quot;&gt;Achievements&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;No data loss. Changes made via MySQL CLT or other DB manage tools can be captured.&lt;/li&gt;
+  &lt;li&gt;No dependency on MySQL table definition. All the data is in JSON string format.&lt;/li&gt;
+  &lt;li&gt;No redundant Elasticsearch updates and DB reads.&lt;/li&gt;
+  &lt;li&gt;Elasticsearch reads traffic reduced by 90%: Not a need to get the original document from Elasticsearch to compare with the newly created document anymore.&lt;/li&gt;
+  &lt;li&gt;55% of irrelevant stream events are filtered out.&lt;/li&gt;
+  &lt;li&gt;The DB load is reduced by 55%&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/es-event-updates-for-optimisation-1.png&quot; alt=&quot;Elasticsearch event updates for optimisation 1&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Elasticsearch event updates for optimisation 1&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;optimisation-2&quot;&gt;Optimisation 2&lt;/h4&gt;
+
+&lt;p&gt;The PayloadAfter in the event provides updated data. This makes us think about whether a completely new Elasticsearch document is needed each time, with its data read from several MySQL tables. The second optimisation is to change to a partial update using data differences from the Binlog event.&lt;/p&gt;
+
+&lt;p&gt;The below diagram shows the Event Handler procedure flow with a partial update. As shown in the red flow, instead of creating a new Elasticsearch document for each event, a check on whether the document exists will be performed first. If the document exists, which happens for the majority of the time, the data is changed in this event, provided the comparison between PayloadBefore and PayloadAfter is updated to the existing Elasticsearch document.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/event-handler-optimisation-2.png&quot; alt=&quot;Event Handler optimisation 2&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Event Handler optimisation 2&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;achievements-1&quot;&gt;Achievements&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Change most Elasticsearch relevant events to partial update: Use data in stream events to update Elasticsearch.&lt;/li&gt;
+  &lt;li&gt;Elasticsearch load reduced: Only fields that have been changed will be sent to Elasticsearch.&lt;/li&gt;
+  &lt;li&gt;DB load reduced: DB load reduced by 80% based on Optimisation 1.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/es-event-updates-for optimisation-2.png&quot; alt=&quot;Elasticsearch event updates for optimisation 2&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Elasticsearch event updates for optimisation 2&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;event-buffer-optimisation&quot;&gt;Event Buffer optimisation&lt;/h3&gt;
+
+&lt;p&gt;Instead of replacing the old event, we merge the new event with the old event when the new event is pushed to the Event Buffer.&lt;/p&gt;
+
+&lt;p&gt;The size of each sub buffer in Event Buffer is 1. In this optimisation, the stream event is not treated as a notification anymore. We use the Payloads in the event to perform Partial Updates. The old procedure of replacing old events is no longer suitable for the Binlog stream.&lt;/p&gt;
+
+&lt;p&gt;When the Event Dispatcher pushes a new event to a non-empty sub buffer in the Event Buffer, it will merge event A in the sub buffer and the new event B into a new Binlog event C, whose PayloadBefore is from Event A and PayloadAfter is from Event B.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/merge-operation-for-event-buffer-optimisation.png&quot; alt=&quot;merge-operation-for-event-buffer-optimisation&quot; style=&quot;width:80%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Merge operation for Event Buffer optimisation&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;cascade-update-optimisation&quot;&gt;Cascade Update optimisation&lt;/h3&gt;
+
+&lt;h4 id=&quot;optimisation&quot;&gt;Optimisation&lt;/h4&gt;
+
+&lt;p&gt;We used a new stream to handle cascade update events. When the producer sends data to the Kafka stream, data sharing the same ID will be stored at the same partition. Every DSP service instance has only one stream consumer. When Kafka streams are consumed by consumers, one partition will be consumed by only one consumer. So the Cascade Update events sharing the same ID will be consumed by one stream consumer on the same EC2 instance. With this special mechanism, the in-memory Event Buffer is able to deduplicate most of the Cascade Update events sharing the same ID.&lt;/p&gt;
+
+&lt;p&gt;The flowchart below shows the optimised Event Handler procedure. Highlighted in green is the original flow while purple highlights the current flow with Cascade Update events.
+When handling an object B event, instead of cascading update the related object A directly, the Event Handler will send a Cascade Update event to the new stream. The consumer of the new stream will handle the Cascade Update event and synchronise the data of object A to the Elasticsearch.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/event-handler-with-cascade-update-events.png&quot; alt=&quot;Event Handler with Cascade Update events&quot; style=&quot;width:90%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Event Handler with Cascade Update events&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;achievements-2&quot;&gt;Achievements&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Cascade Update events deduplicated by 80%.&lt;/li&gt;
+  &lt;li&gt;DB load introduced by cascade update is reduced.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/search-indexing-optimisation/cascade-update-events.png&quot; alt=&quot;Cascade Update events&quot; style=&quot;width:50%&quot; /&gt; &lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Cascade Update events&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;p&gt;In this article four different DSP optimisations are explained. After switching to MySQL Binlog streams provided by the Coban team and optimising Stream Consumer, DSP has saved about 91% DB reads and 90% Elasticsearch reads, and the average queries per second (QPS) of stream traffic processed by Stream Consumer increased from 200 to 800. The max QPS at peak hours could go up to 1000+. With a higher QPS, the duration of processing data and the latency of synchronising data from MySQL to Elasticsearch was reduced. The data synchronisation ability of DSP has greatly improved after optimisation.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to &lt;em&gt;Jun Ying Lim&lt;/em&gt; and &lt;em&gt;Amira Khazali&lt;/em&gt; for proofreading this article.&lt;/small&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 27 Sep 2021 01:20:00 +0000</pubDate>
+        <link>https://engineering.grab.com/search-indexing-optimisation</link>
+        <guid isPermaLink="true">https://engineering.grab.com/search-indexing-optimisation</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Data</category>
+        
+        <category>Database</category>
+        
+        <category>Optimisation</category>
+        
+        
+        <category>Engineering</category>
         
       </item>
     
