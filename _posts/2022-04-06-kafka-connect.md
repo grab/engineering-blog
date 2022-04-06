@@ -3,7 +3,7 @@ layout: post
 id: 2022-04-06-kafka-connect
 title: How Kafka Connect helps move data seamlessly
 date: 2022-04-03 00:20:00
-authors: [wenli-wan]
+authors: [wenli-wan, karan-kamath, thanhtung-dao]
 categories: [Engineering]
 tags: [Kafka, Data processing, Real-Time]
 comments: true
