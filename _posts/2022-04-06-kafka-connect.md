@@ -87,7 +87,7 @@ Here are the benefits of MySQL `binlog` streams:
 
 DB Data Definition Language (DDL) changes, migrations, splits and outages are common in database operations, and each operation type has a systematic resolution.
 
-Firstly, the Debezium connector has built-in features to handle DDL changes made by DB migration tools, such as `pt-online-schema-change`, which is used by the Grab DB Ops team.
+The Debezium connector has built-in features to handle DDL changes made by DB migration tools, such as `pt-online-schema-change`, which is used by the Grab DB Ops team.
 
 To deal with MySQL instance changes and database splits, the Coban team leverages on the Kafka Connect framework’s ability to change the offsets of connectors. By changing the offsets, Debezium connectors can properly function after DB migrations and resume binlog synchronisation from any position in any binlog file on a MySQL instance.
 
@@ -107,7 +107,7 @@ The CDC project on MySQL via Debezium connectors has been greatly successful in 
 [Kafka MirrorMaker2](https://github.com/apache/kafka/tree/trunk/connect/mirror) (MM2), developed in and shipped together with the Apache Kafka project, is a utility to mirror messages and consumer offsets. However, in the Coban team, the MM2 stack is deployed on the Kafka Connect framework per connector because:
 
 1.  A few Kafka Connect clusters have already been provisioned.
-2.  Compared to launching 3 connectors bundled in MM2, Coban can have finer controls on `MirrorSourceConnector` and `MirrorCheckpointConnector`, and manage both of them in an infrastructure-as-code way via Hashicorp Terraform.
+2.  Compared to launching three connectors bundled in MM2, Coban can have finer controls on `MirrorSourceConnector` and `MirrorCheckpointConnector`, and manage both of them in an infrastructure-as-code way via Hashicorp Terraform.
 
 <div class="post-image-section"><figure>
   <img src="/img/kafka-connect/image7.png" alt="MirrorMaker2 flow" style="width:60%">
@@ -156,7 +156,7 @@ The Coban team is iterating on a unified control plane to manage resources like 
 At the same time, the Coban team is closely working with the Data Engineering team to make Kafka Connect the preferred tool in Grab for moving data in and out of external storages (S3 and Apache Hudi).
 
 ## Coban is hiring!
-The Coban (Real time Data Platform) team at Grab in Singapore is hiring software and site reliability engineers at all levels as we double down on growing our platform capabilities.
+The Coban (Real-time Data Platform) team at Grab in Singapore is hiring software and site reliability engineers at all levels as we double down on growing our platform capabilities.
 
 Join us in building state-of-the-art, mission critical, TB/hour scale data platforms that enable thousands of engineers, data scientists, and analysts to serve millions of consumers, businesses, and partners across Southeast Asia!
 
