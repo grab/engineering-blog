@@ -31,7 +31,7 @@ Our initial approach was to rely heavily on static code generation to generate t
 
 <div class="post-image-section">
   <img alt="Example directory structure with nested gitlab-ci.yml files. " src="img/how-we-reduced-our-ci-yaml/image6.png">
-  <small class="post-image-caption">Figure 1 Example directory structure with nested gitlab-ci.yml files. Child gitlab-ci.yml files are added using the [include](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/yaml/%23include&sa=D&source=editors&ust=1650350504636970&usg=AOvVaw3fcp3MHroupClqjgK0G9lm) keyword.
+  <small class="post-image-caption">Figure 1: Example directory structure with nested gitlab-ci.yml files. Child gitlab-ci.yml files are added using the [include](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/yaml/%23include&sa=D&source=editors&ust=1650350504636970&usg=AOvVaw3fcp3MHroupClqjgK0G9lm) keyword.
 </small>
 </div>
 <p>&nbsp;</p>
@@ -40,7 +40,7 @@ Our initial approach was to rely heavily on static code generation to generate t
 
 <div class="post-image-section">
   <img alt="Example root .gitlab-ci.yml file, and include clauses." src="img/how-we-reduced-our-ci-yaml/image4.png">
-  <small class="post-image-caption">Example root .gitlab-ci.yml file, and include clauses.</small>
+  <small class="post-image-caption">Figure 2: Example root .gitlab-ci.yml file, and include clauses.</small>
 </div>
 <p>&nbsp;</p>
 
@@ -51,7 +51,7 @@ Our initial approach was to rely heavily on static code generation to generate t
 <div class="post-image-section">
   <img alt="Example child .gitlab-ci.yml file for a given stage (Deploy Model) in a pipeline (pipeline 1).
 " src="img/how-we-reduced-our-ci-yaml/image1.png">
-  <small class="post-image-caption">Example child .gitlab-ci.yml file for a given stage (Deploy Model) in a pipeline (pipeline 1).
+  <small class="post-image-caption">Figure 3: Example child .gitlab-ci.yml file for a given stage (Deploy Model) in a pipeline (pipeline 1).
 </small>
 </div>
 <p>&nbsp;</p>
@@ -74,9 +74,16 @@ To achieve it, we wrote a utility that parsed a raw gitlab-ci file, walked the t
 
 Figure 4 illustrates the resulting file is generated from Figure 3.
 
-![](img/how-we-reduced-our-ci-yaml/image2.png)
 
-Figure 4: “Fat” YAML file generated through this approach, assumes the original raw file of Figure 3.
+<div class="post-image-section">
+  <img alt="Figure 4: “Fat” YAML file generated through this approach, assumes the original raw file of Figure 3.
+" src="img/how-we-reduced-our-ci-yaml/image2.png">
+  <small class="post-image-caption">Figure 4: “Fat” YAML file generated through this approach, assumes the original raw file of Figure 3.
+</small>
+</div>
+<p>&nbsp;</p>
+
+
 
 This approach solved our issues temporarily. Unfortunately, we ended up with Gitlab files that were up to 1800 lines long. There is also a soft limit to the size of gitlab-ci.yml files. It became evident that we would eventually hit the limits of this approach.
 
@@ -94,9 +101,18 @@ We were already on the right track, we just needed to combine code generation wi
 
 ## Architecture details
 
-![](img/how-we-reduced-our-ci-yaml/image8.png)
 
-Figure 5. Flow diagram of how we use dynamic yaml generation. The user raises a merge request in a branch, and subsequently merges the branch to master.
+
+<div class="post-image-section">
+  <img alt="Figure 5. Flow diagram of how we use dynamic yaml generation. The user raises a merge request in a branch, and subsequently merges the branch to master.
+" src="img/how-we-reduced-our-ci-yaml/image8.png">
+  <small class="post-image-caption">Figure 5. Flow diagram of how we use dynamic yaml generation. The user raises a merge request in a branch, and subsequently merges the branch to master.
+</small>
+</div>
+<p>&nbsp;</p>
+
+
+
 
 ## Implementation
 
@@ -110,15 +126,29 @@ In short, our requirements can be summarized as:
 
 Let’s take a very simple example, where a user is modifying a file in stage\_1 in pipeline\_1 in Figure 1 above. Our desired output would be:
 
-![](img/how-we-reduced-our-ci-yaml/image7.png)
 
-Figure 6: Desired output that should be dynamically generated.
+
+
+<div class="post-image-section">
+  <img alt="Figure 6: Desired output that should be dynamically generated.
+" src="img/how-we-reduced-our-ci-yaml/image7.png">
+  <small class="post-image-caption">Figure 6: Desired output that should be dynamically generated.
+</small>
+</div>
+<p>&nbsp;</p>
+
+
 
 Our template would be in the form of:
 
-![](img/how-we-reduced-our-ci-yaml/image5.png) 
+<div class="post-image-section">
+  <img alt="Figure 7: Example template, and information needed. Let’s call it template\_file.yml.
+" src="img/how-we-reduced-our-ci-yaml/image5.png">
+  <small class="post-image-caption">Figure 7: Example template, and information needed. Let’s call it template\_file.yml.
+</small>
+</div>
+<p>&nbsp;</p>
 
-Figure 7: Example template, and information needed. Let’s call it template\_file.yml.
 
 First, we need to detect the files being modified in the branch. We achieve this with native git diff commands, checking against the base of the branch to track what files are being modified in the merge request. The output (let’s call it diff.txt) would be in the form of:
 ```
@@ -130,7 +160,14 @@ We must extract the yellow and green information from the line, corresponding to
 ```
 M        pipelines/pipeline\_1/stage\_1/modelserving.yaml
 ```
-Figure 9: Information that needs to be extracted from the file.
+
+<div class="post-image-section">
+  <img alt="Figure 9: Information that needs to be extracted from the file." src="img/how-we-reduced-our-ci-yaml/image9.png">
+  <small class="post-image-caption">Figure 9: Information that needs to be extracted from the file.
+</small>
+</div>
+<p>&nbsp;</p>
+
 
 We take a very simple approach here, by introducing a concept called stop patterns.
 
@@ -158,9 +195,17 @@ We elected to write the util in Rust due to its high performance, and its rich t
 
 Combining all these together, we are able to extract the information needed from git diff, and use stop patterns to extract the necessary information to be passed into the template. Stop patterns are flexible enough to support different types of folder structures.
 
-![](img/how-we-reduced-our-ci-yaml/image3.png)
 
-Figure 10: Example Rust code snippet for parsing the Git diff file.
+
+<div class="post-image-section">
+  <img alt="Figure 10: Example Rust code snippet for parsing the Git diff file.
+" src="img/how-we-reduced-our-ci-yaml/image3.png">
+  <small class="post-image-caption">Figure 10: Example Rust code snippet for parsing the Git diff file.
+</small>
+</div>
+<p>&nbsp;</p>
+
+
 
 When triggering pipelines in the master branch (see right side of Figure 5), the flow is the same, with a small caveat that we must retrieve the same diff.txt file from the source branch. We achieve this by using the rich Gitlab API, retrieving the pipeline artifacts and using the same util above to generate the necessary Gitlab steps dynamically.
 
@@ -180,9 +225,9 @@ We might open source our solution.
 
 ## References
 
- - [https://docs.gitlab.com/ee/ci/pipelines/parent\_child\_pipelines.html](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html&sa=D&source=editors&ust=1650350504650208&usg=AOvVaw36DdymBLf_YZ8ROyYqyugM)
+*  [https://docs.gitlab.com/ee/ci/pipelines/parent\_child\_pipelines.html](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html&sa=D&source=editors&ust=1650350504650208&usg=AOvVaw36DdymBLf_YZ8ROyYqyugM)
 
-- [https://gitlab.com/gitlab-org/gitlab/-/issues/207270#:~:text=GitLab%20Next&text=Please%20increase%20the%20maximum%20number,methods%20for%20managing%20CICD%20configurations](https://www.google.com/url?q=https://gitlab.com/gitlab-org/gitlab/-/issues/207270%23:~:text%3DGitLab%2520Next%26text%3DPlease%2520increase%2520the%2520maximum%2520number,methods%2520for%2520managing%2520CICD%2520configurations&sa=D&source=editors&ust=1650350504650588&usg=AOvVaw2DiZh0HbZ8-YtWVsb8i2Qy).
+*  [https://gitlab.com/gitlab-org/gitlab/-/issues/207270#:~:text=GitLab%20Next&text=Please%20increase%20the%20maximum%20number,methods%20for%20managing%20CICD%20configurations](https://www.google.com/url?q=https://gitlab.com/gitlab-org/gitlab/-/issues/207270%23:~:text%3DGitLab%2520Next%26text%3DPlease%2520increase%2520the%2520maximum%2520number,methods%2520for%2520managing%2520CICD%2520configurations&sa=D&source=editors&ust=1650350504650588&usg=AOvVaw2DiZh0HbZ8-YtWVsb8i2Qy).
 
 
 # Join us
