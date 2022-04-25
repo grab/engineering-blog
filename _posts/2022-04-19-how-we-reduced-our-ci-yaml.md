@@ -11,9 +11,9 @@ cover_photo: /img/how-we-reduced-our-ci-yaml/cover.jpg
 excerpt: "GitLab and its tooling are are an integral part of the machine learning platform team stack, for continuous delivery of machine learning. One of our core products is MerLin Pipelines. We were reaching certain limitations of GitLab for large repositories by way of includes and nested gitlab-ci YAML files."
 ---
 
-This article illustrates how the Cauldron Machine Learning (ML) Platform team uses [GitLab parent-child pipelines](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html&sa=D&source=editors&ust=1650350504634800&usg=AOvVaw1ByOMWE_oW4wS0ne4aCKya) to dynamically generate GitLab CI files to solve several limitations of GitLab for large repositories, namely:
+This article illustrates how the Cauldron Machine Learning (ML) Platform team uses [GitLab parent-child pipelines](https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html) to dynamically generate GitLab CI files to solve several limitations of GitLab for large repositories, namely:
 
-*   Limitations to the number of includes ([100](https://www.google.com/url?q=https://gitlab.com/gitlab-org/gitlab/-/issues/207270%23:~:text%3DGitLab%2520Next%26text%3DPlease%2520increase%2520the%2520maximum%2520number,methods%2520for%2520managing%2520CICD%2520configurations.&sa=D&source=editors&ust=1650350504635277&usg=AOvVaw24WjKWKaJtU6Xbfjm6fX6d) by default).
+*   Limitations to the number of includes ([100](https://gitlab.com/gitlab-org/gitlab/-/issues/207270#:~:text=GitLab%20Next&text=Please%20increase%20the%20maximum%20number,methods%20for%20managing%20CICD%20configurations.) by default).
 *   Simplifying the GitLab CI file from 1800 lines to 50 lines.
 *   Reducing the need for nested `gitlab-ci` yml files.
 
@@ -31,12 +31,11 @@ Our initial approach was to rely heavily on static code generation to generate t
 
 <div class="post-image-section">
   <img alt="Figure 1: Example directory structure with nested gitlab-ci.yml files. " src="img/how-we-reduced-our-ci-yaml/image6.png">
-  <small class="post-image-caption">Figure 1: Example directory structure with nested gitlab-ci.yml files. 
+  <small class="post-image-caption">Figure 1: Example directory structure with nested gitlab-ci.yml files. Child `gitlab-ci.yml` files are added by using the <a href="https://docs.gitlab.com/ee/ci/yaml/#include">include</a> keyword.
 </small>
 </div>
 <p>&nbsp;</p>
 
-Child `gitlab-ci.yml` files are added by using the [include](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/yaml/%23include&sa=D&source=editors&ust=1650350504636970&usg=AOvVaw3fcp3MHroupClqjgK0G9lm) keyword.
 
 <div class="post-image-section">
   <img alt="Figure 2: Example root .gitlab-ci.yml file, and include clauses." src="img/how-we-reduced-our-ci-yaml/image4.png" width="50%">
@@ -60,7 +59,7 @@ Child `gitlab-ci.yml` files are added by using the [include](https://www.google.
 
 As teams add more pipelines and stages, we soon hit a limitation in this approach:
 
-> There was a [soft limit](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/yaml/%23include&sa=D&source=editors&ust=1650350504638326&usg=AOvVaw2oke3Jgz-nrL_AeTdGfxsy) in the number of includes that could be in the base `.gitlab-ci.yml` file.
+> There was a [soft limit](https://docs.gitlab.com/ee/ci/yaml/#include) in the number of includes that could be in the base `.gitlab-ci.yml` file.
 
 It became evident that this approach would not scale to our use-cases.
 
@@ -84,7 +83,7 @@ This approach solved our issues temporarily. Unfortunately, we ended up with Git
 
 ## Solution
 
-Our initial attempt at using static code generation put us partially there. We were able to pre-generate and infer the stage and pipeline names from the information available to us. Code generation was definitely needed, but upfront generation of code had some key limitations, as shown above. We needed a way to improve on this, to somehow generate GitLab stages on the fly. After some research, we stumbled upon [Dynamic Child Pipelines](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html%23dynamic-child-pipelines&sa=D&source=editors&ust=1650350504640355&usg=AOvVaw1QlQa6ojKe53DbYD8zuMEI).
+Our initial attempt at using static code generation put us partially there. We were able to pre-generate and infer the stage and pipeline names from the information available to us. Code generation was definitely needed, but upfront generation of code had some key limitations, as shown above. We needed a way to improve on this, to somehow generate GitLab stages on the fly. After some research, we stumbled upon [Dynamic Child Pipelines](https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html#dynamic-child-pipelines).
 
 Quoting the official website:
 
@@ -180,7 +179,7 @@ Our cli tool allows the stop patterns to be comma separated, so the final comman
 cauldron_repo_util diff.txt template_file.yml
 pipeline_name:pipelines,stage_name::pipelines > generated.yml
 ```
-We elected to write the `util` in Rust due to its high performance, and its rich templating libraries (for example, [Tera](https://www.google.com/url?q=https://github.com/Keats/tera&sa=D&source=editors&ust=1650350504647300&usg=AOvVaw1Kcz6NyWYSn8qTFAq3LKVY)) and decent cli libraries ([clap](https://www.google.com/url?q=https://github.com/clap-rs/clap&sa=D&source=editors&ust=1650350504647640&usg=AOvVaw1Hdwy09Rx-G4Mi5TX6C2Rp)).
+We elected to write the `util` in Rust due to its high performance, and its rich templating libraries (for example, [Tera](https://github.com/Keats/tera)) and decent cli libraries ([clap](https://github.com/clap-rs/clap)).
 
 Combining all these together, we are able to extract the information needed from `git diff`, and use stop patterns to extract the necessary information to be passed into the template. Stop patterns are flexible enough to support different types of folder structures.
 
@@ -206,7 +205,7 @@ Our users, the machine learning practitioners, also find it more productive as t
 
 ## Learnings and conclusion
 
-With some creativity, and the flexibility of GitLab Child Pipelines, we were able to invest some engineering effort into making the configuration re-usable, adhering to [DRY](https://www.google.com/url?q=https://en.wikipedia.org/wiki/Don%2527t_repeat_yourself&sa=D&source=editors&ust=1650350504649348&usg=AOvVaw1BvnjkSdVOEBvnpPqP4nuD) principles.
+With some creativity, and the flexibility of GitLab Child Pipelines, we were able to invest some engineering effort into making the configuration re-usable, adhering to [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) principles.
 
 
 
@@ -223,9 +222,9 @@ We might open source our solution.
 
 ## References
 
-*  [Parent-child pipelines](https://www.google.com/url?q=https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html&sa=D&source=editors&ust=1650350504650208&usg=AOvVaw36DdymBLf_YZ8ROyYqyugM)
+*  [Parent-child pipelines](https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html)
 
-*  [Backend: The gitlab-ci.yml is limited to 100 includes](https://www.google.com/url?q=https://gitlab.com/gitlab-org/gitlab/-/issues/207270%23:~:text%3DGitLab%2520Next%26text%3DPlease%2520increase%2520the%2520maximum%2520number,methods%2520for%2520managing%2520CICD%2520configurations&sa=D&source=editors&ust=1650350504650588&usg=AOvVaw2DiZh0HbZ8-YtWVsb8i2Qy)
+*  [Backend: The gitlab-ci.yml is limited to 100 includes](https://gitlab.com/gitlab-org/gitlab/-/issues/207270#:~:text=GitLab%20Next&text=Please%20increase%20the%20maximum%20number,methods%20for%20managing%20CICD%20configurations)
 
 
 
