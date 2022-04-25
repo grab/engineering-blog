@@ -31,12 +31,11 @@ Our initial approach was to rely heavily on static code generation to generate t
 
 <div class="post-image-section">
   <img alt="Figure 1: Example directory structure with nested gitlab-ci.yml files. " src="img/how-we-reduced-our-ci-yaml/image6.png">
-  <small class="post-image-caption">Figure 1: Example directory structure with nested gitlab-ci.yml files. 
+  <small class="post-image-caption">Figure 1: Example directory structure with nested gitlab-ci.yml files. Child `gitlab-ci.yml` files are added by using the <a href="https://docs.gitlab.com/ee/ci/yaml/#include">include</a> keyword.
 </small>
 </div>
 <p>&nbsp;</p>
 
-Child `gitlab-ci.yml` files are added by using the [include](https://docs.gitlab.com/ee/ci/yaml/#include) keyword.
 
 <div class="post-image-section">
   <img alt="Figure 2: Example root .gitlab-ci.yml file, and include clauses." src="img/how-we-reduced-our-ci-yaml/image4.png" width="50%">
