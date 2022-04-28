@@ -12,7 +12,7 @@ excerpt: "As fraudulent entities evolve and get smarter, Grab needs to continuou
 ---
 
 <div class="post-image-section"><figure>
-  <img src="/img/graph-intro/image2.png" alt="Change Data Capture flow" style="width:60%">
+  <img src="/img/graph-intro/image2.png" alt="" style="width:60%">
   </figure>
 </div>
 
