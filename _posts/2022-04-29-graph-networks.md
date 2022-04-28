@@ -16,7 +16,7 @@ excerpt: "As fraudulent entities evolve and get smarter, Grab needs to continuou
   </figure>
 </div>
 
-As a leading superapp in Southeast Asia, Grab serves millions of consumers daily. This naturally makes us a target for fraudsters and to enhance our defences, the Integrity team at Grab has launched several hyper-scaled services, such as the [Griffin real-time rule engine](https://engineering.grab.com/griffin) and [Advanced Feature Engineering](https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully). These systems enable data scientists and risk analysts to develop real-time scoring, and take fraudsters out of our eco systems.
+As a leading superapp in Southeast Asia, Grab serves millions of consumers daily. This naturally makes us a target for fraudsters and to enhance our defences, the Integrity team at Grab has launched several hyper-scaled services, such as the [Griffin real-time rule engine](https://engineering.grab.com/griffin) and [Advanced Feature Engineering](https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully). These systems enable data scientists and risk analysts to develop real-time scoring, and take fraudsters out of our ecosystems.
 
 Apart from individual fraudsters, we have also observed the fast evolution of the dark side over time. We have had to evolve our defences to deal with professional syndicates that use advanced equipment such as device farms and GPS spoofing apps to perform fraud at scale. These professional fraudsters are able to camouflage themselves as normal users, making it significantly harder to identify them with rule-based detection.
 
@@ -26,7 +26,7 @@ Since 2020, Grab’s Integrity team has been advancing fraud detection with more
 
 > “You can fool some of the people all of the time, and all of the people some of the time, but you cannot fool all of the people all of the time.” - Abraham Lincoln
 
-A Graph\-based Prediction Platform connects multiple entities through one or more common features. When such entities are viewed as a macro graph network, we uncover new patterns that are otherwise unseen to the naked eye. For example, when investigating if two users are sharing IP addresses or devices, we might not be able to tell if they are fraudulent or just family members sharing a device.
+A Graph-based Prediction Platform connects multiple entities through one or more common features. When such entities are viewed as a macro graph network, we uncover new patterns that are otherwise unseen to the naked eye. For example, when investigating if two users are sharing IP addresses or devices, we might not be able to tell if they are fraudulent or just family members sharing a device.
 
 However, if we use a graph system and look at all users sharing this device or IP address, it could show us if these two users are part of a much larger syndicate network in a device farming operation. In operations like these, we may see up to hundreds of other fake accounts that were specifically created for promo and payment fraud. With graphs, we can identify fraudulent activity more easily.
 
@@ -34,7 +34,7 @@ However, if we use a graph system and look at all users sharing this device or I
 
 Leveraging the power of graphs, the team has primarily built two types of systems:
 
-* **Graph Database Platform**: An ultra-scalable storage system with over 1 billion nodes that powers:
+* **Graph Database Platform**: An ultra-scalable storage system with over one billion nodes that powers:
     1.  **Graph Visualisation**: Risk specialists and data analysts can review user connections real-time and are able to quickly capture new fraud patterns with over 10 dimensions of features (see Fig 1).
 
         <div class="post-image-section"><figure>
@@ -44,9 +44,9 @@ Leveraging the power of graphs, the team has primarily built two types of system
 
     2.  **Network-based feature system**: A configurable system for engineers to adjust machine learning features based on network connectivity, e.g. number of hops between two users, numbers of shared devices between two IP addresses.
 
-* **Graph-based Machine Learning**: Unlike traditional fraud detection models, graph neural networks (GNN) are able to utilise the structural correlations on the graph and act as a sustainable foundation to combat many different kinds of fraud. The data science team has built large-scale GNN models for scenarios like AML and fraud detection.
+* **Graph-based Machine Learning**: Unlike traditional fraud detection models, Graph Neural Networks (GNN) are able to utilise the structural correlations on the graph and act as a sustainable foundation to combat many different kinds of fraud. The data science team has built large-scale GNN models for scenarios like anti-money laundering and fraud detection.
 
-    Fig 2 shows a Money Laundering Network where hundreds of accounts coordinate the placement of funds, layering the illicit monies through a complex web of transactions making funds hard to trace, and consolidation of the funds into spending accounts.
+    Fig 2 shows a Money Laundering Network where hundreds of accounts coordinate the placement of funds, layering the illicit monies through a complex web of transactions making funds hard to trace, and consolidate funds into spending accounts.
 
 <div class="post-image-section"><figure>
   <img src="/img/graph-intro/image3.gif" alt="Change Data Capture flow" style="width:60%"><figcaption align="middle"><i>Fig 2: Money Laundering Network</i></figcaption>
