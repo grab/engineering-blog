@@ -2,7 +2,7 @@
 layout: post
 id: 2022-05-04-doc-as-code
 title: Embracing a Docs-as-Code approach
-date: 2022-04-21 08:55:55
+date: 2022-05-04 08:55:55
 authors: [shujuan-cheong]
 categories: [Engineering, Product]
 tags: [Docs-as-Code, Documentation, Technical documentation, Engineering practices]
