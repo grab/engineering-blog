@@ -5,7 +5,7 @@ title: How we reduced our CI YAML files from 1800 lines to 50 lines
 date: 2022-04-19 15:55:55
 authors: [jialong-loh, oscar-cassetti, wenbo-wei]
 categories: [Engineering]
-tags: [CI, Machine Learning, Pipelines, Continuous Integration, Continuous Delivery, Optimisation]
+tags: [CI, Machine Learning, Pipelines, Continuous Integration, Continuous Delivery, Optimisation, Rust]
 comments: true
 cover_photo: /img/how-we-reduced-our-ci-yaml/cover.jpg
 excerpt: "GitLab and its tooling are are an integral part of the machine learning platform team stack, for continuous delivery of machine learning. One of our core products is MerLin Pipelines. We were reaching certain limitations of GitLab for large repositories by way of includes and nested gitlab-ci YAML files."
@@ -88,7 +88,7 @@ Our initial attempt at using static code generation put us partially there. We w
 Quoting the official website:
 
 > Instead of running a child pipeline from a static YAML file, you can define a job that runs your own script to generate a YAML file, which is then used to trigger a child pipeline.
-> 
+>
 > This technique can be very powerful in generating pipelines targeting content that changed or to build a matrix of targets and architectures.
 
 We were already on the right track. We just needed to combine code generation with child pipelines, to dynamically generate the necessary stages on the fly.
@@ -231,5 +231,5 @@ We might open source our solution.
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
- 
+
 Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
