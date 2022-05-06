@@ -88,7 +88,7 @@ Apart from technical documentation, we are also applying the Docs-as-Code approa
 
 ## We are hiring!
 
-We are looking for more technical content developers to join the team. If you’re keen on joining our Docs-as-Code journey and improving developer experience, check out our open listings in [Singapore](https://grab.careers/jobs/job-details/?id=be841c804fee010177fceb2a4a740001) and [Malaysia](https://grab.careers/jobs/job-details/?id=be841c804fee0100502ab2e578b70001).
+We are looking for more technical content developers to join the team. If you’re keen on joining our Docs-as-Code journey and improving developer experience, check out our open listings in [Singapore](https://grab.careers/jobs/job-details/?id=be841c804fee010177fceb2a4a740001) and [Malaysia](https://grab.careers/jobs/job-details/?id=2b029fdf01590101835c6a2e830c0002).
 
 Join us in driving this initiative forward and making documentation more approachable for everyone!
 
