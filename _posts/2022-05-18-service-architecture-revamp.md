@@ -23,7 +23,7 @@ In the second half of 2021, the Deliveries search team worked on improving this 
 </div>
 
 
-## Problem Statement
+## Problem statement
 
 With the legacy system, we noticed several problems.
 
@@ -33,7 +33,7 @@ If a user types in a query “Roti Prata” (flatbread), he is likely looking fo
 
 In the legacy system, all entities whose names partially matched “Roti Prata” were displayed and ranked according to hard coded weights, and matches with merchant-partner names were always prioritised, even if the user intention was clearly to search for the “Roti Prata” dish itself.  
 
-This problem was more common in Mart, as users often intended to search for items instead of shops. Besides the lack of intention recognition, the search system was also unable to take context into consideration; users searching the same keyword query at different times and locations could have different objectives. E.g. if users search for “Bread” in the day, they may be likely to look for cafes while searches at night could  be for breakfast the next day.
+This problem was more common in Mart, as users often intended to search for items instead of shops. Besides the lack of intention recognition, the search system was also unable to take context into consideration; users searching the same keyword query at different times and locations could have different objectives. E.g. if users search for “Bread” in the day, they may be likely to look for cafes while searches at night could be for breakfast the next day.
 
 #### Search results from multiple business verticals were not blended effectively
 
@@ -51,7 +51,7 @@ In this section, solutions from both architecture and implementation perspective
 
 ### Architecture
 
-In the new architecture, the flow is extended from lexical recall only to multi-layer including boosting, multi-recall and ranking. The addition of boosting enables capabilities like intent recognition and query expansion, while the change from single lexical recall to multi-recall opens up the potential for other recall methods, e.g. embedding based and graph based.
+In the new architecture, the flow is extended from lexical recall only to multi-layer including boosting, multi-recall, and ranking. The addition of boosting enables capabilities like intent recognition and query expansion, while the change from single lexical recall to multi-recall opens up the potential for other recall methods, e.g. embedding based and graph based.
 
 These help address the [first problem statement](#search-results-were-textually-matched-without-considering-intention-and-context). Furthermore, the multi-recall framework enables fetching results from multiple business verticals, addressing the [second problem statement](#search-results-from-multiple-business-verticals-were-not-blended-effectively). In the new framework, results from different verticals and different recall methods were grouped and ranked together without any leak of abstraction or loss of useful data from search recall stage in ranking.
 
