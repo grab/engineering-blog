@@ -1,13 +1,13 @@
 ---
 layout: post
-id: 2022-05-17-service-architecture-revamp
-title: Service architecture revamp
+id: 2022-05-17-search-architecture-revamp
+title: Search architecture revamp
 date: 2022-05-17 03:55:55
 authors: [lipeng-zhang, tao-hou, weilun-wu]
 categories: [Engineering]
 tags: [Architecture, Optimisation, Search]
 comments: true
-cover_photo: /img/service-architecture-revamp/cover.jpg
+cover_photo: /img/search-architecture-revamp/cover.jpg
 excerpt: "Grab’s search architecture was initially designed to only support exact text matching based on user queries. Find out what problems the Deliveries search team faced and how they improved the search architecture to address these issues."
 ---
 
@@ -18,7 +18,7 @@ Prior to 2021, Grab’s search architecture was designed to only support textual
 In the second half of 2021, the Deliveries search team worked on improving this architecture to make it smarter, more scalable and also unlock future growth for different search use cases at Grab. The figure below shows a simplified overview of the legacy architecture.
 
 <div class="post-image-section"><figure>
-  <img src="/img/service-architecture-revamp/image2.png" alt="Point multiplier" style="width:60%"><figcaption align="middle"><i>Legacy architecture</i></figcaption>
+  <img src="/img/search-architecture-revamp/image2.png" alt="Point multiplier" style="width:60%"><figcaption align="middle"><i>Legacy architecture</i></figcaption>
   </figure>
 </div>
 
@@ -56,7 +56,7 @@ In the new architecture, the flow is extended from lexical recall only to multi-
 These help address the [first problem statement](#search-results-were-textually-matched-without-considering-intention-and-context). Furthermore, the multi-recall framework enables fetching results from multiple business verticals, addressing the [second problem statement](#search-results-from-multiple-business-verticals-were-not-blended-effectively). In the new framework, results from different verticals and different recall methods were grouped and ranked together without any leak of abstraction or loss of useful data from search recall stage in ranking.
 
 <div class="post-image-section"><figure>
-  <img src="/img/service-architecture-revamp/image1.png" alt="Point multiplier" style="width:60%"><figcaption align="middle"><i>Upgraded architecture</i></figcaption>
+  <img src="/img/search-architecture-revamp/image1.png" alt="Point multiplier" style="width:60%"><figcaption align="middle"><i>Upgraded architecture</i></figcaption>
   </figure>
 </div>
 
