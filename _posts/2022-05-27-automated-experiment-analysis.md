@@ -21,7 +21,7 @@ Designed to help Grab in its journey of innovation and data-driven decision maki
 2. Ensure post-experiment results are reproducible under a company-wide standard, and easily reviewed by each other.
 3. Democratise the institutional knowledge of experimentation across functions.
 
-# Background
+## Background
 
 Today, the GrabX platform provides the ability to define, configure, and execute online controlled experiments (OCEs), often called A/B tests, to gather trustworthy data and make data-driven decisions about how to improve our products.
 
