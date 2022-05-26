@@ -113,7 +113,7 @@ Automated Experiment Analysis is the first building block to boost the trustwor
 
 **A centralised metric store** -  We built a metric calculation dictionary, which currently contains around 30-40 basic business metrics, but its functionality is limited to GrabX Experimentation use case.
 
-If the metric store is expected to serve more general uses, it needs to be further enriched by allowing some “smarts”, e.g. fabric-agnostic metrics computations [^2], other types of data slicing, and some considerations with real-time metrics/ signals.
+If the metric store is expected to serve more general uses, it needs to be further enriched by allowing some “smarts”, e.g. fabric-agnostic metrics computations [^2], other types of data slicing, and some considerations with real-time metrics or signals.
 
 **An end-to-end experiment guide rail** - Currently, we provide automatic data analysis after an experiment is done, but no guardrail features at multiple experiment stages, e.g. sampling strategy choices, sample size recommendation from the planning stage, and data quality check during/after the experiment windows. Without the end-to-end guardrails, running experiments will be very prone to pitfalls. We therefore plan to add some degree of automation to ensure experiments adhere to the standards used by the post-experimental analysis.
 
