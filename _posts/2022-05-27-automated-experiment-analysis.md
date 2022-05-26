@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2022-05-27-automated-experiment-analysis
-title: Automated Experiment Analysis-  Making experimental analysis scalable
+title: Automated Experiment Analysis - Making experimental analysis scalable
 date: 2022-05-17 03:55:55
 authors: [albert-cheng, ankit-sinha, kenneth-rithvik, ruike-zhang]
 categories: [Engineering, Data Science]
@@ -128,6 +128,6 @@ Powered by technology and driven by heart, our mission is to drive Southeast Asi
 ## References
 [^1]: Dmitriev, P., Gupta, S., Kim, D. W., & Vaz, G. (2017, August). A dirty dozen: twelve common metric interpretation pitfalls in online controlled experiments. In Proceedings of the 23rd ACM SIGKDD international conference on knowledge discovery and data mining (pp. 1427-1436).
 
-[^2]: [Metric computation for multiple backends](https://www.google.com/url?q=https://www.microsoft.com/en-us/research/group/experimentation-platform-exp/articles/metric-computation-for-multiple-backends/&sa=D&source=editors&ust=1653447126314303&usg=AOvVaw0TcF9wLZH__GxoQ1Up9v4n), Craig Boucher, Ulf Knoblich, Dan Miller, Sasha Patotski, Amin Saied, Microsoft Experimentation Platform
+[^2]: [Metric computation for multiple backends](https://www.microsoft.com/en-us/research/group/experimentation-platform-exp/articles/metric-computation-for-multiple-backends/), Craig Boucher, Ulf Knoblich, Dan Miller, Sasha Patotski, Amin Saied, Microsoft Experimentation Platform
 
 [^3]: Deng, A., Xu, Y., Kohavi, R., & Walker, T. (2013, February). Improving the sensitivity of online controlled experiments by utilising pre-experiment data. In Proceedings of the sixth ACM international conference on Web search and data mining (pp. 123-132).
