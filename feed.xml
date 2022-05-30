@@ -6,9 +6,169 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 27 May 2022 02:25:51 +0000</pubDate>
-    <lastBuildDate>Fri, 27 May 2022 02:25:51 +0000</lastBuildDate>
+    <pubDate>Mon, 30 May 2022 02:55:52 +0000</pubDate>
+    <lastBuildDate>Mon, 30 May 2022 02:55:52 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Automated Experiment Analysis - Making experimental analysis scalable</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Trustworthy experiments are key to making sound decisions, so analysts and data scientists put a lot of effort into analysing them and making business impacts. An extension of &lt;a href=&quot;https://engineering.grab.com/building-grab-s-experimentation-platform&quot;&gt;Grab’s Experimentation (GrabX) platform&lt;/a&gt;, Automated Experiment Analysis is one of Grab’s data products that helps automate statistical analyses of experiments. It also provides automatic experimental data pipelines and customised tests for different types of experiments.&lt;/p&gt;
+
+&lt;p&gt;Designed to help Grab in its journey of innovation and data-driven decision making, the data product helps to:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Standardise and automate the basic experiment analysis process on Grab experiments.&lt;/li&gt;
+  &lt;li&gt;Ensure post-experiment results are reproducible under a company-wide standard, and easily reviewed by each other.&lt;/li&gt;
+  &lt;li&gt;Democratise the institutional knowledge of experimentation across functions.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Today, the GrabX platform provides the ability to define, configure, and execute online controlled experiments (OCEs), often called A/B tests, to gather trustworthy data and make data-driven decisions about how to improve our products.&lt;/p&gt;
+
+&lt;p&gt;Before the automated analysis, each experiment was analysed manually on an ad-hoc basis. This manual and federated model brings in several challenges at the company level:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Inefficiency&lt;/strong&gt;: Repetitive nature of data pipeline building and basic post-experiment analyses incur large costs and deplete the analysts’ bandwidth from running deeper analyses.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Lack of quality control&lt;/strong&gt;: Risk of unstandardised, inaccurate or late results as the platform cannot exercise data-governance/control or extend offerings to Grab’s other entities.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Lack of scalability and availability&lt;/strong&gt;: GrabX users have varied backgrounds and skills, making their approaches to experiments different and not easily transferable/shared. E.g. Some teams may use more advanced techniques to speed up their experiments without using too much resources but these techniques are not transferable without considerable training.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;h3 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/automated-experiment-analysis/image1.png&quot; alt=&quot;Point multiplier&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Architecture diagram&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;When users set up experiments on GrabX, they can configure the success metrics they are interested in. These metrics configurations are then stored in the metadata as “bronze”, “silver”, and “gold” datasets depending on the corresponding step in the automated data pipeline process.&lt;/p&gt;
+
+&lt;h4 id=&quot;metrics-configuration-and-bronze-datasets&quot;&gt;Metrics configuration and “bronze” datasets&lt;/h4&gt;
+
+&lt;p&gt;In this project, we have developed a metrics glossary that stores information about what the metrics are and how they are computed. The metrics glossary is stored in CosmoDB and serves as an API Endpoint for GrabX so users can pick from the list of available metrics. If a metric is not available, users can input their custom metrics definition.&lt;/p&gt;
+
+&lt;p&gt;This metrics selection, as an analysis configuration, is then stored as a “bronze” dataset in Azure Data Lake as metadata, together with the experiment configurations. Once the experiment starts, the data pipeline gathers all experiment subjects and their assigned experiment groups from our clickstream tracking system.&lt;/p&gt;
+
+&lt;p&gt;In this case, the experiment subject refers to the facets of the experiment. For example, if the experiment subject is a user, then the user will go through the same experience throughout the entire experimentation period.&lt;/p&gt;
+
+&lt;h4 id=&quot;metrics-computation-and-silver-datasets&quot;&gt;Metrics computation and “silver” datasets&lt;/h4&gt;
+
+&lt;p&gt;In this step, the metrics engine gathers all metrics data based on the metrics configuration and computes the metrics for each experiment subject. This computed data is then stored as a “silver” dataset and is the foundation dataset for all statistical analyses.&lt;/p&gt;
+
+&lt;p&gt;“Silver” datasets are then passed through the “Decision Engine” to get the final “gold” datasets, which contain the experiment results.&lt;/p&gt;
+
+&lt;h4 id=&quot;results-visualisation-andgold-datasets&quot;&gt;Results visualisation and ”gold” datasets&lt;/h4&gt;
+
+&lt;p&gt;In “gold” datasets, we have the result of the experiment, along with some custom messages we want to show our users. These are saved in sets of fact and dim tables (typically used in &lt;a href=&quot;https://docs.microsoft.com/en-us/power-bi/guidance/star-schema&quot;&gt;star schemas&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;For users to visualise the result on GrabX, we leverage the embedded Power BI visualisation. We build the visualisation using a “gold” dataset and embed it to each experiment page with a fixed filter. By doing so, users can experience the end-to-end flow directly from GrabX.&lt;/p&gt;
+
+&lt;h3 id=&quot;implementation&quot;&gt;Implementation&lt;/h3&gt;
+
+&lt;p&gt;The implementation consists of four key engineering components:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Analysis configuration setup&lt;/li&gt;
+  &lt;li&gt;A data pipeline&lt;/li&gt;
+  &lt;li&gt;Automatic analysis&lt;/li&gt;
+  &lt;li&gt;Results visualisation&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Analysis configuration&lt;/strong&gt; is part of the experiment setup process where users select success metrics they are interested in. This is an essential configuration for post-experiment analysis, in addition to the usual experiment configurations (e.g. sampling strategies).&lt;/p&gt;
+
+&lt;p&gt;It ensures that the reported experiment results will align with the hypothesis setup, which helps avoid one of the common pitfalls in OCEs &lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;There are three types of metrics available:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Pre-defined metrics: These metrics are already defined in the Scribe datamart, e.g. Gross Merchandise Value (GMV) per pax.&lt;/li&gt;
+  &lt;li&gt;Event-based metrics: Users can specify an ad-hoc metric in the form of a funnel with event names for funnel start and end.&lt;/li&gt;
+  &lt;li&gt;Build your own metrics: Users have the flexibility to define a metric in the form of a SQL query.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;A data pipeline&lt;/strong&gt; here mainly consists of data sourcing and data processing. We use Azure Data Factory to schedule ETL pipelines so we can calculate the metrics and statistical analysis. ETL jobs are written in spark and run using Databricks.&lt;/p&gt;
+
+&lt;p&gt;Data pipelines are streamlined to the following:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Load experiments and metrics metadata, defined at the experiment creation stage.&lt;/li&gt;
+  &lt;li&gt;Load experiment and clickstream events.&lt;/li&gt;
+  &lt;li&gt;Load experiment assignments. An experiment assignment maps a randomisation unit ID to the corresponding experiment or variant IDs.&lt;/li&gt;
+  &lt;li&gt;Merge the data mentioned above for each experiment variant, and obtain sufficient data to do a deeper results analysis.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Automatic analysis&lt;/strong&gt; uses an internal python package “Decision Engine”, which decouples the dataset and statistical tests, so that we can incrementally improve applications of advanced techniques. It provides a comprehensive set of test results at the variant level, which include statistics, p-values, confidence intervals, and the test choices that correspond to the experiment configurations. It’s a crowdsourced project which allows all to contribute what they believe should be included in fundamental post-experiment analysis.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Results visualisation&lt;/strong&gt; leverages PowerBI, which is embedded in the GrabX UI, so users can run the experiments and review the results on a single platform. &lt;/p&gt;
+
+&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
+
+&lt;p&gt;At the individual user level, Automated Experiment Analysis is designed to enable analysts and data scientists to associate metrics with experiments, and present the experiment results in a standardised and comprehensive manner. It speeds up the decision-making process and frees up the bandwidths of analysts and data scientists to conduct deeper analyses.&lt;/p&gt;
+
+&lt;p&gt;At the user community level, it improves the efficiency of running experimental analysis by capturing all experiments, their results, and the launch decision within a single platform.&lt;/p&gt;
+
+&lt;h2 id=&quot;learningsconclusion&quot;&gt;Learnings/Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Automated Experiment Analysis is the first building block to boost the trustworthiness of OCEs in Grab. Not all types of experiments are fully onboard, and they might not need to be. Through this journey, we believe these key learnings would be useful for experimenters and platform teams:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;To standardise and simplify several experimental analysis steps, there needs to be automation data pipelines, analytics tools, and a metrics store in the infrastructure.&lt;/li&gt;
+  &lt;li&gt;The “Decision Engine” analytics tool should be decoupled from the other engineering components, so that it can be incrementally improved in future.&lt;/li&gt;
+  &lt;li&gt;To democratise knowledge and ensure service coverage, many components need to have a crowdsourcing feature, e.g. the metrics store has a BYOM function, and “Decision Engine” is an open-sourced internal python package.&lt;/li&gt;
+  &lt;li&gt;Tracking implementation is important. To standardise data pipelines and achieve scalability, we need to standardise the way we implement tracking.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;A centralised metric store&lt;/strong&gt; -  We built a metric calculation dictionary, which currently contains around 30-40 basic business metrics, but its functionality is limited to GrabX Experimentation use case.&lt;/p&gt;
+
+&lt;p&gt;If the metric store is expected to serve more general uses, it needs to be further enriched by allowing some “smarts”, e.g. fabric-agnostic metrics computations &lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;, other types of data slicing, and some considerations with real-time metrics or signals.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;An end-to-end experiment guide rail&lt;/strong&gt; - Currently, we provide automatic data analysis after an experiment is done, but no guardrail features at multiple experiment stages, e.g. sampling strategy choices, sample size recommendation from the planning stage, and data quality check during/after the experiment windows. Without the end-to-end guardrails, running experiments will be very prone to pitfalls. We therefore plan to add some degree of automation to ensure experiments adhere to the standards used by the post-experimental analysis.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;A more comprehensive analysis toolbox&lt;/strong&gt; - The current state of the project mainly focuses on infrastructure development, so it starts with basic frequentist’s A/B testing approaches. In future versions, it can be extended to include sequential testing, CUPED &lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;, attribution analysis, Causal Forest, heterogeneous treatment effects, etc.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Dmitriev, P., Gupta, S., Kim, D. W., &amp;amp; Vaz, G. (2017, August). A dirty dozen: twelve common metric interpretation pitfalls in online controlled experiments. In Proceedings of the 23rd ACM SIGKDD international conference on knowledge discovery and data mining (pp. 1427-1436). &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://www.microsoft.com/en-us/research/group/experimentation-platform-exp/articles/metric-computation-for-multiple-backends/&quot;&gt;Metric computation for multiple backends&lt;/a&gt;, Craig Boucher, Ulf Knoblich, Dan Miller, Sasha Patotski, Amin Saied, Microsoft Experimentation Platform &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Deng, A., Xu, Y., Kohavi, R., &amp;amp; Walker, T. (2013, February). Improving the sensitivity of online controlled experiments by utilising pre-experiment data. In Proceedings of the sixth ACM international conference on Web search and data mining (pp. 123-132). &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Mon, 30 May 2022 00:20:55 +0000</pubDate>
+        <link>https://engineering.grab.com/automated-experiment-analysis</link>
+        <guid isPermaLink="true">https://engineering.grab.com/automated-experiment-analysis</guid>
+        
+        <category>Experiment</category>
+        
+        <category>Experimental analysis</category>
+        
+        <category>Azure Databricks</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>Search architecture revamp</title>
@@ -1361,180 +1521,6 @@ Powered by technology and driven by heart, our mission is to drive Southeast Asi
         <category>Optimisation</category>
         
         <category>Stream Processing</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Exposing a Kafka Cluster via a VPC Endpoint Service</title>
-        <description>&lt;p&gt;In large organisations, it is a common practice to isolate the cloud resources of different verticals. Amazon Web Services (AWS) Virtual Private Cloud (VPC) is a convenient way of doing so. At Grab, while our core AWS services reside in a main VPC, a number of Grab Tech Families (TFs) have their own dedicated VPC. One such example is &lt;a href=&quot;https://www.grab.com/id/kios/&quot;&gt;GrabKios&lt;/a&gt;. Previously known as “Kudo”, GrabKios was acquired by Grab in 2017 and has always been residing in its own AWS account and dedicated VPC.&lt;/p&gt;
-
-&lt;p&gt;In this article, we explore how we exposed an Apache Kafka cluster across multiple Availability Zones (AZs) in Grab’s main VPC, to producers and consumers residing in the GrabKios VPC, via a &lt;a href=&quot;https://docs.aws.amazon.com/vpc/latest/privatelink/endpoint-service.html&quot;&gt;VPC Endpoint Service&lt;/a&gt;. This design is part of Coban unified stream processing platform at Grab.&lt;/p&gt;
-
-&lt;p&gt;There are several ways of enabling communication between applications across distinct VPCs; VPC peering is the most straightforward and affordable option. However, it potentially exposes the entire VPC networks to each other, needlessly increasing the attack surface.&lt;/p&gt;
-
-&lt;p&gt;Security has always been one of Grab’s top concerns and with Grab’s increasing growth, there is a need to deprecate VPC peering and shift to a method of only exposing services that require remote access. The AWS VPC Endpoint Service allows us to do exactly that for TCP/IPv4 communications within a single &lt;a href=&quot;https://aws.amazon.com/about-aws/global-infrastructure/regions_az/&quot;&gt;AWS region&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Setting up a VPC Endpoint Service compared to VPC peering is already relatively complex. On top of that, we need to expose an Apache Kafka cluster via such an endpoint, which comes with an extra challenge. Apache Kafka requires clients, called producers and consumers, to be able to deterministically establish a TCP connection to all &lt;a href=&quot;https://jaceklaskowski.gitbooks.io/apache-kafka/content/kafka-brokers.html&quot;&gt;brokers&lt;/a&gt; forming the cluster, not just any one of them.&lt;/p&gt;
-
-&lt;p&gt;Last but not least, we need a design that optimises performance and cost by limiting data transfer across AZs.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Note: &lt;strong&gt;All&lt;/strong&gt; variable names, port numbers and other details used in this article are only used as examples.&lt;/em&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;architecture-overview&quot;&gt;Architecture overview&lt;/h2&gt;
-
-&lt;p&gt;As shown in this diagram, the Kafka cluster resides in the service provider VPC (Grab’s main VPC) while local Kafka producers and consumers reside in the service consumer VPC (GrabKios VPC).&lt;/p&gt;
-
-&lt;p&gt;In Grab’s main VPC, we created a Network Load Balancer (NLB) and set it up across all three AZs, enabling cross-zone load balancing. We then created a VPC Endpoint Service associated with that NLB.&lt;/p&gt;
-
-&lt;p&gt;Next, we created a VPC Endpoint Network Interface in the GrabKios VPC, also set up across all three AZs, and attached it to the remote VPC endpoint service in Grab’s main VPC. Apart from this, we also created a Route 53 Private Hosted Zone &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.grab&lt;/code&gt; and a CNAME record &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt; that points to the VPC Endpoint Network Interface hostname.&lt;/p&gt;
-
-&lt;p&gt;Lastly, we configured producers and consumers to use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab:10000&lt;/code&gt; as their Kafka bootstrap server endpoint, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10000/tcp&lt;/code&gt; being an arbitrary port of our choosing. We will explain the significance of these in later sections.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/exposing-kafka-cluster/image2.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;network-load-balancer-setup&quot;&gt;Network Load Balancer setup&lt;/h2&gt;
-
-&lt;p&gt;On the NLB in Grab’s main VPC, we set up the corresponding bootstrap listener on port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10000/tcp&lt;/code&gt;, associated with a target group containing all of the Kafka brokers forming the cluster. But this listener alone is not enough.&lt;/p&gt;
-
-&lt;p&gt;As mentioned earlier, Apache Kafka requires producers and consumers to be able to deterministically establish a TCP connection to all brokers. That’s why we created one listener for every broker in the cluster, incrementing the TCP port number for each new listener, so each broker endpoint would have the same name but with different port numbers, e.g. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab:10001&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab:10002&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;We then associated each listener with a dedicated target group containing only the targeted Kafka broker, so that remote producers and consumers could differentiate between the brokers by their TCP port number.&lt;/p&gt;
-
-&lt;p&gt;The following listeners and associated target groups were set up on the NLB:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10000/tcp&lt;/code&gt; (bootstrap) -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 101, broker 201, broker 301]&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10001/tcp&lt;/code&gt; -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 101]&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10002/tcp&lt;/code&gt; -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 201]&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;10003/tcp&lt;/code&gt; -&amp;gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; @ [broker 301]&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;security-group-rules&quot;&gt;Security Group rules&lt;/h2&gt;
-
-&lt;p&gt;In the Kafka brokers’ Security Group (SG), we added an ingress SG rule allowing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; traffic from each of the three private IP addresses of the NLB. As mentioned earlier, the NLB was set up across all three AZs, with each having its own private IP address.&lt;/p&gt;
-
-&lt;p&gt;On the GrabKios VPC (consumer side), we created a new SG and attached it to the VPC Endpoint Network Interface. We also added ingress rules to allow all producers and consumers to connect to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tcp/10000-10003&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;kafka-setup&quot;&gt;Kafka setup&lt;/h2&gt;
-
-&lt;p&gt;Kafka brokers typically come with a listener on port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9092/tcp&lt;/code&gt;, advertising the brokers by their private IP addresses. We kept that default listener so that local producers and consumers in Grab’s main VPC could still connect directly.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ kcat -L -b 10.0.0.1:9092
- 3 brokers:
- broker 101 at 10.0.0.1:9092 (controller)  
- broker 201 at 10.0.0.2:9092
- broker 301 at 10.0.0.3:9092
-... truncated output ...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;We also configured all brokers with an additional listener on port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; that advertises the brokers by:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Their shared private name &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt;.&lt;/li&gt;
-  &lt;li&gt;Their distinct TCP ports previously set up on the NLB’s dedicated listeners.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ kcat -L -b 10.0.0.1:9094
- 3 brokers:
- broker 101 at kafka.grab:10001 (controller)  
- broker 201 at kafka.grab:10002
- broker 301 at kafka.grab:10003
-... truncated output ...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Note that there is a difference in how the broker’s endpoints are advertised in the two outputs above. The latter enables connection to any particular broker from the GrabKios VPC via the VPC Endpoint Service.&lt;/p&gt;
-
-&lt;p&gt;It would definitely be possible to advertise the brokers directly with the remote VPC Endpoint Interface hostname instead of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt;, but relying on such a private name presents at least two advantages.&lt;/p&gt;
-
-&lt;p&gt;First, it decouples the Kafka deployment in the service provider VPC from the infrastructure deployment in the service consumer VPC. Second, it makes the Kafka cluster easier to expose to other remote VPCs, should we need it in the future.&lt;/p&gt;
-
-&lt;h2 id=&quot;limiting-data-transfer-across-availability-zones&quot;&gt;Limiting data transfer across Availability Zones&lt;/h2&gt;
-
-&lt;p&gt;At this stage of the setup, our Kafka cluster is &lt;strong&gt;fully reachable&lt;/strong&gt; from producers and consumers in the GrabKios VPC. Yet, the design is not optimal.&lt;/p&gt;
-
-&lt;p&gt;When a producer or a consumer in the GrabKios VPC needs to connect to a particular broker, it uses its individual endpoint made up of the shared name &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt; and the broker’s dedicated TCP port.&lt;/p&gt;
-
-&lt;p&gt;The shared name arbitrarily resolves into one of the three IP addresses of the VPC Endpoint Network Interface, one for each AZ.&lt;/p&gt;
-
-&lt;p&gt;Hence, there is a fair chance that the obtained IP address is neither in the client’s AZ nor in that of the target Kafka broker. The probability of this happening can be as high as 2/3 when both client and broker reside in the same AZ and 1/3 when they do not.&lt;/p&gt;
-
-&lt;p&gt;While that is of little concern for the initial bootstrap connection, it becomes a serious drawback for actual data transfer, impacting the performance and incurring unnecessary data transfer cost.&lt;/p&gt;
-
-&lt;p&gt;For this reason, we created &lt;strong&gt;three additional&lt;/strong&gt; CNAME records in the Private Hosted Zone in the GrabKios VPC, one for each AZ, with each pointing to the VPC Endpoint Network Interface zonal hostname in the corresponding AZ:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka-az1.grab&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka-az2.grab&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka-az3.grab&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Note that we used az1, az2, az3 instead of the typical AWS 1a, 1b, 1c suffixes, because the latter’s mapping is not consistent across AWS accounts.&lt;/p&gt;
-
-&lt;p&gt;We also reconfigured each Kafka broker in Grab’s main VPC by setting their &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;9094/tcp&lt;/code&gt; listener to advertise brokers by their new zonal private names.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ kcat -L -b 10.0.0.1:9094
- 3 brokers:
- broker 101 at kafka-az1.grab:10001 (controller)  
- broker 201 at kafka-az2.grab:10002
- broker 301 at kafka-az3.grab:10003
-... truncated output ...
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Our private zonal names are shared by all brokers in the same AZ while TCP ports remain distinct for each broker. However, this is not clearly shown in the output above because our cluster only counts three brokers, one in each AZ.&lt;/p&gt;
-
-&lt;p&gt;The previous common name &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;kafka.grab&lt;/code&gt; remains in the GrabKios VPC’s Private Hosted Zone and allows connections to any broker via an arbitrary, likely non-optimal route. GrabKios VPC producers and consumers still use that highly-available endpoint to initiate bootstrap connections to the cluster.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/exposing-kafka-cluster/image1.png&quot; alt=&quot;Search data flow&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;future-improvements&quot;&gt;Future improvements&lt;/h2&gt;
-
-&lt;p&gt;For this setup, scalability is our main challenge. If we add a new broker to this Kafka cluster, we would need to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Assign a new TCP port number to it.&lt;/li&gt;
-  &lt;li&gt;Set up a new dedicated listener on that TCP port on the NLB.&lt;/li&gt;
-  &lt;li&gt;Configure the newly spun up Kafka broker to advertise its service with the same TCP port number and the private zonal name corresponding to its AZ.&lt;/li&gt;
-  &lt;li&gt;Add the new broker to the target group of the bootstrap listener on the NLB.&lt;/li&gt;
-  &lt;li&gt;Update the network SG rules on the service consumer side to allow connections to the newly allocated TCP port.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We rely on Terraform to dynamically deploy all AWS infrastructure and on Jenkins and Ansible to deploy and configure Apache Kafka. There is limited overhead but there are still a few manual actions due to a lack of integration. These include transferring newly allocated TCP ports and their corresponding EC2 instances’ IP addresses to our Ansible inventory, commit them to our codebase and trigger a Jenkins job deploying the new Kafka broker.&lt;/p&gt;
-
-&lt;p&gt;Another concern of this setup is that it is only applicable for AWS. As we are aiming to be multi-cloud, we may need to port it to Microsoft Azure and leverage the &lt;a href=&quot;https://docs.microsoft.com/en-us/azure/private-link/private-link-service-overview&quot;&gt;Azure Private Link service&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;In both cases, running Kafka on Kubernetes with the Strimzi operator would be helpful in addressing the scalability challenge and reducing our adherence to one particular cloud provider. We will explain how this solution has helped us address these challenges in a future article.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to David Virgil Naranjo whose &lt;a href=&quot;https://dvirgiln.github.io/exposing-kafka-throw-different-aws-vpcs/&quot;&gt;blog post&lt;/a&gt; inspired this work.
-&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 18 Feb 2022 00:20:00 +0000</pubDate>
-        <link>https://engineering.grab.com/exposing-kafka-cluster</link>
-        <guid isPermaLink="true">https://engineering.grab.com/exposing-kafka-cluster</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Cloud</category>
-        
-        <category>Kafka</category>
         
         
         <category>Engineering</category>
