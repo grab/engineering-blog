@@ -3,7 +3,7 @@ layout: post
 id: 2022-06-02-graph-concepts
 title: Graph concepts and applications
 date: 2022-05-30 00:20:55
-authors: [wenxiang-lu, muqi-li, jia-chen, fujiao-liu]
+authors: [wenxiang-lu, muqi-li, jia-chen]
 categories: [Engineering, Security]
 tags: [Security, Graphs concepts, Graph technology]
 comments: true
