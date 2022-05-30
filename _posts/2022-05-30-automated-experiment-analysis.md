@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2022-05-27-automated-experiment-analysis
+id: 2022-05-30-automated-experiment-analysis
 title: Automated Experiment Analysis - Making experimental analysis scalable
-date: 2022-05-27 03:55:55
+date: 2022-05-30 00:20:55
 authors: [albert-cheng, ankit-sinha, kenneth-rithvik, ruike-zhang]
 categories: [Engineering, Data Science]
 tags: [Experiment, Experimental analysis, Azure Databricks]
