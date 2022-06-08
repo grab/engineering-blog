@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2022-06-10-facial-recognition
+id: 2022-06-09-facial-recognition
 title: How facial recognition technology keeps you safe
-date: 2022-06-02 00:20:55
+date: 2022-06-09 00:20:55
 authors: [kaifeng-tee, wentao-xie]
 categories: [Engineering, Security, Data Science]
 tags: [Security, Facial recognition]
