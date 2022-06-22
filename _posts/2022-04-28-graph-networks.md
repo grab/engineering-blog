@@ -55,9 +55,10 @@ Leveraging the power of graphs, the team has primarily built two types of system
 
 
 ### What’s next?
+In a future article of our Graph Network blog series, we will dive deeper into how we develop the graph infrastructure and database using AWS Neptune.
 
-In the next article of our Graph Network blog series, we will dive deeper into how we develop the graph infrastructure and database using AWS Neptune. Stay tuned for the next part.
-
+Check out the other articles in this series:
+* [Graph concepts and applications](/graph-concepts)
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
