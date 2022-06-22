@@ -248,7 +248,11 @@ Graph technology typically consists of:
 
 Although predominantly used in fraud detection, Graph technology has many other use cases such as making real-time recommendations based on consumer behaviour, identity and access control, risk assessment and monitoring, AI and ML, and many more.
 
-Check out our next blog article, where we will be talking about how our Graph Visualisation Platform enhances Grab’s fraud detection methods.
+In our next blog article, we will be talking about how our Graph Visualisation Platform enhances Grab’s fraud detection methods.
+
+Check out the other articles in this series:
+* [Graph Networks - Striking fraud syndicates in the dark](/graph-networks)
+
 
 ## References
 
