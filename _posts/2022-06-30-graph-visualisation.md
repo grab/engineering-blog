@@ -2,7 +2,7 @@
 layout: post
 id: 2022-06-30-graph-visualisation
 title: Graph Networks - 10X investigation with Graph Visualisations
-date: 2022-06-27 00:20:55
+date: 2022-06-30 00:20:55
 authors: [fujiao-liu, shuqi-wang, muqi-li, jia-chen]
 categories: [Engineering, Security, Data Science]
 tags: [Security, Graphs concepts, Graph technology, Graph visualisation]
