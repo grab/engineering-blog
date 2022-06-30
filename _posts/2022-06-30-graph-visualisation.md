@@ -98,7 +98,7 @@ On the left, we see a pattern of healthy spending on Grab. However, on the right
 
 ## Closing thoughts
 
-Graph Visualisation is an intuitive way to investigate suspicious connections and potential patterns of crime. Investigators can directly interact with any data point to get the details they need and literally view the relationships in the data to make fast, accurate and defensible decisions.
+Graph Visualisation is an intuitive way to investigate suspicious connections and potential patterns of crime. Investigators can directly interact with any data point to get the details they need and literally view the relationships in the data to make fast, accurate, and defensible decisions.
 
 While fraud detection is a good use case for Graph Visualisation, it’s not the only possibility. Graph Visualisation can help make anything more efficient and intelligent, especially if you have highly connected data.
 
