@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Automation, Knowledge management, Productivity]
 comments: true
 cover_photo: /img/automated-faq/cover.png
-excerpt: "Knowledge management is a constant challenge companies face internally as information is usually maintained by different teams. Most frequently asked questions are repetitive, which hinder on-call engineers' productivity. Read to find out how we automated FAQ responses at Grab, allowing engineers' to focus on operational tasks."
+excerpt: "Most frequently asked questions (FAQ) are repetitive, which hinder on-call engineers' productivity. Read to find out how we automated FAQ responses at Grab, allowing engineers to focus on operational tasks."
 ---
 
 ## Overview and initial analysis
