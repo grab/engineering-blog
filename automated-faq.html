@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>How we automated FAQ responses at Grab</title>
+    <meta name="description" content="Most frequently asked questions (FAQ) are repetitive, which hinder on-call engineers' productivity. Read to find out how we automated FAQ responses at Grab, allowing engineers to focus on operational tasks.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/automated-faq">
+    <meta property="og:title" content="How we automated FAQ responses at Grab">
+    <meta property="og:description" content="Most frequently asked questions (FAQ) are repetitive, which hinder on-call engineers' productivity. Read to find out how we automated FAQ responses at Grab, allowing engineers to focus on operational tasks.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/automated-faq/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/automated-faq">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/automated-faq/cover.png" class="post-cover-photo" alt="How we automated FAQ responses at Grab cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">How we automated FAQ responses at Grab</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/preeti-karkera.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#preeti-karkera">Preeti Karkera</a>
+                  
+                
+              </span>
+              <span class="post-date-large">13 Jul 2022 | 8 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="overview-and-initial-analysis">Overview and initial analysis</h2>
+
+<p>Knowledge management is often one of the biggest challenges most companies face internally. Teams spend several working hours trying to either inefficiently look for information or constantly asking colleagues about information already documented somewhere. A lot of time is spent on the internal employee communication channels (in our case, Slack) simply trying to figure out answers to repetitive questions. On our journey to automate the responses to these repetitive questions, we needed first to figure out exactly how much time and effort is spent by on-call engineers answering such repetitive questions.</p>
+
+<p>We soon identified that many of the internal engineering tools’ on-call activities involve answering users’ (internal users) questions on various Slack channels. Many of these questions have already been asked or documented on the wiki. These inquiries hinder on-call engineers’ productivity and affect their ability to focus on operational tasks. Once we figured out that on-call employees spend a lot of time answering Slack queries, we decided on a journey to determine the top questions.</p>
+
+<p>We considered smaller groups of teams for this study and found out that:</p>
+
+<ul>
+  <li>The topmost user queries are “How do I do ABC?” or “Is XYZ broken?”.</li>
+  <li>The second most commonly asked questions revolve around access requests, approvals, or other permissions. The answer to such questions is often URLs to existing documentation.</li>
+</ul>
+
+<p>These findings informed us that we didn’t just need an artificial intelligence (AI) based autoresponder to repetitive questions. We must, in fact, also leverage these channels’ chat histories to identify patterns.</p>
+
+<h2 id="gathering-user-votes-for-shortlisted-vendors">Gathering user votes for shortlisted vendors</h2>
+
+<p>In light of saving costs and time and considering the quality of existing solutions already available in the market, we decided not to reinvent the wheel and instead purchase an existing product. And to figure out which product to purchase, we needed to do a comparative analysis. And thus began our vendor comparison journey!</p>
+
+<p>While comparing the feature sets offered by different vendors, we understood that our users need to play a part in this decision-making process. However, sharing our vendor analysis with our users and allowing them to choose the bot of their choice posed several challenges:</p>
+
+<ul>
+  <li>Users could be biased towards known bots (from previous experiences).</li>
+  <li>Users could be biased towards big brands with a preconceived notion that big brands mean better features and better user support.</li>
+  <li>Users may likely pick the most expensive vendor, assuming that a higher cost means higher efficiency.</li>
+</ul>
+
+<p>To ensure that we receive unbiased feedback, here’s how we opened users up to voting. We highlighted the top features of each vendor’s bot compared to other shortlisted bots. We hid the names of the bots to avoid brand attraction. At a high level, here’s what the categorisation looked like:</p>
+
+<table border="1" style="text-align:center;">
+  <tr>
+    <td><strong>Features</strong></td>
+    <td><strong>Vendor 1 (name  hidden)</strong></td>
+    <td><strong>Vendor 2 (name  hidden)</strong></td>
+    <td><strong>Vendor 3 (name  hidden)</strong></td>
+  </tr>
+  <tr>
+    <td>Enables crowdsourcing, everyone is incentivised to participate. <br /> Participants/SME names are visible. <br /> Everyone can access the web UI and see how the responses configured on the bot.</td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+    <td>-</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td>Lowers discussions on channels by providing easy ways to raise tickets to the team instead of discussing on Slack.</td>
+    <td>-</td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> </td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+  </tr>
+  <tr>
+    <td>Only a specific set of admins (or oncall engineers) feed and maintain the bot thus ensuring information authenticity and reliability.</td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> </td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+  </tr>
+  <tr>
+    <td>Easy bot feeding mechanism/web UI to update FAQs.</td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+    <td>-</td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+  </tr>
+  <tr>
+    <td>Superior natural language processing capabilities.</td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+    <td><img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /> <img src="/img/automated-faq/image1.png" alt="" style="width:10%" /></td>
+    <td>-</td>    
+  </tr>
+  <tr>
+    <td>Please vote</td>
+    <td>Vendor 1</td>
+    <td>Vendor 2</td>
+    <td>Vendor 3</td>    
+  </tr>
+</table>
+
+<p><br /></p>
+
+<p>Although none of the options had all the features our users wanted, <strong><em>about 60% chose Vendor 1 (OneBar)</em></strong>. From this, we discovered the core features that our users needed while keeping them involved in the decision-making process.</p>
+
+<h3 id="matching-our-requirements-with-available-vendors-feature-sets">Matching our requirements with available vendors’ feature sets</h3>
+
+<p>Although our users made their preferences clear, we still needed to ensure that the feature sets available in the market suited our internal requirements in terms of the setup and the features available in portals that we envisioned replacing. As part of our requirements gathering process, here are some of the critical conditions that became more and more prominent:</p>
+
+<ul>
+  <li>An ability to crowdsource Slack discussions/conclusions and save them directly from Slack (preferably with a single command).</li>
+  <li>An ability to auto-respond to Slack queries without calling the bot manually.</li>
+  <li>The bot must be able to respond to queries only on the preconfigured Slack channel (not a Slack-wide auto-responder that is already available).</li>
+  <li>Ability to auto-detect frequently asked questions on the channels would mean less work for platform engineers to feed the bot manually and periodically.</li>
+  <li>A trusted and secured data storage setup and a responsive customer support team.</li>
+</ul>
+
+<h2 id="proof-of-concept">Proof of concept</h2>
+
+<p>We considered several tools (including some of the tools used by our HR for auto-answering employee questions). We then decided to do a complete proof of concept (POC) with OneBar to check if it fulfils our internal requirements.</p>
+
+<p>These were the phases in which we conducted the POC for the shortlisted vendor (OneBar):</p>
+
+<p><strong>Phase 1</strong>: Study the traffic, see what insights OneBar shows and what it could/should potentially show. Then think about how an ideal oncall or support should behave in such an environment. i.e. we could identify specific messages in history and describe what should’ve happened to each one of them.</p>
+
+<p><strong>Phase 2</strong>: Create required records in OneBar and configure it to match the desired behaviour as closely as possible.</p>
+
+<p><strong>Phase 3</strong>: Let the tool run for a couple of weeks and then evaluate how well it responds to questions, how often people search directly, how much information they add, etc. Onebar adds all these metrics in the app making it easier to monitor activity.</p>
+
+<p>In addition to the Onebar POC, we investigated other solutions and did a thorough vendor comparison and analysis. After running the POC and investigating other vendors, we decided to use OneBar as its features best meet our needs.</p>
+
+<h3 id="prioritising-slack-channels">Prioritising Slack channels</h3>
+
+<p>While we had multiple Slack channels that we’d love to have enabled the shortlisted bot on, our initial contract limited our use of the bot to only 20 channels. We could not use OneBar to auto-scan more than 20 Slack channels.</p>
+
+<p>Users could still chat directly with the bot to get answers to FAQs based on what was fed to the bot’s knowledge base (KB). They could also access the web login, which displays its KB, other valuable features, and additional features for admins/experts.</p>
+
+<p>Slack channels that we enabled the licensed features on were prioritised based on:</p>
+
+<ul>
+  <li>Most messages sent on the channel per month, i.e. most active channels.</li>
+  <li>Most members impacted, i.e. channels with a large member count.</li>
+</ul>
+
+<p>To do this, we used Slack analytics reports and identified the channels that fit our prioritisation criteria.</p>
+
+<h3 id="change-is-difficult-but-often-essential">Change is difficult but often essential</h3>
+
+<p>Once we’d onboarded the vendor, we began training and educating employees on using this new Knowledge Management system for all their FAQs. It was a challenge as change is always complex but essential for growth.</p>
+
+<p>A series of tech talks and training conducted across the company and at more minor scales also helped guide users about the bot’s features and capabilities.</p>
+
+<p>At the start, we suffered from a lack of data resulting in incorrect responses from the bot. But as the team became increasingly aware of the features and learned more about its capabilities, the bot’s number of KB items grew, resulting in a much more efficient experience. It took us around one quarter to feed the bot consistently to see accurate and frequent responses from it.</p>
+
+<h2 id="crowdsourcing-our-internal-glossary">Crowdsourcing our internal glossary</h2>
+
+<p>With an increasing number of acronyms and company-specific words emerging each year, the number of acronyms and company-specific abbreviations that new joiners face is immense.</p>
+
+<p>We solved this issue by using the bot’s channel-specific KB feature. We created a specific Slack channel dedicated to storing and retrieving definitions of acronyms and other words. This solution turned out to be a big hit with our users.</p>
+
+<p>And who fed the bot with the terms and glossary items? Who better than our onboarding employees to train the bot to help other onboarders. A targeted campaign dedicated to feeding the bot excited many of our onboarders. They began to play around with the bot’s features and provide it with as many glossary items as possible, thus winning swags!</p>
+
+<p>In a matter of weeks, the user base grew from a couple of hundred to around 3000. This effort was also called out in one of our company-wide All Hands meetings, a big win for our team!</p>
+
+<h1 id="join-us">Join us</h1>
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#automation" class="label tags-label">Automation</a>
+  
+    <a href="/tags#knowledge-management" class="label tags-label">Knowledge management</a>
+  
+    <a href="/tags#productivity" class="label tags-label">Productivity</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=How we automated FAQ responses at Grab&url=https://engineering.grab.com/automated-faq&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/automated-faq" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/automated-faq&title=How we automated FAQ responses at Grab
+&summary=Most frequently asked questions (FAQ) are repetitive, which hinder on-call engineers' productivity. Read to find out how we automated FAQ responses at Grab, allowing engineers to focus on operational tasks.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/automated-faq';
+    this.page.identifier = '/automated-faq';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
