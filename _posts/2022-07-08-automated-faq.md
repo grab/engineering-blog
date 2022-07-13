@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Automation, Knowledge management, Productivity]
 comments: true
 cover_photo: /img/automated-faq/cover.png
-excerpt: "As fraud schemes get more complex, we need to stay one step ahead by improving fraud investigation methods. Read to find out more about graph visualisation, why we need it and how it helps with uncovering patterns and relationships."
+excerpt: "Knowledge management is a constant challenge companies face internally as information is usually maintained by different teams. Most frequently asked questions are repetitive, which hinder on-call engineers' productivity. Read to find out how we automated FAQ responses at Grab, allowing engineers' to focus on operational tasks."
 ---
 
 ## Overview and initial analysis
@@ -91,13 +91,13 @@ Although our users made their preferences clear, we still needed to ensure that 
 
 *   An ability to crowdsource Slack discussions/conclusions and save them directly from Slack (preferably with a single command).
 *   An ability to auto-respond to Slack queries without calling the bot manually.
-*   The bot must be able to respond to queries only on the preconfigured slack channel (not a Slack-wide auto-responder that is already available).
+*   The bot must be able to respond to queries only on the preconfigured Slack channel (not a Slack-wide auto-responder that is already available).
 *   Ability to auto-detect frequently asked questions on the channels would mean less work for platform engineers to feed the bot manually and periodically.
 *   A trusted and secured data storage setup and a responsive customer support team.
 
 ## Proof of concept
 
-We considered several tools (including some of the tools used by our HR for auto-answering employee questions). We then decided to do a complete proof of concept (POC) with OneBar to check if it fulfills our internal requirements.
+We considered several tools (including some of the tools used by our HR for auto-answering employee questions). We then decided to do a complete proof of concept (POC) with OneBar to check if it fulfils our internal requirements.
 
 These were the phases in which we conducted the POC for the shortlisted vendor (OneBar):
 
@@ -128,7 +128,7 @@ Once we'd onboarded the vendor, we began training and educating employees on usi
 
 A series of tech talks and training conducted across the company and at more minor scales also helped guide users about the bot's features and capabilities.
 
-At the start, we suffered from a lack of data resulting in incorrect responses from the bot. But as the team became increasingly aware of the features and learned more about its capabilities, the bot's number of knowledge base items grew, resulting in a much more efficient experience. It took us around one quarter to feed the bot consistently to see accurate and frequent responses from it.
+At the start, we suffered from a lack of data resulting in incorrect responses from the bot. But as the team became increasingly aware of the features and learned more about its capabilities, the bot's number of KB items grew, resulting in a much more efficient experience. It took us around one quarter to feed the bot consistently to see accurate and frequent responses from it.
 
 ## Crowdsourcing our internal glossary
 
