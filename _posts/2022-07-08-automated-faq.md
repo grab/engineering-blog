@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2022-07-08-automated-faq
+id: 2022-07-13-automated-faq
 title: How we automated FAQ responses at Grab
-date: 2022-07-07 00:20:55
+date: 2022-07-13 00:20:55
 authors: [preeti-karkera]
 categories: [Engineering]
 tags: [Automation, Knowledge management, Productivity]
