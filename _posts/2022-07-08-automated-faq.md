@@ -83,7 +83,7 @@ To ensure that we receive unbiased feedback, here’s how we opened users up to 
 
 <br/>
 
-Although none of the options had all the features our users wanted, ***about 60% chose Vendor 1 (OneBar)***. From this, we discovered the core features that our users needed while keeping them involved in the decision-making process.
+Although none of the options had all the features our users wanted, ***about 60% chose Vendor 1 ([OneBar](https://onebar.io/))***. From this, we discovered the core features that our users needed while keeping them involved in the decision-making process.
 
 ### Matching our requirements with available vendors' feature sets
 
