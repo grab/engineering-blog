@@ -8,7 +8,7 @@ categories: [Engineering, Data Science]
 tags: [Database, Storage, Distributed Systems, Platform]
 comments: true
 cover_photo: /img/how-we-store-millions-orders/splash.jpg
-excerpt: "Learn about how the Grab order platform stores food order data to serve transactional (OLTP) and analytical (OLAP) queries."
+excerpt: "The Grab Order Platform is a distributed system that processes millions of GrabFood or GrabMart orders every day.  Learn about how the Grab order platform stores food order data to serve transactional (OLTP) and analytical (OLAP) queries."
 ---
 
 # Introduction
@@ -175,9 +175,14 @@ We use MySQL partitioning for data retention. The order table is partitioned by 
 
 ### Data ingestion pipeline
 
-![](/img/how-we-store-millions-orders/image1.png)
 
-Figure 3: Data Ingestion Pipeline Architecture
+
+<div class="post-image-section">
+  <img alt="DynamoDB table structure overview" src="/img/how-we-store-millions-orders/image1.png">
+  <small class="post-image-caption">Figure 3: Data Ingestion Pipeline Architecture. </a></small>
+</div>
+<p>&nbsp;</p>
+
 
 A Kafka stream is used to process data in the data ingestion pipeline. We choose the Kafka stream, because it has 99.95% SLA. It is not restricted by the OLTP and OLAP database types.
 
