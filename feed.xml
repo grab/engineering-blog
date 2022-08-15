@@ -6,9 +6,241 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 14 Jul 2022 02:18:15 +0000</pubDate>
-    <lastBuildDate>Thu, 14 Jul 2022 02:18:15 +0000</lastBuildDate>
+    <pubDate>Mon, 15 Aug 2022 06:04:19 +0000</pubDate>
+    <lastBuildDate>Mon, 15 Aug 2022 06:04:19 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>How we store and process millions of orders daily</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;In the real world, after a passenger places a GrabFood order from the Grab App, the merchant-partner will prepare the order. A driver-partner will then collect the food and deliver it to the passenger. Have you ever wondered what happens in the backend system? The Grab Order Platform is a distributed system that processes millions of GrabFood or GrabMart orders every day. This post aims to share the journey of how we designed the database solution that powers the order platform.&lt;/p&gt;
+
+&lt;h1 id=&quot;background&quot;&gt;Background&lt;/h1&gt;
+
+&lt;p&gt;What are the design goals when building the database solution? We collected the requirements by analysing query patterns and traffic patterns.&lt;/p&gt;
+
+&lt;h3 id=&quot;query-patterns&quot;&gt;Query patterns&lt;/h3&gt;
+
+&lt;p&gt;Here are some important query examples that the order platform supports:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;Write queries:&lt;/p&gt;
+
+    &lt;p&gt;a.  Create an order.&lt;/p&gt;
+
+    &lt;p&gt;b.  Update an order.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Read queries:&lt;/p&gt;
+
+    &lt;p&gt;a.  Get order by id.&lt;/p&gt;
+
+    &lt;p&gt;b.  Get ongoing orders by passenger id.&lt;/p&gt;
+
+    &lt;p&gt;c.  Get historical orders by various conditions.&lt;/p&gt;
+
+    &lt;p&gt;d.  Get order statistics (for example, get the number of orders)&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;We can break down queries into two categories; transactional queries and analytical queries. Transactional queries are very critical to online order creation and completion, including the write queries and read queries such as 2a or 2b. Analytical queries like 2c and 2d retrieves historical orders or order statistics on demand. Analytical queries are not critical to the oncall order processing.&lt;/p&gt;
+
+&lt;h3 id=&quot;traffic-patterns&quot;&gt;Traffic patterns&lt;/h3&gt;
+
+&lt;p&gt;Grab Order Platform processes a significant amount of transaction data every month.&lt;/p&gt;
+
+&lt;p&gt;During peak hours, the write Queries per Second is 3 times of primary key reads; whilst the range Queries per Second are 4 times of the primary key reads.&lt;/p&gt;
+
+&lt;h3 id=&quot;design-goals&quot;&gt;Design goals&lt;/h3&gt;
+
+&lt;p&gt;From the query and traffic patterns, we arrived at the following three design goals:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Stability&lt;/strong&gt; - the database solution must be able to handle high read and write QPS. Online order processing queries must have high availability. Even when some part of the system is down, we must be able to provide a degraded experience to the end users allowing them to still be able to create and complete an order.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scalability and cost&lt;/strong&gt; - the database solution must be able to support fast evolution of business requirements, given now we already have million orders per month. The solution must also be cost effective at a large scale.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Consistency&lt;/strong&gt; - strong consistency for transactional queries, and eventually consistency for analytical queries.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;solution&quot;&gt;Solution&lt;/h1&gt;
+
+&lt;p&gt;The first design principle towards a stable and scalable database solution is to use different databases to serve transactional and analytical queries, also known as OLTP and OLAP queries. An OLTP database serves queries critical to online order processing. This table keeps data for only a short period of time. Meanwhile, an OLAP database has the same set of data, but serves our historical and statistical queries. This database keeps data for a longer time.&lt;/p&gt;
+
+&lt;p&gt;What are the benefits from this design principle? From a stability point of view, we can choose different databases which can better fulfil our different query patterns and QPS requirements. An OLTP database is the single source of truth for online order processing; any failure in the OLAP database will not affect online transactions. From a scalability and cost point of view, we can choose a flexible database for OLAP to support our fast evolution of business requirements. We can maintain less data in our OLTP database while keeping some older data in our OLAP database.&lt;/p&gt;
+
+&lt;p&gt;To ensure that the data in both databases are consistent, we introduced the second design principle - data ingestion pipeline. In Figure 1, Order Platform writes data to the OLTP database to process online orders and asynchronously pushes the data into the data ingestion pipeline. The data ingestion pipeline ensures that the OLAP database data is eventually consistent.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;Order Platform database solution overview&quot; src=&quot;/img/how-we-store-millions-orders/image3.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1: Order Platform database solution overview&lt;/small&gt;
+&lt;/div&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;h2 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h2&gt;
+
+&lt;h3 id=&quot;oltp-database&quot;&gt;OLTP database&lt;/h3&gt;
+
+&lt;p&gt;There are two categories of OLTP queries, the key-value queries (for example, load by order id) and the batch queries (for example, Get ongoing orders by passenger id). We use DynamoDB as the database to support these OLTP queries.&lt;/p&gt;
+
+&lt;p&gt;Why DynamoDB?&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Scalable and highly available: the tables of DynamoDB are partitioned and each partition is three-way replicated.&lt;/li&gt;
+  &lt;li&gt;DynamoDB supports strong consistent reads by primary key.&lt;/li&gt;
+  &lt;li&gt;DynamoDB has a mechanism called adaptive capacity to handle hotkey traffic. Internally, DynamoDB will distribute higher capacity to high-traffic partitions, and isolate the frequently accessed items to a dedicated partition. In this way, the hotkey can utilise the full capacity of an entire partition; up to 3000 read capacity units and 1000 write capacity units.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;DynamoDB table structure overview&quot; src=&quot;/img/how-we-store-millions-orders/image2.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 2: DynamoDB table structure overview. Source:  &lt;a href=&quot;#aws&quot;&gt;Amazon Web Services (2019, 28 April)&lt;/a&gt;&lt;/small&gt;
+&lt;/div&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;In each DynamoDB table, it has many items with attributes. In each item, it has a partition key and sort key. The partition key is used for key-value queries, and the sort key is used for range queries. In our case, the table contains multiple order items. The partition key is order ID. We can easily support key-value queries by the partition key.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;order_id (PK)&lt;/th&gt;
+      &lt;th&gt;state&lt;/th&gt;
+      &lt;th&gt;pax_id&lt;/th&gt;
+      &lt;th&gt;created_at&lt;/th&gt;
+      &lt;th&gt;pax_id_gsi&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;order1&lt;/td&gt;
+      &lt;td&gt;Ongoing&lt;/td&gt;
+      &lt;td&gt;Alice&lt;/td&gt;
+      &lt;td&gt;9:00am&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;order2&lt;/td&gt;
+      &lt;td&gt;Ongoing&lt;/td&gt;
+      &lt;td&gt;Alice&lt;/td&gt;
+      &lt;td&gt;9:30am&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;order3&lt;/td&gt;
+      &lt;td&gt;Completed&lt;/td&gt;
+      &lt;td&gt;Alice&lt;/td&gt;
+      &lt;td&gt;8:30am&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;Batch queries like ‘Get ongoing orders by passenger id’ are supported by DynamoDB Global Secondary Index (GSI). A GSI is like a normal DynamoDB table, which also has keys and attributes.&lt;/p&gt;
+
+&lt;p&gt;In our case, we have a GSI table where the partition key is the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pax_id_gsi&lt;/code&gt;. The attribute &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pax_id_gsi&lt;/code&gt; is linked to the main table. It is eventually consistent with the main table that is maintained by DynamoDB. If the Order Platform queries ongoing orders for Alice, 2 items will be returned from the GSI table.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;pax_id_gsi (PK)&lt;/th&gt;
+      &lt;th&gt;created_at (SK)&lt;/th&gt;
+      &lt;th&gt;order_id&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Alice&lt;/td&gt;
+      &lt;td&gt;9:00am&lt;/td&gt;
+      &lt;td&gt;order1&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Alice&lt;/td&gt;
+      &lt;td&gt;9:30am&lt;/td&gt;
+      &lt;td&gt;order2&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;We also make use of an advanced feature of GSI named sparse index to support ongoing order queries. When we update order status from ongoing to completed, at the same time, we set the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pax_id_gsi&lt;/code&gt; to empty, so that the linked item in the GSI will be automatically deleted by DynamoDB. At any time, the GSI table only stores the ongoing orders. We use a sparse index mechanism to control our table size for better performance and to be more cost effective.&lt;/p&gt;
+
+&lt;p&gt;The next problem is data retention. This is achieved with the DynamoDB Time To Live (TTL) feature. DynamoDB will auto-scan expired items and delete them. But there is a challenge that when we add TTL on big tables, it will bring a heavy load to the background scanner and might result in an outage. Our solution is to just add a TTL attribute to the new items in the table. Then, we manually delete the items without TTL attributes, and delete items having TTL attributes that are too old by using a script. After that, the table size will be quite small, so we enable the TTL feature on the TTL attribute that we previously added without any concern. The retention period of our DynamoDB data is three months.&lt;/p&gt;
+
+&lt;p&gt;Costwise, DynamoDB is charged by storage size and the provision of the read write capability. The provision capability is actually auto scalable. The cost is on-demand. So it’s generally cheaper than RDS.&lt;/p&gt;
+
+&lt;h3 id=&quot;olap-database&quot;&gt;OLAP database&lt;/h3&gt;
+
+&lt;p&gt;We use MySQL RDS as the database to support historical and statistical OLAP queries.&lt;/p&gt;
+
+&lt;p&gt;Why not Aurora? We choose RDS mainly because it is a mature database solution. Even if Aurora can provide better high-availability, RDS is enough to support our less critical use cases. Costwise, Aurora charges by data storage and the number of requested Input/Output Operations per Second (IOPS). RDS charges only by data storage. As we are using General Purpose (SSD) storage, IOPS is free and supports up to 16k IOPS.&lt;/p&gt;
+
+&lt;p&gt;We use MySQL partitioning for data retention. The order table is partitioned by creation time monthly. Since the data access pattern is mostly by month, the partition key can reduce cross-partition queries. Partitions older than six months are dropped at the beginning of each month.&lt;/p&gt;
+
+&lt;h3 id=&quot;data-ingestion-pipeline&quot;&gt;Data ingestion pipeline&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;
+  &lt;img alt=&quot;DynamoDB table structure overview&quot; src=&quot;/img/how-we-store-millions-orders/image1.png&quot; /&gt;
+  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 3: Data Ingestion Pipeline Architecture. &amp;lt;/a&amp;gt;&lt;/small&gt;
+&lt;/div&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+
+&lt;p&gt;A Kafka stream is used to process data in the data ingestion pipeline. We choose the Kafka stream, because it has 99.95% SLA. It is not restricted by the OLTP and OLAP database types.&lt;/p&gt;
+
+&lt;p&gt;Even if Kafka can provide 99.95% SLA, there is still the chance of stream producer failures. When the producer fails, we will store the message in an Amazon Simple Queue Service (SQS) and retry. If the retry also fails, it will be moved to the SQS dead letter queue (DLQ), to be consumed at a later time.&lt;/p&gt;
+
+&lt;p&gt;On the stream consumer side, we use back-off retry at both stream and database levels to ensure consistency. In a worst-case scenario, we can rewind the stream events from Kafka.&lt;/p&gt;
+
+&lt;p&gt;It is important for the data ingestion pipeline to handle duplicate messages and out-of-order messages.&lt;/p&gt;
+
+&lt;p&gt;Duplicate messages are handled by the database level unique key (for example, order ID + creation time).&lt;/p&gt;
+
+&lt;p&gt;For the out-of-order messages, we implemented the following two mechanisms:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Version update: we only update the most recently updated data. The precision of the update time is in microseconds, which is enough for most of the use cases.&lt;/li&gt;
+  &lt;li&gt;Upsert: if the update events occur before the create events, we simulate an upsert operation.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
+
+&lt;p&gt;After launching our solution this year, we have saved significantly on cloud costs. In the earlier solution, Order Platform synchronously writes to DynamoDB and Aurora and the data is kept forever.&lt;/p&gt;
+
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
+
+&lt;p&gt;Stability wise, we use DynamoDB as the critical OLTP database to ensure high availability for online order processing. Scalability wise, we use RDS as the OLAP database to support our quickly evolving business requirements by using a rich, multiple index. Cost efficiency is achieved by data retention in both databases. For consistency, we built a single source of truth OLTP database and an OLAP database that is eventually consistent with the help of the data ingestion pipeline.&lt;/p&gt;
+
+&lt;h1 id=&quot;whats-next&quot;&gt;What’s next&lt;/h1&gt;
+
+&lt;p&gt;Currently, the database solution is running on the production environment. Even though the database solution is proven to be stable, scalable and consistent, we still see some potential areas of improvement.&lt;/p&gt;
+
+&lt;p&gt;We use MySQL RDS for OLAP data storage. Even though MySQL is stable and cost effective, it is difficult to serve more complicated queries like free text search. Hence, we plan to explore other NoSQL databases like ElasticSearch.&lt;/p&gt;
+
+&lt;p&gt;We hope this post helps you understand how we store Grab orders and fulfil the queries from the Grab Order Platform.&lt;/p&gt;
+
+&lt;h1 id=&quot;references&quot;&gt;References&lt;/h1&gt;
+
+&lt;!-- Figure 2, DynamoDB overview is taken from [Getting Started with Amazon DynamoDB](https://www.slideshare.net/AmazonWebServices/getting-started-with-amazon-dynamodb-63948367), authored by Amazon Web Services. --&gt;
+
+&lt;p&gt;&lt;a id=&quot;aws&quot;&gt;&lt;/a&gt;Amazon Web Services. (2019, 28 April) &lt;em&gt;Build with DynamoDB: S1 E1 – Intro to Amazon DynamoDB&lt;/em&gt; [Video]. YouTube. &lt;a href=&quot;https://youtu.be/W3S1OnDqWl4?t=455&quot;&gt;https://youtu.be/W3S1OnDqWl4?t=455&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 11 Aug 2022 15:55:55 +0000</pubDate>
+        <link>https://engineering.grab.com/how-we-store-millions-orders</link>
+        <guid isPermaLink="true">https://engineering.grab.com/how-we-store-millions-orders</guid>
+        
+        <category>Database</category>
+        
+        <category>Storage</category>
+        
+        <category>Distributed Systems</category>
+        
+        <category>Platform</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>How we automated FAQ responses at Grab</title>
@@ -1465,188 +1697,6 @@ ex:bea foaf:based_near_:o1
         <category>Optimisation</category>
         
         <category>Rust</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>How Kafka Connect helps move data seamlessly</title>
-        <description>&lt;p&gt;Grab’s real-time data platform team a.k.a. Coban has written about &lt;a href=&quot;https://engineering.grab.com/plumbing-at-scale&quot;&gt;Plumbing at scale&lt;/a&gt;, &lt;a href=&quot;https://engineering.grab.com/optimally-scaling-kafka-consumer-applications&quot;&gt;Optimally scaling Kakfa consumer applications&lt;/a&gt;, and &lt;a href=&quot;https://engineering.grab.com/exposing-kafka-cluster&quot;&gt;Exposing Kafka via VPCE&lt;/a&gt;. In this article, we will cover the importance of being able to easily move data in and out of Kafka in a low-code way and how we achieved this with Kafka Connect.&lt;/p&gt;
-
-&lt;p&gt;To build a &lt;a href=&quot;https://www.cio.com/article/220351/what-is-noops-the-quest-for-fully-automated-it-operations.html&quot;&gt;NoOps&lt;/a&gt; managed streaming platform in Grab, the Coban team has:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Engineered an ecosystem on top of Apache Kafka.&lt;/li&gt;
-  &lt;li&gt;Successfully adopted it to production for both transactional and analytical use cases.&lt;/li&gt;
-  &lt;li&gt;Made it a battle-tested industrial-standard platform.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In 2021, the Coban team embarked on a new journey (Kafka Connect) that enables and empowers Grabbers to move data in and out of Apache Kafka seamlessly and conveniently.&lt;/p&gt;
-
-&lt;h2 id=&quot;kafka-connect-stack-in-grab&quot;&gt;Kafka Connect stack in Grab&lt;/h2&gt;
-
-&lt;p&gt;This is what Coban’s Kafka Connect stack looks like today. Multiple data sources and data sinks, such as MySQL, S3 and Azure Data Explorer, have already been supported and productionised.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image4.png&quot; alt=&quot;Kafka Connect stack in Grab&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The Coban team has been using Protobuf as the serialisation-deserialisation (SerDes) format in Kafka. Therefore, the role of Confluent schema registry (shown at the top of the figure) is crucial to the Kafka Connect ecosystem, as it serves as the building block for conversions such as Protobuf-to-Avro, Protobuf-to-JSON and Protobuf-to-Parquet.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-problems-are-we-trying-to-solve&quot;&gt;What problems are we trying to solve?&lt;/h2&gt;
-
-&lt;h3 id=&quot;problem-1-change-data-capture-cdc&quot;&gt;Problem 1: Change Data Capture (CDC)&lt;/h3&gt;
-
-&lt;p&gt;In a big organisation like Grab, we handle large volumes of data and changes across many services on a daily basis, so it is important for these changes to be reflected in real time.&lt;/p&gt;
-
-&lt;p&gt;In addition, there are other technical challenges to be addressed:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;As shown in the figure below, data is written twice in the code base - once into the database (DB) and once as a message into Kafka. In order for the data in the DB and Kafka to be consistent, the two writes have to be atomic in a two-phase commit protocol (or other atomic commitment protocols), which is non-trivial and impacts availability.&lt;/li&gt;
-  &lt;li&gt;Some use cases require data both before and after a change.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image5.png&quot; alt=&quot;Change Data Capture flow&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;problem-2-message-mirroring-for-disaster-recovery&quot;&gt;Problem 2: Message mirroring for disaster recovery&lt;/h3&gt;
-
-&lt;p&gt;The Coban team has done some research on Kafka MirrorMaker, an open-source solution. While it can ensure better data consistency, it takes significant effort to adopt it onto existing Kubernetes infrastructure hosted by the Coban team and achieve high availability.&lt;/p&gt;
-
-&lt;p&gt;Another major challenge that the Coban team faces is offset mirroring and translation, which is a known challenge in Kafka communities. In order for Kafka consumers to seamlessly resume their work with a backup Kafka after a disaster, we need to cater for &lt;a href=&quot;https://cwiki.apache.org/confluence/display/KAFKA/KIP-545%3A+support+automated+consumer+offset+sync+across+clusters+in+MM+2.0#:~:text=The%20offset%20translation%20is%20great,off%20at%20the%20primary%20cluster%2C&quot;&gt;offset translation&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;data-ingestion-into-azure-event-hubs&quot;&gt;Data ingestion into Azure Event Hubs&lt;/h3&gt;
-
-&lt;p&gt;Azure Event Hubs has a Kafka-compatible interface and natively supports JSON and Avro schema. The Coban team uses Protobuf as the SerDes framework, which is not supported by Azure Event Hubs. It means that conversions have to be done for message ingestion into Azure Event Hubs.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;To tackle these problems, the Coban team has picked Kafka Connect because:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;It is an open-source framework with a relatively big community that we can consult if we run into issues.&lt;/li&gt;
-  &lt;li&gt;It has the ability to plug in transformations and custom conversion logic.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Let us see how Kafka Connect can be used to resolve the previously mentioned problems.&lt;/p&gt;
-
-&lt;h3 id=&quot;kafka-connect-with-debezium-connectors&quot;&gt;Kafka Connect with Debezium connectors&lt;/h3&gt;
-
-&lt;p&gt;Debezium is a framework built for capturing data changes on top of Apache Kafka and the Kafka Connect framework. It provides a series of connectors for various databases, such as MySQL, MongoDB and Cassandra.&lt;/p&gt;
-
-&lt;p&gt;Here are the benefits of MySQL &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binlog&lt;/code&gt; streams:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;They not only provide changes on data, but also give snapshots of data before and after a specific change.&lt;/li&gt;
-  &lt;li&gt;Some producers no longer have to push a message to Kafka after writing a row to a MySQL database. With Debezium connectors, services can choose not to deal with Kafka and only handle MySQL data stores.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;architecture&quot;&gt;Architecture&lt;/h4&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image6.png&quot; alt=&quot;Kafka Connect architecture&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;in-case-of-db-upgrades-and-outages&quot;&gt;In case of DB upgrades and outages&lt;/h4&gt;
-
-&lt;p&gt;DB Data Definition Language (DDL) changes, migrations, splits and outages are common in database operations, and each operation type has a systematic resolution.&lt;/p&gt;
-
-&lt;p&gt;The Debezium connector has built-in features to handle DDL changes made by DB migration tools, such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pt-online-schema-change&lt;/code&gt;, which is used by the Grab DB Ops team.&lt;/p&gt;
-
-&lt;p&gt;To deal with MySQL instance changes and database splits, the Coban team leverages on the Kafka Connect framework’s ability to change the offsets of connectors. By changing the offsets, Debezium connectors can properly function after DB migrations and resume binlog synchronisation from any position in any binlog file on a MySQL instance.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image1.png&quot; alt=&quot;Database upgrades and outages&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Refer to the &lt;a href=&quot;https://debezium.io/documentation/faq/%23how_to_change_the_offsets_of_the_source_database&quot;&gt;Debezium documentation&lt;/a&gt; for more details.&lt;/p&gt;
-
-&lt;h4 id=&quot;success-stories&quot;&gt;Success stories&lt;/h4&gt;
-
-&lt;p&gt;The CDC project on MySQL via Debezium connectors has been greatly successful in Grab. One of the biggest examples is its adoption in the Elasticsearch optimisation carried out by GrabFood, which has been published in &lt;a href=&quot;https://engineering.grab.com/search-indexing-optimisation&quot;&gt;another blog&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;mirrormaker2-with-offset-translation&quot;&gt;MirrorMaker2 with offset translation&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://github.com/apache/kafka/tree/trunk/connect/mirror&quot;&gt;Kafka MirrorMaker2&lt;/a&gt; (MM2), developed in and shipped together with the Apache Kafka project, is a utility to mirror messages and consumer offsets. However, in the Coban team, the MM2 stack is deployed on the Kafka Connect framework per connector because:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;A few Kafka Connect clusters have already been provisioned.&lt;/li&gt;
-  &lt;li&gt;Compared to launching three connectors bundled in MM2, Coban can have finer controls on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MirrorSourceConnector&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MirrorCheckpointConnector&lt;/code&gt;, and manage both of them in an infrastructure-as-code way via Hashicorp Terraform.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image7.png&quot; alt=&quot;MirrorMaker2 flow&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;success-stories-1&quot;&gt;Success stories&lt;/h4&gt;
-
-&lt;p&gt;Ensuring business continuity is a key priority for Grab and this includes the ability to recover from incidents quickly. In 2021H2, there was a campaign that ran across many teams to examine the readiness and robustness of various services and middlewares. Coban’s Kafka is one of these services that proved to be robust after rounds of chaos engineering. With MM2 on Kafka Connect to mirror both messages and consumer offsets, critical services and pipelines could safely be replicated and launched across AWS regions if outages occur.&lt;/p&gt;
-
-&lt;p&gt;Because the Coban team has proven itself as the battle-tested Kafka service provider in Grab, other teams have also requested to migrate streams from self-managed Kafka clusters to ones managed by Coban. MM2 has been used in such migrations and brought zero downtime to the streams’ producers and consumers.&lt;/p&gt;
-
-&lt;h3 id=&quot;mirror-to-azure-event-hubs-with-an-in-house-converter&quot;&gt;Mirror to Azure Event Hubs with an in-house converter&lt;/h3&gt;
-
-&lt;p&gt;The Analytics team runs some real time ingestion and analytics projects on Azure. To support this cross-cloud use case, the Coban team has adopted MM2 for message mirroring to Azure Event Hubs.&lt;/p&gt;
-
-&lt;p&gt;Typically, Event Hubs only accept JSON and Avro bytes, which is incompatible with the existing SerDes framework. The Coban team has developed a custom converter that converts bytes serialised in Protobuf to JSON bytes at runtime.&lt;/p&gt;
-
-&lt;p&gt;These steps explain how the converter works:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Deserialise bytes in Kafka to a Protobuf &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DynamicMessage&lt;/code&gt; according to a schema retrieved from the Confluent™ schema registry.&lt;/li&gt;
-  &lt;li&gt;Perform a recursive post-order depth-first-search on each field descriptor in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DynamicMessage&lt;/code&gt;.&lt;/li&gt;
-  &lt;li&gt;Convert every Protobuf field descriptor to a JSON node.&lt;/li&gt;
-  &lt;li&gt;Serialise the root JSON node to bytes.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;The converter has not been open sourced yet.&lt;/p&gt;
-
-&lt;h2 id=&quot;deployment&quot;&gt;Deployment&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image2.png&quot; alt=&quot;Deployment&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Docker containers are the Coban team’s preferred infrastructure, especially since some production Kafka clusters are already deployed on Kubernetes. The long-term goal is to provide Kafka in a software-as-a-service (SaaS) model, which is why Kubernetes was picked. The diagram below illustrates how Kafka Connect clusters are built and deployed.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-connect/image3.png&quot; alt=&quot;Terraform for connectors&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;The Coban team is iterating on a unified control plane to manage resources like Kafka topics, clusters and Kafka Connect. In the foreseeable future, internal users should be able to provision Kafka Connect connectors via RESTful APIs and a graphical user interface (GUI).&lt;/p&gt;
-
-&lt;p&gt;At the same time, the Coban team is closely working with the Data Engineering team to make Kafka Connect the preferred tool in Grab for moving data in and out of external storages (S3 and Apache Hudi).&lt;/p&gt;
-
-&lt;h2 id=&quot;coban-is-hiring&quot;&gt;Coban is hiring!&lt;/h2&gt;
-&lt;p&gt;The Coban (Real-time Data Platform) team at Grab in Singapore is hiring software and site reliability engineers at all levels as we double down on growing our platform capabilities.&lt;/p&gt;
-
-&lt;p&gt;Join us in building state-of-the-art, mission critical, TB/hour scale data platforms that enable thousands of engineers, data scientists, and analysts to serve millions of consumers, businesses, and partners across Southeast Asia!&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
-Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 06 Apr 2022 00:20:00 +0000</pubDate>
-        <link>https://engineering.grab.com/kafka-connect</link>
-        <guid isPermaLink="true">https://engineering.grab.com/kafka-connect</guid>
-        
-        <category>Kafka</category>
-        
-        <category>Data processing</category>
-        
-        <category>Real-Time</category>
         
         
         <category>Engineering</category>
