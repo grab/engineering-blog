@@ -83,12 +83,12 @@ Why DynamoDB?
 
 1.  Scalable and highly available: the tables of DynamoDB are partitioned and each partition is three-way replicated.
 2.  DynamoDB supports strong consistent reads by primary key.
-3.  DynamoDB has a mechanism called adaptive capacity to handle hotkey traffic. Internally, DynamoDB will distribute higher capacity to high-traffic partitions, and isolate the frequently accessed items to a dedicated partition. In this way, the hotkey can utilise the full capacity of an entire partition; up to 3000 read capacity units and 1000 write capacity units .
+3.  DynamoDB has a mechanism called adaptive capacity to handle hotkey traffic. Internally, DynamoDB will distribute higher capacity to high-traffic partitions, and isolate the frequently accessed items to a dedicated partition. In this way, the hotkey can utilise the full capacity of an entire partition; up to 3000 read capacity units and 1000 write capacity units.
 
 
 <div class="post-image-section">
   <img alt="DynamoDB table structure overview" src="/img/how-we-store-millions-orders/image2.png">
-  <small class="post-image-caption">Figure 2: DynamoDB table structure overview</small>
+  <small class="post-image-caption">Figure 2: DynamoDB table structure overview. Source:  <a href="#aws">Amazon Web Services (2019, 28 April)</a></small>
 </div>
 <p>&nbsp;</p>
 
@@ -215,7 +215,7 @@ We hope this post helps you understand how we store Grab orders and fulfil the q
 
 <!-- Figure 2, DynamoDB overview is taken from [Getting Started with Amazon DynamoDB](https://www.slideshare.net/AmazonWebServices/getting-started-with-amazon-dynamodb-63948367), authored by Amazon Web Services. -->
 
-Figure 2 Source diagram: [Build with DynamoDB S1 E1 - Intro to Amazon DynamoDB](https://www.youtube.com/watch?v=W3S1OnDqWl4), by Amazon Web Services.
+<a id="aws"></a>Amazon Web Services. (2019, 28 April) Build with DynamoDB | S1 E1 – Intro to Amazon DynamoDB [Video]. YouTube. [https://youtu.be/W3S1OnDqWl4?t=455](https://youtu.be/W3S1OnDqWl4?t=455).
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
