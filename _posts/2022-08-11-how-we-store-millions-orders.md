@@ -5,7 +5,7 @@ title: How we store and process millions of orders daily
 date: 2022-08-11 15:55:55
 authors: [xi-chen, siliang-cao]
 categories: [Engineering, Data Science]
-tags: [Database]
+tags: [Database, Storage, Distributed Systems, Platform]
 comments: true
 cover_photo: /img/how-we-store-millions-orders/splash.jpg
 excerpt: "Learn about how the Grab order platform stores food order data to serve transactional (OLTP) and analytical (OLAP) queries."
