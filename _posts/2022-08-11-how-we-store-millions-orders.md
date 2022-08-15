@@ -220,7 +220,7 @@ We hope this post helps you understand how we store Grab orders and fulfil the q
 
 <!-- Figure 2, DynamoDB overview is taken from [Getting Started with Amazon DynamoDB](https://www.slideshare.net/AmazonWebServices/getting-started-with-amazon-dynamodb-63948367), authored by Amazon Web Services. -->
 
-<a id="aws"></a>Amazon Web Services. (2019, 28 April) Build with DynamoDB | S1 E1 – Intro to Amazon DynamoDB [Video]. YouTube. [https://youtu.be/W3S1OnDqWl4?t=455](https://youtu.be/W3S1OnDqWl4?t=455).
+<a id="aws"></a>Amazon Web Services. (2019, 28 April) _Build with DynamoDB: S1 E1 – Intro to Amazon DynamoDB_ [Video]. YouTube. [https://youtu.be/W3S1OnDqWl4?t=455](https://youtu.be/W3S1OnDqWl4?t=455).
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
