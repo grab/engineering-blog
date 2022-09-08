@@ -137,7 +137,7 @@ After the release, here's what our data analysers had to say:
 
 ## What’s next?
 
-The major disadvantage of this tool right now is that the underlying Spark jobs are developed by knowledgeable data engineers, so it restricts the iteration of the analytics logic. To mitigate the restrictions, we are looking into using domain-specific language (DSL) to allow users to input desired attributes and dimensions, and provide the job release pipeline for self-serving jobs.
+The underlying Spark jobs in this tool were developed by knowledgeable data engineers, which is a disadvantage because it requires a high level of expertise to modify the analytics. To mitigate this restriction, we are looking into using domain-specific language (DSL) to allow users to input desired attributes and dimensions, and provide the job release pipeline for self-serving jobs.
 
 
 ---
