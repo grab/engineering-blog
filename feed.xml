@@ -6,9 +6,236 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 24 Aug 2022 09:14:30 +0000</pubDate>
-    <lastBuildDate>Wed, 24 Aug 2022 09:14:30 +0000</lastBuildDate>
+    <pubDate>Thu, 08 Sep 2022 06:05:15 +0000</pubDate>
+    <lastBuildDate>Thu, 08 Sep 2022 06:05:15 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Automatic rule backtesting with large quantities of data</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Analysts need to analyse and simulate a rule on historical data to check the performance and accuracy of the rule. Backtesting enables analysts to run simulations of the rules and manage the results from the rule engine UI.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Backtesting&lt;/strong&gt; helps analysts to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Define the desired impact of the rule for our business and users.&lt;/li&gt;
+  &lt;li&gt;Evaluate the accuracy of the rule based on historical data.&lt;/li&gt;
+  &lt;li&gt;Compare and analyse results with data points, such as known false positives, user segments, risk profile of a user or transaction, and so on.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Currently, the analytics process to test performance of a rule is not standardised, and is inaccurate and inefficient. Analysts from different teams have different approaches:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Offline process using Presto tables. This process is lengthy and inaccurate.&lt;/li&gt;
+  &lt;li&gt;Offline process based on the rule engine payload. The setup takes time, and the process is not streamlined.&lt;/li&gt;
+  &lt;li&gt;Running rules in shadow mode. This process takes days to get the desired result.&lt;/li&gt;
+  &lt;li&gt;A team in Grab uses different rule engines to manage rules and do backtesting. This doubles the effort for analysts and engineers.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In our vision for backtesting, it should allow analysts to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Efficiently run and manage their jobs.&lt;/li&gt;
+  &lt;li&gt;Create custom metrics, reports and dimensions for backtesting.&lt;/li&gt;
+  &lt;li&gt;Add external data points and metrics to do a deep dive.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For the purpose of establishing a minimum viable product (MVP), backtesting will support basic capabilities and enable analysts to access required metrics and data points. Thus, analysts can:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Run backtesting jobs from the rule engine UI.&lt;/li&gt;
+  &lt;li&gt;Get fixed reports and dimensions for every checkpoint.&lt;/li&gt;
+  &lt;li&gt;Get access to relevant data to analyse backtesting results.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Assume a simple use case: &lt;strong&gt;A rule to detect the transaction risk.&lt;/strong&gt; &lt;/p&gt;
+
+&lt;p&gt;Each transaction has a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;transaction_id&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;user_id&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;currency&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;amount&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;timestamp&lt;/code&gt;. The rule engine also provides a &lt;em&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;treatment&lt;/code&gt;&lt;/em&gt; (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Approve&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Decline&lt;/code&gt;) based on the rule logic for the transaction.&lt;/p&gt;
+
+&lt;p&gt;In this specific use case, we would like to see what will be the aggregation number of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;total transactions&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;total distinct users&lt;/code&gt;, and the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sum of the amount&lt;/code&gt;, based on the dimensions of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;date&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;treatment&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;and currency&lt;/code&gt; in the last couple of weeks.&lt;/p&gt;
+
+&lt;p&gt;The result may look like the following data:&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Dimension    &lt;/th&gt;
+      &lt;th&gt;Dimension    &lt;/th&gt;
+      &lt;th&gt;Dimension    &lt;/th&gt;
+      &lt;th&gt;metric      &lt;/th&gt;
+      &lt;th&gt;metric          &lt;/th&gt;
+      &lt;th&gt;metric     &lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Date&lt;/td&gt;
+      &lt;td&gt;Treatment&lt;/td&gt;
+      &lt;td&gt;Currency&lt;/td&gt;
+      &lt;td&gt;Total tx&lt;/td&gt;
+      &lt;td&gt;Distinct user    &lt;/td&gt;
+      &lt;td&gt;Total amount&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;2020-05-1&lt;/td&gt;
+      &lt;td&gt;Approve&lt;/td&gt;
+      &lt;td&gt;SGD&lt;/td&gt;
+      &lt;td&gt;100&lt;/td&gt;
+      &lt;td&gt;80&lt;/td&gt;
+      &lt;td&gt;10020&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;2020-05-1&lt;/td&gt;
+      &lt;td&gt;Decline&lt;/td&gt;
+      &lt;td&gt;SGD&lt;/td&gt;
+      &lt;td&gt;50&lt;/td&gt;
+      &lt;td&gt;40&lt;/td&gt;
+      &lt;td&gt;450&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;2020-05-1&lt;/td&gt;
+      &lt;td&gt;Approve&lt;/td&gt;
+      &lt;td&gt;MYR&lt;/td&gt;
+      &lt;td&gt;110&lt;/td&gt;
+      &lt;td&gt;100&lt;/td&gt;
+      &lt;td&gt;1200&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;2020-05-1&lt;/td&gt;
+      &lt;td&gt;Decline&lt;/td&gt;
+      &lt;td&gt;MYR&lt;/td&gt;
+      &lt;td&gt;30&lt;/td&gt;
+      &lt;td&gt;15&lt;/td&gt;
+      &lt;td&gt;400&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;* This data does not reflect actual Grab data and is for illustrative purposes only.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Use a cloud-agnostic Spark-based data pipeline to replay any existing or proposed rule to check performance.&lt;/li&gt;
+  &lt;li&gt;Use a Web Portal to:
+    &lt;ul&gt;
+      &lt;li&gt;Create or select a rule to replay, with replay time range.&lt;/li&gt;
+      &lt;li&gt;Display and download the result, such as total events and hit counts.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Replay any existing or proposed rule for checking performance.&lt;/li&gt;
+  &lt;li&gt;Allow users to create or select a rule to replay in the rule engine UI, with provided replay time range.&lt;/li&gt;
+  &lt;li&gt;Display the replay result in the rule engine UI, such as total events and hit counts.&lt;/li&gt;
+  &lt;li&gt;Provide a way to download all testing results in the rule engine UI (for example, all rule responses).&lt;/li&gt;
+  &lt;li&gt;Remove dependency on the specific cloud provider stack, so other teams in Grab can use it instead of Google Cloud Platform (GCP).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/auto-rule-testing/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The rule editor UI reacts to the user input. Its engine sends a job command to the Amazon Simple Queue Service (SQS) to initialise the job. After that, the rule editor also performs the following processes in the background:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Lambda listens to the request SQS queue and invokes a job via the Spark jobs API.&lt;/li&gt;
+  &lt;li&gt;The job fetches the executable artifacts, data source. After the job is completed, the job script saves the result sheet as required to S3.&lt;/li&gt;
+  &lt;li&gt;The Spark script pushes the job final status (success, failure, timeout) through the shutdown hook to respond to the SQS queue.&lt;/li&gt;
+  &lt;li&gt;The rule editor engine listens to response callback messages, and processes the job metadata to the database, or sends notifications.&lt;/li&gt;
+  &lt;li&gt;The rule editor displays the job metadata on the UI.&lt;/li&gt;
+  &lt;li&gt;The package pipeline builds and deploys the executable artifacts to S3 as a manageable structure.&lt;/li&gt;
+  &lt;li&gt;The Spark script takes the filter logic as its input parameters.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;workflow&quot;&gt;Workflow&lt;/h3&gt;
+
+&lt;h4 id=&quot;historical-data-preparation&quot;&gt;Historical data preparation&lt;/h4&gt;
+
+&lt;p&gt;The historical events are published by the rule engine through Kafka, and stored into the S3 bucket based on time. The Backtesting system then fetches these data for testing based on the time range requested.&lt;/p&gt;
+
+&lt;p&gt;By using a Kubernetes stream pipeline, we also save the trust inference stream to &lt;em&gt;Trust AWS subaccount&lt;/em&gt;. With the customer bucket and file format, we can improve the efficiency of the data processing, and also avoid any delay from the data lake.&lt;/p&gt;
+
+&lt;h4 id=&quot;engineering-specifications&quot;&gt;Engineering specifications&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Target location:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    s3a://stg-trust-inference-event/&amp;lt;engine-name&amp;gt;/&amp;lt;predict-name&amp;gt;/&amp;lt;YYYY&amp;gt;/MM/DD/hh/mm/ss/&amp;lt;000001&amp;gt;.snappy.parquet
+    s3a://prd-trust-inference-event/&amp;lt;engine-name&amp;gt;/&amp;lt;predict-name&amp;gt;/&amp;lt;YYYY&amp;gt;/MM/DD/hh/mm/ss/&amp;lt;000001&amp;gt;.snappy.parquet
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Description&lt;/strong&gt;: Following the fields of steam definition, the engine name would be &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ruleengine&lt;/code&gt;, or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;catwalk&lt;/code&gt;. The predict-name would be &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;preride&lt;/code&gt; (checkpoint name), or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cnpu&lt;/code&gt; (model name).&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;File Format: avro&lt;/li&gt;
+  &lt;li&gt;File Compression: Snappy&lt;/li&gt;
+  &lt;li&gt;There is no auto retention on sub-account S3. We will implement the archive process in the future. &lt;/li&gt;
+  &lt;li&gt;The default pipeline and the new pipeline will run in parallel until the Data Engineering team is ready to retire the default pipeline.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;backtesting&quot;&gt;Backtesting&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Upon scheduling, the Backtesting Portal sends a message to SQS, which is then captured by the listening Lambda.&lt;/li&gt;
+  &lt;li&gt;Lambda invokes a Spark job over the AWS elastic mapreduce engine (EMR).&lt;/li&gt;
+  &lt;li&gt;The EMR engine fetches the executable artifacts containing the rule script and historical data from S3, and starts a Spark job to apply the rule script over historical data. Depending on the size of data, the Spark cluster will scale automatically to ensure timely completion.&lt;/li&gt;
+  &lt;li&gt;Once completed, a report file is generated and available on Backtesting UI.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ui&quot;&gt;UI&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/auto-rule-testing/image1.gif&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;learnings-and-conclusions&quot;&gt;Learnings and conclusions&lt;/h2&gt;
+
+&lt;p&gt;After the release, here’s what our data analysers had to say:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;For trust analysts, testing a rule on historical data happens outside the rule engine UI and is not user-friendly, leading to analysts wasting significant time.&lt;/li&gt;
+  &lt;li&gt;For financial analysts, as analysts migrate to the rule engine UI, the existing solution will be deprecated with no other solution.&lt;/li&gt;
+  &lt;li&gt;An alternative to simulate a rule;  we no longer need to run a rule in shadow mode because we can use historical data to determine the outcome. This new approach saves us weeks of effort on the rule onboarding process.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;The underlying Spark jobs in this tool were developed by knowledgeable data engineers, which is a disadvantage because it requires a high level of expertise to modify the analytics. To mitigate this restriction, we are looking into using domain-specific language (DSL) to allow users to input desired attributes and dimensions, and provide the job release pipeline for self-serving jobs.&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Thanks to Jia Long Loh for the support on the offline infrastructure engineering.&lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 08 Sep 2022 00:55:55 +0000</pubDate>
+        <link>https://engineering.grab.com/automatic-rule-backtesting</link>
+        <guid isPermaLink="true">https://engineering.grab.com/automatic-rule-backtesting</guid>
+        
+        <category>Testing</category>
+        
+        <category>Automation</category>
+        
+        <category>Backtesting</category>
+        
+        <category>Data science</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>How we store and process millions of orders daily</title>
@@ -1464,239 +1691,6 @@ ex:bea foaf:based_near_:o1
         <category>Engineering</category>
         
         <category>Security</category>
-        
-      </item>
-    
-      <item>
-        <title>How we reduced our CI YAML files from 1800 lines to 50 lines</title>
-        <description>&lt;p&gt;This article illustrates how the Cauldron Machine Learning (ML) Platform team uses &lt;a href=&quot;https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html&quot;&gt;GitLab parent-child pipelines&lt;/a&gt; to dynamically generate GitLab CI files to solve several limitations of GitLab for large repositories, namely:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Limitations to the number of includes (&lt;a href=&quot;https://gitlab.com/gitlab-org/gitlab/-/issues/207270#:~:text=GitLab%20Next&amp;amp;text=Please%20increase%20the%20maximum%20number,methods%20for%20managing%20CICD%20configurations.&quot;&gt;100&lt;/a&gt; by default).&lt;/li&gt;
-  &lt;li&gt;Simplifying the GitLab CI file from 1800 lines to 50 lines.&lt;/li&gt;
-  &lt;li&gt;Reducing the need for nested &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci&lt;/code&gt; yml files.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Cauldron is the Machine Learning (ML) Platform team at Grab. The Cauldron team provides tools for ML practitioners to manage the end to end lifecycle of ML models, from training to deployment. GitLab and its tooling are an integral part of our stack, for continuous delivery of machine learning.&lt;/p&gt;
-
-&lt;p&gt;One of our core products is MerLin Pipelines. Each team has a dedicated repo to maintain the code for their ML pipelines. Each pipeline has its own subfolder. We rely heavily on GitLab rules to detect specific changes to trigger deployments for the different stages of different pipelines (for example, model serving with Catwalk, and so on).&lt;/p&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;h3 id=&quot;approach-1-nested-child-files&quot;&gt;Approach 1: Nested child files&lt;/h3&gt;
-
-&lt;p&gt;Our initial approach was to rely heavily on static code generation to generate the child &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci.yml&lt;/code&gt; files in individual stages. See Figure 1 for an example directory structure. These nested yml files are pre-generated by our cli and committed to the repository.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 1: Example directory structure with nested gitlab-ci.yml files. &quot; src=&quot;img/how-we-reduced-our-ci-yaml/image6.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 1: Example directory structure with nested gitlab-ci.yml files. Child `gitlab-ci.yml` files are added by using the &lt;a href=&quot;https://docs.gitlab.com/ee/ci/yaml/#include&quot;&gt;include&lt;/a&gt; keyword.
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 2: Example root .gitlab-ci.yml file, and include clauses.&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image4.png&quot; width=&quot;50%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 2: Example root .gitlab-ci.yml file, and include clauses.&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 3: Example child .gitlab-ci.yml file for a given stage (Deploy Model) in a pipeline (pipeline 1).
-&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image1.png&quot; width=&quot;50%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 3: Example child `.gitlab-ci.yml` file for a given stage (Deploy Model) in a pipeline (pipeline 1).
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;As teams add more pipelines and stages, we soon hit a limitation in this approach:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;There was a &lt;a href=&quot;https://docs.gitlab.com/ee/ci/yaml/#include&quot;&gt;soft limit&lt;/a&gt; in the number of includes that could be in the base &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.gitlab-ci.yml&lt;/code&gt; file.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;It became evident that this approach would not scale to our use-cases.&lt;/p&gt;
-
-&lt;h3 id=&quot;approach-2-dynamically-generating-a-big-ci-file&quot;&gt;Approach 2: Dynamically generating a big CI file&lt;/h3&gt;
-
-&lt;p&gt;Our next attempt to solve this problem was to try to inject and inline the nested child &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci.yml&lt;/code&gt; contents into the root &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci.yml&lt;/code&gt; file, so that we no longer needed to rely on the in-built GitLab “include” clause.&lt;/p&gt;
-
-&lt;p&gt;To achieve it, we wrote a utility that parsed a raw &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci&lt;/code&gt; file, walked the tree to retrieve all “included” child &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci&lt;/code&gt; files, and to replace the includes to generate a final big &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci.yml&lt;/code&gt; file.&lt;/p&gt;
-
-&lt;p&gt;Figure 4 illustrates the resulting file is generated from Figure 3.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 4: “Fat” YAML file generated through this approach, assumes the original raw file of Figure 3.
-&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image2.png&quot; width=&quot;50%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 4: “Fat” YAML file generated through this approach, assumes the original raw file of Figure 3.
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;This approach solved our issues temporarily. Unfortunately, we ended up with GitLab files that were up to 1800 lines long. There is also a soft limit to the size of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab-ci.yml&lt;/code&gt; files. It became evident that we would eventually hit the limits of this approach.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;Our initial attempt at using static code generation put us partially there. We were able to pre-generate and infer the stage and pipeline names from the information available to us. Code generation was definitely needed, but upfront generation of code had some key limitations, as shown above. We needed a way to improve on this, to somehow generate GitLab stages on the fly. After some research, we stumbled upon &lt;a href=&quot;https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html#dynamic-child-pipelines&quot;&gt;Dynamic Child Pipelines&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Quoting the official website:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;Instead of running a child pipeline from a static YAML file, you can define a job that runs your own script to generate a YAML file, which is then used to trigger a child pipeline.&lt;/p&gt;
-
-  &lt;p&gt;This technique can be very powerful in generating pipelines targeting content that changed or to build a matrix of targets and architectures.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;We were already on the right track. We just needed to combine code generation with child pipelines, to dynamically generate the necessary stages on the fly.&lt;/p&gt;
-
-&lt;h2 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 5: Flow diagram of how we use dynamic yaml generation. The user raises a merge request in a branch, and subsequently merges the branch to master.
-&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image8.png&quot; width=&quot;75%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 5: Flow diagram of how we use dynamic yaml generation. The user raises a merge request in a branch, and subsequently merges the branch to master.
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;/h2&gt;
-
-&lt;p&gt;The user Git flow can be seen in Figure 5, where the user modifies or adds some files in their respective Git team repo. As a refresher, a typical repo structure consists of pipelines and stages (see Figure 1). We would need to extract the information necessary from the branch environment in Figure 5, and have a stage to programmatically generate the proper stages (for example, Figure 3).&lt;/p&gt;
-
-&lt;p&gt;In short, our requirements can be summarized as:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Detecting the files being changed in the Git branch.&lt;/li&gt;
-  &lt;li&gt;Extracting the information needed from the files that have changed.&lt;/li&gt;
-  &lt;li&gt;Passing this to be templated into the necessary stages.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Let’s take a very simple example, where a user is modifying a file in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;stage_1&lt;/code&gt; in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pipeline_1&lt;/code&gt; in Figure 1. Our desired output would be:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 6: Desired output that should be dynamically generated.&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image7.png&quot; width=&quot;50%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 6: Desired output that should be dynamically generated.
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;Our template would be in the form of:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 7: Example template, and information needed. Let’s call it template\_file.yml.
-&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image5.png&quot; width=&quot;50%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 7: Example template, and information needed. Let’s call it template_file.yml.
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;First, we need to detect the files being modified in the branch. We achieve this with native &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git diff&lt;/code&gt; commands, checking against the base of the branch to track what files are being modified in the merge request. The output (let’s call it &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;diff.txt&lt;/code&gt;) would be in the form of:&lt;/p&gt;
-&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;go&quot;&gt;M        pipelines/pipeline_1/stage_1/modelserving.yaml
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;div class=&quot;post-image-section&quot;&gt;
- &lt;small class=&quot;post-image-caption&quot;&gt;Figure 8: Example diff.txt generated from git diff.
- &lt;/small&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We must extract the yellow and green information from the line, corresponding to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pipeline_name&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;stage_name&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 9: Information that needs to be extracted from the file.&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image9.png&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 9: Information that needs to be extracted from the file.
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;We take a very simple approach here, by introducing a concept called stop patterns.&lt;/p&gt;
-
-&lt;p&gt;Stop patterns are defined as a comma separated list of variable names, and the words to stop at. The colon (:) denotes how many levels before the stop word to stop.&lt;/p&gt;
-
-&lt;p&gt;For example, the stop pattern:&lt;/p&gt;
-&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;s&quot;&gt;pipeline_name:pipelines&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;tells the parser to look for the folder &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pipelines&lt;/code&gt; and stop before that, extracting &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pipeline_1&lt;/code&gt; from the example above tagged to the variable name &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pipeline_name&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;The stop pattern with two colons (::):&lt;/p&gt;
-&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;s&quot;&gt;stage_name::pipelines&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;tells the parser to stop two levels before the folder &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pipelines&lt;/code&gt;, and extract &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;stage_1&lt;/code&gt; as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;stage_name&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Our cli tool allows the stop patterns to be comma separated, so the final command would be:&lt;/p&gt;
-
-&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;go&quot;&gt;cauldron_repo_util diff.txt template_file.yml
-&lt;/span&gt;&lt;span class=&quot;gp&quot;&gt;pipeline_name:pipelines,stage_name::pipelines &amp;gt;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;generated.yml
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;We elected to write the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;util&lt;/code&gt; in Rust due to its high performance, and its rich templating libraries (for example, &lt;a href=&quot;https://github.com/Keats/tera&quot;&gt;Tera&lt;/a&gt;) and decent cli libraries (&lt;a href=&quot;https://github.com/clap-rs/clap&quot;&gt;clap&lt;/a&gt;).&lt;/p&gt;
-
-&lt;p&gt;Combining all these together, we are able to extract the information needed from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git diff&lt;/code&gt;, and use stop patterns to extract the necessary information to be passed into the template. Stop patterns are flexible enough to support different types of folder structures.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;
-  &lt;img alt=&quot;Figure 10: Example Rust code snippet for parsing the Git diff file.
-&quot; src=&quot;img/how-we-reduced-our-ci-yaml/image3.png&quot; width=&quot;75%&quot; /&gt;
-  &lt;small class=&quot;post-image-caption&quot;&gt;Figure 10: Example Rust code snippet for parsing the Git diff file.
-&lt;/small&gt;
-&lt;/div&gt;
-&lt;p&gt;&amp;nbsp;&lt;/p&gt;
-
-&lt;p&gt;When triggering pipelines in the master branch (see right side of Figure 5), the flow is the same, with a small caveat that we must retrieve the same &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;diff.txt&lt;/code&gt; file from the source branch. We achieve this by using the rich GitLab API, retrieving the pipeline artifacts and using the same util above to generate the necessary GitLab steps dynamically.&lt;/p&gt;
-
-&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
-
-&lt;p&gt;After implementing this change, our biggest success was reducing one of the biggest ML pipeline Git repositories from 1800 lines to 50 lines. This approach keeps the size of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.gitlab-ci.yaml&lt;/code&gt; file constant at 50 lines, and ensures that it scales with however many pipelines are added.&lt;/p&gt;
-
-&lt;p&gt;Our users, the machine learning practitioners, also find it more productive as they no longer need to worry about GitLab yaml files.&lt;/p&gt;
-
-&lt;h2 id=&quot;learnings-and-conclusion&quot;&gt;Learnings and conclusion&lt;/h2&gt;
-
-&lt;p&gt;With some creativity, and the flexibility of GitLab Child Pipelines, we were able to invest some engineering effort into making the configuration re-usable, adhering to &lt;a href=&quot;https://en.wikipedia.org/wiki/Don%27t_repeat_yourself&quot;&gt;DRY&lt;/a&gt; principles.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to the Cauldron ML Platform team.&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;We might open source our solution.&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;a href=&quot;https://docs.gitlab.com/ee/ci/pipelines/parent_child_pipelines.html&quot;&gt;Parent-child pipelines&lt;/a&gt;&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;a href=&quot;https://gitlab.com/gitlab-org/gitlab/-/issues/207270#:~:text=GitLab%20Next&amp;amp;text=Please%20increase%20the%20maximum%20number,methods%20for%20managing%20CICD%20configurations&quot;&gt;Backend: The gitlab-ci.yml is limited to 100 includes&lt;/a&gt;&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 19 Apr 2022 15:55:55 +0000</pubDate>
-        <link>https://engineering.grab.com/how-we-reduced-our-ci-yaml</link>
-        <guid isPermaLink="true">https://engineering.grab.com/how-we-reduced-our-ci-yaml</guid>
-        
-        <category>CI</category>
-        
-        <category>Machine Learning</category>
-        
-        <category>Pipelines</category>
-        
-        <category>Continuous Integration</category>
-        
-        <category>Continuous Delivery</category>
-        
-        <category>Optimisation</category>
-        
-        <category>Rust</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
