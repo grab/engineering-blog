@@ -34,7 +34,7 @@ In our vision for backtesting, it should allow analysts to:
 *   Create custom metrics, reports and dimensions for backtesting.
 *   Add external data points and metrics to do a deep dive.
 
-For the purpose of establishing a minimum viable product (MVP), backtesting will support basic capabilities and enable analysts to access required metrics and data points. Analysts can:
+For the purpose of establishing a minimum viable product (MVP), backtesting will support basic capabilities and enable analysts to access required metrics and data points. Thus, analysts can:
 
 *   Run backtesting jobs from the rule engine UI.
 *   Get fixed reports and dimensions for every checkpoint.
@@ -70,7 +70,7 @@ The result may look like the following data:
 *   Allow users to create or select a rule to replay in the rule engine UI, with provided replay time range.
 *   Display the replay result in the rule engine UI, such as total events and hit counts.
 *   Provide a way to download all testing results in the rule engine UI (for example, all rule responses).
-*   Remove dependency on the specific cloud provider stack, so other teams in Grab can use it over Google Cloud Platform (GCP) as well.
+*   Remove dependency on the specific cloud provider stack, so other teams in Grab can use it instead of Google Cloud Platform (GCP).
 
 ### Architecture details
 
@@ -79,7 +79,7 @@ The result may look like the following data:
   </figure>
 </div>
 
-The rule editor UI reacts to the user input. Its engine sends a job command to the Amazon Simple Queue Service (SQS) to initialise the job.
+The rule editor UI reacts to the user input. Its engine sends a job command to the Amazon Simple Queue Service (SQS) to initialise the job. After that, the rule editor also performs the following processes in the background:
 
 *   Lambda listens to the request SQS queue and invokes a job via the Spark jobs API.
 *   The job fetches the executable artifacts, data source. After the job is completed, the job script saves the result sheet as required to S3.
@@ -117,7 +117,7 @@ By using a Kubernetes stream pipeline, we also save the trust inference stream t
 
 *   Upon scheduling, the Backtesting Portal sends a message to SQS, which is then captured by the listening Lambda.
 *   Lambda invokes a Spark job over the AWS elastic mapreduce engine (EMR).
-*   The EMR engine fetches the executable artifacts containing the rule script and historical data from S3, and starts a Spark job to apply the rule script over historical data. Depending on the size of data, the Spark cluster will scale automatically to ensure the timely completion.
+*   The EMR engine fetches the executable artifacts containing the rule script and historical data from S3, and starts a Spark job to apply the rule script over historical data. Depending on the size of data, the Spark cluster will scale automatically to ensure timely completion.
 *   Once completed, a report file is generated and available on Backtesting UI.
 
 ### UI
@@ -129,15 +129,15 @@ By using a Kubernetes stream pipeline, we also save the trust inference stream t
 
 ## Learnings and conclusions
 
-After the release, we have some useful feedback from data analysers:
+After the release, here's what our data analysers had to say:
 
 *   For trust analysts, testing a rule on historical data happens outside the rule engine UI and is not user-friendly, leading to analysts wasting significant time.
 *   For financial analysts, as analysts migrate to the rule engine UI, the existing solution will be deprecated with no other solution.
-*   An alternative to simulate a rule;  we no longer need to run a rule in shadow mode because we can use history data to determine the outcome. This new approach saves us weeks of effort on the rule onboarding process.
+*   An alternative to simulate a rule;  we no longer need to run a rule in shadow mode because we can use historical data to determine the outcome. This new approach saves us weeks of effort on the rule onboarding process.
 
 ## What’s next?
 
-The major disadvantage of this tool right now is that the underlying Spark jobs are developed by knowledgeable data engineers, so that it restricts the iteration of the analytics logic. To mitigate the restrictions, we are looking into using domain-specific language (DSL) to allow users to input desired attributes and dimensions, and provide the job release pipeline for self-serving jobs.
+The major disadvantage of this tool right now is that the underlying Spark jobs are developed by knowledgeable data engineers, so it restricts the iteration of the analytics logic. To mitigate the restrictions, we are looking into using domain-specific language (DSL) to allow users to input desired attributes and dimensions, and provide the job release pipeline for self-serving jobs.
 
 
 ---
