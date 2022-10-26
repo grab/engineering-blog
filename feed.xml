@@ -6,9 +6,194 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 08 Sep 2022 06:24:31 +0000</pubDate>
-    <lastBuildDate>Thu, 08 Sep 2022 06:24:31 +0000</lastBuildDate>
+    <pubDate>Wed, 26 Oct 2022 06:22:40 +0000</pubDate>
+    <lastBuildDate>Wed, 26 Oct 2022 06:22:40 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Using mobile sensor data to encourage safer driving</title>
+        <description>&lt;p&gt;“Telematics”, a cross between the words &lt;em&gt;telecommunications&lt;/em&gt; and &lt;em&gt;informatics&lt;/em&gt;, was coined in the late 1970s to refer to the use of communication technologies in facilitating exchange of information. In the modern day, such technologies may include cloud platforms, mobile networks, and wireless transmissions (e.g., Bluetooth). Although the initial intention is for a more general scope, telematics is now specifically used to refer to vehicle telematics where details of vehicle movements are tracked for use cases such as driving safety, driver profiling, fleet optimisation, and productivity improvements.&lt;/p&gt;
+
+&lt;p&gt;We’ve previously published &lt;a href=&quot;https://engineering.grab.com/telematics-at-grab&quot;&gt;this article&lt;/a&gt; to share how Grab uses telematics to improve driver safety. In this blog post, we dive deeper into how telematics technology is used at Grab to encourage safer driving for our driver and delivery partners.&lt;/p&gt;
+
+&lt;h1 id=&quot;background&quot;&gt;Background&lt;/h1&gt;
+
+&lt;p&gt;At Grab, the safety of our users and their experience on our platform is our highest priority. By encouraging safer driving habits from our driver and delivery partners, road traffic accidents can be minimised, potentially reducing property damage, injuries, and even fatalities. Safe driving also helps ensure smoother rides and a more pleasant experience for consumers using our platform.&lt;/p&gt;
+
+&lt;p&gt;To encourage safer driving, we should:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Have a data-driven approach to understand how our driver and delivery partners are driving.&lt;/li&gt;
+  &lt;li&gt;Help partners better understand how to improve their driving by summarising key driving history into a personalised &lt;strong&gt;Driving Safety Report&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;understanding-driving-behaviour&quot;&gt;Understanding driving behaviour&lt;/h1&gt;
+
+&lt;p&gt;One of the most direct forms of driving assessment is consumer feedback or complaints. However, the frequency and coverage of this feedback is not very high as they are only applicable to transport verticals like JustGrab or GrabBike and not delivery verticals like GrabFood or GrabExpress. Plus, most driver partners tend not to receive any driving-related feedback (whether positive or negative), even for the transport verticals.&lt;/p&gt;
+
+&lt;p&gt;A more comprehensive method of assessing driving behaviour is to use the driving data collected during Grab bookings. To make sense of these data, we focus on selected driving manoeuvres (e.g., braking, acceleration, cornering, speeding) and detect the number of instances where our data shows unsafe driving in each of these areas.&lt;/p&gt;
+
+&lt;p&gt;We acknowledge that the detected instances may be subjected to errors and may not provide the complete picture of what’s happening on the ground (e.g., partners may be forced to do an emergency brake due to someone swerving into their lane).&lt;/p&gt;
+
+&lt;p&gt;To address this, we have incorporated several fail-safe checks into our detection logic to minimise erroneous detection. Also, any assessment of driving behaviour will be based on an aggregation of these unsafe driving instances over a large amount of driving data. For example, individual harsh braking instances may be inconclusive but if a driver partner displays multiple counts consistently across many bookings, it is likely that the partner may be used to unsafe driving practices like tailgating or is distracted while driving.&lt;/p&gt;
+
+&lt;h1 id=&quot;telematics-for-detecting-unsafe-driving&quot;&gt;Telematics for detecting unsafe driving&lt;/h1&gt;
+
+&lt;p&gt;For Grab to consistently ensure our consumers’ safety, we need to proactively detect unsafe driving behaviour before an accident occurs. However, it is not feasible for someone to be with our driver and delivery partners all the time to observe their driving behaviour. We should leverage sensor data to monitor these driving behaviour at scale.&lt;/p&gt;
+
+&lt;p&gt;Traditionally, a specialised “black box” inertial measurement unit (IMU) equipped with sensors such as accelerometers, gyroscopes, and GPS needs to be installed in alignment with the vehicle to directly measure vehicular acceleration and speed. In this manner, it would be straightforward to detect unsafe driving instances using this data. Unfortunately, the cost of purchasing and installing such devices for all our partners is prohibitively high and it would be hard to scale.&lt;/p&gt;
+
+&lt;p&gt;Instead, we can leverage a device that all partners already have: their mobile phone. Modern smartphones already contain similar sensors to those in IMUs and data can be collected through the telematics SDK. More details on telematics data collection can be found in a recently published Grab tech blog article&lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;It’s important to note that telematics data are collected at a sufficiently high sampling frequency (much more than 1 Hz) to minimise inaccuracies in detecting unsafe driving instances characterised by sharp acceleration impulses.&lt;/p&gt;
+
+&lt;h2 id=&quot;processing-mobile-sensor-data-to-detect-unsafe-driving&quot;&gt;Processing mobile sensor data to detect unsafe driving&lt;/h2&gt;
+
+&lt;p&gt;Unlike specialised IMUs installed in vehicles, mobile sensor data have added challenges to detecting unsafe driving.&lt;/p&gt;
+
+&lt;h3 id=&quot;accounting-for-orientation-phone-vs-vehicle&quot;&gt;Accounting for orientation: Phone vs. vehicle&lt;/h3&gt;
+
+&lt;p&gt;The phone is usually in a different orientation compared to the vehicle. Strictly speaking, the phone accelerometer sensor measures the accelerations of the phone and not the vehicle acceleration. To infer vehicle acceleration from phone sensor data, we developed a customised processing algorithm optimised specifically for Grab’s data.&lt;/p&gt;
+
+&lt;p&gt;First, the orientation offset of the phone with respect to the vehicle is defined using Euler angles: roll, pitch and yaw. In data windows with no net acceleration of the vehicle (e.g., no braking, turning motion), the only acceleration measured by the accelerometer is gravitational acceleration. Roll and pitch angles can then be determined through trigonometric manipulation. The complete triaxial accelerations of the phone are then rotated to the horizontal plane and the yaw angle is determined by principal component analysis (PCA).&lt;/p&gt;
+
+&lt;p&gt;An assumption here is that there will be sufficient braking and acceleration manoeuvring for PCA to determine the correct forward direction. This Euler angles determination is done periodically to account for any movement of phones during the trip. Finally, the raw phone accelerations are rotated to the vehicle orientation through a matrix multiplication with the rotation matrix derived from the Euler angles (see Figure 1).&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-mobile-sensor-data-to-encourage-safer-driving/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;Figure 1: Inference of vehicle acceleration from the phone sensor data. &lt;a href=&quot;https://www.freepik.com/free-psd/isometric-minimal-3d-phone-with-rrss-interface-mockup-levitating_13195223.htm&quot;&gt;Smartphone&lt;/a&gt; and &lt;a href=&quot;https://www.freepik.com/free-vector/white-sports-car-isolated-white-vector_3529812.htm&quot;&gt;car&lt;/a&gt; images modified from designs found in Freepik.com.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;handling-variations-in-data-quality&quot;&gt;Handling variations in data quality&lt;/h3&gt;
+
+&lt;p&gt;Our processing algorithm is optimised to be highly robust and handle large variations in data quality that is expected from bookings on the Grab platform. There are many reported methods for processing mobile data to reorientate telematics data for four wheel vehicles&lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+
+&lt;p&gt;However, with the prevalent use of motorcycles on our platform, especially for delivery verticals, we observed that data collected from two wheel vehicles tend to be noisier due to differences in phone stability and vehicular vibrations. Data noise can be exacerbated if partners hold the phone in their hand or place it in their pockets while driving.&lt;/p&gt;
+
+&lt;p&gt;In addition, we also expect a wide variation in data quality and sensor availability from different phone models, such as older, low-end models to the newest, flagship models. A good example to illustrate the robustness of our algorithm is having different strategies to handle different degrees of data noise. For example, a simple low-pass filter is used for low noise data, while more complex variational decomposition and Kalman filter approaches are used for high noise data.&lt;/p&gt;
+
+&lt;h3 id=&quot;detecting-behaviour-anomalies-with-thresholds&quot;&gt;Detecting behaviour anomalies with thresholds&lt;/h3&gt;
+
+&lt;p&gt;Once the vehicular accelerations are inferred, we can use a thresholding approach (see Figure 2) to detect unsafe driving instances.&lt;/p&gt;
+
+&lt;p&gt;For unsafe acceleration and braking, a peak finding algorithm is used to detect acceleration peaks beyond a threshold in the longitudinal (forward/backward) direction. For unsafe cornering, older and lower end phones are usually not equipped with gyroscope sensors, so we should look for peaks of lateral (sidewards) acceleration (which constitutes the centripetal acceleration during the turn) beyond a threshold. GPS bearing data that coarsely measures the orientation of the vehicle is then used to confirm that a cornering and not lane change instance is being detected. The thresholds selected are fine-tuned on Grab’s data using initial values based on published literature&lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; and other sources.&lt;/p&gt;
+
+&lt;p&gt;To reduce false positive detection, no unsafe driving instances will be flagged when:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Large discrepancies are observed between speeds derived from integrating the longitudinal (forward/backward) acceleration and speeds directly measured by the GPS sensor.&lt;/li&gt;
+  &lt;li&gt;Large phone motions are detected. For example, when the phone falls to the seat from the dashboard, accelerations recorded on the phone sensor will deviate significantly from the vehicle accelerations.&lt;/li&gt;
+  &lt;li&gt;GPS speed is very low before and after the unsafe driving instance is detected. This is limited to data collected from motorcycles which is usually used by delivery partners. It implies that the partner is walking and not in a vehicle. For example, a GrabFood delivery partner may be collecting the food from the merchant partner on foot, so no unsafe driving instances should be detected.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-mobile-sensor-data-to-encourage-safer-driving/image2.gif&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Animation showing unsafe driving detection by thresholding. Dotted lines in acceleration charts indicate selected thresholds. Map tiles by stamen design.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;detecting-speeding-instances-from-gps-speeds-and-map-data&quot;&gt;Detecting speeding instances from GPS speeds and map data&lt;/h2&gt;
+
+&lt;p&gt;To define speeding along a stretch of road, we used a rule-based method by comparing raw speeds from GPS pings with speeding thresholds for that road. Although GPS speeds are generally accurate (subjected to minimal GPS errors), we need to take more precautions to ensure the right speeding thresholds are determined.&lt;/p&gt;
+
+&lt;p&gt;These thresholds are set using known speed limits from available map data or hourly aggregated speed statistics where speed limits are not available. The coverage and accuracy of known speed limits is continuously being improved by our in-house mapping initiatives and  validated comprehensively by the respective local ground teams in selected cities.&lt;/p&gt;
+
+&lt;p&gt;Aggregating GPS pings from Grab driver and delivery partners can be a helpful proxy to actual speed limits by defining speeding violations as outliers from socially acceptable speeds derived from partners collectively. To reliably compute aggregated speed statistics, a representative speed profile for each stretch of road must first be inferred from raw GPS pings (see Figure 3).&lt;/p&gt;
+
+&lt;p&gt;As ping sampling intervals are fixed, more pings tend to be recorded for slower speeds. To correct the bias in the speed profile, we reweigh ping counts by using speed values as weights. Furthermore, to minimise distortions in the speed profile from vehicles driving at lower-than-expected speeds due to high traffic volumes, only pings from free-flowing traffic are used when inferring the speed profile.&lt;/p&gt;
+
+&lt;p&gt;Free-flowing traffic is defined by speeds higher than the median speed on each defined road category (e.g., small residential roads, normal primary roads, large expressways). To ensure extremely high speeds are flagged regardless of the speed of other drivers, maximum threshold values for aggregated speeds are set for each road category using heuristics based on the maximum known speed limit of that road category.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-mobile-sensor-data-to-encourage-safer-driving/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;Figure 3: Steps to infer a representative speed profile for computing aggregated speed statistics.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Besides a representative speed profile, hourly aggregation should also include data from a sufficient number of unique drivers depending on speed variability. To obtain enough data, hourly aggregations are performed on the same day of the week over multiple weeks. This way, we have a comprehensive time-specific speed profile that accounts for traffic quality (e.g., peak hour traffic, traffic differences between weekdays/weekends) and driving conditions (e.g., visibility difference between day/night).&lt;/p&gt;
+
+&lt;p&gt;When detecting speeding violations, the GPS pings used are snapped-to-road and stationary pings, pings with unrealistic speeds, while pings with low GPS accuracy (e.g., when the vehicle is in a tunnel) are excluded. A speeding violation is defined as a sequence of consecutive GPS pings that exceed the speeding threshold. The following checks were put in place to minimise erroneous flagging of speeding violations:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Removal of duplicated (or stale) GPS pings.&lt;/li&gt;
+  &lt;li&gt;Sufficient speed buffer given to take into account GPS errors.&lt;/li&gt;
+  &lt;li&gt;Sustained speeding for a prolonged period of time is required to exclude transient speeding events (e.g., during lane change).&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;driving-safety-report&quot;&gt;Driving safety report&lt;/h1&gt;
+
+&lt;p&gt;The driving safety report is a platform safety product that driver and delivery partners can access via their driver profile page on the Grab Driver Application (see Figure 4). It is updated daily and aims to create awareness regarding driving habits by summarising key information from the processed data into a personalised report that can be easily consumed.&lt;/p&gt;
+
+&lt;p&gt;Individual reports of each driving manoeuvre (e.g., braking, acceleration, cornering and speeding) are available for daily and weekly views. Partners can also get more detailed information of each individual instance such as when these unsafe driving instances were detected.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/using-mobile-sensor-data-to-encourage-safer-driving/image5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;Figure 4: Driving safety report for driver and delivery partners using four wheel vehicles. a) Actionable insights feature circled by red dotted lines. b) Daily view of various unsafe driving instances where more details of each instance can be viewed by tapping on “See details”.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;actionable-insights&quot;&gt;Actionable insights&lt;/h2&gt;
+
+&lt;p&gt;Besides compiling the instances of unsafe driving in a report to create awareness, we are also using these data to provide some actionable recommendations for our partners to improve their driving.&lt;/p&gt;
+
+&lt;p&gt;With unsafe driving feedback from consumers and reported road traffic accident data from our platform, we also train machine learning models to identify patterns in the detected unsafe driving instances and estimate the likelihood of partners receiving unsafe driving feedback or getting into accidents. One use case is to compute a safe driving score that equates a four-wheel partner’s driving behaviour to a numerical value where a higher score indicates a safer driver.&lt;/p&gt;
+
+&lt;p&gt;Additionally, we use Shapley additive explanation (SHAP) approaches to determine which driving manoeuvre contributes the most to increasing the likelihood of partners receiving unsafe driving feedback or getting into accidents. This information is included as an actionable insight in the driving safety report and helps partners to identify the key area to improve their driving.&lt;/p&gt;
+
+&lt;h1 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h1&gt;
+
+&lt;p&gt;At the moment, Grab performs telematics processing and unsafe driving detections after the trip and updates the report the next day. One of the biggest improvements would be to share this information with partners faster. We are actively working on developing a real-time processing algorithm that addresses this and also, satisfies the robustness requirements such that partners are immediately aware after an unsafe driving instance is detected.&lt;/p&gt;
+
+&lt;p&gt;Besides detecting typical unsafe driving manoeuvres, we are also exploring other use cases for mobile sensor data in road safety such as detection of poor road conditions, counterflow driving against traffic, and phone usage leading to distracted driving.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+
+&lt;h1 id=&quot;references&quot;&gt;References&lt;/h1&gt;
+
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Burhan, W. (2022). How telematics helps Grab to improve safety. Grab Tech Blog. https://engineering.grab.com/telematics-at-grab &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Mohan, P., Padmanabhan, V.N. and Ramjee, R. (2008).Nericell: rich monitoring of road and traffic conditions using mobile smartphones. SenSys ‘08: Proceedings of the 6th ACM conference on Embedded network sensor systems, 312-336. https://doi.org/10.1145/1460412.1460444 &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Sentiance (2016). Driving behavior modeling using smart phone sensor data. Sentiance Blog. https://sentiance.com/2016/02/11/driving-behavior-modeling-using-smart-phone-sensor-data/ &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Yarlagadda, J. and Pawar, D.S. (2022). Heterogeneity in the Driver Behavior: An Exploratory Study Using Real-Time Driving Data. Journal of Advanced Transportation. vol. 2022, Article ID 4509071. https://doi.org/10.1155/2022/4509071 &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Tue, 25 Oct 2022 11:30:00 +0000</pubDate>
+        <link>https://engineering.grab.com/using-mobile-sensor-data-to-encourage-safer-driving</link>
+        <guid isPermaLink="true">https://engineering.grab.com/using-mobile-sensor-data-to-encourage-safer-driving</guid>
+        
+        <category>Analytics</category>
+        
+        <category>Driving patterns</category>
+        
+        <category>Data Science</category>
+        
+        <category>GPS</category>
+        
+        <category>Security</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+        <category>Security</category>
+        
+      </item>
     
       <item>
         <title>Automatic rule backtesting with large quantities of data</title>
@@ -1603,94 +1788,6 @@ ex:bea foaf:based_near_:o1
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Graph Networks - Striking fraud syndicates in the dark</title>
-        <description>&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-intro/image2.png&quot; style=&quot;width:60%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;As a leading superapp in Southeast Asia, Grab serves millions of consumers daily. This naturally makes us a target for fraudsters and to enhance our defences, the Integrity team at Grab has launched several hyper-scaled services, such as the &lt;a href=&quot;https://engineering.grab.com/griffin&quot;&gt;Griffin real-time rule engine&lt;/a&gt; and &lt;a href=&quot;https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully&quot;&gt;Advanced Feature Engineering&lt;/a&gt;. These systems enable data scientists and risk analysts to develop real-time scoring, and take fraudsters out of our ecosystems.&lt;/p&gt;
-
-&lt;p&gt;Apart from individual fraudsters, we have also observed the fast evolution of the dark side over time. We have had to evolve our defences to deal with professional syndicates that use advanced equipment such as device farms and GPS spoofing apps to perform fraud at scale. These professional fraudsters are able to camouflage themselves as normal users, making it significantly harder to identify them with rule-based detection.&lt;/p&gt;
-
-&lt;p&gt;Since 2020, Grab’s Integrity team has been advancing fraud detection with more sophisticated techniques and experimenting with a range of graph network technologies such as graph visualisations, graph neural networks and graph analytics. We’ve seen a lot of progress in this journey and will be sharing some key learnings that might help other teams who are facing similar issues.&lt;/p&gt;
-
-&lt;h3 id=&quot;what-are-graph-based-prediction-platforms&quot;&gt;What are Graph-based Prediction Platforms?&lt;/h3&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;“You can fool some of the people all of the time, and all of the people some of the time, but you cannot fool all of the people all of the time.” - Abraham Lincoln&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;A Graph-based Prediction Platform connects multiple entities through one or more common features. When such entities are viewed as a macro graph network, we uncover new patterns that are otherwise unseen to the naked eye. For example, when investigating if two users are sharing IP addresses or devices, we might not be able to tell if they are fraudulent or just family members sharing a device.&lt;/p&gt;
-
-&lt;p&gt;However, if we use a graph system and look at all users sharing this device or IP address, it could show us if these two users are part of a much larger syndicate network in a device farming operation. In operations like these, we may see up to hundreds of other fake accounts that were specifically created for promo and payment fraud. With graphs, we can identify fraudulent activity more easily.&lt;/p&gt;
-
-&lt;h3 id=&quot;grabs-graph-based-prediction-platform&quot;&gt;Grab’s Graph-based Prediction Platform&lt;/h3&gt;
-
-&lt;p&gt;Leveraging the power of graphs, the team has primarily built two types of systems:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Graph Database Platform&lt;/strong&gt;: An ultra-scalable storage system with over one billion nodes that powers:
-    &lt;ol&gt;
-      &lt;li&gt;
-        &lt;p&gt;&lt;strong&gt;Graph Visualisation&lt;/strong&gt;: Risk specialists and data analysts can review user connections real-time and are able to quickly capture new fraud patterns with over 10 dimensions of features (see Fig 1).&lt;/p&gt;
-
-        &lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-intro/image1.gif&quot; alt=&quot;Change Data Capture flow&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 1: Graph visualisation&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;&lt;strong&gt;Network-based feature system&lt;/strong&gt;: A configurable system for engineers to adjust machine learning features based on network connectivity, e.g. number of hops between two users, numbers of shared devices between two IP addresses.&lt;/p&gt;
-      &lt;/li&gt;
-    &lt;/ol&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Graph-based Machine Learning&lt;/strong&gt;: Unlike traditional fraud detection models, Graph Neural Networks (GNN) are able to utilise the structural correlations on the graph and act as a sustainable foundation to combat many different kinds of fraud. The data science team has built large-scale GNN models for scenarios like anti-money laundering and fraud detection.&lt;/p&gt;
-
-    &lt;p&gt;Fig 2 shows a Money Laundering Network where hundreds of accounts coordinate the placement of funds, layering the illicit monies through a complex web of transactions making funds hard to trace, and consolidate funds into spending accounts.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-intro/image3.gif&quot; alt=&quot;Change Data Capture flow&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 2: Money Laundering Network&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h3&gt;
-&lt;p&gt;In a future article of our Graph Network blog series, we will dive deeper into how we develop the graph infrastructure and database using AWS Neptune.&lt;/p&gt;
-
-&lt;p&gt;Check out the other articles in this series:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;/graph-concepts&quot;&gt;Graph concepts and applications&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;/graph-visualisation&quot;&gt;Graph Networks - 10X investigation with Graph Visualisations&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 28 Apr 2022 10:55:55 +0000</pubDate>
-        <link>https://engineering.grab.com/graph-networks</link>
-        <guid isPermaLink="true">https://engineering.grab.com/graph-networks</guid>
-        
-        <category>Graph Networks</category>
-        
-        <category>Graphs</category>
-        
-        <category>Fraud detection</category>
-        
-        <category>Security</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Security</category>
         
       </item>
     
