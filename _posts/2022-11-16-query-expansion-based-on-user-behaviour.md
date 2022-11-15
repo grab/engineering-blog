@@ -181,7 +181,7 @@ Currently, the data mining approach can only identify the pairs from the same se
 
 Query expansion can be applied to advertising and would increase ads fill rate. With “KFC” expanded to “fried chicken”, the sponsored merchants who buy the keyword “fried chicken” would be eligible to show up when the user searches “KFC”. This would enable Grab to provide more relevant sponsored content to our users, which helps not only the consumers but also the merchants. 
 
-> Special thanks to Zhengmin Xu and Daniel Ng for proofreading this article.
+<small class="credits">Special thanks to Zhengmin Xu and Daniel Ng for proofreading this article.</small>
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
