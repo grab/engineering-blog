@@ -52,83 +52,83 @@ After we have the mining pairs, we categorised and annotated the rewrite types t
 <table class="table">
 <thead>
   <tr>
-    <th class="tg-0pky">Original query</th>
-    <th class="tg-0pky">Rewrite query</th>
-    <th class="tg-0pky">Frequency in a month</th>
-    <th class="tg-0pky">Distinct user count</th>
-    <th class="tg-0pky">Type</th>
+    <th>Original query</th>
+    <th>Rewrite query</th>
+    <th>Frequency in a month</th>
+    <th>Distinct user count</th>
+    <th>Type</th>
   </tr>
 </thead>
 <tbody>
   <tr>
-    <td class="tg-0pky">playmade by 丸作</td>
-    <td class="tg-0pky">playmade</td>
-    <td class="tg-0pky">697</td>
-    <td class="tg-0pky">666</td>
-    <td class="tg-0pky">Drop keywords</td>
+    <td>playmade by 丸作</td>
+    <td>playmade</td>
+    <td>697</td>
+    <td>666</td>
+    <td>Drop keywords</td>
   </tr>
   <tr>
-    <td class="tg-0pky">mcdonald's</td>
-    <td class="tg-0pky">burger</td>
-    <td class="tg-0pky">573</td>
-    <td class="tg-0pky">535</td>
-    <td class="tg-0pky">Merchant -&gt; Food</td>
+    <td>mcdonald's</td>
+    <td>burger</td>
+    <td>573</td>
+    <td>535</td>
+    <td>Merchant -&gt; Food</td>
   </tr>
   <tr>
-    <td class="tg-0pky">Bubble tea</td>
-    <td class="tg-0pky">koi</td>
-    <td class="tg-0pky">293</td>
-    <td class="tg-0pky">287</td>
-    <td class="tg-0pky">Food -&gt; Merchant</td>
+    <td>Bubble tea</td>
+    <td>koi</td>
+    <td>293</td>
+    <td>287</td>
+    <td>Food -&gt; Merchant</td>
   </tr>
   <tr>
-    <td class="tg-0pky">Kfc</td>
-    <td class="tg-0pky">McDonald's</td>
-    <td class="tg-0pky">238</td>
-    <td class="tg-0pky">234</td>
-    <td class="tg-0pky">Merchant -&gt; Merchant</td>
+    <td>Kfc</td>
+    <td>McDonald's</td>
+    <td>238</td>
+    <td>234</td>
+    <td>Merchant -&gt; Merchant</td>
   </tr>
   <tr>
-    <td class="tg-0pky">cake</td>
-    <td class="tg-0pky">birthday cake</td>
-    <td class="tg-0pky">206</td>
-    <td class="tg-0pky">205</td>
-    <td class="tg-0pky">Add words</td>
+    <td>cake</td>
+    <td>birthday cake</td>
+    <td>206</td>
+    <td>205</td>
+    <td>Add words</td>
   </tr>
   <tr>
-    <td class="tg-0pky">麦当劳</td>
-    <td class="tg-0pky">mcdonald's</td>
-    <td class="tg-0pky">205</td>
-    <td class="tg-0pky">199</td>
-    <td class="tg-0pky">Locale change</td>
+    <td>麦当劳</td>
+    <td>mcdonald's</td>
+    <td>205</td>
+    <td>199</td>
+    <td>Locale change</td>
   </tr>
   <tr>
-    <td class="tg-0pky">4 fingers</td>
-    <td class="tg-0pky">4fingers</td>
-    <td class="tg-0pky">165</td>
-    <td class="tg-0pky">162</td>
-    <td class="tg-0pky">Space correction</td>
+    <td>4 fingers</td>
+    <td>4fingers</td>
+    <td>165</td>
+    <td>162</td>
+    <td>Space correction</td>
   </tr>
   <tr>
-    <td class="tg-0pky">krc</td>
-    <td class="tg-0pky">kfc</td>
-    <td class="tg-0pky">126</td>
-    <td class="tg-0pky">124</td>
-    <td class="tg-0pky">Spelling correction</td>
+    <td>krc</td>
+    <td>kfc</td>
+    <td>126</td>
+    <td>124</td>
+    <td>Spelling correction</td>
   </tr>
   <tr>
-    <td class="tg-0pky">5 guys</td>
-    <td class="tg-0pky">five guys</td>
-    <td class="tg-0pky">120</td>
-    <td class="tg-0pky">120</td>
-    <td class="tg-0pky">Number synonym</td>
+    <td>5 guys</td>
+    <td>five guys</td>
+    <td>120</td>
+    <td>120</td>
+    <td>Number synonym</td>
   </tr>
   <tr>
-    <td class="tg-0pky">koi the</td>
-    <td class="tg-0pky">koi thé</td>
-    <td class="tg-0pky">45</td>
-    <td class="tg-0pky">44</td>
-    <td class="tg-0pky">Tone change</td>
+    <td>koi the</td>
+    <td>koi thé</td>
+    <td>45</td>
+    <td>44</td>
+    <td>Tone change</td>
   </tr>
 </tbody>
 </table>
