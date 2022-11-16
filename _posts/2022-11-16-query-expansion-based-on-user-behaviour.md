@@ -13,7 +13,7 @@ excerpt: "User behaviour data is a gold mine to gain insights about users and he
 
 # Introduction
 
-Our customers used to face a few common pain points while searching for food with the Grab app. Sometimes, the results would include merchants that were not yet operational or locations that were out of the delivery radius. Other times, no alternatives were provided. The search system would also have difficulties handling typos, keywords in different languages, synonyms, and even word spacing issues, resulting in a suboptimal user experience.
+Our consumers used to face a few common pain points while searching for food with the Grab app. Sometimes, the results would include merchants that were not yet operational or locations that were out of the delivery radius. Other times, no alternatives were provided. The search system would also have difficulties handling typos, keywords in different languages, synonyms, and even word spacing issues, resulting in a suboptimal user experience.
 
 Over the past few months, our search team has been building a query expansion framework that can solve these issues. When a user query comes in, it expands the query to a few related keywords based on semantic relevance and user intention. These expanded words are then searched with the original query to recall more results that are high-quality and diversified. Now let’s take a deeper look at how it works.
 
