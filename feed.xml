@@ -6,9 +6,208 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 26 Oct 2022 06:22:40 +0000</pubDate>
-    <lastBuildDate>Wed, 26 Oct 2022 06:22:40 +0000</lastBuildDate>
+    <pubDate>Wed, 16 Nov 2022 04:23:22 +0000</pubDate>
+    <lastBuildDate>Wed, 16 Nov 2022 04:23:22 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Query expansion based on user behaviour</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;Our consumers used to face a few common pain points while searching for food with the Grab app. Sometimes, the results would include merchants that were not yet operational or locations that were out of the delivery radius. Other times, no alternatives were provided. The search system would also have difficulties handling typos, keywords in different languages, synonyms, and even word spacing issues, resulting in a suboptimal user experience.&lt;/p&gt;
+
+&lt;p&gt;Over the past few months, our search team has been building a query expansion framework that can solve these issues. When a user query comes in, it expands the query to a few related keywords based on semantic relevance and user intention. These expanded words are then searched with the original query to recall more results that are high-quality and diversified. Now let’s take a deeper look at how it works.&lt;/p&gt;
+
+&lt;h1 id=&quot;query-expansion-framework&quot;&gt;Query expansion framework&lt;/h1&gt;
+
+&lt;h2 id=&quot;building-the-query-expansion-corpus&quot;&gt;Building the query expansion corpus&lt;/h2&gt;
+
+&lt;p&gt;We used two different approaches to produce query expansion candidates: manual annotation for top keywords and data mining based on user rewrites.&lt;/p&gt;
+
+&lt;h3 id=&quot;manual-annotation-for-top-keywords&quot;&gt;Manual annotation for top keywords&lt;/h3&gt;
+
+&lt;p&gt;Search has a pronounced fat head phenomenon. The most frequent thousand of keywords account for more than 70% of the total search traffic. Therefore, handling these keywords well can improve the overall search quality a lot. We manually annotated the possible expansion candidates for these common keywords to cover the most popular merchants, items and alternatives. For instance, “McDonald’s” is annotated with {“burger”, “western”}.&lt;/p&gt;
+
+&lt;h3 id=&quot;data-mining-based-on-user-rewrites&quot;&gt;Data mining based on user rewrites&lt;/h3&gt;
+
+&lt;p&gt;We observed that sometimes users tend to rewrite their queries if they are not satisfied with the search result. As a pilot study, we checked the user rewrite records within some user search sessions and found several interesting samples:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{Ya Kun Kaya Toast,Starbucks}
+{healthy,Subway}
+{Muni,Muji}
+{奶茶,koi}
+{Roti,Indian}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;We can see that besides spelling corrections, users’ rewrite behaviour also reveals deep semantic relations between these pairs that cannot be easily captured by lexical similarity, such as similar merchants, merchant attributes, language differences, cuisine types, and so on. We can leverage the user’s knowledge to build a query expansion corpus to improve the diversity of the search result and user experience. Furthermore, we can use the wisdom of the crowd to find some common patterns with higher confidence.&lt;/p&gt;
+
+&lt;p&gt;Based on this intuition, we leveraged the high volume of search click data available in Grab to generate high-quality expansion pairs at the user session level. To augment the original queries, we collected rewrite pairs that happened to multiple users and multiple times in a time period. Specifically, we used the heuristic rules below to collect the rewrite pairs:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Select the sessions where there are at least two distinct queries (rewrite session)&lt;/li&gt;
+  &lt;li&gt;Collect adjacent query pairs in the search session where the second query leads to a click but the first does not (effective rewrite)&lt;/li&gt;
+  &lt;li&gt;Filter out the sample pairs with time interval longer than 30 seconds in between, as users are more likely to change their mind on what to look for in these pairs (single intention)&lt;/li&gt;
+  &lt;li&gt;Count the occurrences and filter out the low-frequency pairs (confidence management)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;After we have the mining pairs, we categorised and annotated the rewrite types to gain a deeper understanding of the user’s rewrite behaviour. A few samples mined from the Singapore area data are shown in the table below.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+&lt;thead&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Original query&lt;/th&gt;
+    &lt;th&gt;Rewrite query&lt;/th&gt;
+    &lt;th&gt;Frequency in a month&lt;/th&gt;
+    &lt;th&gt;Distinct user count&lt;/th&gt;
+    &lt;th&gt;Type&lt;/th&gt;
+  &lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+    &lt;td&gt;playmade by 丸作&lt;/td&gt;
+    &lt;td&gt;playmade&lt;/td&gt;
+    &lt;td&gt;697&lt;/td&gt;
+    &lt;td&gt;666&lt;/td&gt;
+    &lt;td&gt;Drop keywords&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;mcdonald's&lt;/td&gt;
+    &lt;td&gt;burger&lt;/td&gt;
+    &lt;td&gt;573&lt;/td&gt;
+    &lt;td&gt;535&lt;/td&gt;
+    &lt;td&gt;Merchant -&amp;gt; Food&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;Bubble tea&lt;/td&gt;
+    &lt;td&gt;koi&lt;/td&gt;
+    &lt;td&gt;293&lt;/td&gt;
+    &lt;td&gt;287&lt;/td&gt;
+    &lt;td&gt;Food -&amp;gt; Merchant&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;Kfc&lt;/td&gt;
+    &lt;td&gt;McDonald's&lt;/td&gt;
+    &lt;td&gt;238&lt;/td&gt;
+    &lt;td&gt;234&lt;/td&gt;
+    &lt;td&gt;Merchant -&amp;gt; Merchant&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;cake&lt;/td&gt;
+    &lt;td&gt;birthday cake&lt;/td&gt;
+    &lt;td&gt;206&lt;/td&gt;
+    &lt;td&gt;205&lt;/td&gt;
+    &lt;td&gt;Add words&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;麦当劳&lt;/td&gt;
+    &lt;td&gt;mcdonald's&lt;/td&gt;
+    &lt;td&gt;205&lt;/td&gt;
+    &lt;td&gt;199&lt;/td&gt;
+    &lt;td&gt;Locale change&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;4 fingers&lt;/td&gt;
+    &lt;td&gt;4fingers&lt;/td&gt;
+    &lt;td&gt;165&lt;/td&gt;
+    &lt;td&gt;162&lt;/td&gt;
+    &lt;td&gt;Space correction&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;krc&lt;/td&gt;
+    &lt;td&gt;kfc&lt;/td&gt;
+    &lt;td&gt;126&lt;/td&gt;
+    &lt;td&gt;124&lt;/td&gt;
+    &lt;td&gt;Spelling correction&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;5 guys&lt;/td&gt;
+    &lt;td&gt;five guys&lt;/td&gt;
+    &lt;td&gt;120&lt;/td&gt;
+    &lt;td&gt;120&lt;/td&gt;
+    &lt;td&gt;Number synonym&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;koi the&lt;/td&gt;
+    &lt;td&gt;koi thé&lt;/td&gt;
+    &lt;td&gt;45&lt;/td&gt;
+    &lt;td&gt;44&lt;/td&gt;
+    &lt;td&gt;Tone change&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;We further computed the percentages of some categories, as shown in the figure below.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/query-expansion-based-on-user-behaviour/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;figcaption align=&quot;middle&quot;&gt;Figure 1. The donut chart illustrates the percentages of the distinct user counts for different types of rewrites.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Apart from adding words, dropping words and spelling corrections, a significant portion of the rewrites are in the category of Other. It is more semantic driven, such as merchant to merchant, or merchant to cuisine. Those rewrites are useful for capturing deeper connections between queries and can be a powerful diversifier to query expansion.&lt;/p&gt;
+
+&lt;h3 id=&quot;grouping&quot;&gt;Grouping&lt;/h3&gt;
+
+&lt;p&gt;After all the rewrite pairs were discovered offline through data mining, we grouped the query pairs by the original query to get the expansion candidates of each query. For serving efficiency, we limited the max number of expansion candidates to three.&lt;/p&gt;
+
+&lt;h2 id=&quot;query-expansion-serving&quot;&gt;Query expansion serving&lt;/h2&gt;
+
+&lt;h3 id=&quot;expansion-matching-architecture&quot;&gt;Expansion matching architecture&lt;/h3&gt;
+
+&lt;p&gt;The expansion matching architecture benefits from the recent search architecture upgrade, where the system flow is changed to a query understanding, multi-recall and result fusion flow. In particular, a query goes through the query understanding module and gets augmented with additional information. In this case, the query understanding module takes in the keyword and expands it to multiple synonyms, for example, KFC will be expanded to fried chicken. The original query together with its expansions are sent together to the search engine under the multi-recall framework. After that, results from multiple recallers with different keywords are fused together.&lt;/p&gt;
+
+&lt;h3 id=&quot;continuous-monitoring-and-feedback-loop&quot;&gt;Continuous monitoring and feedback loop&lt;/h3&gt;
+
+&lt;p&gt;It’s important to make sure the expansion pairs are relevant and up-to-date. We run the data mining pipeline periodically to capture the new user rewrite behaviours. Meanwhile, we also monitor the expansion pairs’ contribution to the search result by measuring the net contribution of recall or user interaction that the particular query brings, and eliminate the obsolete pairs in an automatic way. This reflects our effort to build an adaptive system.&lt;/p&gt;
+
+&lt;h1 id=&quot;results&quot;&gt;Results&lt;/h1&gt;
+
+&lt;p&gt;We conducted online A/B experiments across 6 countries in Southeast Asia to evaluate the expanded queries generated by our system. We set up 3 groups:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Control group, where no query is expanded.&lt;/li&gt;
+  &lt;li&gt;Treatment group 1, where we expanded the queries based on manual annotations only.&lt;/li&gt;
+  &lt;li&gt;Treatment group 2, where we expanded the queries using the data mining approach.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We observed decent uplift in click-through rate and conversion rate from both treatment groups. Furthermore, in treatment group 2, the data mining approach produced even better results.&lt;/p&gt;
+
+&lt;h1 id=&quot;future-work&quot;&gt;Future work&lt;/h1&gt;
+
+&lt;h2 id=&quot;data-mining-enhancement&quot;&gt;Data mining enhancement&lt;/h2&gt;
+
+&lt;p&gt;Currently, the data mining approach can only identify the pairs from the same search session by one user. This limits the number of linked pairs. Some potential enhancements include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Augment expansion pairs by associating queries from different users who click on the same merchant/item, for example, using a click graph. This can capture relevant queries across user sessions.&lt;/li&gt;
+  &lt;li&gt;Build a probabilistic model on top of the current transition pairs. Currently, all the transition pairs are equally weighted but apparently, the transitions that happen more often should carry higher probability/weights.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;ads-application&quot;&gt;Ads application&lt;/h2&gt;
+
+&lt;p&gt;Query expansion can be applied to advertising and would increase ads fill rate. With “KFC” expanded to “fried chicken”, the sponsored merchants who buy the keyword “fried chicken” would be eligible to show up when the user searches “KFC”. This would enable Grab to provide more relevant sponsored content to our users, which helps not only the consumers but also the merchants.&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Zhengmin Xu and Daniel Ng for proofreading this article.&lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 16 Nov 2022 00:29:00 +0000</pubDate>
+        <link>https://engineering.grab.com/query-expansion-based-on-user-behaviour</link>
+        <guid isPermaLink="true">https://engineering.grab.com/query-expansion-based-on-user-behaviour</guid>
+        
+        <category>Analytics</category>
+        
+        <category>Data Science</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>Using mobile sensor data to encourage safer driving</title>
@@ -1674,117 +1873,6 @@ ex:bea foaf:based_near_:o1
         <category>Optimisation</category>
         
         <category>Search</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Embracing a Docs-as-Code approach</title>
-        <description>&lt;p&gt;The Docs-as-Code concept has been gaining traction in the past few years as more tech companies start implementing this approach. One of the most widely-known examples is &lt;a href=&quot;https://backstage.io/blog/2020/09/08/announcing-tech-docs&quot;&gt;Spotify&lt;/a&gt;, that ​​uses Docs-as-Code to publish documentation in an internal developer portal.&lt;/p&gt;
-
-&lt;p&gt;Since the start of 2021, Grab has also adopted a Docs-as-Code approach to improve our technical documentation. Before we talk about how this is done at Grab, let’s explain what this concept really means.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-is-docs-as-code&quot;&gt;What is Docs-as-Code?&lt;/h2&gt;
-
-&lt;p&gt;Docs-as-Code is a mindset of creating and maintaining technical documentation. The goal is to empower engineers to write technical documentation frequently and keep it up to date by integrating with their tools and processes.&lt;/p&gt;
-
-&lt;p&gt;This means that technical documentation is placed in the same repository as the code, making it easier for engineers to write and update. Next, we’ll go through the motivations behind this initiative.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-embark-on-this-journey&quot;&gt;Why embark on this journey?&lt;/h2&gt;
-
-&lt;p&gt;After speaking to Grab engineers, we found that some of their biggest challenges are around finding and writing documentation. Like many other companies on the same journey, Grab is rather big and our engineers are split into many different teams. Within each team, technical documentation can be stored on different platforms and in different formats, e.g. Google drive documents, text files, etc. This makes it hard to find relevant information, especially if you are trying to find another team’s documentation.&lt;/p&gt;
-
-&lt;p&gt;On top of that, we realised that the documentation process is disconnected from an engineer’s everyday activities, making technical documentation an awkward afterthought. This means that even if people could find the information, there was a good chance that it would not be up to date.&lt;/p&gt;
-
-&lt;p&gt;To address these issues, we need a centralised platform, a single source of truth, so that people can find and discover technical documentation easily. But first, we need to change how we write technical documentation. This is where Docs-as-Code comes in.  &lt;/p&gt;
-
-&lt;h3 id=&quot;how-does-docs-as-code-solve-the-problem&quot;&gt;How does Docs-as-Code solve the problem?&lt;/h3&gt;
-
-&lt;p&gt;With Docs-as-Code, technical documentation is:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Written in plaintext.&lt;/li&gt;
-  &lt;li&gt;Editable in a code editor.&lt;/li&gt;
-  &lt;li&gt;Stored in the same repository as the source code so it’s easier to update docs whenever a code change is committed.&lt;/li&gt;
-  &lt;li&gt;Published on a central platform.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The idea is to consolidate all technical documentation on a central platform, making it easier to discover and find content by using an easy-to-navigate information architecture and targeted search.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-is-grabembracing-docs-as-code&quot;&gt;How is Grab embracing Docs-as-Code?&lt;/h2&gt;
-
-&lt;p&gt;We’ve developed an internal developer portal that simplifies the process of writing, reviewing and publishing technical documentation.&lt;/p&gt;
-
-&lt;p&gt;Here’s a brief overview of the process:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Create a dedicated docs folder in a Git repository.&lt;/li&gt;
-  &lt;li&gt;Push Markdown files into the docs folder.&lt;/li&gt;
-  &lt;li&gt;Configure the developer portal to publish docs from the respective code repository.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;The latest version of the documentation will automatically be built and published in the developer portal.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/doc-as-code/image1.png&quot; alt=&quot;Point multiplier&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Simplified documentation process&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;This way, technical documentation is closer to the source code and integrated into the code development process. Writing and updating technical documentation becomes part of writing code, and this encourages engineers to keep documentation updated.&lt;/p&gt;
-
-&lt;h2 id=&quot;measuring-success&quot;&gt;Measuring success&lt;/h2&gt;
-
-&lt;p&gt;Whenever there’s a change throughout big organisations like Grab, it can be tough to implement. But thankfully, our engineers recognised the importance of improving documentation and making it easier to maintain or update.&lt;/p&gt;
-
-&lt;p&gt;We surveyed our users and here’s what some have said about our Docs-as-Code initiative:&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;“[W]ith the doc and source code in one place, test backend engineers can now make doc changes via standard code review process and re-use the same content for CLI helper message and documentation.” - Kang Yaw Ong, Test Automation - Engineering Manager&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;“[Docs-as-Code] is a great initiative, as it keeps documentation in line and up-to-date with the development of a project. Managing documentation using a version control system and the same tools to handle merges and conflicts reduces overhead and friction in an engineer’s workflow.” - Eugene Chiang, Foundations - Engineering Manager&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;h2 id=&quot;progress-and-future-optimisations&quot;&gt;Progress and future optimisations&lt;/h2&gt;
-
-&lt;p&gt;Since we first started the Docs-as-Code initiative in Grab, we’ve made a lot of progress in terms of adoption - approximately 80% of Grab services will have their technical documentation on the internal portal by April 2022.&lt;/p&gt;
-
-&lt;p&gt;We’ve also improved overall user experience by enhancing stability and performance, improving navigation and content formatting, and enabling feedback. But it doesn’t stop there; we are continuously improving the internal portal and providing more features for our engineers.&lt;/p&gt;
-
-&lt;p&gt;Apart from technical documentation, we are also applying the Docs-as-Code approach to our technical training content. This means moving both self-paced and workshop training content to a centralised repository and providing engineers a single platform for all their learning needs.&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to the Tech Learning - Documentation team for their contributions to this blog post.
-&lt;/small&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;h2 id=&quot;we-are-hiring&quot;&gt;We are hiring!&lt;/h2&gt;
-
-&lt;p&gt;We are looking for more technical content developers to join the team. If you’re keen on joining our Docs-as-Code journey and improving developer experience, check out our open listings in &lt;a href=&quot;https://grab.careers/jobs/job-details/?id=be841c804fee010177fceb2a4a740001&quot;&gt;Singapore&lt;/a&gt; and &lt;a href=&quot;https://grab.careers/jobs/job-details/?id=2b029fdf01590101835c6a2e830c0002&quot;&gt;Malaysia&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Join us in driving this initiative forward and making documentation more approachable for everyone!&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 04 May 2022 03:55:55 +0000</pubDate>
-        <link>https://engineering.grab.com/doc-as-code</link>
-        <guid isPermaLink="true">https://engineering.grab.com/doc-as-code</guid>
-        
-        <category>Docs-as-Code</category>
-        
-        <category>Documentation</category>
-        
-        <category>Technical documentation</category>
-        
-        <category>Engineering practices</category>
         
         
         <category>Engineering</category>
