@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2022-11-21-graph-for-fraud-detection
+id: 2022-11-23-graph-for-fraud-detection
 title: Graph for fraud detection
-date: 2022-11-14 18:43:40
+date: 2022-11-23 18:43:40
 authors: [min-chen, advitiya-vashist, jenn-ng, jia-chen]
 categories: [Engineering, Data Science, Security]
 tags: [Analytics, Data Science, Security, Graphs, Graph visualisation, Graph networks, Fraud detection]
@@ -13,7 +13,7 @@ excerpt: "Fraud detection has become increasingly important in a fast growing bu
 
 Grab has grown rapidly in the past few years. It has expanded its business from ride hailing to food and grocery delivery, financial services, and more. Fraud detection is challenging in Grab, because new fraud patterns always arise whenever we introduce a new business product. We cannot afford to develop a new model whenever a new fraud pattern appears as it is time consuming and introduces a cold start problem, that is no protection at the early stage. We need a general fraud detection framework to better protect Grab from various unknown fraud risks. 
 
-Our key observation is that although Grab has many different business verticals, the entities within those businesses are connected to each other (Figure 1. Left), for example, two passengers may be connected by a wifi router or phone device, a merchant may be connected to a passenger by a food order, and so on. A graph provides an elegant way to capture the spatial correlation among different entities in the Grab ecosystem. A common fraud shows clear patterns on a graph, for example, fraud syndicate tends to share physical devices, and collusion happens between a merchant and an isolated set of passengers (Figure 1. Right). 
+Our key observation is that although Grab has many different business verticals, the entities within those businesses are connected to each other (Figure 1. Left), for example, two passengers may be connected by a Wi-Fi router or phone device, a merchant may be connected to a passenger by a food order, and so on. A graph provides an elegant way to capture the spatial correlation among different entities in the Grab ecosystem. A common fraud shows clear patterns on a graph, for example, a fraud syndicate tends to share physical devices, and collusion happens between a merchant and an isolated set of passengers (Figure 1. Right). 
 
 <div class="post-image-section"><figure>
   <img src="/img/graph-for-fraud-detection/fig1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. Left: The graph captures different correlations in the Grab ecosystem. <br/> Right: The graph shows that common fraud has clear patterns.</figcaption>
@@ -28,7 +28,7 @@ The most common fraud detection methods include the rule engine and the decision
 
 | Fraud detection methods <br/><br/> | Utilises correlations <br/> (Higher is better) | Detects unknown fraud <br/> (Higher is better)| Requires feature engineering <br/> (Lower is better) | Depends on labels <br/> (Lower is better) |
 |-|-|-|-|-|
-| Rule engine | Low | Na | Na| Low |
+| Rule engine | Low | N/A | N/A| Low |
 | Decision tree | Low | Low | High | High |
 | **Graph model** | **High** | **High** | **Low** | **Low** |
 
@@ -39,7 +39,7 @@ Decision tree-based models have been dominating fraud detection and Kaggle compe
 
 On the other hand, a graph-based model requires little amount of feature engineering and it is applicable to unknown fraud detection with less dependence on labels, because it utilises the structural correlations on the graph. 
 
-In particular, fraudsters tend to show strong correlations on a graph, because they have to share physical properties such as personal identities, phone devices, wifi routers, delivery addresses, and so on, to reduce cost and maximise revenue as shown in Figure 2 (left). An example of such strong correlations is shown in Figure 2 (right), where the entities on the graph are densely connected, and the known fraudsters are highlighted in red. Those strong correlations on the graph are the key reasons that make the graph based approach a sustainable foundation for various fraud detection tasks. 
+In particular, fraudsters tend to show strong correlations on a graph, because they have to share physical properties such as personal identities, phone devices, Wi-Fi routers, delivery addresses, and so on, to reduce cost and maximise revenue as shown in Figure 2 (left). An example of such strong correlations is shown in Figure 2 (right), where the entities on the graph are densely connected, and the known fraudsters are highlighted in red. Those strong correlations on the graph are the key reasons that make the graph based approach a sustainable foundation for various fraud detection tasks. 
 
 <div class="post-image-section"><figure>
   <img src="/img/graph-for-fraud-detection/fig2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. Fraudsters tend to share physical properties to reduce cost (left), and they are densely connected as shown on a graph (right).</figcaption>
@@ -56,7 +56,7 @@ We apply the Relational Graph Convolutional Network (RGCN) [^2] for fraud detect
   </figure>
 </div>
 
-We train the RGCN model on a graph with millions of nodes and edges, where only a few percentages of the nodes on the graph have labels. The semi-supervised graph model has a little dependency on the labels, which makes it a robust model for tackling various types of unknown fraud. 
+We train the RGCN model on a graph with millions of nodes and edges, where only a few percentages of the nodes on the graph have labels. The semi-supervised graph model has little dependency on the labels, which makes it a robust model for tackling various types of unknown fraud. 
 
 Figure 4 shows the overall performance of the RGCN model. On the left is the Receiver Operating Characteristic (ROC) curve on the label dataset, in particular, the Area Under the Receiver Operating Characteristic (AUROC) value is close to 1, which means the RGCN model can fit the label data quite well. The right column shows the low dimensional projections of the node embeddings on the label dataset. It is clear that the embeddings of the genuine passenger are well separated from the embeddings of the fraud passenger. The model can distinguish between a fraud and a genuine passenger quite well.
 
@@ -67,8 +67,8 @@ Figure 4 shows the overall performance of the RGCN model. On the left is the Rec
 
 Finally, we would like to share a few tips that will make the RGCN model work well in practice. 
 
-- **Use less than three convolutional layers**: the node feature will be over-smoothed if there are many convolutional layers, that is all the nodes on the graph look similar.
-- **Node features are important**: domain knowledge of the node can be formulated as node features for the graph model, and rich node features are likely to boost the model performance.
+- **Use less than three convolutional layers**: The node feature will be over-smoothed if there are many convolutional layers, that is all the nodes on the graph look similar.
+- **Node features are important**: Domain knowledge of the node can be formulated as node features for the graph model, and rich node features are likely to boost the model performance.
 
 # Graph explainability 
 
@@ -90,7 +90,7 @@ The graph structural information can significantly boost the model performance w
 With that said, there are also many challenges to making a graph model work well in practice. We are working towards solving the following challenges we are facing.
 
 - **Feature initialisation**: Sometimes, it is hard to initialise the node feature, for example, a device node does not carry many semantic meanings. We have explored self-supervised pre-training [^3] to help the feature initialisation, and the preliminary results are promising.
-- **Realtime model prediction**: Realtime graph model prediction is challenging because real-time graph updating is a heavy operation in most cases. One possible solution is to do batch real-time prediction to reduce the overhead. 
+- **Real-time model prediction**: Realtime graph model prediction is challenging because real-time graph updating is a heavy operation in most cases. One possible solution is to do batch real-time prediction to reduce the overhead. 
 - **Noisy connections**: Some connections on the graph are inherently noisy on the graph, for example, two users sharing the same IP address does not necessarily mean they are physically connected. The IP might come from a mobile network. One possible solution is to use the attention mechanism in the graph convolutional kernel and control the message passing based on the type of connection and node profiles.
 
 # Join us
@@ -104,4 +104,4 @@ Powered by technology and driven by heart, our mission is to drive Southeast Asi
 [^1]: T. Kipf and M. Welling, “Semi-supervised classification with graph convolutional networks,” in ICLR, 2017
 [^2]: Schlichtkrull, Michael, et al. "Modeling relational data with graph convolutional networks." European semantic web conference. Springer, Cham, 2018.
 [^3]: Wang, Chen, et al.. "Deep Fraud Detection on Non-attributed Graph." IEEE Big Data conference, PSBD, 2021.
-[^4]: Fujiao Liu, Shuqi Wang, et al.. "Graph Networks - 10X investigation with Graph Visualisations". Grab Tech Blog.
+[^4]: Fujiao Liu, Shuqi Wang, et al.. "[Graph Networks - 10X investigation with Graph Visualisations](https://engineering.grab.com/graph-visualisation)". Grab Tech Blog.
