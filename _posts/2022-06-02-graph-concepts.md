@@ -250,11 +250,6 @@ Although predominantly used in fraud detection, Graph technology has many other 
 
 In our next blog article, we will be talking about how our Graph Visualisation Platform enhances Grab’s fraud detection methods.
 
-Check out the other articles in this series:
-* [Graph Networks - Striking fraud syndicates in the dark](/graph-networks)
-* [Graph Networks - 10X investigation with Graph Visualisations](/graph-visualisation)
-
-
 ## References
 
 1. [https://www.baeldung.com/cs/graph-theory-intro](https://www.baeldung.com/cs/graph-theory-intro)
