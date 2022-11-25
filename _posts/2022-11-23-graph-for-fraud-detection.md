@@ -11,6 +11,8 @@ cover_photo: /img/graph-for-fraud-detection/cover.png
 excerpt: "Fraud detection has become increasingly important in a fast growing business as new fraud patterns arise when a business product is introduced. We need a sustainable framework to combat different types of fraud and prevent fraud from happening. Read and find out how we use graph-based models to protect our business from various known and unknown fraud risks."
 ---
 
+In earlier articles of this series, we've covered the [importance of graph networks]((/graph-networks)), [graph concepts](/graph-concepts) and [how graph visualisation makes fraud investigations easier and more effective](/graph-visualisation). In this article, we will explore how we use graph-based models to tackle fraud detection as fraud patterns increase and diversify.
+
 Grab has grown rapidly in the past few years. It has expanded its business from ride hailing to food and grocery delivery, financial services, and more. Fraud detection is challenging in Grab, because new fraud patterns always arise whenever we introduce a new business product. We cannot afford to develop a new model whenever a new fraud pattern appears as it is time consuming and introduces a cold start problem, that is no protection at the early stage. We need a general fraud detection framework to better protect Grab from various unknown fraud risks.
 
 Our key observation is that although Grab has many different business verticals, the entities within those businesses are connected to each other (Figure 1. Left), for example, two passengers may be connected by a Wi-Fi router or phone device, a merchant may be connected to a passenger by a food order, and so on. A graph provides an elegant way to capture the spatial correlation among different entities in the Grab ecosystem. A common fraud shows clear patterns on a graph, for example, a fraud syndicate tends to share physical devices, and collusion happens between a merchant and an isolated set of passengers (Figure 1. Right).
@@ -92,11 +94,6 @@ With that said, there are also many challenges to making a graph model work well
 - **Feature initialisation**: Sometimes, it is hard to initialise the node feature, for example, a device node does not carry many semantic meanings. We have explored self-supervised pre-training [^3] to help the feature initialisation, and the preliminary results are promising.
 - **Real-time model prediction**: Realtime graph model prediction is challenging because real-time graph updating is a heavy operation in most cases. One possible solution is to do batch real-time prediction to reduce the overhead.
 - **Noisy connections**: Some connections on the graph are inherently noisy on the graph, for example, two users sharing the same IP address does not necessarily mean they are physically connected. The IP might come from a mobile network. One possible solution is to use the attention mechanism in the graph convolutional kernel and control the message passing based on the type of connection and node profiles.
-
-Check out the other articles in this series:
-* [Graph Networks - Striking fraud syndicates in the dark](/graph-networks)
-* [Graph concepts and applications](/graph-concepts)
-* [Graph Networks - 10X investigation with Graph Visualisations](/graph-visualisation)
 
 # Join us
 

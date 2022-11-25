@@ -20,7 +20,7 @@ Detecting fraud schemes used to require investigations using large amounts and v
   </figure>
 </div>
 
-We are always looking for ways to improve fraud investigation methods and stay one step ahead of our ever-growing fraudsters. In the [introductory blog](https://engineering.grab.com/graph-networks) of this series, we’ve mentioned experimenting with a set of Graph Network technologies, including Graph Visualisation.
+We are always looking for ways to improve fraud investigation methods and stay one step ahead of our ever-growing fraudsters. In the [introductory blog](/graph-networks) and [graph concepts](/graph-concepts) articles of this series, we’ve covered experimenting with a set of Graph Network technologies, including Graph Visualisation, and the basics of graph concepts.
 
 In this post, we will introduce our Graph Visualisation Platform and briefly illustrate how it makes fraud investigations easier and more effective.
 
@@ -102,10 +102,6 @@ Graph Visualisation is an intuitive way to investigate suspicious connections an
 
 While fraud detection is a good use case for Graph Visualisation, it’s not the only possibility. Graph Visualisation can help make anything more efficient and intelligent, especially if you have highly connected data.
 
-In the next part of this blog series, we will talk about the Graph service platform and the importance of building graph services with graph databases. Check out the other articles in this series:
-* [Graph Networks - Striking fraud syndicates in the dark](/graph-networks)
-* [Graph concepts and applications](/graph-concepts)
-* [Graph for fraud detection](/graph-for-fraud-detection)
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
