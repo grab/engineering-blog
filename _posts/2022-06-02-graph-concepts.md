@@ -253,6 +253,7 @@ In our next blog article, we will be talking about how our Graph Visualisation P
 Check out the other articles in this series:
 * [Graph Networks - Striking fraud syndicates in the dark](/graph-networks)
 * [Graph Networks - 10X investigation with Graph Visualisations](/graph-visualisation)
+* [Graph for fraud detection](/graph-for-fraud-detection)
 
 
 ## References

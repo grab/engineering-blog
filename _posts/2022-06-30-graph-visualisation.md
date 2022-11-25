@@ -105,6 +105,7 @@ While fraud detection is a good use case for Graph Visualisation, it’s not the
 In the next part of this blog series, we will talk about the Graph service platform and the importance of building graph services with graph databases. Check out the other articles in this series:
 * [Graph Networks - Striking fraud syndicates in the dark](/graph-networks)
 * [Graph concepts and applications](/graph-concepts)
+* [Graph for fraud detection](/graph-for-fraud-detection)
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.

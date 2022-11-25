@@ -93,6 +93,11 @@ With that said, there are also many challenges to making a graph model work well
 - **Real-time model prediction**: Realtime graph model prediction is challenging because real-time graph updating is a heavy operation in most cases. One possible solution is to do batch real-time prediction to reduce the overhead.
 - **Noisy connections**: Some connections on the graph are inherently noisy on the graph, for example, two users sharing the same IP address does not necessarily mean they are physically connected. The IP might come from a mobile network. One possible solution is to use the attention mechanism in the graph convolutional kernel and control the message passing based on the type of connection and node profiles.
 
+Check out the other articles in this series:
+* [Graph Networks - Striking fraud syndicates in the dark](/graph-networks)
+* [Graph concepts and applications](/graph-concepts)
+* [Graph Networks - 10X investigation with Graph Visualisations](/graph-visualisation)
+
 # Join us
 
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
