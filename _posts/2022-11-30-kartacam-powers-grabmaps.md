@@ -8,7 +8,7 @@ categories: [Engineering, Product, Design]
 tags: [Engineering, GrabMaps, KartaCam, Maps, Edge AI]
 comments: true
 cover_photo: /img/kartacam-powers-grabmaps/cover.png
-excerpt: "The foundation for making maps lies in imagery and ensuring that it is fresh, high quality and collected in an efficient yet low-cost manner. Read this to find out how the Geo team created KartaCam, how it addresses those concerns and its future enhancements."
+excerpt: "The foundation for making maps lies in imagery and ensuring that it is fresh, high quality and collected in an efficient yet low-cost manner. Read this to find out how the Geo team created KartaCam, how it addresses those concerns, and its future enhancements."
 ---
 
 ## Introduction
@@ -25,15 +25,15 @@ Compared to traditional collection methods, there are more affordable alternativ
 
 That said, there are several challenges with crowdsourcing imagery, such as:
 
-*   Inconsistent quality in collected images
-*   Low operational efficiency as cameras and smartphones are not optimised for mapping
-*   Unreliable location accuracy
+*   Inconsistent quality in collected images.
+*   Low operational efficiency as cameras and smartphones are not optimised for mapping.
+*   Unreliable location accuracy.
 
 In order to solve the challenges above, we started building our very own artificial intelligence (AI) camera called KartaCam.
 
 ## What is KartaCam?
 
-Designed specifically for map-making, KartaCam is a lightweight camera that is everything you need for accurate and efficient image collection, and is easy to operate. KartaCam is powered by edge AI, and mainly comprises a camera module, a dual-band Global Navigation Satellite System (GNSS) module, and a built-in 4G Long-Term Evolution (LTE) module.
+Designed specifically for map-making, KartaCam is a lightweight camera that is easy to operate. It is everything you need for accurate and efficient image collection. KartaCam is powered by edge AI, and mainly comprises a camera module, a dual-band Global Navigation Satellite System (GNSS) module, and a built-in 4G Long-Term Evolution (LTE) module.
 
 <div class="post-image-section"><figure>
   <img src="/img/kartacam-powers-grabmaps/image1.jpg" alt="" style="width:30%"><figcaption align="middle">KartaCam</figcaption>
@@ -42,7 +42,7 @@ Designed specifically for map-making, KartaCam is a lightweight camera that is e
 
 ### Camera module
 
-The camera module/optical design of KartaCam focuses on several key features:
+The camera module or optical design of KartaCam focuses on several key features:
 
 *   **Wide field of vision (FOV)**: A wide FOV to capture as many scenes and details as possible without requiring additional trips. KartaCam has a wide lens FOV of >150° and when we use four KartaCams together, this covers 360°.
 *   **High image quality**: A combination of high definition optical lens and a high resolution pixel image sensor can help to achieve better image quality. KartaCam uses a high-quality 12MP image sensor.
@@ -50,30 +50,23 @@ The camera module/optical design of KartaCam focuses on several key features:
 
 ### Edge AI for smart capturing on edge
 
-Each KartaCam device is also equipped with [edge AI](https://blogs.nvidia.com/blog/2022/02/17/what-is-edge-ai/), which will enable AI computations to operate closer to the actual data – in our case, imagery collection. With edge AI, we can make decisions about imagery collection (i.e. upload, delete or recapture) at the device-level.
+Each KartaCam device is also equipped with [edge AI](https://blogs.nvidia.com/blog/2022/02/17/what-is-edge-ai/), which will enable AI computations to operate closer to the actual data – in our case, imagery collection. With edge AI, we can make decisions about imagery collection, such as upload, delete or recapture, at the device-level.
 
-To help with these decisions, we use a series of edge AI models/algorithms that are executed immediately after each image capture such as:
+To help with these decisions, we use a series of edge AI models or algorithms that are executed immediately after each image capture such as:
+* **Scene recognition model**: For efficient map-making, we ensure that we only upload and process the right scene images, also known as screen verdicts. Unqualified images such as indoor, raining and cloudy images are deleted directly on the KartaCam device. Joint detection algorithms are deployed in some instances to improve the accuracy of scene verdicts. For example, to detect indoor recording we look at a combination of driver moving speed, Inertial Measurement Units (IMU) data, and edge AI image detection.
 
-(A) Scene recognition AI model
+* **IQ checking AI model**: The quality of the images collected is paramount for map-making. Only qualified images judged by our IQ classification algorithm will be uploaded while those that are blurry or considered low-quality will be deleted. Once an unqualified image is detected (usually within the next second), a new image is captured, improving the success rate of collection.
 
-(B) Image quality (IQ) checking AI model
+* **Object detection AI model**: Only roadside images that contain relevant map-making content such as traffic signs, lights, and Point of Interest (POI) text are uploaded.
 
-(C) Object detection AI model
-
-(D) Privacy information detection
+* **Privacy information detection**: Edge AI also helps protect privacy when collecting street images for map-making. It automatically blurs privacy information such as pedestrians’ faces and car plate numbers before uploading, ensuring adequate privacy protection.
 
 <div class="post-image-section"><figure>
   <img src="/img/kartacam-powers-grabmaps/image7.png" alt="" style="width:80%">
   </figure>
 </div>
 
-**(A) Scene recognition model**: For efficient map-making, we ensure that we only upload and process the right scene images, also known as screen verdicts. Unqualified images such as indoor, raining and cloudy images are deleted directly on the KartaCam device. Joint detection algorithms are deployed in some instances to improve the accuracy of scene verdicts. For example, to detect indoor recording we look at a combination of driver moving speed, Inertial Measurement Units (IMU) data and edge AI image detection.
 
-**(B) IQ checking AI model**: The quality of the images collected is paramount for map-making. Only qualified images judged by our IQ classification algorithm will be uploaded while those that are blurry or considered low-quality will be deleted. Once an unqualified image is detected (usually within the next second), a new image is captured, improving the success rate of collection.
-
-**(C) Object detection AI model**: Only roadside images that contain relevant map-making content such as traffic signs, lights and POI text are uploaded.
-
-**(D) Privacy information detection**: Edge AI also helps protect privacy when collecting street images for map-making. It automatically blurs privacy information such as pedestrians’ faces and car plate numbers before uploading, ensuring adequate privacy protection.
 
 ### Better positioning with a dual-band GNSS module
 
@@ -127,7 +120,7 @@ In a future article, we will dive deeper into the technology behind KartaView an
 
 ## Impact
 
-At the moment, Grab is rolling out thousands of KartaCam in all Grab operating locations across Southeast Asia. This saved operational costs while improving the efficiency and quality of our data collection.
+At the moment, Grab is rolling out thousands of KartaCams in all Grab operating locations across Southeast Asia. This saves operational costs while improving the efficiency and quality of our data collection.
 
 
 <div class="post-image-section"><figure>
@@ -138,7 +131,7 @@ At the moment, Grab is rolling out thousands of KartaCam in all Grab operating l
 
 ### Better data quality and more map attributes
 
-Due to the excellent image quality, wide FOV coverage, accurate GPS positioning and sensor data, the 360° images captured by KartaCam 360 also register detailed map attributes like POIs, traffic signs and address plates. This will help us build a high quality map with rich and accurate content.
+Due to the excellent image quality, wide FOV coverage, accurate GPS positioning and sensor data, the 360° images captured by KartaCam 360 also register detailed map attributes like POIs, traffic signs, and address plates. This will help us build a high quality map with rich and accurate content.
 
 
 <div class="post-image-section"><figure>
@@ -148,9 +141,9 @@ Due to the excellent image quality, wide FOV coverage, accurate GPS positioning 
 
 ### Reducing operational costs
 
-Based on our research, the hardware cost for KartaCam 360 is significantly lower compared to similar professional cameras in the market, making it more feasible to scale up in Southeast Asia as the preferred tool for crowdsourcing imagery collection.
+Based on our research, the hardware cost for KartaCam 360 is significantly lower compared to similar professional cameras in the market. This makes it a more feasible option to scale up in Southeast Asia as the preferred tool for crowdsourcing imagery collection.
 
-With image review (quality checks) and detection are conducted at the edge, we can avoid re-collections and also ensure that only qualified images are uploaded. These result in saving time as well as operational and upload costs.
+With image quality checks and detection are conducted at the edge, we can avoid re-collections and also ensure that only qualified images are uploaded. These result in saving time as well as operational and upload costs.
 
 ### Upholding privacy standards
 
@@ -168,9 +161,9 @@ KartaCam automatically blurs captured images that contain PII, like faces, licen
 
 Moving forward, Grab will continue to enhance KartaCam’s performance and will focus on the following aspects with the next generation KartaCam:
 
-*   To further improve image quality with better image sensors, unique optical components and state-of-art Image Signal Processor (ISP).
+*   To further improve image quality with better image sensors, unique optical components, and state-of-art Image Signal Processor (ISP).
 *   To be compatible with Light Detection And Ranging (LIDAR) for high-definition collection and indoor use cases.
-*   Improve GNSS module performance with higher sampling frequency and accuracy, and integrate new technology like RTK/PPP solution to further improve the positioning accuracy. When combined with sensor fusion from IMU sensors, we can improve positioning accuracy for map-making further.
+*   Improve GNSS module performance with higher sampling frequency and accuracy, and integrate new technology like Real-Time Kinematic (RTK) and Precise Point Positioning (PPP) solutions to further improve the positioning accuracy. When combined with sensor fusion from IMU sensors, we can improve positioning accuracy for map-making further.
 *   Improve usability, integration and enhance imagery collection and portability for KartaCam so driver-partners can easily capture mapping data. 
 *   Explore new product concepts for future passive street imagery collection.
 
