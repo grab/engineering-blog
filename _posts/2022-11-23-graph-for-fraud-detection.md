@@ -11,7 +11,7 @@ cover_photo: /img/graph-for-fraud-detection/cover.png
 excerpt: "Fraud detection has become increasingly important in a fast growing business as new fraud patterns arise when a business product is introduced. We need a sustainable framework to combat different types of fraud and prevent fraud from happening. Read and find out how we use graph-based models to protect our business from various known and unknown fraud risks."
 ---
 
-In earlier articles of this series, we've covered the [importance of graph networks]((/graph-networks)), [graph concepts](/graph-concepts) and [how graph visualisation makes fraud investigations easier and more effective](/graph-visualisation). In this article, we will explore how we use graph-based models to tackle fraud detection as fraud patterns increase and diversify.
+In earlier articles of this series, we've covered the [importance of graph networks](/graph-networks), [graph concepts](/graph-concepts) and [how graph visualisation makes fraud investigations easier and more effective](/graph-visualisation). In this article, we will explore how we use graph-based models to tackle fraud detection as fraud patterns increase and diversify.
 
 Grab has grown rapidly in the past few years. It has expanded its business from ride hailing to food and grocery delivery, financial services, and more. Fraud detection is challenging in Grab, because new fraud patterns always arise whenever we introduce a new business product. We cannot afford to develop a new model whenever a new fraud pattern appears as it is time consuming and introduces a cold start problem, that is no protection at the early stage. We need a general fraud detection framework to better protect Grab from various unknown fraud risks.
 
