@@ -109,7 +109,7 @@ When a client - identified by its TLS certificate's Subject - attempts to consum
 
 As the core component of the authorisation process, the OPA is deployed with the same high availability as the Kafka cluster itself, i.e. spread across the same number of Availability Zones. Also, we decided to go with one dedicated OPA by Kafka cluster instead of having a unique global OPA shared between multiple clusters. This is to reduce the blast radius of any OPA incidents.
 
-For monitoring and alerting around authorisation, we submitted an [Open Source contribution](https://github.com/StyraInc/opa-kafka-plugin/pull/38) in the `opa-kafka-plugin project` in order to enable the OPA authoriser to expose some metrics. Our contribution to the open source code allows us to monitor various aspects of the OPA, such as the number of authorised and unauthorised requests, as well as the cache hit-and-miss rates. Also, we set up alerts for suspicious activity such as unauthorised requests.
+For monitoring and alerting around authorisation, we submitted an [Open Source contribution](https://github.com/StyraInc/opa-kafka-plugin/pull/38) in the `opa-kafka-plugin` project in order to enable the OPA authoriser to expose some metrics. Our contribution to the open source code allows us to monitor various aspects of the OPA, such as the number of authorised and unauthorised requests, as well as the cache hit-and-miss rates. Also, we set up alerts for suspicious activity such as unauthorised requests.
 
 Finally, as a platform team, we need to make authorisation a scalable, self-service process. Thus, we rely on the Git repository's permissions to let Kafka topics' owners approve the data source changes pertaining to their topics.
 
