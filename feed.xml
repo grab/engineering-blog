@@ -6,9 +6,164 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 01 Dec 2022 05:39:57 +0000</pubDate>
-    <lastBuildDate>Thu, 01 Dec 2022 05:39:57 +0000</lastBuildDate>
+    <pubDate>Wed, 07 Dec 2022 02:50:46 +0000</pubDate>
+    <lastBuildDate>Wed, 07 Dec 2022 02:50:46 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Zero trust with Kafka</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Grab’s real-time data platform team, also known as Coban, has been operating large-scale Kafka clusters for all Grab verticals, with a strong focus on ensuring a best-in-class-performance and 99.99% availability.&lt;/p&gt;
+
+&lt;p&gt;Security has always been one of Grab’s top priorities and as fraudsters continue to evolve, there is an increased need to continue strengthening the security of our data streaming platform. One of the ways of doing this is to move from a pure network-based access control to state-of-the-art security and zero trust by default, such as:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Authentication&lt;/strong&gt;: The identity of any remote systems - clients and servers - is established and ascertained first, prior to any further communications.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Authorisation&lt;/strong&gt;: Access to Kafka is granted based on the principle of least privilege; no access is given by default. Kafka clients are associated with the whitelisted Kafka topics and permissions - consume or produce - they strictly need. Also, granted access is auditable.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Confidentiality&lt;/strong&gt;: All in-transit traffic is encrypted.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;We decided to use mutual Transport Layer Security (mTLS) for authentication and encryption. mTLS enables clients to authenticate servers, and servers to reciprocally authenticate clients.&lt;/p&gt;
+
+&lt;p&gt;Kafka supports other authentication mechanisms, like OAuth, or Salted Challenge Response Authentication Mechanism (SCRAM), but we chose mTLS because it is able to verify the peer’s identity offline. This verification ability means that systems do not need an active connection to an authentication server to ascertain the identity of a peer. This enables operating in disparate network environments, where all parties do not necessarily have access to such a central authority.&lt;/p&gt;
+
+&lt;p&gt;We opted for &lt;a href=&quot;https://www.vaultproject.io/&quot;&gt;Hashicorp Vault&lt;/a&gt; and its &lt;a href=&quot;https://www.vaultproject.io/docs/secrets/pki&quot;&gt;PKI engine&lt;/a&gt; to dynamically generate clients and servers’ certificates. This enables us to enforce the usage of short-lived certificates for clients, which is a way to mitigate the potential impact of a client certificate being compromised or maliciously shared. We said zero trust, right?&lt;/p&gt;
+
+&lt;p&gt;For authorisation, we chose Policy-Based Access Control (PBAC), a more scalable solution than Role-Based Access Control (RBAC), and the &lt;a href=&quot;https://www.openpolicyagent.org/&quot;&gt;Open Policy Agent&lt;/a&gt; (OPA) as our policy engine, for its wide community support.&lt;/p&gt;
+
+&lt;p&gt;To integrate mTLS and the OPA with Kafka, we leveraged &lt;a href=&quot;https://strimzi.io/&quot;&gt;Strimzi&lt;/a&gt;, the Kafka on Kubernetes operator. In a previous &lt;a href=&quot;/exposing-kafka-cluster&quot;&gt;article&lt;/a&gt;, we have alluded to Strimzi and hinted at how it would help with scalability and cloud agnosticism. Built-in security is undoubtedly an additional driver of our adoption of Strimzi.&lt;/p&gt;
+
+&lt;h3 id=&quot;server-authentication&quot;&gt;Server authentication&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-trust-with-kafka/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1 - Server authentication process for internal cluster communications&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We first set up a single Root Certificate Authority (CA) for each environment (staging, production, etc.). This Root CA, in blue on the diagram, is securely managed by the Hashicorp Vault cluster. Note that the color of the certificates, keys, signing arrows and signatures on the diagrams are consistent throughout this article.&lt;/p&gt;
+
+&lt;p&gt;To secure the cluster’s internal communications, like the communications between the Kafka broker and Zookeeper pods, Strimzi sets up a Cluster CA, which is signed by the Root CA (step 1). The Cluster CA is then used to sign the individual Kafka broker and zookeeper certificates (step 2). Lastly, the Root CA’s public certificate is imported into the truststores of both the Kafka broker and Zookeeper (step 3), so that all pods can mutually verify their certificates when authenticating one with the other.&lt;/p&gt;
+
+&lt;p&gt;Strimzi’s embedded Cluster CA dynamically generates valid individual certificates when spinning up new Kafka and Zookeeper pods. The signing operation (step 2) is handled automatically by Strimzi.&lt;/p&gt;
+
+&lt;p&gt;For client access to Kafka brokers, Strimzi creates a different set of intermediate CA and server certificates, as shown in the next diagram.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-trust-with-kafka/image5.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2 - Server authentication process for client access to Kafka brokers&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The same Root CA from Figure 1 now signs a different intermediate CA, which the Strimzi community calls the Client CA (step 1). This naming is misleading since it does not actually sign any client certificates, but only the server certificates (step 2) that are set up on the external listener of the Kafka brokers. These server certificates are for the Kafka clients to authenticate the servers. This time, the Root CA’s public certificate will be imported into the Kafka Client truststore (step 3).&lt;/p&gt;
+
+&lt;h3 id=&quot;clientauthentication&quot;&gt;Client authentication&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-trust-with-kafka/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3 - Client authentication process&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;For client authentication, the Kafka client first needs to authenticate to Hashicorp Vault and request an ephemeral certificate from the Vault PKI engine (step 1). Vault then issues a certificate and signs it using its Root CA (step 2). With this certificate, the client can now authenticate to Kafka brokers, who will use the Root CA’s public certificate already in their truststore, as previously described (step 3).&lt;/p&gt;
+
+&lt;h3 id=&quot;ca-tree&quot;&gt;CA tree&lt;/h3&gt;
+&lt;p&gt;Putting together the three different authentication processes we have just covered, the CA tree now looks like this. Note that this is a simplified view for a single environment, a single cluster, and two clients only.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-trust-with-kafka/image3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4 - Complete certificate authority tree&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;As mentioned earlier, each environment (staging, production, etc.) has its own Root CA. Within an environment, each Strimzi cluster has its own pair of intermediate CAs: the Cluster CA and the Client CA. At the leaf level, the Zookeeper and Kafka broker pods each have their own individual certificates.&lt;/p&gt;
+
+&lt;p&gt;On the right side of the diagram, each Kafka client can get an ephemeral certificate from Hashicorp Vault whenever they need to connect to Kafka. Each team or application has a dedicated Vault PKI role in Hashicorp Vault, restricting what can be requested for its certificate (e.g., Subject, TTL, etc.).&lt;/p&gt;
+
+&lt;h3 id=&quot;strimzi-deployment&quot;&gt;Strimzi deployment&lt;/h3&gt;
+
+&lt;p&gt;We heavily use Terraform to manage and provision our Kafka and Kafka-related components. This enables us to quickly and reliably spin up new clusters and perform cluster scaling operations.&lt;/p&gt;
+
+&lt;p&gt;Under the hood, Strimzi Kafka deployment is a Kubernetes deployment. To increase the performance and the reliability of the Kafka cluster, we create dedicated Kubernetes nodes for each Strimzi Kafka broker and each Zookeeper pod, using &lt;a href=&quot;https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/&quot;&gt;Kubernetes taints and tolerations&lt;/a&gt;. This ensures that all resources of a single node are dedicated solely to either a single Kafka broker or a single Zookeeper pod.&lt;/p&gt;
+
+&lt;p&gt;We also decided to go with a single Kafka cluster by Kubernetes cluster to make the management easier.&lt;/p&gt;
+
+&lt;h3 id=&quot;client-setup&quot;&gt;Client setup&lt;/h3&gt;
+
+&lt;p&gt;Coban provides backend microservice teams from all Grab verticals with a popular Kafka SDK in Golang, to standardise how teams utilise Coban Kafka clusters. Adding mTLS support mostly boils down to upgrading our SDK.&lt;/p&gt;
+
+&lt;p&gt;Our enhanced SDK provides a default mTLS configuration that works out of the box for most teams, while still allowing customisation, e.g., for teams that have their own Hashicorp Vault Infrastructure for compliance reasons. Similarly, clients can choose among various Vault auth methods such as &lt;a href=&quot;https://developer.hashicorp.com/vault/docs/auth/aws&quot;&gt;AWS&lt;/a&gt; or &lt;a href=&quot;https://developer.hashicorp.com/vault/docs/auth/kubernetes&quot;&gt;Kubernetes&lt;/a&gt; to authenticate to Hashicorp Vault, or even implement their own logic for getting a valid client certificate.&lt;/p&gt;
+
+&lt;p&gt;To mitigate the potential risk of a user maliciously sharing their application’s certificate with other applications or users, we limit the maximum Time-To-Live (TTL) for any given certificate. This also removes the overhead of maintaining a Certificate Revocation List (CRL). Additionally, our SDK stores the certificate and its associated private key in memory only, never on disk, hence reducing the attack surface.&lt;/p&gt;
+
+&lt;p&gt;In our case, Hashicorp Vault is a dependency. To prevent it from reducing the overall availability of our data streaming platform, we have added two features to our SDK – a configurable retry mechanism and automatic renewal of clients’ short-lived certificates when two thirds of their TTL is reached. The upgraded SDK also produces new metrics around this certificate renewal process, enabling better monitoring and alerting.&lt;/p&gt;
+
+&lt;h3 id=&quot;authorisation&quot;&gt;Authorisation&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-trust-with-kafka/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5 - Authorisation process before a client can access a Kafka record&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;For authorisation, we set up the Open Policy Agent (OPA) as a standalone deployment in the Kubernetes cluster, and configured Strimzi to integrate the Kafka brokers with that OPA.&lt;/p&gt;
+
+&lt;p&gt;OPA policies - written in the &lt;a href=&quot;https://www.openpolicyagent.org/docs/latest/policy-language/&quot;&gt;Rego&lt;/a&gt; language - describe the authorisation logic. They are created in a GitLab repository along with the authorisation rules, called data sources (step 1). Whenever there is a change, a GitLab CI pipeline automatically creates a bundle of the policies and data sources, and pushes it to an S3 bucket (step 2). From there, it is fetched by the OPA (step 3).&lt;/p&gt;
+
+&lt;p&gt;When a client - identified by its TLS certificate’s Subject - attempts to consume or produce a Kafka record (step 4), the Kafka broker pod first issues an authorisation request to the OPA (step 5) before processing the client’s request. The outcome of the authorisation request is then cached by the Kafka broker pod to improve performance.&lt;/p&gt;
+
+&lt;p&gt;As the core component of the authorisation process, the OPA is deployed with the same high availability as the Kafka cluster itself, i.e. spread across the same number of Availability Zones. Also, we decided to go with one dedicated OPA by Kafka cluster instead of having a unique global OPA shared between multiple clusters. This is to reduce the blast radius of any OPA incidents.&lt;/p&gt;
+
+&lt;p&gt;For monitoring and alerting around authorisation, we submitted an &lt;a href=&quot;https://github.com/StyraInc/opa-kafka-plugin/pull/38&quot;&gt;Open Source contribution&lt;/a&gt; in the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;opa-kafka-plugin project&lt;/code&gt; in order to enable the OPA authoriser to expose some metrics. Our contribution to the open source code allows us to monitor various aspects of the OPA, such as the number of authorised and unauthorised requests, as well as the cache hit-and-miss rates. Also, we set up alerts for suspicious activity such as unauthorised requests.&lt;/p&gt;
+
+&lt;p&gt;Finally, as a platform team, we need to make authorisation a scalable, self-service process. Thus, we rely on the Git repository’s permissions to let Kafka topics’ owners approve the data source changes pertaining to their topics.&lt;/p&gt;
+
+&lt;p&gt;Teams who need their applications to access a Kafka topic would write and submit a JSON data source as simple as this:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{
+ &quot;example_topic&quot;: {
+   &quot;read&quot;: [
+     &quot;clientA.grab&quot;,
+     &quot;clientB.grab&quot;
+   ],
+   &quot;write&quot;: [
+     &quot;clientB.grab&quot;
+   ]
+ }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;GitLab CI unit tests and business logic checks are set up in the Git repository to ensure that the submitted changes are valid. After that, the change would be submitted to the topic’s owner for review and approval.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;The performance impact of this security design is significant compared to unauthenticated, unauthorised, plaintext Kafka. We observed a drop in throughput, mostly due to the low performance of encryption and decryption in Java, and are currently benchmarking different encryption ciphers to mitigate this.&lt;/p&gt;
+
+&lt;p&gt;Also, on authorisation, our current PBAC design is pretty static, with a list of applications granted access for each topic. In the future, we plan to move to Attribute-Based Access Control (ABAC), creating dynamic policies based on teams and topics’ metadata. For example, teams could be granted read and write access to all of their own topics by default. Leveraging a versatile component such as the OPA as our authorisation controller enables this evolution.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 07 Dec 2022 00:23:05 +0000</pubDate>
+        <link>https://engineering.grab.com/zero-trust-with-kafka</link>
+        <guid isPermaLink="true">https://engineering.grab.com/zero-trust-with-kafka</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Kafka</category>
+        
+        <category>Performance</category>
+        
+        <category>Zero trust</category>
+        
+        <category>Access control</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Security</category>
+        
+      </item>
     
       <item>
         <title>How KartaCam powers GrabMaps</title>
@@ -1679,316 +1834,6 @@ We apply the Relational Graph Convolutional Network (RGCN) &lt;sup id=&quot;fnre
         <category>Security</category>
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>Graph concepts and applications</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In an &lt;a href=&quot;https://engineering.grab.com/graph-networks&quot;&gt;introductory article&lt;/a&gt;, we talked about the importance of Graph Networks in fraud detection. In this article, we will be adding some further context on graphs, graph technology and some common use cases.&lt;/p&gt;
-
-&lt;p&gt;Connectivity is the most prominent feature of today’s networks and systems. From molecular interactions, social networks and communication systems to power grids, shopping experiences or even supply chains, networks relating to real-world systems are not random. This means that these connections are not static and can be displayed differently at different times. Simple statistical analysis is insufficient to effectively characterise, let alone forecast, networked system behaviour.&lt;/p&gt;
-
-&lt;p&gt;As the world becomes more interconnected and systems become more complex, it is more important to employ technologies that are built to take advantage of relationships and their dynamic properties. There is no doubt that graphs have sparked a lot of attention because they are seen as a means to get insights from related data. Graph theory-based approaches show the concepts underlying the behaviour of massively complex systems and networks.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-are-graphs&quot;&gt;What are graphs?&lt;/h2&gt;
-
-&lt;p&gt;Graphs are mathematical models frequently used in network science, which is a set of technological tools that may be applied to almost any subject. To put it simply, graphs are mathematical representations of complex systems.&lt;/p&gt;
-
-&lt;h3 id=&quot;origin-of-graphs&quot;&gt;Origin of graphs&lt;/h3&gt;
-
-&lt;p&gt;The first graph was produced in 1736 in the city of Königsberg, now known as Kaliningrad, Russia. In this city, there were two islands with two mainland sections that were connected by seven different bridges.&lt;/p&gt;
-
-&lt;p&gt;Famed mathematician Euler wanted to plot a journey through the entire city by crossing each bridge only once. Euler proceeded to abstract the four regions of the city and the seven bridges into edges but he demonstrated that the problem was unsolvable. A simplified abstract graph is shown in Fig 1.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-concepts/image9.png&quot; alt=&quot;&quot; style=&quot;width:40%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 1 Abstraction graph&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The graph’s four dots represent Königsberg’s four zones, while the lines represent the seven bridges that connect them. Zones connected by an even number of bridges is clearly navigable because several paths to enter and exit are available. Zones connected by an odd number of bridges can only be used as starting or terminating locations because the same route can only be taken once.&lt;/p&gt;
-
-&lt;p&gt;The number of edges associated with a node is known as the node degree. If two nodes have odd degrees and the rest have even degrees, the Königsberg problem could be solved. For example, exactly two regions must have an even number of bridges while the rest have an odd number of bridges. However, as illustrated in Fig 1, no Königsberg location has an even number of bridges, rendering this problem unsolvable.&lt;/p&gt;
-
-&lt;h3 id=&quot;definition-of-graphs&quot;&gt;Definition of graphs&lt;/h3&gt;
-
-&lt;p&gt;A graph is a structure that consists of vertices and edges. Vertices, or nodes, are the objects in a problem, while edges are the links that connect vertices in a graph.  &lt;/p&gt;
-
-&lt;p&gt;Vertices are the fundamental elements that a graph requires to function; there should be at least one in a graph. Vertices are mathematical abstractions that refer to objects that are linked by a condition.&lt;/p&gt;
-
-&lt;p&gt;On the other hand, edges are optional as graphs can still be defined without any edges. An edge is a link or connection between any two vertices in a graph, including a connection between a vertex and itself. The idea is that if two vertices are present, there is a relationship between them.&lt;/p&gt;
-
-&lt;p&gt;We usually indicate &lt;em&gt;V={v1, v2, …, vn}&lt;/em&gt; as the set of vertices, and &lt;em&gt;E = {e1, e2, …, em}&lt;/em&gt; as the set of edges. From there, we can define a graph &lt;em&gt;G&lt;/em&gt; as a structure &lt;em&gt;G(V, E)&lt;/em&gt; which models the relationship between the two sets:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-concepts/image11.png&quot; alt=&quot;&quot; style=&quot;width:40%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 2 Graph structure&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;It is worth noting that the order of the two sets within parentheses matters, because we usually express the vertices first, followed by the edges. A graph &lt;em&gt;H(X, Y)&lt;/em&gt; is therefore a structure that models the relationship between the set of vertices &lt;em&gt;X&lt;/em&gt; and the set of edges &lt;em&gt;Y&lt;/em&gt;, not the other way around.&lt;/p&gt;
-
-&lt;h2 id=&quot;graph-data-model&quot;&gt;Graph data model&lt;/h2&gt;
-
-&lt;p&gt;Now that we have covered graphs and their typical components, let us move on to graph data models, which help to translate a conceptual view of your data to a logical model. Two common graph data formats are Resource Description Framework (RDF) and Labelled Property Graph (LPG).&lt;/p&gt;
-
-&lt;h3 id=&quot;resource-description-framework-rdf&quot;&gt;Resource Description Framework (RDF)&lt;/h3&gt;
-
-&lt;p&gt;RDF is typically used for metadata and facilitates standardised exchange of data based on their relationships. RDFs typically consist of a triple: a subject, a predicate, and an object. A collection of such triples is an RDF graph. This can be depicted as a node and a directed edge diagram, with each triple representing a node-edge-node graph, as shown in Fig 3.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-concepts/image10.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 3 RDF graph&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The three types of nodes that can exist are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Internationalised Resource Identifiers (IRI) - online resource identification code.&lt;/li&gt;
-  &lt;li&gt;Literals - data type value, i.e. text, integer, etc.&lt;/li&gt;
-  &lt;li&gt;Blank nodes - have no identification; similar to anonymous or existential variables.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Let us use an example to illustrate this. We have a person with the name Art and we want to plot all his relationships. In this case, the IRI is &lt;em&gt;http://example.org/art&lt;/em&gt; and this can be shortened by defining a prefix like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ex&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;In this example, the IRI &lt;em&gt;http://xmlns.com/foaf/0.1/knows&lt;/em&gt; defines the relationship &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;knows&lt;/code&gt;. We define &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;foaf&lt;/code&gt; as the prefix for &lt;em&gt;http://xmlns.com/foaf/0.1/&lt;/em&gt;. The following code snippet shows how a graph like this will look.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;@prefix foaf: &amp;lt;http://xmlns.com/foaf/0.1/&amp;gt;
-@prefix ex: &amp;lt;http://example.org/&amp;gt;
-
-ex:art foaf:knows ex:bob
-ex:art foaf:knows ex:bea
-ex:bob foaf:knows ex:cal
-ex:bob foaf:knows ex:cam
-ex:bea foaf:knows ex:coe
-ex:bea foaf:knows ex:cory
-ex:bea foaf:age 23
-ex:bea foaf:based_near_:o1
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In the last two lines, you can see how a literal and blank node would be depicted in an RDF graph. The variable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;foaf:age&lt;/code&gt; is a literal node with the integer value of 23, while &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;foaf:based_near&lt;/code&gt; is an anonymous spatial entity with a node identifier of underscore. Outside the context of this graph, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;o1&lt;/code&gt; is a data identifier with no meaning.&lt;/p&gt;
-
-&lt;p&gt;Multiple IRIs, intended for use in RDF graphs, are typically stored in an RDF vocabulary. These IRIs often begin with a common substring known as a namespace IRI. In some cases, namespace IRIs are also associated with a short name known as a namespace prefix. In the example above, &lt;em&gt;http://xmlns.com/foaf/0.1/&lt;/em&gt; is the namespace IRI and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;foaf&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ex&lt;/code&gt; are namespace prefixes.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Note: RDF graphs are considered atemporal as they provide a static snapshot of data. They can use appropriate language extensions to communicate information about events or other dynamic properties of entities.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;An RDF dataset is a set of RDF graphs that includes one or more named graphs as well as exactly one default graph. A default graph is one that can be empty, and has no associated IRI or name, while each named graph has an IRI or a blank node corresponding to the RDF graph and its name. If there is no named graph specified in a query, the default graph is queried (hence its name).&lt;/p&gt;
-
-&lt;h3 id=&quot;labelled-property-graph-lpg&quot;&gt;Labelled Property Graph (LPG)&lt;/h3&gt;
-
-&lt;p&gt;A labelled property graph is made up of nodes, links, and properties. Each node is given a label and a set of characteristics in the form of arbitrary key-value pairs. The keys are strings, and the values can be any data type. A relationship is then defined by adding a directed edge that is labelled and connects two nodes with a set of properties.&lt;/p&gt;
-
-&lt;p&gt;In Fig 4, we have an LPG that shows two nodes: art and bea. The bea node has two characteristics, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;age&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;proximity&lt;/code&gt;, that are connected by a known edge. This edge has the attribute &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;since&lt;/code&gt; because it commemorates the year that art and bea first met.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-concepts/image12.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 4 Labelled Property Graph: Example 1&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Nodes, edges and properties must be defined when designing an LPG data model. In this scenario, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;based_near&lt;/code&gt; might not be applicable to all vertices, but they should be defined. You might be wondering, why not represent the city Seattle as a node and add an edge marked as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;based_near&lt;/code&gt; that connects a person and the city?&lt;/p&gt;
-
-&lt;p&gt;In general, if there is a value linked to a large number of other nodes in the network and it requires additional properties to correlate  with other nodes, it should be represented as a node. In this scenario, the architecture defined in Fig 5 is more appropriate for traversing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;based_near&lt;/code&gt; connections. It also gives us the ability to link any new attributes to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;based_near&lt;/code&gt; relationship.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-concepts/image8.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 5 Labelled Property Graph: Example 2&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Now that we have the context of graphs, let us talk about graph databases, how they help with large data queries and the part they play in Graph Technology.&lt;/p&gt;
-
-&lt;h2 id=&quot;graph-database&quot;&gt;Graph database&lt;/h2&gt;
-
-&lt;p&gt;A graph database is a type of NoSQL database that stores data using network topology. The idea is derived from LPG, which represents data sets with vertices, edges, and attributes.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Vertices are instances or entities of data that represent any object to be tracked, such as people, accounts, locations, etc.&lt;/li&gt;
-  &lt;li&gt;Edges are the critical concepts in graph databases which represent relationships between vertices. The connections have a direction that can be unidirectional (one-way) or bidirectional (two-way).&lt;/li&gt;
-  &lt;li&gt;Properties represent descriptive information associated with vertices. In some cases, edges have properties as well.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Graph databases provide a more conceptual view of data that is closer to reality. Modelling complex linkages becomes simpler because interconnections between data points are given the same weight as the data itself.&lt;/p&gt;
-
-&lt;h3 id=&quot;graph-database-vs-relational-database&quot;&gt;Graph database vs. relational database&lt;/h3&gt;
-
-&lt;p&gt;Relational databases are currently the industry norm and take a structured approach to data, usually in the form of tables. On the other hand, graph databases are agile and focus on immediate relationship understanding. Neither type is designed to replace the other, so it is important to know what each database type has to offer.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-concepts/image13.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig 6 Graph database vs relational database&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;There is a domain for both graph and relational databases. Graph databases outperform typical relational databases, especially in use cases involving complicated relationships, as they take a more naturalistic and flowing approach to data.&lt;/p&gt;
-
-&lt;p&gt;The key distinctions between graph and relational databases are summarised in the following table:&lt;/p&gt;
-
-&lt;table&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;Type&lt;/th&gt;
-      &lt;th&gt;Graph&lt;/th&gt;
-      &lt;th&gt;Relational&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;strong&gt;Format&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;Nodes and edges with properties&lt;/td&gt;
-      &lt;td&gt;Tables with rows and columns&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;strong&gt;Relationships&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;Represented with edges between nodes&lt;/td&gt;
-      &lt;td&gt;Created using foreign keys between tables&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;strong&gt;Flexibility&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;Flexible&lt;/td&gt;
-      &lt;td&gt;Rigid&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;strong&gt;Complex queries&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;Quick and responsive&lt;/td&gt;
-      &lt;td&gt;Requires complex joins&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;strong&gt;Use case&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;Systems with highly connected relationships&lt;/td&gt;
-      &lt;td&gt;Transaction focused systems with more straightforward relationships&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Table. 1 Graph vs. Relational Databases&lt;/i&gt;&lt;/figcaption&gt;
-
-&lt;h3 id=&quot;advantages-and-disadvantages&quot;&gt;Advantages and disadvantages&lt;/h3&gt;
-
-&lt;p&gt;Every database type has its advantages and disadvantages; knowing the distinctions as well as potential options for specific challenges is crucial. Graph databases are a rapidly evolving technology with improved functions compared with other database types.&lt;/p&gt;
-
-&lt;h4 id=&quot;advantages&quot;&gt;Advantages&lt;/h4&gt;
-
-&lt;p&gt;Some advantages of graph databases include:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Agile and flexible structures.&lt;/li&gt;
-  &lt;li&gt;Explicit relationship representation between entities.&lt;/li&gt;
-  &lt;li&gt;Real-time query output - speed depends on the number of relationships.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;disadvantages&quot;&gt;Disadvantages&lt;/h4&gt;
-
-&lt;p&gt;The general disadvantages of graph databases are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;No standardised query language; depends on the platform used.&lt;/li&gt;
-  &lt;li&gt;Not suitable for transactional-based systems.&lt;/li&gt;
-  &lt;li&gt;Small user base, making it hard to find troubleshooting support.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;graph-technology&quot;&gt;Graph technology&lt;/h2&gt;
-
-&lt;p&gt;Graph technology is the next step in improving analytics delivery. Traditional analytics is insufficient to meet complicated business operations, distribution, and analytical concerns as data quantities expand.&lt;/p&gt;
-
-&lt;p&gt;Graph technology aids in the discovery of unknown correlations in data that would otherwise go undetected or unanalysed. When the term graph is used to describe a topic, three distinct concepts come to mind: graph theory, graph analytics, and graph data management.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Graph theory - A mathematical notion that uses stack ordering to find paths, linkages, and networks of logical or physical objects, as well as their relationships. Can be used to model molecules, telephone lines, transport routes, manufacturing processes, and many other things.&lt;/li&gt;
-  &lt;li&gt;Graph analytics - The application of graph theory to uncover nodes, edges, and data linkages that may be assigned semantic attributes. Can examine potentially interesting connections in data found in traditional analysis solutions, using node and edge relationships.&lt;/li&gt;
-  &lt;li&gt;Graph database - A type of storage for data generated by graph analytics. Filling a knowledge graph, which is a model in data that indicates a common usage of acquired knowledge or data sets expressing a frequently held notion, is a typical use case for graph analytics output.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;While the architecture and terminology are sometimes misunderstood, graph analytics’ output can be viewed through visualisation tools, knowledge graphs, particular applications, and even some advanced dashboard capabilities of business intelligence tools. All three concepts above are frequently used to improve system efficiency and even to assist in dynamic data management. In this approach, graph theory and analysis are inextricably linked, and analysis may always rely on graph databases.&lt;/p&gt;
-
-&lt;h2 id=&quot;graph-centric-user-stories&quot;&gt;Graph-centric user stories&lt;/h2&gt;
-
-&lt;h4 id=&quot;fraud-detection&quot;&gt;Fraud detection&lt;/h4&gt;
-
-&lt;p&gt;Traditional fraud prevention methods concentrate on discrete data points such as individual accounts, devices, or IP addresses. However, today’s sophisticated fraudsters avoid detection by building fraud rings using stolen and fake identities. To detect such fraud rings, we need to look beyond individual data points to the linkages that connect them.&lt;/p&gt;
-
-&lt;p&gt;Graph technology greatly transcends the capabilities of a relational database, by revealing hard-to-find patterns. Enterprise businesses also employ Graph technology to supplement their existing fraud detection skills to tackle a wide range of financial crimes, including first-party bank fraud, fraud, and money laundering.&lt;/p&gt;
-
-&lt;h4 id=&quot;real-time-recommendations&quot;&gt;Real-time recommendations&lt;/h4&gt;
-
-&lt;p&gt;An online business’s success depends on systems that can generate meaningful recommendations in real time. To do so, we need the capacity to correlate product, customer, inventory, supplier, logistical, and even social sentiment data in real time. Furthermore, a real-time recommendation engine must be able to record any new interests displayed during the consumer’s current visit in real time, which batch processing cannot do.&lt;/p&gt;
-
-&lt;p&gt;Graph databases outperform relational and other NoSQL data stores in terms of delivering real-time suggestions. Graph databases can easily integrate different types of data to get insights into consumer requirements and product trends, making them an increasingly popular alternative to traditional relational databases.&lt;/p&gt;
-
-&lt;h4 id=&quot;supply-chain-management&quot;&gt;Supply chain management&lt;/h4&gt;
-
-&lt;p&gt;With complicated scenarios like supply chains, there are many different parties involved and companies need to stay vigilant in detecting issues like fraud, contamination, high-risk areas or unknown product sources. This means that there is a need to efficiently process large amounts of data and ensure transparency throughout the supply chain.&lt;/p&gt;
-
-&lt;p&gt;To have a transparent supply chain, relationships between each product and party need to be mapped out, which means there will be deep linkages. Graph databases are great for these as they are designed to search and analyse data with deep links. This means they can process enormous amounts of data without performance issues.&lt;/p&gt;
-
-&lt;h4 id=&quot;identity-and-access-management&quot;&gt;Identity and access management&lt;/h4&gt;
-
-&lt;p&gt;Managing multiple changing roles, groups, products and authorisations can be difficult, especially in large organisations. Graph technology integrates your data and allows quick and effective identity and access control. It also allows you to track all identity and access authorisations and inheritances with significant depth and real-time insights.&lt;/p&gt;
-
-&lt;h4 id=&quot;network-and-it-operations&quot;&gt;Network and IT operations&lt;/h4&gt;
-
-&lt;p&gt;Because of the scale and complexity of network and IT infrastructure, you need a configuration management database (CMDB) that is far more capable than relational databases. Neptune is an example of a CMDB and graph database that allows you to correlate your network, data centre, and IT assets to aid troubleshooting, impact analysis, and capacity or outage planning.&lt;/p&gt;
-
-&lt;p&gt;A graph database allows you to integrate various monitoring tools and acquire important insights into the complicated relationships that exist between various network or data centre processes. Possible applications of graphs in network and IT operations range from dependency management to automated microservice monitoring.&lt;/p&gt;
-
-&lt;h4 id=&quot;risk-assessment-and-monitoring&quot;&gt;Risk assessment and monitoring&lt;/h4&gt;
-
-&lt;p&gt;Risk assessment is crucial in the fintech business. With multiple sources of credit data such as ecommerce sites, mobile wallets and loan repayment records, it can be difficult to accurately assess an individual’s credit risk. Graph Technology makes it possible to combine these data sources, quantify an individual’s fraud risk and even generate full credit reviews.&lt;/p&gt;
-
-&lt;p&gt;One clear example of this is &lt;a href=&quot;https://www.globenewswire.com/news-release/2018/08/29/1558324/0/en/FinTech-Pioneer-IceKredit-Transforms-the-Credit-Market-With-TigerGraph.html&quot;&gt;IceKredit&lt;/a&gt;, which employs artificial intelligence (AI) and machine learning (ML) techniques to make better risk-based decisions. With Graph technology, IceKredit has also successfully detected unreported links and increased efficiency of financial crime investigations.&lt;/p&gt;
-
-&lt;h4 id=&quot;social-network&quot;&gt;Social network&lt;/h4&gt;
-
-&lt;p&gt;Whether you’re using stated social connections or inferring links based on behaviour, social graph databases like Neptune introduce possibilities for building new social networks or integrating existing social graphs into commercial applications.&lt;/p&gt;
-
-&lt;p&gt;Having a data model that is identical to your domain model allows you to better understand your data, communicate more effectively, and save time. By decreasing the time spent data modelling, graph databases increase the quality and speed of development for your social network application.&lt;/p&gt;
-
-&lt;h4 id=&quot;artificial-intelligence-ai-and-machine-learning-ml&quot;&gt;Artificial intelligence (AI) and machine learning (ML)&lt;/h4&gt;
-
-&lt;p&gt;AI and ML use statistical and analytical approaches to find patterns in data and provide insights. However, there are two prevalent concerns that arise - the quality of data and effectiveness of the analytics. Some AI and ML solutions have poor accuracy because there is not enough training data or variants that have a high correlation to the outcome.&lt;/p&gt;
-
-&lt;p&gt;These ML data issues can be solved with graph databases as it’s possible to connect and traverse links, as well as supplement raw data. With Graph technology, ML systems can recognise each column as a “feature” and each connection as a distinct characteristic, and then be able to identify data patterns and train themselves to recognise these relationships.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Graphs are a great way to visually represent complex systems and can be used to easily detect patterns or relationships between entities. To help improve graphs’ ability to detect patterns early, businesses should consider using Graph technology, which is the next step in improving analytics delivery.&lt;/p&gt;
-
-&lt;p&gt;Graph technology typically consists of:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Graph theory&lt;/strong&gt; - Used to find paths, linkages and networks of logical or physical objects.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Graph analytics&lt;/strong&gt; - Application of graph theory to uncover nodes, edges, and data linkages.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Graph database&lt;/strong&gt; - Storage for data generated by graph analytics.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Although predominantly used in fraud detection, Graph technology has many other use cases such as making real-time recommendations based on consumer behaviour, identity and access control, risk assessment and monitoring, AI and ML, and many more.&lt;/p&gt;
-
-&lt;p&gt;In our next blog article, we will be talking about how our Graph Visualisation Platform enhances Grab’s fraud detection methods.&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.baeldung.com/cs/graph-theory-intro&quot;&gt;https://www.baeldung.com/cs/graph-theory-intro&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://web.stanford.edu/class/cs520/2020/notes/What_Are_Graph_Data_Models.html&quot;&gt;https://web.stanford.edu/class/cs520/2020/notes/What_Are_Graph_Data_Models.html&lt;/a&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 02 Jun 2022 00:20:55 +0000</pubDate>
-        <link>https://engineering.grab.com/graph-concepts</link>
-        <guid isPermaLink="true">https://engineering.grab.com/graph-concepts</guid>
-        
-        <category>Security</category>
-        
-        <category>Graphs concepts</category>
-        
-        <category>Graph technology</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Security</category>
         
       </item>
     
