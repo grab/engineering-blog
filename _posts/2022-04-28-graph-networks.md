@@ -5,7 +5,7 @@ title: Graph Networks - Striking fraud syndicates in the dark
 date: 2022-04-28 10:55:55
 authors: [muqi-li]
 categories: [Engineering, Security]
-tags: [Graph Networks, Graphs, Fraud detection, Security]
+tags: [Graph networks, Graphs, Fraud detection, Security]
 comments: true
 cover_photo: /img/graph-intro/cover.png
 excerpt: "As fraudulent entities evolve and get smarter, Grab needs to continuously enhance our defences to protect our consumers. Read to find out how Graph Networks help the Integrity team advance fraud detection at Grab."
