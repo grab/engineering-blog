@@ -1,23 +1,23 @@
 ---
 layout: post
-id: 2023-01-05-graph-service-platform
+id: 2023-01-03-graph-service-platform
 title: Graph service platform
-date: 2022-12-29 00:23:05
+date: 2023-01-03 00:23:05
 authors: [wenxiang-lu, bruce-li, jacob-yu, muqi-li, jia-chen]
 categories: [Engineering, Security, Data Science]
 tags: [Engineering, Graph networks, Graphs, Graph visualisation, Security, Analytics, Fraud detection]
 comments: true
 cover_photo: /img/graph-service-platform/cover.jpg
-excerpt: "Graphs are powerful data representations that detect relationships and data linkages between devices and help reveal fraudulent or malicious users. Read to find out how the GrabDefence built the graph service platform to help discover potentially malicious data linkages."
+excerpt: "Graphs are powerful data representations that detect relationships and data linkages between devices and help reveal fraudulent or malicious users. Learn how the GrabDefence built the graph service platform to help discover potentially malicious data linkages."
 ---
 
 ## Introduction
 
-In earlier articles of this series, we've covered the [importance of graph networks](/graph-networks), [graph concepts](/graph-concepts), [how graph visualisation makes fraud investigations easier and more effective](/graph-visualisation), and [how graphs for fraud detection work](/graph-for-fraud-detection). In this article, we elaborate on the need for a graph service platform and how it works.
+In earlier articles of this series, we covered the [importance of graph networks](/graph-networks), [graph concepts](/graph-concepts), [how graph visualisation makes fraud investigations easier and more effective](/graph-visualisation), and [how graphs for fraud detection work](/graph-for-fraud-detection). In this article, we elaborate on the need for a graph service platform and how it works.
 
 In the present age, data linkages can generate significant business value. Whether we want to learn about the relationships between users in online social networks, between users and products in e-commerce, or understand credit relationships in financial networks, the capability to understand and analyse large amounts of highly interrelated data is becoming more important to businesses.
 
-As the amount of consumer data grows, the GrabDefence team needs to continuously enhance fraud detection on mobile devices to proactively identify the presence of fraudulent or malicious users. Even simple financial transactions between users should be monitored for transaction loops and money laundering. To preemptively detect such scenarios, we need a graph service platform to help discover data linkages. 
+As the amount of consumer data grows, the GrabDefence team must continuously enhance fraud detection on mobile devices to proactively identify the presence of fraudulent or malicious users. Even simple financial transactions between users must be monitored for transaction loops and money laundering. To preemptively detect such scenarios, we need a graph service platform to help discover data linkages. 
 
 ## Background
 
@@ -27,7 +27,7 @@ As graph technology was developed, the amount of data gathered from graphs start
 
 A key concept of graphs is the edge or relationship between entities. The graph relates the data items in the store to a collection of nodes and edges, the edges representing the relationships between the nodes. These relationships allow data in the store to be linked directly and retrieved with one operation.
 
-With graph databases, relationships between data can be queried fast as they are perpetually stored in the database. Additionally, relationships can be intuitively visualised using graph databases, making them useful for heavily interconnected data. In order to have real-time graph search capabilities, we need to leverage the graph service platform and graph databases.
+With graph databases, relationships between data can be queried fast as they are perpetually stored in the database. Additionally, relationships can be intuitively visualised using graph databases, making them useful for heavily interconnected data. To have real-time graph search capabilities, we must leverage the graph service platform and graph databases.
 
 ## Architecture details
 
@@ -42,10 +42,10 @@ They also provide universal graph operation APIs and service management for user
 
 As shown in Fig. 1, the system can be divided into four layers:
 
-1.  **Storage backend** - Different forms of data (i.e. CSV files) are stored in Amazon S3, graph data stores in Neptune and meta configuration stores in DynamoDB.
+1.  **Storage backend** - Different forms of data (for example, CSV files) are stored in Amazon S3, graph data stores in Neptune and meta configuration stores in DynamoDB.
 2.  **Driver** - Contains drivers such as Gremlin, Neptune, S3, and DynamoDB.
-3.  **Service** - Manages clusters, instances, databases etc, provides management API, includes schema and data load management as well as graph operation logic and other graph algorithms.
-4.  **RESTful APIs** - Currently supports the standard and uniform formats provided by the system, as well as the Management API, Search API for OLTP, and Analysis API for online analytical processing (OLAP).
+3.  **Service** - Manages clusters, instances, databases etc, provides management API, includes schema and data load management, graph operation logic, and other graph algorithms.
+4.  **RESTful APIs** - Currently supports the standard and uniform formats provided by the system, the Management API, Search API for OLTP, and Analysis API for online analytical processing (OLAP).
 
 ## How it works
 
@@ -69,7 +69,7 @@ In Grab's mobility business, we have come across situations where multiple accou
 
 Historical device and account data are stored in the graph service platform via offline data loading or online stream injection. If the device and account data exists in the graph service platform, we can find the adjacent account IDs or the shared device IDs by using the device ID or account ID respectively specified in the user request.
 
-In our experience, fraudsters tend to share physical resources to maximise their revenue. The image below shows a device that is shared by many users. With our Graph Visualisation platform based on graph service, you can see exactly what this pattern looks like.
+In our experience, fraudsters tend to share physical resources to maximise their revenue. The following image shows a device that is shared by many users. With our Graph Visualisation platform based on graph service, you can see exactly what this pattern looks like.
 
 <div class="post-image-section"><figure>
   <img src="/img/graph-service-platform/image3.png" alt="" style="width:70%"><figcaption align="middle">Fig 3. Example of a device being shared with many users</figcaption>
@@ -102,7 +102,7 @@ For big organisations, extensive graph algorithms provide the power to mine vari
   </figure>
 </div>
 
-We are building an integrated graph ecosystem inside and outside Grab. The infrastructure and service/APIs are key components in graph-centric ecosystems; they provide graph arithmetic and basic capabilities of graphs in relation to search, computing, analysis etc. Besides that, we will also consider incorporating applications such as risk prediction and fraud detection in order to serve our current business needs.
+We are building an integrated graph ecosystem inside and outside Grab. The infrastructure and service, or APIs are key components in graph-centric ecosystems; they provide graph arithmetic and basic capabilities of graphs in relation to search, computing, analysis etc. Besides that, we will also consider incorporating applications such as risk prediction and fraud detection in order to serve our current business needs.
 
 # Join us
 
