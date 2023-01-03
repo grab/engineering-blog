@@ -8,7 +8,7 @@ categories: [Engineering, Security, Data Science]
 tags: [Engineering, Graph networks, Graphs, Graph visualisation, Security, Analytics, Fraud detection]
 comments: true
 cover_photo: /img/graph-service-platform/cover.jpg
-excerpt: "Graphs are powerful data representations that detect relationships and data linkages between devices and help reveal fraudulent or malicious users. Learn how the GrabDefence built the graph service platform to help discover potentially malicious data linkages."
+excerpt: "Graphs are powerful data representations that detect relationships and data linkages between devices and help reveal fraudulent or malicious users. Learn how GrabDefence built the graph service platform to help discover potentially malicious data linkages."
 ---
 
 ## Introduction
