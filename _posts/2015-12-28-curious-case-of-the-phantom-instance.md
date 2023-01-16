@@ -21,7 +21,7 @@ Take a look at the following Datadog (DD) dashboard we have, which monitors the 
 
 Upon first look, the usual reflex conclusion for the step waveforms would be an Auto Scaling Group (ASG) scaling up event. After all, a new instance equates to a proportionate increase in health check requests from the ELB.
 
-According to the graph shown, the values have jumped between 48 and 72 counts/min (Above dashboard collates in 10-minute intervals). The grab_attention ASG usually consists of 2 instances. 72 / 48 = 1.5, therefore there should have been an ASG scale up event at roughly 22 Dec 2015, 1610 hours.
+According to the graph shown, the values have jumped between 48 and 72 counts/min (the dashboard above collates in 10-minute intervals). The grab_attention ASG usually consists of 2 instances. 72 / 48 = 1.5, therefore there should have been an ASG scale up event at roughly 22 Dec 2015, 1610 hours.
 
 Now, here's the weird part. Our ASG activity history, interestingly, did not match up with the observed data:
 
@@ -39,7 +39,7 @@ Further probing around in CloudWatch revealed that the ElastiCache (EC) NewConne
 
 The number of new connections made to the Redis cluster jumped between 96 and 144 at the identical moments of the ELB health check jumps; this is a similar 1.5 X increase in data. This seemed to clearly indicate a third instance, but no third IP address was found in the server logs.
 
-We have on our hands a phantom instance that has been sending out ELB health check data to our DD, and creating new redis connections that is no where to be found.
+We have on our hands a phantom instance that has been sending out ELB health check data to our DD, and creating new Redis connections that is nowhere to be found.
 
 Fortunately, the engineering team had included the instance hostnames as one of the DD tags. Applying it gave the following dashboard:
 
@@ -73,7 +73,7 @@ If there was a 1.5X increase in counts during ELB scaling, it should have increa
 
 Another round of scrolling through the list of ELBs gave the answer. 2 ELBs are actually being used for the grab_attention ASG cluster, one for public facing endpoints, and another for internal endpoints.
 
-Embarrassingly, this had been totally forgotten about. The internal ELB was indeed configured to have a 5 second interval health check too.
+Embarrassingly, this had been totally forgotten about. The internal ELB was indeed configured to have a 5-second interval health check too.
 
 Therefore, the calculation should be:
 
@@ -92,7 +92,7 @@ if err := gredis.HealthCheck(config.GrabAttention.Redis); err != nil {
 }
 ~~~
 
-It turned out that, because each health check request opens a new ping pong connection to the redis cluster (which didn't use the existing redis connection pool), the increase in the ELB health checks also led to a proportionate increase in new redis connections.
+It turned out that, because each health check request opens a new ping pong connection to the Redis cluster (which didn't use the existing Redis connection pool), the increase in the ELB health checks also led to a proportionate increase in new Redis connections.
 
 A second response from AWS Support verifies the findings:
 

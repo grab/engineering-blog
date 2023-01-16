@@ -5,7 +5,7 @@ title: Grab-Posisi - Southeast Asia’s First Comprehensive GPS Trajectory Datas
 date: 2020-02-20 18:43:40
 authors: [zhengmin-xu, poornima-badrinath, xiaocheng-huang, abeesh-thomas]
 categories: [Engineering]
-tags: [GPS, Datasets, Map]
+tags: [GPS, Datasets, Maps]
 comments: true
 cover_photo: /img/grab-posisi/cover.png
 excerpt: "This blog highlights Grab's latest GPS trajectory dataset - its content, format, applications, and how you can access the dataset for your research purpose."
@@ -131,8 +131,8 @@ _Huang, X., Yin, Y., Lim, S., Wang, G., Hu, B., Varadarajan, J., ... & Zimmerman
 
 **Note: You cannot use Grab-Posisi dataset for commercial purposes.**
 
-## Join Us
+## Join us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

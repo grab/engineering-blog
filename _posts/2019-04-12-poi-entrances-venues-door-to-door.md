@@ -1,7 +1,7 @@
 ---
 layout: post
 id: poi-entrances-venues-door-to-door
-title: Guiding You Door-to-Door via Our Super App!
+title: Guiding You Door-to-Door via Our Superapp!
 date: 2019-04-12 02:08:12
 authors: [neeraj-mishra, lara-pureum-yim, sufyan-selamet, nagur-hassan, summit-saurav]
 categories: [Product]
@@ -13,7 +13,7 @@ excerpt: "Insights into how Grab is trying to solve pickup issues when you book 
 
 Remember landing at an airport or going to your favourite mall and the hassle of finding the pickup spot when you booked a cab? When there are about a million entrances, it can get particularly annoying trying to find the right pickup location!
 
-Rolling out across South East Asia  is a brand new booking experience from Grab, designed  to make it easier for you to make a booking at large venues like airports, shopping centers, and tourist destinations! With the new booking flow, it will not only be easier to select one of the pre-designated Grab pickup points, you can also find text and image directions to help you navigate your way through the venue for a smoother rendezvous with your driver!
+Rolling out across Southeast Asia  is a brand new booking experience from Grab, designed  to make it easier for you to make a booking at large venues like airports, shopping centers, and tourist destinations! With the new booking flow, it will not only be easier to select one of the pre-designated Grab pickup points, you can also find text and image directions to help you navigate your way through the venue for a smoother rendezvous with your driver!
 
 ## Inspiration Behind the Work
 

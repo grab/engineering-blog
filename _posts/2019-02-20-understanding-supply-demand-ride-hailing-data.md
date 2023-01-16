@@ -79,7 +79,7 @@ At any given time of the day, there may be an oversupply of drivers in one area 
 
 As shown in Figure 3, this is common in Singapore after morning peak hours when most rides end in CBD which results in an oversupply in the area. Such scenarios are also common at queueing spots such as Changi Airport.
 
-To address this geo-temporal misalignment, Grab recently updated the **Heatmap** on the Grab Driver app to encourage drivers to move away from oversupplied areas to areas where there is higher demand.
+To address this geo-temporal misalignment, Grab recently updated the **Heatmap** on the Grab driver app to encourage drivers to move away from oversupplied areas to areas where there is higher demand.
 
 ## Identifying Temporal Opportunities to Move Demand
 
@@ -93,7 +93,7 @@ The highlighted region in Figure 4 depicts a time period when demand and supply
 
 ![](img/understanding-supply-demand-ride-hailing-data/image2.png)
 
-Figure 5: Travel Trends Widget on the Passenger App showing best times to book in River Valley (Singapore)
+Figure 5: Travel Trends Widget on the passenger app showing best times to book in River Valley (Singapore)
 
 To address this imbalance, Grab recently launched a **Travel Trends Widget** (Figure 5) on the passenger app to let our riders know of the predicted demand distribution across hours.
 

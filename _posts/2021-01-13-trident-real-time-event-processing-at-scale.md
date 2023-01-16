@@ -5,7 +5,7 @@ title: Trident - Real-time Event Processing at Scale
 date: 2021-01-13 00:23:00
 authors: [jie-zhang, abdullah-mamun]
 categories: [Engineering]
-tags: [A/B Testing, Event Processing]
+tags: [A/B Testing, Event processing]
 comments: true
 cover_photo: /img/trident-real-time-event-processing-at-scale/cover.png
 excerpt: "Find out where the messages and rewards come from, that arrive on your Grab app. Walk through scaling and processing optimisations that achieve tremendous throughput."
@@ -314,8 +314,8 @@ Trident is Grab's in-house real-time IFTTT engine, which processes events and op
 
 _All the examples of campaigns given in the article are for demonstration purpose only, they are not real live campaigns._
 
-## Join Us
+## Join us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

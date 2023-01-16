@@ -18,7 +18,7 @@ At Grab, we've built an in-house chat platform to help connect our passengers wi
   <figcaption align="middle"><i>P2P chat for the Angbow campaign and GrabHitch chat</i></figcaption>
 </figure></div>
 
-We wanted to focus on our customer support chat experience, and so we replaced the third-party live chat tool that we've used for years with our newly developed chat platform. As a part of this initiative, we extended this platform for the web to integrate with our internal Customer Support portal.
+We wanted to focus on our consumer support chat experience, and so we replaced the third-party live chat tool that we've used for years with our newly developed chat platform. As a part of this initiative, we extended this platform for the web to integrate with our internal Customer Support portal.
 
 <div class="post-image-section"><figure>
   <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image3.png" alt="Sample chat between a driver and a customer support agent">
@@ -29,7 +29,7 @@ This is the first time we introduced chat on the web, and we faced a few challen
 
 ## Current Architecture
 
-A vast majority of the communication from our Grab Passenger and Driver apps happens via TCP. Our TCP gateway takes care of processing all the incoming messages, authenticating, and routing them to the respective services. Our TCP connections are unicast, which means there is only one active connection possible per user at any point in time. This served us well, as we only allow our users to log in from one device at a time.
+A vast majority of the communication from our Grab passenger and driver apps happens via TCP. Our TCP gateway takes care of processing all the incoming messages, authenticating, and routing them to the respective services. Our TCP connections are unicast, which means there is only one active connection possible per user at any point in time. This served us well, as we only allow our users to log in from one device at a time.
 
 <div class="post-image-section"><figure>
   <img src="/img/how-we-built-our-in-house-chat-platform-for-the-web/image2.png" alt="A TL;DR version of our current system">
@@ -313,8 +313,8 @@ We hope this post also helped you get a deeper sense of how SharedWorker and Bro
 
 ---
 
-## Join Us
+## Join us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

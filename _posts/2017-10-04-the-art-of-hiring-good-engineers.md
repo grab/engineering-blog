@@ -31,7 +31,7 @@ There is never only one way to start building a team of good engineers. Many of 
 
 * Instagram's first team only had 13 employees in total
 
-> Your small team of good engineers should be ready to fight everyday for the right to be a player in the market where you are.
+> Your small team of good engineers should be ready to fight every day for the right to be a player in the market where you are.
 
 They will need to be more eager, more hungry, and more consumer minded than others. They will need to always fight for the right to be a player in that market. To fight off the big guys, sometimes the good engineer needs to be battle-worn, battle-tried.
 
@@ -109,7 +109,7 @@ I think it is a good idea to personally spend more time with all good engineer c
 
 Many good engineers will seem to possess all the right credentials but in the mid to long-term, there will always be some who are much better for your team.
 
-### Final thoughts
+### Final Thoughts
 
 Aim for a flat structure, even if you get big one day. Companies like Facebook and Grab still try to keep their Engineering structure as flat as possible.
 

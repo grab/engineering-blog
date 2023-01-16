@@ -5,7 +5,7 @@ title: Tackling UI Test Execution Time Imbalance for Xcode Parallel Testing
 date: 2020-03-16 08:13:20
 authors: [ngoc-thuyen-trinh]
 categories: [Engineering]
-tags: [Xcode, Testing, Mobile, Parallelism, UI tests, CI, IOS]
+tags: [Xcode, Testing, Mobile, Parallelism, UI tests, CI, iOS]
 comments: true
 cover_photo: /img/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing/cover.png
 excerpt: "This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we overcame a challenge that prevented us from running the tests efficiently."
@@ -293,7 +293,8 @@ Below is the metric about test time imbalance recorded when running UI tests. Af
 </figure></div>
 
 
-## Join Us
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+## Join us
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
+
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

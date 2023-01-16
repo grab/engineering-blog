@@ -5,13 +5,13 @@ title: Being a Principal Engineer at Grab
 date: 2019-09-25 18:14:40
 authors: [roman-atachiants]
 categories: [Engineering]
-tags: [Career, Engineering, Microservices]
+tags: [Career, Engineering, Microservice]
 comments: true
 cover_photo: /img/about-being-a-principal-engineer-at-grab/cover.jpg
 excerpt: "Curious about what a Principal Engineer role at Grab entails? Our Principal Engineers' responsibilities range from solving complex problems, taking care of the system-level architecture, collaborating with cross-functional teams, providing mentorship, and more."
 ---
 
-Over the past few years Grab has grown from a small startup to one of the largest technology companies in South-East Asia. Along with the company's growth, the number of microservices, features and teams also grew substantially. At the time of writing this blog, we have around 350 microservices powering our super-app.
+Over the past few years Grab has grown from a small startup to one of the largest technology companies in South-East Asia. Along with the company's growth, the number of microservices, features and teams also grew substantially. At the time of writing this blog, we have around 350 microservices powering our superapp.
 
 A great engineering team is a critical component of our success. As an engineer you have two career paths in front of you: an individual contributor role, or a management role. While a management role is generally better understood, this article clarifies what it means to be a principal engineer at Grab, which is one of the highest levels of our engineering career ladder.
 

@@ -164,7 +164,7 @@ To understand what consumers think about the widget, whether they find it useful
   <img alt="User feedback on the trends widget" src="/img/peak-shift-demand-travel-trends/image2.png">
 </div>
 
-We found that 1 in 3 users who make a booking everyday interact with the widget. And of these people, more than 70% users have given positive rating for the widget. This validates our initial hypothesis that if given an option, our consumers will love the freedom to plan their trips and inculcate more transparent ecosystem.
+We found that 1 in 3 users who make a booking every day interact with the widget. And of these people, more than 70% users have given positive rating for the widget. This validates our initial hypothesis that if given an option, our consumers will love the freedom to plan their trips and inculcate more transparent ecosystem.
 
 These users also indicate the things they like most about the widget. 61% of users gave positive rating for usefulness, 20% were impressed by the design (Kudos to our fantastic designer Ajmal!!) and 13% for usability.
 

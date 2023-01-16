@@ -8,14 +8,14 @@ categories: [Engineering]
 tags: [Security]
 comments: true
 cover_photo: /img/come-and-hackallthethings-at-grab/banner.jpg
-excerpt: "For the longest time, security has been at the center of our priorities. There’s nothing more self-evident about the trust our millions of driving partners and consumers put in Grab. We strive everyday to build the best tools available to ensure their data stays secure."
+excerpt: "For the longest time, security has been at the center of our priorities. There’s nothing more self-evident about the trust our millions of driving partners and consumers put in Grab. We strive every day to build the best tools available to ensure their data stays secure."
 ---
 
 <div class="post-image-section">
   <img alt="Banner Image" src="/img/come-and-hackallthethings-at-grab/banner.jpg">
 </div>
 
-For the longest time, security has been at the center of our priorities. There’s nothing more self-evident about the trust our millions of driving partners and consumers put in Grab. We strive everyday to build the best tools available to ensure their data stays secure.
+For the longest time, security has been at the center of our priorities. There’s nothing more self-evident about the trust our millions of driving partners and consumers put in Grab. We strive every day to build the best tools available to ensure their data stays secure.
 
 For this reason, we launched our private bug bounty programme one year ago, allowing security researchers to scrutinise our code and flag vulnerabilities for handsome rewards. Over the past twelve months, we have been able to work with more than 350 talented researchers and have awarded nearly 200 bug reports. We would like to take this opportunity to thank everyone who submitted reports and helped us become more secure. As much as we have received some exceptional reports, we are looking for more!
 

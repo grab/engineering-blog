@@ -100,7 +100,7 @@ We’ve gone with the modular approach because not all libraries -are relevant t
 
 There is a group of ‘core’ metrics included by default, and additional ones can be selected by the service owner.
 
-## Final thoughts
+## Final Thoughts
 
 With Grab-Kit’s out-of-the-box support for microservice features such as authentication and authorisation, throttling, client-side load balancing, logging, metering, and so on, we’ve seen a huge increase in our productivity. Our friends in the GrabFood team now save up to 70% development time on creating a new service. We have also recorded improvements in stability and availability of our services.
 

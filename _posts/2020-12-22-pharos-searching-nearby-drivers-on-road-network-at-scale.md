@@ -5,7 +5,7 @@ title: Pharos - Searching Nearby Drivers on Road Network at Scale
 date: 2020-12-22 03:23:00
 authors: [hao-wu, minglei-su, thanh-dat-le, nuo-xu, guanfeng-wang, mihai-stroe]
 categories: [Engineering]
-tags: [Real-Time K Nearest Neighbour Search, Spatial Data Store, Distributed System]
+tags: [Real-Time K Nearest Neighbour Search, Spatial Data Store, Distributed Systems]
 comments: true
 cover_photo: /img/pharos-searching-nearby-drivers-on-road-network-at-scale/cover.png
 excerpt: "Learn how Grab stores driver locations and how these locations are used to find nearby drivers around you."
@@ -177,11 +177,11 @@ Currently, Pharos is running on the production environment, where it handles req
 
 We hope this blog helps you to have a closer look at how we store driver locations and how we use these locations to find nearby drivers around you.
 
-## Join Us
+## Join us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
 
 #### Acknowledgements
 We would like to thank Chunda Ding, Zerun Dong, and Jiang Liu for their contributions to the distributed layer used in Pharos. Their efforts make Pharos reliable and fault tolerant.

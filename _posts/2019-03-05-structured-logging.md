@@ -14,7 +14,7 @@ excerpt: "This blog post describes how we built a structured logging framework t
 Introduction
 ------------
 
-Everyday millions of people around Southeast Asia count on Grab to get themselves or what they need from point A to B in a safe, comfortable and reliable manner. In fact, just very recently we crossed our 3 billion transport rides milestone, gaining the last billion in just a mere 6 months!
+Every day millions of people around Southeast Asia count on Grab to get themselves or what they need from point A to B in a safe, comfortable and reliable manner. In fact, just very recently we crossed our 3 billion transport rides milestone, gaining the last billion in just a mere 6 months!
 
 We take this responsibility very seriously, and as we continue to grow and expand, it’s important for us to maintain a sophisticated backend system that is capable of sustaining the kind of scale needed to support all our consumers in Southeast Asia. This backend system is comprised of multiple services that interact with each other in many different ways. As Grab evolves, maintaining them becomes a significantly larger and harder task as developers continuously develop new features.
 

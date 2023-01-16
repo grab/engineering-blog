@@ -11,7 +11,7 @@ cover_photo: /img/grabmart-product-team-experience/grabmartblogcover.png
 excerpt: "Learn how Grab catered to user demand on GrabMart during COVID-19."
 ---
 
-Grab is Southeast Asia’s leading super app, providing everyday services such as ride-hailing, food delivery, payments, and more. In this blog, we’d like to share our journey in discovering the need for GrabMart and coming together as a team to build it.
+Grab is Southeast Asia’s leading superapp, providing everyday services such as ride-hailing, food delivery, payments, and more. In this blog, we’d like to share our journey in discovering the need for GrabMart and coming together as a team to build it.
 
 ## Being There in the Time of Need
 
@@ -28,7 +28,7 @@ As early as November 2019, Grab was already piloting the concept of GrabMart in 
   <img src="/img/grabmart-product-team-experience/grabmartblogimage1.png" alt="GrabMart within the GrabFood flow"> <figcaption align="middle"><i>GrabMart within the GrabFood flow</i></figcaption>
 </figure></div>
 
-We learned that consumers had difficulty finding specific items as there was no search function available and they had to scroll through the full list of merchants on the app. Drivers who received GrabMart orders were not always prepared to accept the job as the orders - especially larger ones - were not distinguished from GrabFood. Thanks to our agile Engineering teams, we fixed these issues efficiently, ensuring a smoother user experience.
+We learned that consumers had difficulty finding specific items as there was no search function available and they had to scroll through the full list of merchants on the app. Drivers who received GrabMart orders were not always prepared to accept the booking as the orders - especially larger ones - were not distinguished from GrabFood. Thanks to our agile Engineering teams, we fixed these issues efficiently, ensuring a smoother user experience.
 
 ### Redefining the Mart Experience
 
@@ -63,8 +63,8 @@ As the world embraces a new normal, we believe that online shopping will become 
 To learn more about GrabMart and its supported stores and features, click [here](https://www.grab.com/sg/campaign/grabmart/).
 
 
-## Join Us
+## Join us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

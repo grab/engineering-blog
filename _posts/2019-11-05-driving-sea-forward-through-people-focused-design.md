@@ -11,7 +11,7 @@ cover_photo: /img/driving-sea-forward-through-people-focused-design/cover.png
 excerpt: "How do you design for a heavily diversified market like Southeast Asia? In this article, I’ll share key consumer insights that have guided my decisions and informed my design thinking over the last year whilst working as a product designer for Grab in Singapore."
 ---
 
-Southeast Asia is home to around 650 million people from diverse and comparatively different economic, political and social backgrounds. Many people in the region today rely on super apps like Grab to earn a daily living or get from A to B more efficiently and safely. This means that decisions made have real impact on people’s lives – so how do you know when your decisions are right or wrong?
+Southeast Asia is home to around 650 million people from diverse and comparatively different economic, political and social backgrounds. Many people in the region today rely on superapps like Grab to earn a daily living or get from A to B more efficiently and safely. This means that decisions made have real impact on people’s lives – so how do you know when your decisions are right or wrong?
 
 In this post, I’ll share key consumer insights that have guided my decisions and informed my design thinking over the last year whilst working as a product designer for Grab in Singapore. I’ve broken my learnings down into 3 transient areas for thinking about product development and how each one addressed our consumers' needs.
 
@@ -183,7 +183,7 @@ In Southeast Asia, people find troubleshooting issues from inside a help page t
 
 #### Building Empathy
 
-Apart from speaking with your consumers regularly, always look through the Play and App Store reviews for common issues. Understand your consumers' problems and the jargon they use to describe what happened. If you have a customer support team, the tickets created will be a key indicator of where your consumers need the most support.
+Apart from speaking with your consumers regularly, always look through the Play and App Store reviews for common issues. Understand your consumers' problems and the jargon they use to describe what happened. If you have a consumer support team, the tickets created will be a key indicator of where your consumers need the most support.
 
 #### Help and Feedback Design Implications
 

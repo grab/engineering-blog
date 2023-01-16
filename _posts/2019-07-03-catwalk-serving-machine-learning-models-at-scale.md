@@ -14,7 +14,7 @@ excerpt: "This blog post explains why and how we came up with a machine learning
 Introduction
 ============
 
-Grab’s unwavering ambition is to be the best Super App in Southeast Asia that adds value to the everyday for our consumers. In order to achieve that, the consumer experience must be flawless for each and every Grab service. Let’s take our frequently used ride-hailing service as an example. We want fair pricing for both drivers and passengers, accurate estimation of ETAs, effective detection of fraudulent activities, and ensured ride safety for our consumers. The key to perfecting these consumer journeys is artificial intelligence (AI).
+Grab’s unwavering ambition is to be the best superapp in Southeast Asia that adds value to the every day for our consumers. In order to achieve that, the consumer experience must be flawless for each and every Grab service. Let’s take our frequently used ride-hailing service as an example. We want fair pricing for both drivers and passengers, accurate estimation of ETAs, effective detection of fraudulent activities, and ensured ride safety for our consumers. The key to perfecting these consumer journeys is artificial intelligence (AI).
 
 Grab has a tremendous amount of data that we can leverage to solve complex problems such as fraudulent user activity, and to provide our consumers personalised experiences on our products. One of the tools we are using to make sense of this data is machine learning (ML).
 
@@ -222,4 +222,4 @@ gRPC Support
 
 Catwalk currently supports HTTP/1.1. We’ll hook Grab’s service discovery mechanism to open gRPC traffic, which TFS already supports.
 
-If you are interested in building pipelines for machine learning related topics, and you share our vision of driving South East Asia forward, come join us!
+If you are interested in building pipelines for machine learning related topics, and you share our vision of driving Southeast Asia forward, come join us!

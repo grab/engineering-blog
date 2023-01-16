@@ -14,7 +14,7 @@ excerpt: "This article is part one of a two-part series. In this article we expl
 
 **Triggered: [Gothena] Astrolabe failed (Warning)**, an alert from Datadog that we have been seeing very often in our `#tech-operations` slack channel. This alert basically tells us that Gothena [^1] is receiving ELB [^2] HTTP 5xx [^3] errors when calling Astrolabe [^4]. Because of how frequently we update our driver location data, losing one or two updates of a single driver has never really been an issue for us at Grab. It was only when this started creating a lot of noise for our on call engineers, we decided that it was time to dig into it and fix it once and for all.
 
-Here is a high level walkthrough of the systems involved. The Driver app would connect to the Gothena Service ELB. Requests are routed to Gothena service. Gothena sends location update related requests to Astrolabe.
+Here is a high level walkthrough of the systems involved. The driver app would connect to the Gothena Service ELB. Requests are routed to Gothena service. Gothena sends location update related requests to Astrolabe.
 
 <div class="post-image-section">
   <img alt="Driver Location Update Flow" src="/img/troubleshooting-unusual-aws-elb-5xx-errors/driver-location-update-flow.png">

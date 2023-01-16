@@ -21,7 +21,7 @@ excerpt: "Much of the work done by the service design team at Grab revolves arou
 
 In the world of design jargon, meet “service design”. Unlike other objectives in design to simplify and clarify, service design is not about building singular touchpoints. Rather, it is about bringing ease and harmony into large and often complex ecosystems.
 
-Think of the human body. There are organ systems such as the cardiovascular, respiratory, musculoskeletal, and nervous systems. These systems perform key functions that we see and feel everyday, like breathing, moving, and feeling.
+Think of the human body. There are organ systems such as the cardiovascular, respiratory, musculoskeletal, and nervous systems. These systems perform key functions that we see and feel every day, like breathing, moving, and feeling.
 
 Service design serves as the connective tissue that brings the amazing systems together to work in harmony. Much of the work done by the service design team at Grab revolves around connecting online experiences to the offline world, connecting challenges across a complex ecosystem, and enabling effective collaboration across cross-functional teams.
 
@@ -32,7 +32,7 @@ We explore holistic experiences by visualising the connections across features, 
 For example, placing an order on GrabFood requires much more work than sending information to the merchant through the Grab app. How might Grab
 
 *   allocate drivers effectively,
-*   support unhappy paths with our customer support team,
+*   support unhappy paths with our consumer support team,
 *   resolve discrepancies in our operations teams, and
 *   store this data in a system that can continue to expand for future uses to come?
 
@@ -75,4 +75,4 @@ Finally, we believe in the power of a participatory design process to unlock mea
 
 ## What’s the Ultimate Goal? A Harmonious Backstage for a Delightful Consumer Experience
 
-By facilitating cross-functional collaborations and espousing a whole-of-Grab approach, the service design team at Grab helps to connect the dots in an interconnected ‘super-app’ service ecosystem. By empathising with our users, and having a deep understanding of how different parts of the Grab ecosystem affect one another, we hope to unleash the full power of Grab to deliver maximum value and delight to serve our users.
+By facilitating cross-functional collaborations and espousing a whole-of-Grab approach, the service design team at Grab helps to connect the dots in an interconnected superapp service ecosystem. By empathising with our users, and having a deep understanding of how different parts of the Grab ecosystem affect one another, we hope to unleash the full power of Grab to deliver maximum value and delight to serve our users.

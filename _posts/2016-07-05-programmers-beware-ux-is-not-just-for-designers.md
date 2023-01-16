@@ -11,13 +11,13 @@ excerpt: "Perhaps one of the biggest missed opportunities in Tech in recent hist
 
 Somehow, UX became the domain of Product Designers and User Interface Designers.
 
-While they definitely are the right people to be thinking about web pages, mobile app screens and so on, we've missed a huge part of what we engineers work on everyday: SDKs and APIs."
+While they definitely are the right people to be thinking about web pages, mobile app screens and so on, we've missed a huge part of what we engineers work on every day: SDKs and APIs."
 ---
 Perhaps one of the biggest missed opportunities in Tech in recent history is UX.
 
 Somehow, UX became the domain of Product Designers and User Interface Designers.
 
-While they definitely are the right people to be thinking about web pages, mobile app screens and so on, we've missed a huge part of what we engineers work on everyday: SDKs and APIs.
+While they definitely are the right people to be thinking about web pages, mobile app screens and so on, we've missed a huge part of what we engineers work on every day: SDKs and APIs.
 
 We live in a time where "the API economy" exists and has tangible monetary and strategic value and yet, UX is seldom considered.
 Additionally, consider how many functions a programmer interacts with every day and yet how little (read: almost none) time is spent on the UX of these functions.

@@ -3,7 +3,7 @@ layout: post
 id: 2021-03-22-learn-how-grab-leveraged-performance-marketing-automation
 title: How Grab Leveraged Performance Marketing Automation to Improve Conversion Rates by 30%
 date: 2021-03-22 00:13:30
-authors: [sc-ng, herman-khoo, audrey-jee]
+authors: [sc-ng, herman-khoo, audrey-jee, vaibhav-vij, milhad-miah]
 categories: [Engineering]
 tags: [Automation, Engineering, Marketing]
 comments: true
@@ -13,7 +13,7 @@ excerpt: "Read to find out how Grab's Performance Marketing team leveraged on au
 
 Grab, Southeast Asia's leading superapp, is a hyperlocal three-sided marketplace that operates across hundreds of cities in Southeast Asia. Grab started out as a taxi hailing company back in 2012 and in less than a decade, the business has evolved tremendously and now offers a diverse range of services for consumers’ everyday needs.
 
-To fuel our business growth in newer service offerings such as GrabFood, GrabMart and GrabExpress, user acquisition efforts play a pivotal role in ensuring we create a sustainable Grab ecosystem that balances the marketplace dynamics between our consumers, driver partners and merchant partners.
+To fuel our business growth in newer service offerings such as GrabFood, GrabMart and GrabExpress, user acquisition efforts play a pivotal role in ensuring we create a sustainable Grab ecosystem that balances the marketplace dynamics between our consumers, driver-partners and merchant-partners.
 
 Part of our user growth strategy is centred around our efforts in running direct-response app campaigns to increase trials on our superapp offerings. Executing these campaigns brings about a set of unique challenges against the diverse cultural backdrop present in Southeast Asia, challenging the team to stay hyperlocal in our strategies while driving user volumes at scale. To address these unique challenges, Grab's performance marketing team is constantly seeking ways to leverage automation and innovate on our operations, improving our marketing efficiency and effectiveness.
 
@@ -89,8 +89,8 @@ Through automation, Grab’s performance marketing team has been able to signifi
 <small class="credits">Authored on behalf of the performance marketing team @ Grab. Special thanks to the CRM data analytics team, particularly Milhad Miah and Vaibhav Vij for making this a reality.</small>
 
 ----
-## Join Us
+## Join us
 
-Grab is more than just the leading ride-hailing and food delivery platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services for a region of more than 650 million people. We aspire to unlock the true potential of Southeast Asia and are on the lookout for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, apply to join our team today!
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

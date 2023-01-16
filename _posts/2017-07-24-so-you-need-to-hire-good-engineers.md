@@ -23,7 +23,7 @@ I have spoken with more than a hundred engineering leaders in tech companies abo
 
 This is what I found.
 
-### 1. Technical fit vs Cultural fit
+### 1. Technical Fit vs Cultural Fit
 
 > “An engineer's technical fit can be around 80% for our 'on the job' requirement. It can be difficult to find a 100% fit, and for those engineers who have some gaps, it's personally motivating for me to have this opportunity to help the engineer achieve, and close the gaps”
 >

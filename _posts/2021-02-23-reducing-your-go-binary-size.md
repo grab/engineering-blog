@@ -5,7 +5,7 @@ title: One Small Step Closer to Containerising Service Binaries
 date: 2021-02-23 00:12:23
 authors: [stan-halka, samuel-thomas]
 categories: [Engineering]
-tags: [Backend, Engineering, Golang, Cloud-Native Transformations, Containerisation, Kubernetes]
+tags: [Back End, Engineering, Golang, Cloud-Native Transformations, Containerisation, Kubernetes]
 comments: true
 cover_photo: /img/one-small-step-closer-to-containerising-service-binaries/cover.png
 excerpt: "Learn how Grab is investigating and reducing service binary size for Golang projects."
@@ -173,6 +173,6 @@ To reduce your binary size, follow these best practices:
 
 ## Join us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

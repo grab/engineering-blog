@@ -1,7 +1,7 @@
 ---
 layout: post
 id: journey-to-a-faster-everyday-super-app
-title: Journey to a Faster Everyday Super App Where Every Millisecond Counts
+title: Journey to a Faster Everyday Superapp Where Every Millisecond Counts
 date: 2019-12-26 22:00:00
 authors: [renu-yadav]
 categories: [Engineering]
@@ -13,7 +13,7 @@ excerpt: "This post narrates the journey of our performance improvement efforts 
 
 ## Introduction
 
-At [Grab](https://www.grab.com), we are moving faster than ever. In 2019 alone, we released dozens of new features in the Grab passenger app. With our goal to delight users in Southeast Asia with a powerful everyday super app, the app’s performance became one of the most critical components in delivering that experience to our users.
+At [Grab](https://www.grab.com), we are moving faster than ever. In 2019 alone, we released dozens of new features in the Grab passenger app. With our goal to delight users in Southeast Asia with a powerful everyday superapp, the app’s performance became one of the most critical components in delivering that experience to our users.
 
 This post narrates the journey of our performance improvement efforts on the Grab passenger app. It highlights how we were able to reduce the time spent starting the app by more than 60%, while preventing regressions introduced by new features. We use the [p95](https://en.wikipedia.org/wiki/Percentile) scale when referring to these improvements.
 

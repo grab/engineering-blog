@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Deployment, CI, Continuous Integration, Continuous Deployment, Deployment Process, Cloud Agnostic, Spinnaker, Continuous Delivery, Multi Cloud]
 comments: true
 cover_photo: /img/our-journey-to-continuous-delivery-at-grab/cover.png
-excerpt: "Continuous Delivery is the principle of delivering software often, every day. Read more to find out how we implemented continuous delivery at Grab."
+excerpt: "Continuous Delivery is the principle of delivering software often, everyday. Read more to find out how we implemented continuous delivery at Grab."
 ---
 
 This blog post is a two-part presentation of the effort that went into improving the [continuous delivery](https://continuousdelivery.com/) processes for backend services at Grab in the past two years. In the first part, we take stock of where we started two years ago and describe the software and tools we created while introducing some of the integrations we've done to automate our software delivery in our staging environment.
@@ -348,8 +348,8 @@ In the sequel to this blog post, we'll dive into the improvements that we've mad
 ---
 
 
-## Join Us
+## Join us
 
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!

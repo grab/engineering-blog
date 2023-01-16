@@ -93,7 +93,8 @@ Southeast Asian’s love of tea-based latte (other than green tea) is apparent i
 
 Is your blood type coffee? Whether you feel like caramelly and chocolatey Macchiato, or fruity and floral aroma of freshly brewed Americano, or intense and bitter double-shot Long Black — GrabFood has got you covered! May your coffee get delivered (and kick in) before reality does!
 
-## Join Us
-Grab is more than just the leading ride-hailing and mobile payments platform in Southeast Asia. We use data and technology to improve everything from transportation to payments and financial services across a region of more than 620 million people. We aspire to unlock the true potential of Southeast Asia and look for like-minded individuals to join us on this ride.
+## Join us
 
-If you share our vision of driving South East Asia forward, [apply](https://grab.careers/jobs/) to join our team today.
+Grab is a leading superapp in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across over 400 cities in eight countries.
+
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
