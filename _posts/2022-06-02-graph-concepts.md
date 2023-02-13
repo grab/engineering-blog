@@ -13,7 +13,7 @@ excerpt: "Graph theory-based approaches show the concepts underlying the behavio
 
 ## Introduction
 
-In an [introductory article](https://engineering.grab.com/graph-networks), we talked about the importance of Graph Networks in fraud detection. In this article, we will be adding some further context on graphs, graph technology and some common use cases.
+In an [introductory article](/graph-networks), we talked about the importance of Graph Networks in fraud detection. In this article, we will be adding some further context on graphs, graph technology and some common use cases.
 
 Connectivity is the most prominent feature of today's networks and systems. From molecular interactions, social networks and communication systems to power grids, shopping experiences or even supply chains, networks relating to real-world systems are not random. This means that these connections are not static and can be displayed differently at different times. Simple statistical analysis is insufficient to effectively characterise, let alone forecast, networked system behaviour.
 
@@ -249,6 +249,11 @@ Graph technology typically consists of:
 Although predominantly used in fraud detection, Graph technology has many other use cases such as making real-time recommendations based on consumer behaviour, identity and access control, risk assessment and monitoring, AI and ML, and many more.
 
 In our next blog article, we will be talking about how our Graph Visualisation Platform enhances Grab’s fraud detection methods.
+
+## Speak to us
+GrabDefence is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.
+
+To learn more about GrabDefence or to speak to our fraud management experts, contact us at [gd.contact@grabtaxi.com](mailto:gd.contact@grabtaxi.com).
 
 ## References
 

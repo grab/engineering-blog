@@ -61,7 +61,12 @@ Check out the other articles in this series:
 * [Graph concepts and applications](/graph-concepts)
 * [Graph Networks - 10X investigation with Graph Visualisations](/graph-visualisation)
 * [Graph for fraud detection](/graph-for-fraud-detection)
+* [Graph service platform](/graph-service-platform)
 
+## Speak to us
+GrabDefence is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.
+
+To learn more about GrabDefence or to speak to our fraud management experts, contact us at [gd.contact@grabtaxi.com](mailto:gd.contact@grabtaxi.com).
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
