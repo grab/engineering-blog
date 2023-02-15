@@ -152,3 +152,8 @@ There are more automation steps we plan to do, such as adding a replay button on
 ### Integration with Griffin
 
 Griffin is our rule engine. Counters are sometimes an input to a particular rule, and one rule usually needs many counters to work together. We need to provide a better integration with Griffin on backend. We plan to minimise the current engineering effort when using counters on Griffin. A counter then becomes an automated input variable on Griffin, which can be configured on the web portal by any users.
+
+## Speak to us
+GrabDefence is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.
+
+To learn more about GrabDefence or to speak to our fraud management experts, contact us at [gd.contact@grabtaxi.com](mailto:gd.contact@grabtaxi.com).
