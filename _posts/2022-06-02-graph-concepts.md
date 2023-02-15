@@ -251,7 +251,7 @@ Although predominantly used in fraud detection, Graph technology has many other 
 In our next blog article, we will be talking about how our Graph Visualisation Platform enhances Grab’s fraud detection methods.
 
 ## Speak to us
-GrabDefence is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.
+[GrabDefence](https://www.grab.com/sg/business/defence/) is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.
 
 To learn more about GrabDefence or to speak to our fraud management experts, contact us at [gd.contact@grabtaxi.com](mailto:gd.contact@grabtaxi.com).
 
