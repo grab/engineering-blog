@@ -105,9 +105,9 @@ For big organisations, extensive graph algorithms provide the power to mine vari
 We are building an integrated graph ecosystem inside and outside Grab. The infrastructure and service, or APIs are key components in graph-centric ecosystems; they provide graph arithmetic and basic capabilities of graphs in relation to search, computing, analysis etc. Besides that, we will also consider incorporating applications such as risk prediction and fraud detection in order to serve our current business needs.
 
 ## Speak to us
-GrabDefence is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.
+[GrabDefence](https://www.grab.com/sg/business/defence/) is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.
 
-To learn more about GrabDefence or to speak to our fraud management experts, contact us at [gd.contact@grabtaxi.com](mailto:gd.contact@grabtaxi.com). 
+To learn more about GrabDefence or to speak to our fraud management experts, contact us at [gd.contact@grabtaxi.com](mailto:gd.contact@grabtaxi.com).
 
 # Join us
 
