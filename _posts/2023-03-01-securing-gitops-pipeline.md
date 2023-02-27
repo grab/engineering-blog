@@ -79,7 +79,7 @@ At this stage, we categorise the changes into Deleted, Created or Changed resour
 
 #### Terraform stage
 
-This is a downstream pipeline that runs either the Terraform plan or Terraform apply command depending on the state of the MR which can either be pending review or merged. [Individual jobs run in parallel](https://engineering.grab.com/how-we-reduced-our-ci-yaml) for each resource change which helps with performance and reduces the overall pipeline run time.
+This is a downstream pipeline that runs either the Terraform plan or Terraform apply command depending on the state of the MR, which can either be pending review or merged. [Individual jobs run in parallel](https://engineering.grab.com/how-we-reduced-our-ci-yaml) for each resource change, which helps with performance and reduces the overall pipeline run time.
 
 For each individual job, we implemented multiple security checkpoints such as:
 - **Code inspection**: We use the [python-hcl2](https://pypi.org/project/python-hcl2/) library to read HCL content of Terraform resources to perform validation, restrict the types of Terraform resources users can create, and ensure that resources have the intended configurations. We also validate whitelisted Terraform module source endpoint based on the declared resource type. This enables us to inherit the flexibility of Python as a programming language and perform validations more dynamically rather than relying on HCL functions.
