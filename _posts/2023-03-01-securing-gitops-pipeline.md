@@ -32,8 +32,8 @@ Originally, Coban implemented automation on Terraform resources using [Atlantis]
   </figure>
 </div>
 
-We have come a long way with Atlantis. It has helped us to automate our workflows and enable self-service capabilities for our engineers. However, there were the following limitations in our setup which we wanted to improve:
-- **Course grained**: There is no way to restrict the kind of Terraform resources users can create, which introduces security issues. For example, a user can create another IAM role with Admin privilege for themselves with approval from their own team as long as they are [Code owners](https://docs.gitlab.com/ee/user/project/code_owners.html) anywhere in the repository.
+We have come a long way with Atlantis. It has helped us to automate our workflows and enable self-service capabilities for our engineers. However, there were a few limitations in our setup, which we wanted to improve:
+- **Course grained**: There is no way to restrict the kind of Terraform resources users can create, which introduces security issues. For example, if a user is one of the [Code owners](https://docs.gitlab.com/ee/user/project/code_owners.html), they can create another IAM role with Admin privileges with approval from their own team anywhere in the repository.
 - **Limited automation**: Users are still required to make comments in their MR such as [atlantis apply](https://www.runatlantis.io/docs/using-atlantis.html#atlantis-apply). This requires the learning of Atlantis commands and is prone to human errors.
 - **Limited capability**: Having to rely entirely on Terraform and Hashicorp Configuration Language (HCL) functions to validate user input comes with limitations. For example, the ability to validate an input variable based on the value of another has been a [requested feature](https://github.com/hashicorp/terraform/issues/25609) for a long time.
 - **Not adhering to Don’t Repeat Yourself (DRY) principle**: Users need to create an entire Terraform project with boilerplate codes such as Terraform environment, local variables, and provide configurations to create a simple resource such as a Kafka topic.
@@ -79,7 +79,7 @@ At this stage, we categorise the changes into Deleted, Created or Changed resour
 
 #### Terraform stage
 
-This is a downstream pipeline that runs either the Terraform plan or Terraform apply command depending on the state of the MR which can either be pending review or merged. [Individual jobs run in parallel](https://engineering.grab.com/how-we-reduced-our-ci-yaml) for each resource change which helps with performance and reduces the overall pipeline run time.
+This is a downstream pipeline that runs either the Terraform plan or Terraform apply command depending on the state of the MR, which can either be pending review or merged. [Individual jobs run in parallel](https://engineering.grab.com/how-we-reduced-our-ci-yaml) for each resource change, which helps with performance and reduces the overall pipeline run time.
 
 For each individual job, we implemented multiple security checkpoints such as:
 - **Code inspection**: We use the [python-hcl2](https://pypi.org/project/python-hcl2/) library to read HCL content of Terraform resources to perform validation, restrict the types of Terraform resources users can create, and ensure that resources have the intended configurations. We also validate whitelisted Terraform module source endpoint based on the declared resource type. This enables us to inherit the flexibility of Python as a programming language and perform validations more dynamically rather than relying on HCL functions.
@@ -104,7 +104,7 @@ path = one(regexall(join("/",
 
 #### Metric stage
 
-This stage is where we consolidate previous jobs status and publish our pipeline metrics such as success or error rate.
+In this stage, we consolidate previous jobs' status and publish our pipeline metrics such as success or error rate.
 
 For our metrics, we identified actual users by omitting users from Coban. This helps us measure success metrics more consistently as we could isolate metrics from test continuous integration/continuous deployment (CI/CD) pipelines.
 
@@ -132,9 +132,9 @@ In Fig. 7, our configuration is set to a file called **khone-gitlab-ci.yml** res
 
 ### Preventing pipeline scripts tampering
 
-Since we had scripts that ran before the MR was approved and merged to perform preliminary checks or validations and ran the Terraform plan command, users could modify the scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources. 
+We had scripts that ran before the MR and they were approved and merged to perform preliminary checks or validations. They were also used to run the Terraform plan command. Users could modify these existing scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources. 
 
-This can be prevented by storing all of our scripts in the **khone-admin** repository and cloning them over in each stage of our pipeline using the **before_script** clause.
+This can be prevented by storing all of our scripts in the **khone-admin** repository and cloning them in each stage of our pipeline using the **before_script** clause.
 
 ```
 default:
@@ -169,7 +169,7 @@ In Fig. 9, our configuration is set to a file called **khone-gitlab-ci.yml** res
 
 #### Pipeline scripts
 
-Following the same method, for pipeline scripts, instead of cloning from the master branch in the **khone-admin** repository, we have implemented a logic to clone them from the branch matching our Lightweight directory access protocol (LDAP) user account if it exists. We utilised the **GITLAB_USER_LOGIN** environment variable that is injected by GitLab to each individual CI job to get the respective LDAP account to perform this logic.
+Following the same method for pipeline scripts, instead of cloning from the master branch in the **khone-admin** repository, we have implemented a logic to clone them from the branch matching our lightweight directory access protocol (LDAP) user account if it exists. We utilised the **GITLAB_USER_LOGIN** environment variable that is injected by GitLab to each individual CI job to get the respective LDAP account to perform this logic.
 
 ```
 default:
@@ -187,7 +187,7 @@ default:
 
 ## What's next?
 
-With security being our main focus for our Khone GitOps pipeline, we plan to abide by the [Principle of least privilege](https://en.wikipedia.org/wiki/Principle_of_least_privilege) and implement separate GitLab runners for different types of resources and assign them with just enough IAM roles and policies as well as minimal network security group rules to access our Kafka or Kubernetes clusters.
+With security being our main focus for our Khone GitOps pipeline, we plan to abide by the [principle of least privilege](https://en.wikipedia.org/wiki/Principle_of_least_privilege) and implement separate GitLab runners for different types of resources and assign them with just enough IAM roles and policies, and minimal network security group rules to access our Kafka or Kubernetes clusters.
 
 Furthermore, we also plan to maintain high standards and stability by including unit tests in our CI scripts to ensure that every change is well-tested before being deployed.
 
