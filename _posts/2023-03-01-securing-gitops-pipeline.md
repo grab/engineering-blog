@@ -169,7 +169,7 @@ In Fig. 9, our configuration is set to a file called **khone-gitlab-ci.yml** res
 
 #### Pipeline scripts
 
-Following the same method, for pipeline scripts, instead of cloning from the master branch in the **khone-admin** repository, we have implemented a logic to clone them from the branch matching our Lightweight directory access protocol (LDAP) user account if it exists. We utilised the **GITLAB_USER_LOGIN** environment variable that is injected by GitLab to each individual CI job to get the respective LDAP account to perform this logic.
+Following the same method for pipeline scripts, instead of cloning from the master branch in the **khone-admin** repository, we have implemented a logic to clone them from the branch matching our lightweight directory access protocol (LDAP) user account if it exists. We utilised the **GITLAB_USER_LOGIN** environment variable that is injected by GitLab to each individual CI job to get the respective LDAP account to perform this logic.
 
 ```
 default:
