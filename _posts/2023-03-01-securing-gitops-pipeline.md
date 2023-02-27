@@ -104,7 +104,7 @@ path = one(regexall(join("/",
 
 #### Metric stage
 
-This stage is where we consolidate previous jobs status and publish our pipeline metrics such as success or error rate.
+In this stage, we consolidate previous jobs' status and publish our pipeline metrics such as success or error rate.
 
 For our metrics, we identified actual users by omitting users from Coban. This helps us measure success metrics more consistently as we could isolate metrics from test continuous integration/continuous deployment (CI/CD) pipelines.
 
