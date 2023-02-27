@@ -187,7 +187,7 @@ default:
 
 ## What's next?
 
-With security being our main focus for our Khone GitOps pipeline, we plan to abide by the [Principle of least privilege](https://en.wikipedia.org/wiki/Principle_of_least_privilege) and implement separate GitLab runners for different types of resources and assign them with just enough IAM roles and policies as well as minimal network security group rules to access our Kafka or Kubernetes clusters.
+With security being our main focus for our Khone GitOps pipeline, we plan to abide by the [principle of least privilege](https://en.wikipedia.org/wiki/Principle_of_least_privilege) and implement separate GitLab runners for different types of resources and assign them with just enough IAM roles and policies, and minimal network security group rules to access our Kafka or Kubernetes clusters.
 
 Furthermore, we also plan to maintain high standards and stability by including unit tests in our CI scripts to ensure that every change is well-tested before being deployed.
 
