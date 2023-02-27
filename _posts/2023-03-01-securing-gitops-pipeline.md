@@ -132,7 +132,7 @@ In Fig. 7, our configuration is set to a file called **khone-gitlab-ci.yml** res
 
 ### Preventing pipeline scripts tampering
 
-Since we had scripts that ran before the MR was approved and merged to perform preliminary checks or validations and ran the Terraform plan command, users could modify the scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources. 
+We had scripts that ran before the MR and they were approved and merged to perform preliminary checks or validations. They were also used to run the Terraform plan command. Users could modify these existing scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources. 
 
 This can be prevented by storing all of our scripts in the **khone-admin** repository and cloning them over in each stage of our pipeline using the **before_script** clause.
 
