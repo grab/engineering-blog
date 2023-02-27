@@ -18,14 +18,14 @@ Grab’s real-time data platform team, Coban, has been managing infrastructure r
 - [Kafka](https://kafka.apache.org/) topics
 - [Kafka Connect](https://docs.confluent.io/platform/current/connect/index.html#kafka-connect) connectors
 
-With Grab’s exponential growth, there needs to be a better way to scale infrastructure automatically. Moving towards GitOps processes benefit us in many ways:
+With Grab’s exponential growth, there needs to be a better way to scale infrastructure automatically. Moving towards GitOps processes benefits us in many ways:
 - **Versioned and immutable**: With our source code being stored in Git repositories, the desired state of infrastructure is stored in an environment that enforces immutability, versioning, and retention of version history, which helps with auditing and traceability.
-- **Faster deployment**: With the automated process of deploying resources after a code is merged eliminates manual steps and improves overall engineering productivity while maintaining consistency.
-- **Easier rollbacks**: It’s as simple as making a revert for Git commit as compared to creating a merge request (MR) and commenting Atlantis commands, which adds extra steps that contribute to the mean-time-to-resolve (MTTRs) of incidents.
+- **Faster deployment**: By automating the process of deploying resources after code is merged, we eliminate manual steps and improve overall engineering productivity while maintaining consistency.
+- **Easier rollbacks**: It’s as simple as making a revert for a Git commit as compared to creating a merge request (MR) and commenting Atlantis commands, which add extra steps and contribute to a higher mean-time-to-resolve (MTTR) for incidents.
 
 ## Background
 
-Originally, Coban implemented automation on Terraform resources using [Atlantis](https://www.runatlantis.io/), an application which operates based on user comments on MRs.
+Originally, Coban implemented automation on Terraform resources using [Atlantis](https://www.runatlantis.io/), an application that operates based on user comments on MRs.
 
 <div class="post-image-section"><figure>
   <img src="/img/securing-gitops-pipeline/atlantis-user-flow.png" alt="" style="width:70%"><figcaption align="middle"><i>Fig. 1 User flow with Atlantis</i></figcaption>
@@ -36,17 +36,17 @@ We have come a long way with Atlantis. It has helped us to automate our workflow
 - **Course grained**: There is no way to restrict the kind of Terraform resources users can create, which introduces security issues. For example, if a user is one of the [Code owners](https://docs.gitlab.com/ee/user/project/code_owners.html), they can create another IAM role with Admin privileges with approval from their own team anywhere in the repository.
 - **Limited automation**: Users are still required to make comments in their MR such as [atlantis apply](https://www.runatlantis.io/docs/using-atlantis.html#atlantis-apply). This requires the learning of Atlantis commands and is prone to human errors.
 - **Limited capability**: Having to rely entirely on Terraform and Hashicorp Configuration Language (HCL) functions to validate user input comes with limitations. For example, the ability to validate an input variable based on the value of another has been a [requested feature](https://github.com/hashicorp/terraform/issues/25609) for a long time.
-- **Not adhering to Don’t Repeat Yourself (DRY) principle**: Users need to create an entire Terraform project with boilerplate codes such as Terraform environment, local variables, and provider configurations to create a simple resource such as a Kafka topic.
+- **Not adhering to Don’t Repeat Yourself (DRY) principle**: Users need to create an entire Terraform project with boilerplate codes such as Terraform environment, local variables, and provide configurations to create a simple resource such as a Kafka topic.
 
 ## Solution
 
-We have developed an in-house GitOps solution named - Khone. Its name was inspired by the [Khone Phapheng Waterfall](https://en.wikipedia.org/wiki/Khone_Phapheng_Falls). We have evaluated some of the best and most widely used GitOps products available but chose not to go with any as the majority of them aim to support Kubernetes native or [custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/), and we needed infrastructure provisioning that is beyond Kubernetes. With our approach, we have full control of the entire user flow and its implementation, and thus we benefit from:
+We have developed an in-house GitOps solution named Khone. Its name was inspired by the [Khone Phapheng Waterfall](https://en.wikipedia.org/wiki/Khone_Phapheng_Falls). We have evaluated some of the best and most widely used GitOps products available but chose not to go with any as the majority of them aim to support Kubernetes native or [custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/), and we needed infrastructure provisioning that is beyond Kubernetes. With our approach, we have full control of the entire user flow and its implementation, and thus we benefit from:
 - **Security**: The ability to secure the pipeline with many customised scripts and workflows.
 - **Simple user experience (UX)**: Simplified user flow and prevents human errors with automation.
 - **DRY**: Minimise boilerplate codes. Users only need to create a single Terraform resource and not an entire Terraform project.
 
 <div class="post-image-section"><figure>
-  <img src="/img/securing-gitops-pipeline/khone-user-flow.png" alt="" style="width:70%"><figcaption align="middle"><i>Fig. 1 User flow with Khone</i></figcaption>
+  <img src="/img/securing-gitops-pipeline/khone-user-flow.png" alt="" style="width:70%"><figcaption align="middle"><i>Fig. 2 User flow with Khone</i></figcaption>
   </figure>
 </div>
 
@@ -68,7 +68,7 @@ Khone’s pipeline implementation is designed with three stages. Each stage has 
   </figure>
 </div>
 
-#### Init stage
+#### Initialisation stage
 
 At this stage, we categorise the changes into Deleted, Created or Changed resources and filter out unsupported resource types. We also prevent users from creating unintended resources by validating them based on resource path and inspecting the HCL source code in their Terraform module. This stage also prepares artefacts for subsequent stages.
 
@@ -117,11 +117,11 @@ For the second half of 2022, we achieved a 100% uptime for Khone pipelines.
 
 ### Preventing pipeline config tampering
 
-By default, with each repository on Gitlab that has CI/CD pipelines enabled, owners or administrators would need to have a pipeline config file at the root directory of the repository with the name **.gitlab-ci.yml**. Other scripts may also be stored somewhere within the repository. 
+By default, with each repository on GitLab that has CI/CD pipelines enabled, owners or administrators would need to have a pipeline config file at the root directory of the repository with the name **.gitlab-ci.yml**. Other scripts may also be stored somewhere within the repository. 
 
-With this setup, whenever a user creates an MR, if the pipeline config file is modified as part of the MR, the modified version of the config file will be immediately reflected in the pipeline's run. Users can exploit this by running arbitrary code on the privileged Gitlab runner.
+With this setup, whenever a user creates an MR, if the pipeline config file is modified as part of the MR, the modified version of the config file will be immediately reflected in the pipeline's run. Users can exploit this by running arbitrary code on the privileged GitLab runner.
 
-In order to prevent this, we utilise Gitlab’s [remote pipeline config](https://docs.gitlab.com/ee/ci/pipelines/settings.html#specify-a-custom-cicd-configuration-file) functionality. We have created another private repository, **khone-admin**, and stored our pipeline config there.
+In order to prevent this, we utilise GitLab’s [remote pipeline config](https://docs.gitlab.com/ee/ci/pipelines/settings.html#specify-a-custom-cicd-configuration-file) functionality. We have created another private repository, **khone-admin**, and stored our pipeline config there.
 
 <div class="post-image-section"><figure>
   <img src="/img/securing-gitops-pipeline/khone-remote-pipeline-config.png" alt="" style="width:70%"><figcaption align="middle"><i>Fig. 7 Khone's remote pipeline config</i></figcaption>
@@ -156,7 +156,7 @@ With all the security measures implemented for Khone, this raises a question of 
 
 #### Pipeline config
 
-Within this **khone-dev** repository, we have set up a remote pipeline config file by following this format: 
+Within this **khone-dev** repository, we have set up a remote pipeline config file following this format: 
 
 `<File Name>@<Repository Ref>:<Branch Name>`
 
@@ -165,7 +165,7 @@ Within this **khone-dev** repository, we have set up a remote pipeline config fi
   </figure>
 </div>
 
-In Fig. 9, our configuration is set to a file called **khone-gitlab-ci.yml** residing in the **khone-admin** repository under the **snd** group and under a branch named **ci-test**. With this approach, we can test our pipeline config without having to merge it to master branch which affects the main Khone repository. As a security measure, we only allow users within a certain GitLab group to push changes to this branch.
+In Fig. 9, our configuration is set to a file called **khone-gitlab-ci.yml** residing in the **khone-admin** repository under the **snd** group and under a branch named **ci-test**. With this approach, we can test our pipeline config without having to merge it to master branch that affects the main Khone repository. As a security measure, we only allow users within a certain GitLab group to push changes to this branch.
 
 #### Pipeline scripts
 
@@ -194,8 +194,8 @@ Furthermore, we also plan to maintain high standards and stability by including 
 ## References
 
 - [Specify a custom CI/CD configuration file](https://docs.gitlab.com/ee/ci/pipelines/settings.html#specify-a-custom-cicd-configuration-file)
-- [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
-- [GitLab Code Owners](https://docs.gitlab.com/ee/user/project/code_owners.html)
+- [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+- [GitLab code owners](https://docs.gitlab.com/ee/user/project/code_owners.html)
 
 <small class="credits">Special thanks to Fabrice Harbulot for kicking off this project and building a strong foundation for it.</small>
 
