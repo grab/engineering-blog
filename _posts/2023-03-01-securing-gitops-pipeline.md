@@ -36,7 +36,7 @@ We have come a long way with Atlantis. It has helped us to automate our workflow
 - **Course grained**: There is no way to restrict the kind of Terraform resources users can create, which introduces security issues. For example, if a user is one of the [Code owners](https://docs.gitlab.com/ee/user/project/code_owners.html), they can create another IAM role with Admin privileges with approval from their own team anywhere in the repository.
 - **Limited automation**: Users are still required to make comments in their MR such as [atlantis apply](https://www.runatlantis.io/docs/using-atlantis.html#atlantis-apply). This requires the learning of Atlantis commands and is prone to human errors.
 - **Limited capability**: Having to rely entirely on Terraform and Hashicorp Configuration Language (HCL) functions to validate user input comes with limitations. For example, the ability to validate an input variable based on the value of another has been a [requested feature](https://github.com/hashicorp/terraform/issues/25609) for a long time.
-- **Not adhering to Don’t Repeat Yourself (DRY) principle**: Users need to create an entire Terraform project with boilerplate codes such as Terraform environment, local variables, and provide configurations to create a simple resource such as a Kafka topic.
+- **Not adhering to Don’t Repeat Yourself (DRY) principle**: Users need to create an entire Terraform project with boilerplate codes such as Terraform environment, local variables, and Terraform provider configurations to create a simple resource such as a Kafka topic.
 
 ## Solution
 
