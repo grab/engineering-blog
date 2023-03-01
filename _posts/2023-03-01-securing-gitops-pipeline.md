@@ -2,7 +2,7 @@
 layout: post
 id: 2023-03-01-securing-gitops-pipeline
 title: Securing GitOps pipelines
-date: 2023-03-01 01:18:05
+date: 2023-03-01 02:23:05
 authors: [thang-le]
 categories: [Engineering]
 tags: [Engineering, Open source, Pipelines, Continuous Delivery, Continuous Integration, Optimisation]
@@ -99,7 +99,7 @@ path = one(regexall(join("/",
     "(?P<env>[^/]*)",
     "(?P<cluster_name>[^/]*)",
     "(?P<resource_name>[^/]*)$"
-]), path.cwd)) 
+]), path.cwd))
 ```
 
 #### Metric stage
@@ -117,7 +117,7 @@ For the second half of 2022, we achieved a 100% uptime for Khone pipelines.
 
 ### Preventing pipeline config tampering
 
-By default, with each repository on GitLab that has CI/CD pipelines enabled, owners or administrators would need to have a pipeline config file at the root directory of the repository with the name **.gitlab-ci.yml**. Other scripts may also be stored somewhere within the repository. 
+By default, with each repository on GitLab that has CI/CD pipelines enabled, owners or administrators would need to have a pipeline config file at the root directory of the repository with the name **.gitlab-ci.yml**. Other scripts may also be stored somewhere within the repository.
 
 With this setup, whenever a user creates an MR, if the pipeline config file is modified as part of the MR, the modified version of the config file will be immediately reflected in the pipeline's run. Users can exploit this by running arbitrary code on the privileged GitLab runner.
 
@@ -132,7 +132,7 @@ In Fig. 7, our configuration is set to a file called **khone-gitlab-ci.yml** res
 
 ### Preventing pipeline scripts tampering
 
-We had scripts that ran before the MR and they were approved and merged to perform preliminary checks or validations. They were also used to run the Terraform plan command. Users could modify these existing scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources. 
+We had scripts that ran before the MR and they were approved and merged to perform preliminary checks or validations. They were also used to run the Terraform plan command. Users could modify these existing scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources.
 
 This can be prevented by storing all of our scripts in the **khone-admin** repository and cloning them in each stage of our pipeline using the **before_script** clause.
 
@@ -156,7 +156,7 @@ With all the security measures implemented for Khone, this raises a question of 
 
 #### Pipeline config
 
-Within this **khone-dev** repository, we have set up a remote pipeline config file following this format: 
+Within this **khone-dev** repository, we have set up a remote pipeline config file following this format:
 
 `<File Name>@<Repository Ref>:<Branch Name>`
 
