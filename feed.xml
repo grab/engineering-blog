@@ -6,9 +6,235 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 28 Feb 2023 01:58:30 +0000</pubDate>
-    <lastBuildDate>Tue, 28 Feb 2023 01:58:30 +0000</lastBuildDate>
+    <pubDate>Wed, 01 Mar 2023 02:37:09 +0000</pubDate>
+    <lastBuildDate>Wed, 01 Mar 2023 02:37:09 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Securing GitOps pipelines</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Grab’s real-time data platform team, Coban, has been managing infrastructure resources via Infrastructure-as-code (IaC). Through the IaC approach, Terraform is used to maintain infrastructure consistency, automation, and ease of deployment of our streaming infrastructure, notably:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; pipelines&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt; topics&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.confluent.io/platform/current/connect/index.html#kafka-connect&quot;&gt;Kafka Connect&lt;/a&gt; connectors&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;With Grab’s exponential growth, there needs to be a better way to scale infrastructure automatically. Moving towards GitOps processes benefits us in many ways:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Versioned and immutable&lt;/strong&gt;: With our source code being stored in Git repositories, the desired state of infrastructure is stored in an environment that enforces immutability, versioning, and retention of version history, which helps with auditing and traceability.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Faster deployment&lt;/strong&gt;: By automating the process of deploying resources after code is merged, we eliminate manual steps and improve overall engineering productivity while maintaining consistency.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Easier rollbacks&lt;/strong&gt;: It’s as simple as making a revert for a Git commit as compared to creating a merge request (MR) and commenting Atlantis commands, which add extra steps and contribute to a higher mean-time-to-resolve (MTTR) for incidents.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Originally, Coban implemented automation on Terraform resources using &lt;a href=&quot;https://www.runatlantis.io/&quot;&gt;Atlantis&lt;/a&gt;, an application that operates based on user comments on MRs.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/atlantis-user-flow.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 1 User flow with Atlantis&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We have come a long way with Atlantis. It has helped us to automate our workflows and enable self-service capabilities for our engineers. However, there were a few limitations in our setup, which we wanted to improve:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Course grained&lt;/strong&gt;: There is no way to restrict the kind of Terraform resources users can create, which introduces security issues. For example, if a user is one of the &lt;a href=&quot;https://docs.gitlab.com/ee/user/project/code_owners.html&quot;&gt;Code owners&lt;/a&gt;, they can create another IAM role with Admin privileges with approval from their own team anywhere in the repository.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Limited automation&lt;/strong&gt;: Users are still required to make comments in their MR such as &lt;a href=&quot;https://www.runatlantis.io/docs/using-atlantis.html#atlantis-apply&quot;&gt;atlantis apply&lt;/a&gt;. This requires the learning of Atlantis commands and is prone to human errors.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Limited capability&lt;/strong&gt;: Having to rely entirely on Terraform and Hashicorp Configuration Language (HCL) functions to validate user input comes with limitations. For example, the ability to validate an input variable based on the value of another has been a &lt;a href=&quot;https://github.com/hashicorp/terraform/issues/25609&quot;&gt;requested feature&lt;/a&gt; for a long time.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Not adhering to Don’t Repeat Yourself (DRY) principle&lt;/strong&gt;: Users need to create an entire Terraform project with boilerplate codes such as Terraform environment, local variables, and Terraform provider configurations to create a simple resource such as a Kafka topic.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;We have developed an in-house GitOps solution named Khone. Its name was inspired by the &lt;a href=&quot;https://en.wikipedia.org/wiki/Khone_Phapheng_Falls&quot;&gt;Khone Phapheng Waterfall&lt;/a&gt;. We have evaluated some of the best and most widely used GitOps products available but chose not to go with any as the majority of them aim to support Kubernetes native or &lt;a href=&quot;https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/&quot;&gt;custom resources&lt;/a&gt;, and we needed infrastructure provisioning that is beyond Kubernetes. With our approach, we have full control of the entire user flow and its implementation, and thus we benefit from:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Security&lt;/strong&gt;: The ability to secure the pipeline with many customised scripts and workflows.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Simple user experience (UX)&lt;/strong&gt;: Simplified user flow and prevents human errors with automation.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;DRY&lt;/strong&gt;: Minimise boilerplate codes. Users only need to create a single Terraform resource and not an entire Terraform project.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-user-flow.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 2 User flow with Khone&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;With all types of streaming infrastructure resources that we support, be it Kafka topics or Flink pipelines, we have identified they all have common properties such as namespace, environment, or cluster name such as Kafka cluster and Kubernetes cluster. As such, using those values as file paths help us to easily validate users input and de-couple them from the resource specific configuration properties in their HCL source code. Moreover, it helps to remove redundant information to maintain consistency. If the piece of information is in the file path, it won’t be elsewhere in resource definition.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-directory-structure.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 3 Khone directory structure&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;With this approach, we can utilise our pipeline scripts, which are written in Python and perform validations on the types of resources and resource names using Regular Expressions (Regex) without relying on HCL functions. Furthermore, we helped prevent human errors and improved developers’ efficiency by deriving these properties and reducing boilerplate codes by automatically parsing out other necessary configurations such as Kafka brokers endpoint from the cluster name and environment.&lt;/p&gt;
+
+&lt;h3 id=&quot;pipeline-stages&quot;&gt;Pipeline stages&lt;/h3&gt;
+
+&lt;p&gt;Khone’s pipeline implementation is designed with three stages. Each stage has different duties and responsibilities in verifying user input and securely creating the resources.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-pipeline-example.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 4 An example of a Khone pipeline&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;initialisation-stage&quot;&gt;Initialisation stage&lt;/h4&gt;
+
+&lt;p&gt;At this stage, we categorise the changes into Deleted, Created or Changed resources and filter out unsupported resource types. We also prevent users from creating unintended resources by validating them based on resource path and inspecting the HCL source code in their Terraform module. This stage also prepares artefacts for subsequent stages.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/terraform-changes.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 5 Terraform changes detected by Khone&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;terraform-stage&quot;&gt;Terraform stage&lt;/h4&gt;
+
+&lt;p&gt;This is a downstream pipeline that runs either the Terraform plan or Terraform apply command depending on the state of the MR, which can either be pending review or merged. &lt;a href=&quot;https://engineering.grab.com/how-we-reduced-our-ci-yaml&quot;&gt;Individual jobs run in parallel&lt;/a&gt; for each resource change, which helps with performance and reduces the overall pipeline run time.&lt;/p&gt;
+
+&lt;p&gt;For each individual job, we implemented multiple security checkpoints such as:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Code inspection&lt;/strong&gt;: We use the &lt;a href=&quot;https://pypi.org/project/python-hcl2/&quot;&gt;python-hcl2&lt;/a&gt; library to read HCL content of Terraform resources to perform validation, restrict the types of Terraform resources users can create, and ensure that resources have the intended configurations. We also validate whitelisted Terraform module source endpoint based on the declared resource type. This enables us to inherit the flexibility of Python as a programming language and perform validations more dynamically rather than relying on HCL functions.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Resource validation&lt;/strong&gt;: We validate configurations based on resource path to ensure users are following the correct and intended directory structure.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Linting and formatting&lt;/strong&gt;: Perform HCL code linting and formatting using Terraform CLI to ensure code consistency.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Furthermore, our Terraform module independently validates parameters by verifying the working directory instead of relying on user input, acting as an additional layer of defence for validation.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;path = one(regexall(join(&quot;/&quot;,
+[
+    &quot;^*&quot;,
+    &quot;(?P&amp;lt;repository&amp;gt;khone|khone-dev)&quot;,
+    &quot;resources&quot;,
+    &quot;(?P&amp;lt;namespace&amp;gt;[^/]*)&quot;,
+    &quot;(?P&amp;lt;resource_type&amp;gt;[^/]*)&quot;,
+    &quot;(?P&amp;lt;env&amp;gt;[^/]*)&quot;,
+    &quot;(?P&amp;lt;cluster_name&amp;gt;[^/]*)&quot;,
+    &quot;(?P&amp;lt;resource_name&amp;gt;[^/]*)$&quot;
+]), path.cwd))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;metric-stage&quot;&gt;Metric stage&lt;/h4&gt;
+
+&lt;p&gt;In this stage, we consolidate previous jobs’ status and publish our pipeline metrics such as success or error rate.&lt;/p&gt;
+
+&lt;p&gt;For our metrics, we identified actual users by omitting users from Coban. This helps us measure success metrics more consistently as we could isolate metrics from test continuous integration/continuous deployment (CI/CD) pipelines.&lt;/p&gt;
+
+&lt;p&gt;For the second half of 2022, we achieved a 100% uptime for Khone pipelines.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/success-metrics.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 6 Khone's success metrics for the second half of 2022&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;preventing-pipeline-config-tampering&quot;&gt;Preventing pipeline config tampering&lt;/h3&gt;
+
+&lt;p&gt;By default, with each repository on GitLab that has CI/CD pipelines enabled, owners or administrators would need to have a pipeline config file at the root directory of the repository with the name &lt;strong&gt;.gitlab-ci.yml&lt;/strong&gt;. Other scripts may also be stored somewhere within the repository.&lt;/p&gt;
+
+&lt;p&gt;With this setup, whenever a user creates an MR, if the pipeline config file is modified as part of the MR, the modified version of the config file will be immediately reflected in the pipeline’s run. Users can exploit this by running arbitrary code on the privileged GitLab runner.&lt;/p&gt;
+
+&lt;p&gt;In order to prevent this, we utilise GitLab’s &lt;a href=&quot;https://docs.gitlab.com/ee/ci/pipelines/settings.html#specify-a-custom-cicd-configuration-file&quot;&gt;remote pipeline config&lt;/a&gt; functionality. We have created another private repository, &lt;strong&gt;khone-admin&lt;/strong&gt;, and stored our pipeline config there.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-remote-pipeline-config.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 7 Khone's remote pipeline config&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Fig. 7, our configuration is set to a file called &lt;strong&gt;khone-gitlab-ci.yml&lt;/strong&gt; residing in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository under &lt;strong&gt;snd&lt;/strong&gt; group.&lt;/p&gt;
+
+&lt;h3 id=&quot;preventing-pipeline-scripts-tampering&quot;&gt;Preventing pipeline scripts tampering&lt;/h3&gt;
+
+&lt;p&gt;We had scripts that ran before the MR and they were approved and merged to perform preliminary checks or validations. They were also used to run the Terraform plan command. Users could modify these existing scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources.&lt;/p&gt;
+
+&lt;p&gt;This can be prevented by storing all of our scripts in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository and cloning them in each stage of our pipeline using the &lt;strong&gt;before_script&lt;/strong&gt; clause.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;default:
+  before_script:
+    - rm -rf khone_admin
+    - git clone --depth 1 --single-branch https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git khone_admin
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Even though this adds an overhead to each of our pipeline jobs and increases run time, the amount is insignificant as we have optimised the process by using shallow cloning. The Git clone command included in the above script with &lt;strong&gt;depth=1&lt;/strong&gt; and &lt;strong&gt;single-branch&lt;/strong&gt; flag has reduced the time it takes to clone the scripts down to only &lt;strong&gt;0.59 seconds&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;testing-our-pipeline&quot;&gt;Testing our pipeline&lt;/h3&gt;
+
+&lt;p&gt;With all the security measures implemented for Khone, this raises a question of how did we test the pipeline? We have done this by setting up an additional repository called &lt;strong&gt;khone-dev&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/repo-relationship.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 8 Repositories relationship&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;pipeline-config&quot;&gt;Pipeline config&lt;/h4&gt;
+
+&lt;p&gt;Within this &lt;strong&gt;khone-dev&lt;/strong&gt; repository, we have set up a remote pipeline config file following this format:&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;File Name&amp;gt;@&amp;lt;Repository Ref&amp;gt;:&amp;lt;Branch Name&amp;gt;&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-dev-remote.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 9 Khone-dev's remote pipeline config&lt;/i&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Fig. 9, our configuration is set to a file called &lt;strong&gt;khone-gitlab-ci.yml&lt;/strong&gt; residing in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository under the &lt;strong&gt;snd&lt;/strong&gt; group and under a branch named &lt;strong&gt;ci-test&lt;/strong&gt;. With this approach, we can test our pipeline config without having to merge it to master branch that affects the main Khone repository. As a security measure, we only allow users within a certain GitLab group to push changes to this branch.&lt;/p&gt;
+
+&lt;h4 id=&quot;pipeline-scripts&quot;&gt;Pipeline scripts&lt;/h4&gt;
+
+&lt;p&gt;Following the same method for pipeline scripts, instead of cloning from the master branch in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository, we have implemented a logic to clone them from the branch matching our lightweight directory access protocol (LDAP) user account if it exists. We utilised the &lt;strong&gt;GITLAB_USER_LOGIN&lt;/strong&gt; environment variable that is injected by GitLab to each individual CI job to get the respective LDAP account to perform this logic.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;default:
+  before_script:
+    - rm -rf khone_admin
+    - |
+      if git ls-remote --exit-code --heads &quot;https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git&quot; &quot;$GITLAB_USER_LOGIN&quot; &amp;gt; /dev/null; then
+        echo &quot;Cloning khone-admin from dev branch ${GITLAB_USER_LOGIN}&quot;
+        git clone --depth 1 --branch &quot;$GITLAB_USER_LOGIN&quot; --single-branch &quot;https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git&quot; khone_admin
+      else
+        echo &quot;Dev branch ${GITLAB_USER_LOGIN} not found, cloning from master instead&quot;
+        git clone --depth 1 --single-branch &quot;https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git&quot; khone_admin
+      fi
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;With security being our main focus for our Khone GitOps pipeline, we plan to abide by the &lt;a href=&quot;https://en.wikipedia.org/wiki/Principle_of_least_privilege&quot;&gt;principle of least privilege&lt;/a&gt; and implement separate GitLab runners for different types of resources and assign them with just enough IAM roles and policies, and minimal network security group rules to access our Kafka or Kubernetes clusters.&lt;/p&gt;
+
+&lt;p&gt;Furthermore, we also plan to maintain high standards and stability by including unit tests in our CI scripts to ensure that every change is well-tested before being deployed.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.gitlab.com/ee/ci/pipelines/settings.html#specify-a-custom-cicd-configuration-file&quot;&gt;Specify a custom CI/CD configuration file&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html&quot;&gt;IAM roles for service accounts&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://docs.gitlab.com/ee/user/project/code_owners.html&quot;&gt;GitLab code owners&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Fabrice Harbulot for kicking off this project and building a strong foundation for it.&lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 01 Mar 2023 02:23:05 +0000</pubDate>
+        <link>https://engineering.grab.com/securing-gitops-pipeline</link>
+        <guid isPermaLink="true">https://engineering.grab.com/securing-gitops-pipeline</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Open source</category>
+        
+        <category>Pipelines</category>
+        
+        <category>Continuous Delivery</category>
+        
+        <category>Continuous Integration</category>
+        
+        <category>Optimisation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>New zoom freezing feature for Geohash plugin</title>
@@ -1620,165 +1846,6 @@ We apply the Relational Graph Convolutional Network (RGCN) &lt;sup id=&quot;fnre
         <category>Engineering</category>
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>How we automated FAQ responses at Grab</title>
-        <description>&lt;h2 id=&quot;overview-and-initial-analysis&quot;&gt;Overview and initial analysis&lt;/h2&gt;
-
-&lt;p&gt;Knowledge management is often one of the biggest challenges most companies face internally. Teams spend several working hours trying to either inefficiently look for information or constantly asking colleagues about information already documented somewhere. A lot of time is spent on the internal employee communication channels (in our case, Slack) simply trying to figure out answers to repetitive questions. On our journey to automate the responses to these repetitive questions, we needed first to figure out exactly how much time and effort is spent by on-call engineers answering such repetitive questions.&lt;/p&gt;
-
-&lt;p&gt;We soon identified that many of the internal engineering tools’ on-call activities involve answering users’ (internal users) questions on various Slack channels. Many of these questions have already been asked or documented on the wiki. These inquiries hinder on-call engineers’ productivity and affect their ability to focus on operational tasks. Once we figured out that on-call employees spend a lot of time answering Slack queries, we decided on a journey to determine the top questions.&lt;/p&gt;
-
-&lt;p&gt;We considered smaller groups of teams for this study and found out that:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The topmost user queries are “How do I do ABC?” or “Is XYZ broken?”.&lt;/li&gt;
-  &lt;li&gt;The second most commonly asked questions revolve around access requests, approvals, or other permissions. The answer to such questions is often URLs to existing documentation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These findings informed us that we didn’t just need an artificial intelligence (AI) based autoresponder to repetitive questions. We must, in fact, also leverage these channels’ chat histories to identify patterns.&lt;/p&gt;
-
-&lt;h2 id=&quot;gathering-user-votes-for-shortlisted-vendors&quot;&gt;Gathering user votes for shortlisted vendors&lt;/h2&gt;
-
-&lt;p&gt;In light of saving costs and time and considering the quality of existing solutions already available in the market, we decided not to reinvent the wheel and instead purchase an existing product. And to figure out which product to purchase, we needed to do a comparative analysis. And thus began our vendor comparison journey!&lt;/p&gt;
-
-&lt;p&gt;While comparing the feature sets offered by different vendors, we understood that our users need to play a part in this decision-making process. However, sharing our vendor analysis with our users and allowing them to choose the bot of their choice posed several challenges:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Users could be biased towards known bots (from previous experiences).&lt;/li&gt;
-  &lt;li&gt;Users could be biased towards big brands with a preconceived notion that big brands mean better features and better user support.&lt;/li&gt;
-  &lt;li&gt;Users may likely pick the most expensive vendor, assuming that a higher cost means higher efficiency.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To ensure that we receive unbiased feedback, here’s how we opened users up to voting. We highlighted the top features of each vendor’s bot compared to other shortlisted bots. We hid the names of the bots to avoid brand attraction. At a high level, here’s what the categorisation looked like:&lt;/p&gt;
-
-&lt;table border=&quot;1&quot; style=&quot;text-align:center;&quot;&gt;
-  &lt;tr&gt;
-    &lt;td&gt;&lt;strong&gt;Features&lt;/strong&gt;&lt;/td&gt;
-    &lt;td&gt;&lt;strong&gt;Vendor 1 (name  hidden)&lt;/strong&gt;&lt;/td&gt;
-    &lt;td&gt;&lt;strong&gt;Vendor 2 (name  hidden)&lt;/strong&gt;&lt;/td&gt;
-    &lt;td&gt;&lt;strong&gt;Vendor 3 (name  hidden)&lt;/strong&gt;&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Enables crowdsourcing, everyone is incentivised to participate. &lt;br /&gt; Participants/SME names are visible. &lt;br /&gt; Everyone can access the web UI and see how the responses configured on the bot.&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-    &lt;td&gt;-&lt;/td&gt;
-    &lt;td&gt;-&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Lowers discussions on channels by providing easy ways to raise tickets to the team instead of discussing on Slack.&lt;/td&gt;
-    &lt;td&gt;-&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Only a specific set of admins (or oncall engineers) feed and maintain the bot thus ensuring information authenticity and reliability.&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Easy bot feeding mechanism/web UI to update FAQs.&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-    &lt;td&gt;-&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Superior natural language processing capabilities.&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-    &lt;td&gt;&lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt; &lt;img src=&quot;/img/automated-faq/image1.png&quot; alt=&quot;&quot; style=&quot;width:10%&quot; /&gt;&lt;/td&gt;
-    &lt;td&gt;-&lt;/td&gt;    
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Please vote&lt;/td&gt;
-    &lt;td&gt;Vendor 1&lt;/td&gt;
-    &lt;td&gt;Vendor 2&lt;/td&gt;
-    &lt;td&gt;Vendor 3&lt;/td&gt;    
-  &lt;/tr&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
-
-&lt;p&gt;Although none of the options had all the features our users wanted, &lt;strong&gt;&lt;em&gt;about 60% chose Vendor 1 (&lt;a href=&quot;https://onebar.io/&quot;&gt;OneBar&lt;/a&gt;)&lt;/em&gt;&lt;/strong&gt;. From this, we discovered the core features that our users needed while keeping them involved in the decision-making process.&lt;/p&gt;
-
-&lt;h3 id=&quot;matching-our-requirements-with-available-vendors-feature-sets&quot;&gt;Matching our requirements with available vendors’ feature sets&lt;/h3&gt;
-
-&lt;p&gt;Although our users made their preferences clear, we still needed to ensure that the feature sets available in the market suited our internal requirements in terms of the setup and the features available in portals that we envisioned replacing. As part of our requirements gathering process, here are some of the critical conditions that became more and more prominent:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;An ability to crowdsource Slack discussions/conclusions and save them directly from Slack (preferably with a single command).&lt;/li&gt;
-  &lt;li&gt;An ability to auto-respond to Slack queries without calling the bot manually.&lt;/li&gt;
-  &lt;li&gt;The bot must be able to respond to queries only on the preconfigured Slack channel (not a Slack-wide auto-responder that is already available).&lt;/li&gt;
-  &lt;li&gt;Ability to auto-detect frequently asked questions on the channels would mean less work for platform engineers to feed the bot manually and periodically.&lt;/li&gt;
-  &lt;li&gt;A trusted and secured data storage setup and a responsive customer support team.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;proof-of-concept&quot;&gt;Proof of concept&lt;/h2&gt;
-
-&lt;p&gt;We considered several tools (including some of the tools used by our HR for auto-answering employee questions). We then decided to do a complete proof of concept (POC) with OneBar to check if it fulfils our internal requirements.&lt;/p&gt;
-
-&lt;p&gt;These were the phases in which we conducted the POC for the shortlisted vendor (OneBar):&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Phase 1&lt;/strong&gt;: Study the traffic, see what insights OneBar shows and what it could/should potentially show. Then think about how an ideal oncall or support should behave in such an environment. i.e. we could identify specific messages in history and describe what should’ve happened to each one of them.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Phase 2&lt;/strong&gt;: Create required records in OneBar and configure it to match the desired behaviour as closely as possible.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Phase 3&lt;/strong&gt;: Let the tool run for a couple of weeks and then evaluate how well it responds to questions, how often people search directly, how much information they add, etc. Onebar adds all these metrics in the app making it easier to monitor activity.&lt;/p&gt;
-
-&lt;p&gt;In addition to the Onebar POC, we investigated other solutions and did a thorough vendor comparison and analysis. After running the POC and investigating other vendors, we decided to use OneBar as its features best meet our needs.&lt;/p&gt;
-
-&lt;h3 id=&quot;prioritising-slack-channels&quot;&gt;Prioritising Slack channels&lt;/h3&gt;
-
-&lt;p&gt;While we had multiple Slack channels that we’d love to have enabled the shortlisted bot on, our initial contract limited our use of the bot to only 20 channels. We could not use OneBar to auto-scan more than 20 Slack channels.&lt;/p&gt;
-
-&lt;p&gt;Users could still chat directly with the bot to get answers to FAQs based on what was fed to the bot’s knowledge base (KB). They could also access the web login, which displays its KB, other valuable features, and additional features for admins/experts.&lt;/p&gt;
-
-&lt;p&gt;Slack channels that we enabled the licensed features on were prioritised based on:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Most messages sent on the channel per month, i.e. most active channels.&lt;/li&gt;
-  &lt;li&gt;Most members impacted, i.e. channels with a large member count.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To do this, we used Slack analytics reports and identified the channels that fit our prioritisation criteria.&lt;/p&gt;
-
-&lt;h3 id=&quot;change-is-difficult-but-often-essential&quot;&gt;Change is difficult but often essential&lt;/h3&gt;
-
-&lt;p&gt;Once we’d onboarded the vendor, we began training and educating employees on using this new Knowledge Management system for all their FAQs. It was a challenge as change is always complex but essential for growth.&lt;/p&gt;
-
-&lt;p&gt;A series of tech talks and training conducted across the company and at more minor scales also helped guide users about the bot’s features and capabilities.&lt;/p&gt;
-
-&lt;p&gt;At the start, we suffered from a lack of data resulting in incorrect responses from the bot. But as the team became increasingly aware of the features and learned more about its capabilities, the bot’s number of KB items grew, resulting in a much more efficient experience. It took us around one quarter to feed the bot consistently to see accurate and frequent responses from it.&lt;/p&gt;
-
-&lt;h2 id=&quot;crowdsourcing-our-internal-glossary&quot;&gt;Crowdsourcing our internal glossary&lt;/h2&gt;
-
-&lt;p&gt;With an increasing number of acronyms and company-specific words emerging each year, the number of acronyms and company-specific abbreviations that new joiners face is immense.&lt;/p&gt;
-
-&lt;p&gt;We solved this issue by using the bot’s channel-specific KB feature. We created a specific Slack channel dedicated to storing and retrieving definitions of acronyms and other words. This solution turned out to be a big hit with our users.&lt;/p&gt;
-
-&lt;p&gt;And who fed the bot with the terms and glossary items? Who better than our onboarding employees to train the bot to help other onboarders. A targeted campaign dedicated to feeding the bot excited many of our onboarders. They began to play around with the bot’s features and provide it with as many glossary items as possible, thus winning swags!&lt;/p&gt;
-
-&lt;p&gt;In a matter of weeks, the user base grew from a couple of hundred to around 3000. This effort was also called out in one of our company-wide All Hands meetings, a big win for our team!&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 13 Jul 2022 00:20:55 +0000</pubDate>
-        <link>https://engineering.grab.com/automated-faq</link>
-        <guid isPermaLink="true">https://engineering.grab.com/automated-faq</guid>
-        
-        <category>Automation</category>
-        
-        <category>Knowledge management</category>
-        
-        <category>Productivity</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
