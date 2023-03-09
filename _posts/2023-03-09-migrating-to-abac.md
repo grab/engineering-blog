@@ -28,7 +28,7 @@ For internal access management, Grab uses its own Identity and Access Management
 
 In RBAC, roles, permissions, actions, resources, and the relationships between them need to be defined in the IAM service. They are used to determine whether a user can access a certain resource.
 
-In the following example, we can see how IAM concepts come together. The `Coban engineer` role belongs to the `Engineering-coban` group and has permission to update the retention topic. Any engineer added to the `Engineering-coban` group will also be able to update the topic `retention`.
+In the following example, we can see how IAM concepts come together. The `Coban engineer` role belongs to the `Engineering-coban` group and has permission to update the topic's retention. Any engineer added to the `Engineering-coban` group will also be able to update the topic's retention.
 
 <div class="post-image-section"><figure>
   <img src="/img/migrating-to-abac/image5.png" alt="" style="width:60%"><figcaption align="middle"></figcaption>
