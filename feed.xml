@@ -6,9 +6,224 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 01 Mar 2023 04:59:04 +0000</pubDate>
-    <lastBuildDate>Wed, 01 Mar 2023 04:59:04 +0000</lastBuildDate>
+    <pubDate>Thu, 09 Mar 2023 04:34:01 +0000</pubDate>
+    <lastBuildDate>Thu, 09 Mar 2023 04:34:01 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Migrating from Role to Attribute-based Access Control</title>
+        <description>&lt;p&gt;Grab has always regarded security as one of our top priorities; this is especially important for data platform teams. We need to control access to data and resources in order to protect our consumers and ensure compliance with various, continuously evolving security standards.&lt;/p&gt;
+
+&lt;p&gt;Additionally, we want to keep the process convenient, simple, and easily scalable for teams. However, as Grab continues to grow, we have more services and resources to manage and it becomes increasingly difficult to keep the process frictionless. That’s why we decided to move from Role-Based Access Control (RBAC) to Attribute-Based Access Control (ABAC) for our Kafka Control Plane (KCP).&lt;/p&gt;
+
+&lt;p&gt;In this article, you will learn how Grab’s streaming data platform team (Coban) deleted manual role and permission management of hundreds of roles and resources, and reduced operational overhead of requesting or approving permissions to zero by moving from RBAC to ABAC.&lt;/p&gt;
+
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Kafka is widely used across Grab teams as a streaming platform. For decentralised Kafka resource (e.g. topic) management, teams have the right to create, update, or delete based on their needs. As the data platform team, we implemented a KCP to ensure that these operations are only performed by authorised parties, especially on multi-tenant Kafka clusters.&lt;/p&gt;
+
+&lt;p&gt;For internal access management, Grab uses its own Identity and Access Management (IAM) service, based on RBAC, to support authentication and authorisation processes:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Authentication&lt;/strong&gt; verifies the identity of a user or service, for example, if the provided token is valid or expired.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Authorisation&lt;/strong&gt; determines their access rights, for example, whether users can only update and/or delete their own Kafka topics.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In RBAC, roles, permissions, actions, resources, and the relationships between them need to be defined in the IAM service. They are used to determine whether a user can access a certain resource.&lt;/p&gt;
+
+&lt;p&gt;In the following example, we can see how IAM concepts come together. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Coban engineer&lt;/code&gt; role belongs to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Engineering-coban&lt;/code&gt; group and has permission to update the retention topic. Any engineer added to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Engineering-coban&lt;/code&gt; group will also be able to update the topic &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;retention&lt;/code&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/migrating-to-abac/image5.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Following the same concept, each team using the KCP has its own roles, permissions, and resources created in the system. However, there are some disadvantages to this approach:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;It leads to a significant growth in the number of access control artifacts both platform and user teams need to manage, and increased time and effort to debug access control issues. We start off by finding which group the engineer belongs to and locating the group that should be used for KCP, and then trace to role and permissions.&lt;/li&gt;
+  &lt;li&gt;All group membership access requests of new joiners need to be reviewed and approved by their direct managers. This leads to a lot of backlog as new joiners might have multiple groups to join and managers might not be able to review them timely. In some cases, roles need to be re-applied or renewed every 90 days, which further adds to the delay.&lt;/li&gt;
+  &lt;li&gt;Group memberships are not updated to reflect active members in the team, leaving some engineers with access they don’t need and others with access they should have but don’t.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;With ABAC, access management becomes a lot easier. Any new joiner to a specific team gets the same access rights as everyone on that team – no need for manual approval from a manager. However, for ABAC to work, we need these components in place:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;User attributes: Who is the subject (actor) of a request?&lt;/li&gt;
+  &lt;li&gt;Resource attributes: Which object (resource) does the actor want to deal with?&lt;/li&gt;
+  &lt;li&gt;Evaluation engine: How do we decide if the actor is allowed to perform the action on the resource?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;User attributes&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;All users have certain attributes depending on the department or team they belong to. This data is then stored and synced automatically with the human resource management system (HRMS) tool, which acts as a source of truth for Grab-wide data, every time a user switches teams, roles, or leaves the company.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Resource attributes&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Resource provisioning is an authenticated operation. This means that KCP knows who sent the requests and what each request/action is about. Similarly, resource attributes can be derived from their creators. For new resource provisioning, it is possible to capture the resource tags and store them after authentication. For existing resources, a major challenge was the need to backfill the tagging and ensure a seamless transition from the user’s perspective. In the past, all resource provisioning operations were done by a centralised platform team and most of the existing resource attributes are still under platform team’s ownership.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Evaluation engine&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;We chose to use &lt;a href=&quot;https://www.openpolicyagent.org/&quot;&gt;Open Policy Agent&lt;/a&gt; (OPA) as our policy evaluation engine mainly for its wide community support, applicable feature set, and extensibility to other tools and platforms in our system. This is also currently used by our team for &lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Kafka authorisation&lt;/a&gt;. The policies are written in &lt;a href=&quot;https://www.openpolicyagent.org/docs/latest/policy-language/&quot;&gt;Rego&lt;/a&gt;, the default language supported by OPA.&lt;/p&gt;
+
+&lt;h2 id=&quot;architectureand-implementation&quot;&gt;Architecture and implementation&lt;/h2&gt;
+
+&lt;p&gt;With ABAC, the access control process looks like this:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/migrating-to-abac/image6.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;user-attributes&quot;&gt;User attributes&lt;/h4&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/migrating-to-abac/image4.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Authentication is handled by the IAM service. In the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/generate_token&lt;/code&gt; call, a user requests an authentication token from KCP before calling an authenticated endpoint. KCP then calls IAM to generate a token and returns it to the user.&lt;/p&gt;
+
+&lt;p&gt;In the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/create_topic&lt;/code&gt; call, the user includes the generated token in the request header. KCP takes the token and verifies the token validity with IAM. User attributes are then extracted from the token payload for later use in request authorisation.&lt;/p&gt;
+
+&lt;p&gt;Some of the common attributes we use for our policy are &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;user identifier&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;department code&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;team code&lt;/code&gt;, which provide details like a user’s department and work scope.&lt;/p&gt;
+
+&lt;p&gt;When it comes to data governance and central platform and identity teams, one of the major challenges was standardising the set of attributes to be used for clear and consistent ABAC policies across platforms so that their lifecycle and changes could be governed. This was an important shift in the mental model for attribute management over the RBAC model.&lt;/p&gt;
+
+&lt;h4 id=&quot;resource-attributes&quot;&gt;Resource attributes&lt;/h4&gt;
+
+&lt;p&gt;For newly created resources, attributes will be derived from user attributes that are captured during the authentication process.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/migrating-to-abac/image3.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Previously with RBAC, existing resources did not have the required attributes. Since migrating to ABAC, the implementation has tagged newly created resources and ensured that their attributes are up to standard. IAM was also still doing the actual authorisation using RBAC.&lt;/p&gt;
+
+&lt;p&gt;It is also important to note that we collaborated with data governance teams to backfill Kafka resource ownership. Having accurate ownership of resources like data lake or Kafka topics enabled us to move toward a self-service model and remove bottlenecks from centralised platform teams.&lt;/p&gt;
+
+&lt;p&gt;After identifying most of the resource ownership, we started switching over to ABAC. The transition was smooth and had no impact on user experience. The remaining unidentified resources were tagged to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;lost-and-found&lt;/code&gt; and could be reclaimed by service teams when they needed permission to manage them.&lt;/p&gt;
+
+&lt;h4 id=&quot;open-policy-agent&quot;&gt;Open Policy Agent&lt;/h4&gt;
+
+&lt;p&gt;The most common question when implementing the policy is “how do you define ownership by attributes?”. With respect to the principle of least privilege, each policy must be sufficiently strict to limit access to only the relevant parties. In the end, we aligned as an organisation on defining ownership by department and team.&lt;/p&gt;
+
+&lt;p&gt;We created a simple example below to demonstrate how to define a policy:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;package authz
+
+import future.keywords
+
+default allow = false
+
+allow if {
+        input.endpoint == &quot;updateTopic&quot;
+        is_owner(input.resource_attributes)
+}
+
+is_owner(md) if {
+        md.department == input.user_attributes.department
+        md.team == input.user_attributes.team
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In this example, we start with denying access to everyone. If the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updateTopic&lt;/code&gt; endpoint is called and the department and team attributes between user and resource are matched, access is allowed.&lt;/p&gt;
+
+&lt;p&gt;With a similar scenario, we would need 1 role, 1 action, 1 resource, and 1 mapping (a.k.a permission) between action and resource. We will need to keep adding resources and permissions when we have new resources created. Compared to the policy above, no other changes are required.&lt;/p&gt;
+
+&lt;p&gt;With ABAC, there are no further setup or access requests needed when a user changes teams. The user will be tagged to different attributes, automatically granted access to the new team’s resources, and excluded from the previous team’s resources.&lt;/p&gt;
+
+&lt;p&gt;Another consideration we had was making sure that the policy is well-written and transparent in terms of change history. We decided to include this as part of our application code so every change is accounted for in the unit test and review process.&lt;/p&gt;
+
+&lt;h4 id=&quot;authorisation&quot;&gt;Authorisation&lt;/h4&gt;
+
+&lt;p&gt;The last part of the ABAC process is authorisation logic. We added the logic to the middleware so that we could make a call to OPA for authorisation.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/migrating-to-abac/image2.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;To ensure token validity after authentication, KCP extracts user attributes from the token payload and fetches resource attributes from the resource store. It combines the request metadata such as method and endpoint, along with the user and resource attributes into an OPA request. OPA then evaluates the request based on the redefined policy above and returns a response.&lt;/p&gt;
+
+&lt;h2 id=&quot;auditability&quot;&gt;Auditability&lt;/h2&gt;
+
+&lt;p&gt;For ABAC authorisation, there are two key areas of consideration:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Who made changes to the policy, who deployed, and when the change was made&lt;/li&gt;
+  &lt;li&gt;Who accessed what resource and when&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We manage policies in a dedicated GitLab repository and changes are submitted via merge requests. Based on the commit history, we can easily tell who made changes, reviewed, approved, and deployed the policy. &lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/migrating-to-abac/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;For resource access, OPA produces a decision log containing user attributes, resource attributes, and the authorisation decision for every call it serves. The log is kept for five days in Kibana for debugging purposes, then moved to S3 where it is kept for 28 days.&lt;/p&gt;
+
+&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
+
+&lt;p&gt;The move to ABAC authorisation has improved our controls as compared to the previous RBAC model, with the biggest impact being fewer resources to manage. Some other benefits include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Optimised resource allocation: Discarded over 200 roles, 200 permissions, and almost 3000 unused resources from IAM services, simplifying our debugging process. Now, we can simply check the user and resource attributes as needed.&lt;/li&gt;
+  &lt;li&gt;Simplified resource management: In the three months we have been using ABAC, about 600 resources have been added without any increase in complexity for authorisation, which is significantly lesser than the RBAC model.&lt;/li&gt;
+  &lt;li&gt;Reduction in delays and waiting time: Engineers no longer have to wait for approval for KCP access.&lt;/li&gt;
+  &lt;li&gt;Better governance over resource ownership and costs: ABAC allowed us to have a standardised and accurate tagging system of almost 3000 resources.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;learnings&quot;&gt;Learnings&lt;/h2&gt;
+
+&lt;p&gt;Although ABAC does provide significant improvements over RBAC, it comes with its own caveats:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;It needs a reliable and comprehensive attribute tagging system to function properly. This only became possible after roughly three months of identifying and tagging the ownership of existing resources by both automated and manual methods.&lt;/li&gt;
+  &lt;li&gt;Tags should be kept up to date with the company’s growth. Teams could lose access to their resources if they are wrongly tagged. It needs a mechanism to keep up with changes, or people will unexpectedly lose access when user and resource attributes are changed.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;To keep up with organisational growth, KCP needs to start listening to the IAM stream, which is where all IAM changes are published. This will allow KCP to regularly update user attributes and refresh resource attributes when restructuring occurs, allowing authorisation to be done with the right data.&lt;/li&gt;
+  &lt;li&gt;Constant collaboration with HR to ensure that we maintain sufficient user attributes (no extra unused information) that remain clean so ABAC works as expected.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.openpolicyagent.org/&quot;&gt;OPA&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.openpolicyagent.org/docs/latest/policy-language/&quot;&gt;Rego&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Zero trust with Kafka&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 09 Mar 2023 01:23:05 +0000</pubDate>
+        <link>https://engineering.grab.com/migrating-to-abac</link>
+        <guid isPermaLink="true">https://engineering.grab.com/migrating-to-abac</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Access control</category>
+        
+        <category>Security</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Security</category>
+        
+      </item>
     
       <item>
         <title>Securing GitOps pipelines</title>
@@ -1612,235 +1827,6 @@ We apply the Relational Graph Convolutional Network (RGCN) &lt;sup id=&quot;fnre
         <category>Backtesting</category>
         
         <category>Data science</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>How we store and process millions of orders daily</title>
-        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
-
-&lt;p&gt;In the real world, after a passenger places a GrabFood order from the Grab App, the merchant-partner will prepare the order. A driver-partner will then collect the food and deliver it to the passenger. Have you ever wondered what happens in the backend system? The Grab Order Platform is a distributed system that processes millions of GrabFood or GrabMart orders every day. This post aims to share the journey of how we designed the database solution that powers the order platform.&lt;/p&gt;
-
-&lt;h1 id=&quot;background&quot;&gt;Background&lt;/h1&gt;
-
-&lt;p&gt;What are the design goals when building the database solution? We collected the requirements by analysing query patterns and traffic patterns.&lt;/p&gt;
-
-&lt;h3 id=&quot;query-patterns&quot;&gt;Query patterns&lt;/h3&gt;
-
-&lt;p&gt;Here are some important query examples that the Order Platform supports:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Write queries:&lt;/p&gt;
-
-    &lt;p&gt;a.  Create an order.&lt;/p&gt;
-
-    &lt;p&gt;b.  Update an order.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Read queries:&lt;/p&gt;
-
-    &lt;p&gt;a.  Get order by id.&lt;/p&gt;
-
-    &lt;p&gt;b.  Get ongoing orders by passenger id.&lt;/p&gt;
-
-    &lt;p&gt;c.  Get historical orders by various conditions.&lt;/p&gt;
-
-    &lt;p&gt;d.  Get order statistics (for example, get the number of orders)&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;We can break down queries into two categories: transactional queries and analytical queries. Transactional queries are critical to online order creation and completion, including the write queries and read queries such as 2a or 2b. Analytical queries like 2c and 2d retrieves historical orders or order statistics on demand. Analytical queries are not essential to the oncall order processing.&lt;/p&gt;
-
-&lt;h3 id=&quot;traffic-patterns&quot;&gt;Traffic patterns&lt;/h3&gt;
-
-&lt;p&gt;Grab’s Order Platform processes a significant amount of transaction data every month.&lt;/p&gt;
-
-&lt;p&gt;During peak hours, the write Queries per Second (QPS) is three times of primary key reads; whilst the range Queries per Second are four times of the primary key reads.&lt;/p&gt;
-
-&lt;h3 id=&quot;design-goals&quot;&gt;Design goals&lt;/h3&gt;
-
-&lt;p&gt;From the query and traffic patterns, we arrived at the following three design goals:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Stability&lt;/strong&gt; - the database solution must be able to handle high read and write QPS. Online order processing queries must have high availability. Even when some part of the system is down, we must be able to provide a degraded experience to the end users allowing them to still be able to create and complete an order.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Scalability and cost&lt;/strong&gt; - the database solution must be able to support fast evolution of business requirements, given now we handle up to a million orders per month. The solution must also be cost effective at a large scale.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Consistency&lt;/strong&gt; - strong consistency for transactional queries, and eventually consistency for analytical queries.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h1 id=&quot;solution&quot;&gt;Solution&lt;/h1&gt;
-
-&lt;p&gt;The first design principle towards a stable and scalable database solution is to use different databases to serve transactional and analytical queries, also known as OLTP and OLAP queries. An OLTP database serves queries critical to online order processing. This table keeps data for only a short period of time. Meanwhile, an OLAP database has the same set of data, but serves our historical and statistical queries. This database keeps data for a longer time.&lt;/p&gt;
-
-&lt;p&gt;What are the benefits from this design principle? From a stability point of view, we can choose different databases which can better fulfil our different query patterns and QPS requirements. An OLTP database is the single source of truth for online order processing; any failure in the OLAP database will not affect online transactions. From a scalability and cost point of view, we can choose a flexible database for OLAP to support our fast evolution of business requirements. We can maintain less data in our OLTP database while keeping some older data in our OLAP database.&lt;/p&gt;
-
-&lt;p&gt;To ensure that the data in both databases are consistent, we introduced the second design principle - data ingestion pipeline. In Figure 1, Order Platform writes data to the OLTP database to process online orders and asynchronously pushes the data into the data ingestion pipeline. The data ingestion pipeline ensures that the OLAP database data is eventually consistent.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/how-we-store-millions-orders/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: Order Platform database solution overview&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h2&gt;
-
-&lt;h3 id=&quot;oltp-database&quot;&gt;OLTP database&lt;/h3&gt;
-
-&lt;p&gt;There are two categories of OLTP queries, the key-value queries (for example, load by order id) and the batch queries (for example, Get ongoing orders by passenger id). We use DynamoDB as the database to support these OLTP queries.&lt;/p&gt;
-
-&lt;p&gt;Why DynamoDB?&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Scalable and highly available: the tables of DynamoDB are partitioned and each partition is three-way replicated.&lt;/li&gt;
-  &lt;li&gt;Support for strong consistent reads by primary key.&lt;/li&gt;
-  &lt;li&gt;DynamoDB has a mechanism called adaptive capacity to handle hotkey traffic. Internally, DynamoDB will distribute higher capacity to high-traffic partitions, and isolate frequently accessed items to a dedicated partition. This way, the hotkey can utilise the full capacity of an entire partition, which is up to 3000 read capacity units and 1000 write capacity units.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/how-we-store-millions-orders/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: DynamoDB table structure overview. Source:  &lt;a href=&quot;#aws&quot;&gt;Amazon Web Services (2019, 28 April)&lt;/a&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In each DynamoDB table, it has many items with attributes. In each item, it has a partition key and sort key. The partition key is used for key-value queries, and the sort key is used for range queries. In our case, the table contains multiple order items. The partition key is order ID. We can easily support key-value queries by the partition key.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;order_id (PK)&lt;/th&gt;
-      &lt;th&gt;state&lt;/th&gt;
-      &lt;th&gt;pax_id&lt;/th&gt;
-      &lt;th&gt;created_at&lt;/th&gt;
-      &lt;th&gt;pax_id_gsi&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;order1&lt;/td&gt;
-      &lt;td&gt;Ongoing&lt;/td&gt;
-      &lt;td&gt;Alice&lt;/td&gt;
-      &lt;td&gt;9:00am&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;order2&lt;/td&gt;
-      &lt;td&gt;Ongoing&lt;/td&gt;
-      &lt;td&gt;Alice&lt;/td&gt;
-      &lt;td&gt;9:30am&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;order3&lt;/td&gt;
-      &lt;td&gt;Completed&lt;/td&gt;
-      &lt;td&gt;Alice&lt;/td&gt;
-      &lt;td&gt;8:30am&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;Batch queries like ‘Get ongoing orders by passenger id’ are supported by DynamoDB Global Secondary Index (GSI). A GSI is like a normal DynamoDB table, which also has keys and attributes.&lt;/p&gt;
-
-&lt;p&gt;In our case, we have a GSI table where the partition key is the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pax_id_gsi&lt;/code&gt;. The attribute &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pax_id_gsi&lt;/code&gt; is linked to the main table. It is eventually consistent with the main table that is maintained by DynamoDB. If the Order Platform queries ongoing orders for Alice, two items will be returned from the GSI table.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;pax_id_gsi (PK)&lt;/th&gt;
-      &lt;th&gt;created_at (SK)&lt;/th&gt;
-      &lt;th&gt;order_id&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Alice&lt;/td&gt;
-      &lt;td&gt;9:00am&lt;/td&gt;
-      &lt;td&gt;order1&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Alice&lt;/td&gt;
-      &lt;td&gt;9:30am&lt;/td&gt;
-      &lt;td&gt;order2&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;We also make use of an advanced feature of GSI named sparse index to support ongoing order queries. When we update order status from ongoing to completed, at the same time, we set the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pax_id_gsi&lt;/code&gt; to empty, so that the linked item in the GSI will be automatically deleted by DynamoDB. At any time, the GSI table only stores the ongoing orders. We use a sparse index mechanism to control our table size for better performance and to be more cost effective.&lt;/p&gt;
-
-&lt;p&gt;The next problem is data retention. This is achieved with the DynamoDB Time To Live (TTL) feature. DynamoDB will auto-scan expired items and delete them. But the challenge is when we add TTL to big tables, it will bring a heavy load to the background scanner and might result in an outage. Our solution is to only add a TTL attribute to the new items in the table. Then, we manually delete the items without TTL attributes, and run a script to delete items with TTL attributes that are too old. After this process, the table size will be quite small, so we can enable the TTL feature on the TTL attribute that we previously added without any concern. The retention period of our DynamoDB data is three months.&lt;/p&gt;
-
-&lt;p&gt;Costwise, DynamoDB is charged by storage size and the provision of the read write capability. The provision capability is actually auto scalable. The cost is on-demand. So it’s generally cheaper than RDS.&lt;/p&gt;
-
-&lt;h3 id=&quot;olap-database&quot;&gt;OLAP database&lt;/h3&gt;
-
-&lt;p&gt;We use MySQL RDS as the database to support historical and statistical OLAP queries.&lt;/p&gt;
-
-&lt;p&gt;Why not Aurora? We choose RDS mainly because it is a mature database solution. Even if Aurora can provide better high-availability, RDS is enough to support our less critical use cases. Costwise, Aurora charges by data storage and the number of requested Input/Output Operations per Second (IOPS). RDS charges only by data storage. As we are using General Purpose (SSD) storage, IOPS is free and supports up to 16k IOPS.&lt;/p&gt;
-
-&lt;p&gt;We use MySQL partitioning for data retention. The order table is partitioned by creation time monthly. Since the data access pattern is mostly by month, the partition key can reduce cross-partition queries. Partitions older than six months are dropped at the beginning of each month.&lt;/p&gt;
-
-&lt;h3 id=&quot;data-ingestion-pipeline&quot;&gt;Data ingestion pipeline&lt;/h3&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/how-we-store-millions-orders/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3: Data Ingestion Pipeline Architecture.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;A Kafka stream is used to process data in the data ingestion pipeline. We choose the Kafka stream, because it has 99.95% SLA. It is not restricted by the OLTP and OLAP database types.&lt;/p&gt;
-
-&lt;p&gt;Even if Kafka can provide 99.95% SLA, there is still the chance of stream producer failures. When the producer fails, we will store the message in an Amazon Simple Queue Service (SQS) and retry. If the retry also fails, it will be moved to the SQS dead letter queue (DLQ), to be consumed at a later time.&lt;/p&gt;
-
-&lt;p&gt;On the stream consumer side, we use back-off retry at both stream and database levels to ensure consistency. In a worst-case scenario, we can rewind the stream events from Kafka.&lt;/p&gt;
-
-&lt;p&gt;It is important for the data ingestion pipeline to handle duplicate messages and out-of-order messages.&lt;/p&gt;
-
-&lt;p&gt;Duplicate messages are handled by the database level unique key (for example, order ID + creation time).&lt;/p&gt;
-
-&lt;p&gt;For the out-of-order messages, we implemented the following two mechanisms:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Version update: we only update the most recently updated data. The precision of the update time is in microseconds, which is enough for most of the use cases.&lt;/li&gt;
-  &lt;li&gt;Upsert: if the update events occur before the create events, we simulate an upsert operation.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
-
-&lt;p&gt;After launching our solution this year, we have saved significantly on cloud costs. In the earlier solution, Order Platform synchronously writes to DynamoDB and Aurora and the data is kept forever.&lt;/p&gt;
-
-&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
-
-&lt;p&gt;In terms of stability, we use DynamoDB as the critical OLTP database to ensure high availability for online order processing. Scalability wise, we use RDS as the OLAP database to support our quickly evolving business requirements by using a rich, multiple index. Cost efficiency is achieved by data retention in both databases. For consistency, we built a single source of truth OLTP database and an OLAP database that is eventually consistent with the help of the data ingestion pipeline.&lt;/p&gt;
-
-&lt;h1 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h1&gt;
-
-&lt;p&gt;Currently, the database solution is running on the production environment. Even though the database solution is proven to be stable, scalable and consistent, we still see some potential areas of improvement.&lt;/p&gt;
-
-&lt;p&gt;We use MySQL RDS for OLAP data storage. Even though MySQL is stable and cost effective, it is difficult to serve more complicated queries like free text search. Hence, we plan to explore other NoSQL databases like ElasticSearch.&lt;/p&gt;
-
-&lt;p&gt;We hope this post helps you understand how we store Grab orders and fulfil the queries from the Grab Order Platform.&lt;/p&gt;
-
-&lt;h1 id=&quot;references&quot;&gt;References&lt;/h1&gt;
-
-&lt;!-- Figure 2, DynamoDB overview is taken from [Getting Started with Amazon DynamoDB](https://www.slideshare.net/AmazonWebServices/getting-started-with-amazon-dynamodb-63948367), authored by Amazon Web Services. --&gt;
-
-&lt;p&gt;&lt;a id=&quot;aws&quot;&gt;Amazon Web Services. (2019, 28 April) &lt;em&gt;Build with DynamoDB: S1 E1 – Intro to Amazon DynamoDB&lt;/em&gt; [Video]. &lt;a href=&quot;https://youtu.be/W3S1OnDqWl4?t=455&quot;&gt;YouTube&lt;/a&gt;.&lt;/a&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Mon, 15 Aug 2022 00:55:55 +0000</pubDate>
-        <link>https://engineering.grab.com/how-we-store-millions-orders</link>
-        <guid isPermaLink="true">https://engineering.grab.com/how-we-store-millions-orders</guid>
-        
-        <category>Database</category>
-        
-        <category>Storage</category>
-        
-        <category>Distributed Systems</category>
-        
-        <category>Platform</category>
         
         
         <category>Engineering</category>
