@@ -66,7 +66,7 @@ Here’s a quick summary of our exploration:
 <tr>
   <td style="padding: 20px">Others</td>
   <td style="padding: 20px">Composition API, strong community (<a href="https://vue-community.org/">Vue Community</a>)</td>
-  <td style="padding: 20px">Latest version (v18) of React Hooks, gradual updates, doesn’t support IE</td>
+  <td style="padding: 20px">Latest version (v18) of React gradual updates, doesn’t support IE</td>
 </tr>
 </table>
 
