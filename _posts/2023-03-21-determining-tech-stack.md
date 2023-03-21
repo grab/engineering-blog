@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2023-03-22-determining-tech-stack
+id: 2023-03-21-determining-tech-stack
 title: Determine the best technology stack for your web-based projects
-date: 2023-03-20 01:23:05
+date: 2023-03-21 01:23:05
 authors: [george-matthew, sandy-ys]
 categories: [Engineering, Design]
 tags: [Engineering, Technology stack, Exploration]
