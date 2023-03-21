@@ -15,7 +15,7 @@ In the current technology landscape, startups are developing rapidly. This usual
 
 Having different technology stacks within a team could lead to a bigger problem in the future, especially if documentation is not well-maintained. The best course of action is to pick just one technology stack for your projects, but it begs the question, **"How do I choose the best technology stack for my projects?"**. 
 
-We share our process and analysis to determine the best technology stack that complies with precise standards. By the end of the article, you may also learn to choose the best technology stack for your needs.
+One such example is OVO, which is an Indonesian payments, rewards, and financial services platform within Grab. We share our process and analysis to determine the best technology stack that complies with precise standards. By the end of the article, you may also learn to choose the best technology stack for your needs.
 
 ## Background
 
