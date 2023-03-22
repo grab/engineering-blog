@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2023-03-21-determining-tech-stack
-title: Determine the best technology stack for your web-based projects
+title: How OVO determined the right technology stack for their web-based projects
 date: 2023-03-21 01:23:05
 authors: [george-matthew, sandy-ys]
 categories: [Engineering, Design]
@@ -157,6 +157,8 @@ There are a few key benefits of standardising our technology stack.
 For every big decision, it is important to take a step back and understand the Big Why or the main motivation behind it, in order to remain objective. That’s why after we identified maintainability as our north star metric, it was easier to narrow down the choices and make detailed comparisons.
 
 The north star metric, or deciding factor, might differ vastly, but it depends on the problems you are trying to solve.
+
+<small class="credits">Note: The OVO web team conducted this research in 2022 and was accurate at the time of publishing. The information here may only be applicable to the OVO web team.</small>
 
 ## References
 
