@@ -1,14 +1,14 @@
 ---
 layout: post
-id: 2023-03-31-evolution-of-quality
+id: 2023-03-30-evolution-of-quality
 title: Evolution of quality at Grab
-date: 2023-03-29 01:23:05
+date: 2023-03-30 01:23:05
 authors: [abby-alcantara, xuanthu-doan, renu-yadav]
 categories: [Engineering, Design]
 tags: [Engineering, Technology stack, Exploration]
 comments: true
 cover_photo: /img/evolution-of-quality/cover.png
-excerpt: "Testing is typically done after development is complete, which often results in bugs being discovered late in the process. Read to find out how Grab has improved its quality to scale and support the superapp experience. This evolution also brings a cultural shift for quality mindset in teams, enabling us to deliver faster with better experience for our users."
+excerpt: "Testing is typically done after development is complete, which often results in bugs being discovered late in the process. Read to find out how Grab has improved its quality to scale and support the superapp experience. This evolution also brings a cultural shift for quality mindset in teams, enabling us to deliver faster with a better experience for our users."
 ---
 
 To achieve our vision of becoming the leading superapp in Southeast Asia, we constantly need to balance development velocity with maintaining the high quality of the Grab app. Like most tech companies, we started out with the traditional software development lifecycle (SDLC) but as our app evolved, we soon noticed several challenges like high feature bugs and production issues.  
@@ -31,32 +31,32 @@ Over time, we discovered that feature testing took longer, with more bugs being 
   </figure>
 </div>
 
-This surge in production issues and feature bugs was directly impacting our users’ experience on our app. To directly address the high production issues and slow testing process, we changed our testing strategy and adopted shift left testing.
+This surge in production issues and feature bugs was directly impacting our users’ experience on our app. To directly address the high production issues and slow testing process, we changed our testing strategy and adopted shift-left testing.
 
 ## Solution
 
-[Shift left testing](https://www.testim.io/blog/shift-left-testing-guide/) is an approach that brings testing forward to the early phases of software development. This means testing can start as early as the planning and design phases.
+[Shift-left testing](https://www.testim.io/blog/shift-left-testing-guide/) is an approach that brings testing forward to the early phases of software development. This means testing can start as early as the planning and design phases.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evolution-of-quality/image2.png" alt="" style="width:80%"><figcaption align="middle">Figure 3 - Shift left testing</figcaption>
+  <img src="/img/evolution-of-quality/image2.png" alt="" style="width:80%"><figcaption align="middle">Figure 3 - Shift-left testing</figcaption>
   </figure>
 </div>
 
-By adopting shift left testing, engineering teams at Grab are able to proactively prevent possible defect leakage in the early stages of testing, directly addressing our users' concerns without delaying delivery times.
+By adopting shift-left testing, engineering teams at Grab are able to proactively prevent possible defect leakage in the early stages of testing, directly addressing our users' concerns without delaying delivery times.
 
-With shift left testing, we made three significant changes to our SDLC:
+With shift-left testing, we made three significant changes to our SDLC:
 
 *   **Software engineers conduct acceptance testing**
 *   **Incorporate Definition of Ready (DoR) and Definition of Done (DoD)**
 *   **Balanced testing strategy**
 
-Let’s dive deeper into how we implemented each change, the challenges and learnings we gained along the way.
+Let’s dive deeper into how we implemented each change, the challenges, and learnings we gained along the way.
 
 ### Software engineers conduct acceptance testing
 
-[Acceptance testing](https://www.geeksforgeeks.org/acceptance-testing-software-testing/) determines whether a feature satisfies the defined acceptance criteria, which helps the team evaluate if the feature fulfills our consumers’ needs. Typically, acceptance testing is done after development. But our QA engineers still discovered many bugs and the cost of fixing bugs at this stage is more expensive and time-consuming. We also realised that the most common root cause of bugs were associated with insufficient requirements, vague details, or missing test cases.
+[Acceptance testing](https://www.geeksforgeeks.org/acceptance-testing-software-testing/) determines whether a feature satisfies the defined acceptance criteria, which helps the team evaluate if the feature fulfills our consumers’ needs. Typically, acceptance testing is done after development. But our QA engineers still discovered many bugs and the cost of fixing bugs at this stage is more expensive and time-consuming. We also realised that the most common root causes of bugs were associated with insufficient requirements, vague details, or missing test cases.
 
-With shift left testing, QA engineers start writing test cases before development starts and these acceptance tests will be executed by the software engineers during development. Writing acceptance tests early helps identify potential gaps in the requirements before development begins, prevent possible bugs, and streamline the testing process as engineers could execute the test cases during development to find and fix bugs before the next testing phase.
+With shift-left testing, QA engineers start writing test cases before development starts and these acceptance tests will be executed by the software engineers during development. Writing acceptance tests early helps identify potential gaps in the requirements before development begins. It also prevents possible bugs and streamlines the testing process as engineers can find and fix bugs even before the testing phase. This is because they can execute the test cases directly during the development stage.
 
 On top of that, QA and Product managers also made **Given/When/Then (GWT)** the standard for acceptance criteria and test cases, making them easier for all stakeholders to understand.
 
@@ -74,20 +74,20 @@ On top of that, QA and Product managers also made **Given/When/Then (GWT)** th
 <br>
 By enabling software engineers to conduct acceptance testing, we minimised back-and-forth discussions within the team regarding bug fixes and also, influenced a significant shift in perspective – quality is everyone’s responsibility.
 
-Another key aspect of shift left testing is for teams to agree on a standard of quality in earlier stages of the SDLC. To do that, we started incorporating Definition of Ready (DoR) and Definition of Done (DoD) in our tasks.
+Another key aspect of shift-left testing is for teams to agree on a standard of quality in earlier stages of the SDLC. To do that, we started incorporating Definition of Ready (DoR) and Definition of Done (DoD) in our tasks.
 
 ### Incorporate Definition of Ready (DoR) and Definition of Done (DoD)
 
 As mentioned, quality checks can be done before development even begins and can start as early as backlog grooming and sprint planning. The team needs to agree on a standard for work products such as requirements, design, engineering solutions, and test cases. Having this alignment helps reduce the possibility of unclear requirements or misunderstandings that may lead to re-work or a low-quality feature.
 
-To enforce consistent quality of work products, everyone in the team should have access to these products and should follow a standard in completing them like DoRs and DoDs.
+To enforce consistent quality of work products, everyone in the team should have access to these products and should follow DoRs and DoDs as standards in completing their tasks.
 
 *   **DoR**: Explicit criteria that an epic, user story, or task must meet before it can be accepted into an upcoming sprint. 
 *   **DoD**: List of criteria to fulfill before we can mark the epic, user story, or task complete, or the entry or exit criteria for each story state transitions. 
 
 Including DoRs and DoDs have proven to improve delivery pace and quality. One of the first teams to adopt this observed significant improvements in their delivery speed and app quality – consistently delivering over 90% of task commitments, minimising technical debt, and reducing manual testing times.
 
-Unfortunately, having these two changes alone were not sufficient – testing was still manually intensive and time consuming. To ease the loads on our QA engineers, we needed to develop a balanced testing strategy.  
+Unfortunately, having these two changes alone were not sufficient – testing was still manually intensive and time consuming. To ease the load on our QA engineers, we needed to develop a balanced testing strategy.  
 
 ### Balanced testing strategy
 
@@ -111,7 +111,7 @@ As you already know, unit tests are written and executed by software engineers d
 
 This type of testing focuses on individual components within the application and is useful for testing specific use cases of a service or feature. To reduce manual effort from QA engineers, teams started exploring automation and introduced a mobile testing framework for [component testing](https://applitools.com/learn/concepts/component-testing/).
 
-This UI component testing framework used mocked API responses to test screens and interactions on the elements. These UI component tests were automatically executed whenever the pipeline was run helped to reduce manual regression efforts. With shift left testing, we also revised the DoD for new features to include at least 70% coverage of UI component tests.
+This UI component testing framework used mocked API responses to test screens and interactions on the elements. These UI component tests were automatically executed whenever the pipeline was run, which helped to reduce manual regression efforts. With shift-left testing, we also revised the DoD for new features to include at least 70% coverage of UI component tests.
 
 #### Backend integration testing
 
@@ -127,7 +127,7 @@ But as Grab introduced more services, off-the-shelf solutions were no longer a v
 
 With this criteria in mind, our QA engineering teams built an internal E2E framework that could make API calls, test different account-based scenarios, and provide many other features. Multiple pilot teams have started implementing tests with the E2E framework, which has helped to reduce regression efforts. We are continuously improving the framework by adding new capabilities to cover more test scenarios.
 
-Now that we’ve covered all the changes we implemented with shift left testing, let’s take a look at how this changed our SDLC.
+Now that we’ve covered all the changes we implemented with shift-left testing, let’s take a look at how this changed our SDLC.
 
 ## Impact
 
@@ -136,7 +136,7 @@ Now that we’ve covered all the changes we implemented with shift left testing,
   </figure>
 </div>
 
-Since the implementation of shift left testing, we have improved our app quality without compromising our project delivery pace. Compared to 2019, we observed the following improvements within the Grab superapp in 2022:
+Since the implementation of shift-left testing, we have improved our app quality without compromising our project delivery pace. Compared to 2019, we observed the following improvements within the Grab superapp in 2022:
 
 *   Production issues with “Major and Critical” severity bugs found in production were **reduced by 60%**
 *   Bugs found in development phase with “Major and Critical” severity were **reduced by 40%**
