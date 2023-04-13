@@ -5,7 +5,7 @@ title: Reshaping Chat Support for Our Users
 date: 2021-07-07 00:18:20
 authors: [elisa-monacchi, wan-ling-guai, suman-anand]
 categories: [Product]
-tags: [Product, Design, Chat Support]
+tags: [Product, Design, Chat support]
 comments: true
 cover_photo: /img/reshaping-chat-support/cover.png
 excerpt: "Learn how the Grab Support (GS) TF reshaped chat support through experimentation and design updates."
