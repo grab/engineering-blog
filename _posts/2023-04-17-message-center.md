@@ -43,7 +43,7 @@ The new Message Center was designed to have two components:
 
 This architecture allows the services to be sufficiently decoupled and scale independently. For example, if you have a group chat with `N` participants and each message sent results in `N` messages being delivered, this architecture would enable message-center postman to scale accordingly to handle the higher load.
 
-As Grab delivers millions of events a day via the Message Center service, we need to ensure that our system can handle high throughput. As such, we are using Apache Kafka as the low-latency high-throughput event stream connecting both services, and Amazon SQS as a redundant delay queue that will attempt a retry 10 seconds later.
+As Grab delivers millions of events a day via the Message Center service, we need to ensure that our system can handle high throughput. As such, we are using Apache Kafka as the low-latency high-throughput event stream connecting both services and Amazon SQS as a redundant delay queue that attempts a retry 10 seconds later.
 
 Another important aspect for this service is the ability to support low-latency and bi-directional communications from the client to the server. That’s why we chose Transmission Control Protocol (TCP) as the main protocol for client-server communication. Mobile and web clients connect to Hermes, Grab’s TCP gateway service, which then digests the TCP packets and proxies the payloads to Message Center via gRPC. If both recipients and senders are online, the message is successfully delivered in a matter of milliseconds.
 
