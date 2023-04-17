@@ -36,7 +36,7 @@ Some of these requirements include, but are not limited to:
   </figure>
 </div>
 
-The new Message Center was designed to be divided into two services:
+The new Message Center was designed to have two components:
 
 1.  Message-center backend: Message processor service that handles logical and database operations.
 2.  Message-center postman: Message delivery service that can scale independently from the backend service.
