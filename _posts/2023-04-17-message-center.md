@@ -8,7 +8,7 @@ categories: [Engineering, Design]
 tags: [Engineering, GrabChat, Redesign, Messaging, Chat support]
 comments: true
 cover_photo: /img/message-center/cover.jpg
-excerpt: "Grab’s messaging feature was designed for two-party communications, but as our superapp grew to include more features, we became more aware of the limitations in our app. Read to find out how we redesigned the messaging experience, making it more extensible and future-proofing our superapp."
+excerpt: "Grab’s messaging feature was designed for two-party communications, but as our superapp grew to include more features, we became more aware of the limitations in our app. Read to find out how we redesigned the messaging experience to make it more extensible and future-proof."
 ---
 
 Since 2016, Grab has been using [GrabChat](https://www.grab.com/ph/blog/grabchat/), a built-in messaging feature to connect our users with delivery-partners or driver-partners. However, as the Grab superapp grew to include more features, the limitations of the old system became apparent. GrabChat could only handle two-party chats because that’s what it was designed to do. To make our messaging feature more extensible for future features, we decided to redesign the messaging experience, which is now called Message Center.
