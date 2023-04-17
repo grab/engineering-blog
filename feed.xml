@@ -6,9 +6,103 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 31 Mar 2023 04:44:15 +0000</pubDate>
-    <lastBuildDate>Fri, 31 Mar 2023 04:44:15 +0000</lastBuildDate>
+    <pubDate>Mon, 17 Apr 2023 07:24:34 +0000</pubDate>
+    <lastBuildDate>Mon, 17 Apr 2023 07:24:34 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Message Center - Redesigning the messaging experience on the Grab superapp</title>
+        <description>&lt;p&gt;Since 2016, Grab has been using &lt;a href=&quot;https://www.grab.com/ph/blog/grabchat/&quot;&gt;GrabChat&lt;/a&gt;, a built-in messaging feature to connect our users with delivery-partners or driver-partners. However, as the Grab superapp grew to include more features, the limitations of the old system became apparent. GrabChat could only handle two-party chats because that’s what it was designed to do. To make our messaging feature more extensible for future features, we decided to redesign the messaging experience, which is now called Message Center.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/message-center/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Migrating from the old GrabChat to the new Message Center&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;To some, building our own chat function might not be the ideal approach, especially with open source alternatives like &lt;a href=&quot;https://github.com/signalapp&quot;&gt;Signal&lt;/a&gt;. However, Grab’s business requirements introduce some level of complexity, which required us to develop our own solution.&lt;/p&gt;
+
+&lt;p&gt;Some of these requirements include, but are not limited to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Handle multiple user types (passengers, driver-partners, consumers, delivery-partners, customer support agents, merchant-partners, etc.) with custom user interface (UI) rendering logic and behaviour.&lt;/li&gt;
+  &lt;li&gt;Enable other Grab backend services to send system generated messages (e.g. your driver is reaching) and customise push notifications.&lt;/li&gt;
+  &lt;li&gt;Persist message state even if users uninstall and reinstall their apps. Users should be able to receive undelivered messages even if they were offline for hours.&lt;/li&gt;
+  &lt;li&gt;Provide translation options for non-native speakers.&lt;/li&gt;
+  &lt;li&gt;Filter profanities in the chat.&lt;/li&gt;
+  &lt;li&gt;Allow users to handle group chats. This feature might come in handy in future if there needs to be communication between passengers, driver-partners, and delivery-partners.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;solution-architecture&quot;&gt;Solution architecture&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/message-center/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Message Center architecture&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The new Message Center was designed to have two components:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Message-center backend: Message processor service that handles logical and database operations.&lt;/li&gt;
+  &lt;li&gt;Message-center postman: Message delivery service that can scale independently from the backend service.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This architecture allows the services to be sufficiently decoupled and scale independently. For example, if you have a group chat with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;N&lt;/code&gt; participants and each message sent results in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;N&lt;/code&gt; messages being delivered, this architecture would enable message-center postman to scale accordingly to handle the higher load.&lt;/p&gt;
+
+&lt;p&gt;As Grab delivers millions of events a day via the Message Center service, we need to ensure that our system can handle high throughput. As such, we are using Apache Kafka as the low-latency high-throughput event stream connecting both services and Amazon SQS as a redundant delay queue that attempts a retry 10 seconds later.&lt;/p&gt;
+
+&lt;p&gt;Another important aspect for this service is the ability to support low-latency and bi-directional communications from the client to the server. That’s why we chose Transmission Control Protocol (TCP) as the main protocol for client-server communication. Mobile and web clients connect to Hermes, Grab’s TCP gateway service, which then digests the TCP packets and proxies the payloads to Message Center via gRPC. If both recipients and senders are online, the message is successfully delivered in a matter of milliseconds.&lt;/p&gt;
+
+&lt;p&gt;Unlike HTTP, individual TCP packets do not require a response so there is an inherent uncertainty in whether the messages were successfully delivered. Message delivery can fail due to several reasons, such as the client terminating the connection but the server’s connection remaining established. This is why we built a system of acknowledgements (ACKs) between the client and server, which ensures that every event is received by the receiving party.&lt;/p&gt;
+
+&lt;p&gt;The following diagram shows the high-level sequence of events when sending a message.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/message-center/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Events involved in sending a message on Message Center&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Following the sequence of events involved in sending a message and updating its status for the sender from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sending&lt;/code&gt; to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sent&lt;/code&gt; to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;delivered&lt;/code&gt; to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;read&lt;/code&gt;, the process can get very complicated quickly. For example, the sender will retry the 1302 TCP new message &lt;em&gt;until&lt;/em&gt; it receives a server ACK. Similarly, the server will also keep attempting to send the 1402 TCP message receipt or 1303 TCP message unless it receives a client ACK. With this in mind, we knew we had to give special attention to the ACK implementation, to prevent infinite retries on the client and server, which can quickly cascade to a system-wide failure.&lt;/p&gt;
+
+&lt;p&gt;Lastly, we also had to consider dropped TCP connections on mobile devices, which happens quite frequently. What happens then? Message Center relies on Hedwig, another in-house notification service, to send push notifications to the mobile device when it receives a failed response from Hermes. Message Center also maintains a user-events DynamoDB database, which updates the state of every pending event of the client to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;delivered&lt;/code&gt; whenever a client ACK is received.&lt;/p&gt;
+
+&lt;p&gt;Every time the mobile client reconnects to Hermes, it also sends a special TCP message to notify Message Center that the client is back online, and then the server retries sending all the pending events to the client.&lt;/p&gt;
+
+&lt;h2 id=&quot;learningsconclusion&quot;&gt;Learnings/Conclusion&lt;/h2&gt;
+
+&lt;p&gt;With large-scale features like Message Center, it’s important to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Decouple services so that each microservice can function and scale as needed.&lt;/li&gt;
+  &lt;li&gt;Understand our feature requirements well so that we can make the best choices and design for extensibility.&lt;/li&gt;
+  &lt;li&gt;Implement safeguards to prevent system timeouts, infinite loops, or other failures from cascading to the entire system, i.e. rate limiting, message batching, and idempotent &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;eventIDs&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 17 Apr 2023 01:23:05 +0000</pubDate>
+        <link>https://engineering.grab.com/message-center</link>
+        <guid isPermaLink="true">https://engineering.grab.com/message-center</guid>
+        
+        <category>Engineering</category>
+        
+        <category>GrabChat</category>
+        
+        <category>Redesign</category>
+        
+        <category>Messaging</category>
+        
+        <category>Chat support</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Design</category>
+        
+      </item>
     
       <item>
         <title>Evolution of quality at Grab</title>
@@ -1587,205 +1681,6 @@ We apply the Relational Graph Convolutional Network (RGCN) &lt;sup id=&quot;fnre
         <category>Data Science</category>
         
         <category>Security</category>
-        
-      </item>
-    
-      <item>
-        <title>Query expansion based on user behaviour</title>
-        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
-
-&lt;p&gt;Our consumers used to face a few common pain points while searching for food with the Grab app. Sometimes, the results would include merchants that were not yet operational or locations that were out of the delivery radius. Other times, no alternatives were provided. The search system would also have difficulties handling typos, keywords in different languages, synonyms, and even word spacing issues, resulting in a suboptimal user experience.&lt;/p&gt;
-
-&lt;p&gt;Over the past few months, our search team has been building a query expansion framework that can solve these issues. When a user query comes in, it expands the query to a few related keywords based on semantic relevance and user intention. These expanded words are then searched with the original query to recall more results that are high-quality and diversified. Now let’s take a deeper look at how it works.&lt;/p&gt;
-
-&lt;h1 id=&quot;query-expansion-framework&quot;&gt;Query expansion framework&lt;/h1&gt;
-
-&lt;h2 id=&quot;building-the-query-expansion-corpus&quot;&gt;Building the query expansion corpus&lt;/h2&gt;
-
-&lt;p&gt;We used two different approaches to produce query expansion candidates: manual annotation for top keywords and data mining based on user rewrites.&lt;/p&gt;
-
-&lt;h3 id=&quot;manual-annotation-for-top-keywords&quot;&gt;Manual annotation for top keywords&lt;/h3&gt;
-
-&lt;p&gt;Search has a pronounced fat head phenomenon. The most frequent thousand of keywords account for more than 70% of the total search traffic. Therefore, handling these keywords well can improve the overall search quality a lot. We manually annotated the possible expansion candidates for these common keywords to cover the most popular merchants, items and alternatives. For instance, “McDonald’s” is annotated with {“burger”, “western”}.&lt;/p&gt;
-
-&lt;h3 id=&quot;data-mining-based-on-user-rewrites&quot;&gt;Data mining based on user rewrites&lt;/h3&gt;
-
-&lt;p&gt;We observed that sometimes users tend to rewrite their queries if they are not satisfied with the search result. As a pilot study, we checked the user rewrite records within some user search sessions and found several interesting samples:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{Ya Kun Kaya Toast,Starbucks}
-{healthy,Subway}
-{Muni,Muji}
-{奶茶,koi}
-{Roti,Indian}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;We can see that besides spelling corrections, users’ rewrite behaviour also reveals deep semantic relations between these pairs that cannot be easily captured by lexical similarity, such as similar merchants, merchant attributes, language differences, cuisine types, and so on. We can leverage the user’s knowledge to build a query expansion corpus to improve the diversity of the search result and user experience. Furthermore, we can use the wisdom of the crowd to find some common patterns with higher confidence.&lt;/p&gt;
-
-&lt;p&gt;Based on this intuition, we leveraged the high volume of search click data available in Grab to generate high-quality expansion pairs at the user session level. To augment the original queries, we collected rewrite pairs that happened to multiple users and multiple times in a time period. Specifically, we used the heuristic rules below to collect the rewrite pairs:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Select the sessions where there are at least two distinct queries (rewrite session)&lt;/li&gt;
-  &lt;li&gt;Collect adjacent query pairs in the search session where the second query leads to a click but the first does not (effective rewrite)&lt;/li&gt;
-  &lt;li&gt;Filter out the sample pairs with time interval longer than 30 seconds in between, as users are more likely to change their mind on what to look for in these pairs (single intention)&lt;/li&gt;
-  &lt;li&gt;Count the occurrences and filter out the low-frequency pairs (confidence management)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;After we have the mining pairs, we categorised and annotated the rewrite types to gain a deeper understanding of the user’s rewrite behaviour. A few samples mined from the Singapore area data are shown in the table below.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-&lt;thead&gt;
-  &lt;tr&gt;
-    &lt;th&gt;Original query&lt;/th&gt;
-    &lt;th&gt;Rewrite query&lt;/th&gt;
-    &lt;th&gt;Frequency in a month&lt;/th&gt;
-    &lt;th&gt;Distinct user count&lt;/th&gt;
-    &lt;th&gt;Type&lt;/th&gt;
-  &lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-  &lt;tr&gt;
-    &lt;td&gt;playmade by 丸作&lt;/td&gt;
-    &lt;td&gt;playmade&lt;/td&gt;
-    &lt;td&gt;697&lt;/td&gt;
-    &lt;td&gt;666&lt;/td&gt;
-    &lt;td&gt;Drop keywords&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;mcdonald's&lt;/td&gt;
-    &lt;td&gt;burger&lt;/td&gt;
-    &lt;td&gt;573&lt;/td&gt;
-    &lt;td&gt;535&lt;/td&gt;
-    &lt;td&gt;Merchant -&amp;gt; Food&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Bubble tea&lt;/td&gt;
-    &lt;td&gt;koi&lt;/td&gt;
-    &lt;td&gt;293&lt;/td&gt;
-    &lt;td&gt;287&lt;/td&gt;
-    &lt;td&gt;Food -&amp;gt; Merchant&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Kfc&lt;/td&gt;
-    &lt;td&gt;McDonald's&lt;/td&gt;
-    &lt;td&gt;238&lt;/td&gt;
-    &lt;td&gt;234&lt;/td&gt;
-    &lt;td&gt;Merchant -&amp;gt; Merchant&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;cake&lt;/td&gt;
-    &lt;td&gt;birthday cake&lt;/td&gt;
-    &lt;td&gt;206&lt;/td&gt;
-    &lt;td&gt;205&lt;/td&gt;
-    &lt;td&gt;Add words&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;麦当劳&lt;/td&gt;
-    &lt;td&gt;mcdonald's&lt;/td&gt;
-    &lt;td&gt;205&lt;/td&gt;
-    &lt;td&gt;199&lt;/td&gt;
-    &lt;td&gt;Locale change&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;4 fingers&lt;/td&gt;
-    &lt;td&gt;4fingers&lt;/td&gt;
-    &lt;td&gt;165&lt;/td&gt;
-    &lt;td&gt;162&lt;/td&gt;
-    &lt;td&gt;Space correction&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;krc&lt;/td&gt;
-    &lt;td&gt;kfc&lt;/td&gt;
-    &lt;td&gt;126&lt;/td&gt;
-    &lt;td&gt;124&lt;/td&gt;
-    &lt;td&gt;Spelling correction&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;5 guys&lt;/td&gt;
-    &lt;td&gt;five guys&lt;/td&gt;
-    &lt;td&gt;120&lt;/td&gt;
-    &lt;td&gt;120&lt;/td&gt;
-    &lt;td&gt;Number synonym&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;koi the&lt;/td&gt;
-    &lt;td&gt;koi thé&lt;/td&gt;
-    &lt;td&gt;45&lt;/td&gt;
-    &lt;td&gt;44&lt;/td&gt;
-    &lt;td&gt;Tone change&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;We further computed the percentages of some categories, as shown in the figure below.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/query-expansion-based-on-user-behaviour/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
-  &lt;figcaption align=&quot;middle&quot;&gt;Figure 1. The donut chart illustrates the percentages of the distinct user counts for different types of rewrites.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Apart from adding words, dropping words and spelling corrections, a significant portion of the rewrites are in the category of Other. It is more semantic driven, such as merchant to merchant, or merchant to cuisine. Those rewrites are useful for capturing deeper connections between queries and can be a powerful diversifier to query expansion.&lt;/p&gt;
-
-&lt;h3 id=&quot;grouping&quot;&gt;Grouping&lt;/h3&gt;
-
-&lt;p&gt;After all the rewrite pairs were discovered offline through data mining, we grouped the query pairs by the original query to get the expansion candidates of each query. For serving efficiency, we limited the max number of expansion candidates to three.&lt;/p&gt;
-
-&lt;h2 id=&quot;query-expansion-serving&quot;&gt;Query expansion serving&lt;/h2&gt;
-
-&lt;h3 id=&quot;expansion-matching-architecture&quot;&gt;Expansion matching architecture&lt;/h3&gt;
-
-&lt;p&gt;The expansion matching architecture benefits from the recent search architecture upgrade, where the system flow is changed to a query understanding, multi-recall and result fusion flow. In particular, a query goes through the query understanding module and gets augmented with additional information. In this case, the query understanding module takes in the keyword and expands it to multiple synonyms, for example, KFC will be expanded to fried chicken. The original query together with its expansions are sent together to the search engine under the multi-recall framework. After that, results from multiple recallers with different keywords are fused together.&lt;/p&gt;
-
-&lt;h3 id=&quot;continuous-monitoring-and-feedback-loop&quot;&gt;Continuous monitoring and feedback loop&lt;/h3&gt;
-
-&lt;p&gt;It’s important to make sure the expansion pairs are relevant and up-to-date. We run the data mining pipeline periodically to capture the new user rewrite behaviours. Meanwhile, we also monitor the expansion pairs’ contribution to the search result by measuring the net contribution of recall or user interaction that the particular query brings, and eliminate the obsolete pairs in an automatic way. This reflects our effort to build an adaptive system.&lt;/p&gt;
-
-&lt;h1 id=&quot;results&quot;&gt;Results&lt;/h1&gt;
-
-&lt;p&gt;We conducted online A/B experiments across 6 countries in Southeast Asia to evaluate the expanded queries generated by our system. We set up 3 groups:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Control group, where no query is expanded.&lt;/li&gt;
-  &lt;li&gt;Treatment group 1, where we expanded the queries based on manual annotations only.&lt;/li&gt;
-  &lt;li&gt;Treatment group 2, where we expanded the queries using the data mining approach.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We observed decent uplift in click-through rate and conversion rate from both treatment groups. Furthermore, in treatment group 2, the data mining approach produced even better results.&lt;/p&gt;
-
-&lt;h1 id=&quot;future-work&quot;&gt;Future work&lt;/h1&gt;
-
-&lt;h2 id=&quot;data-mining-enhancement&quot;&gt;Data mining enhancement&lt;/h2&gt;
-
-&lt;p&gt;Currently, the data mining approach can only identify the pairs from the same search session by one user. This limits the number of linked pairs. Some potential enhancements include:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Augment expansion pairs by associating queries from different users who click on the same merchant/item, for example, using a click graph. This can capture relevant queries across user sessions.&lt;/li&gt;
-  &lt;li&gt;Build a probabilistic model on top of the current transition pairs. Currently, all the transition pairs are equally weighted but apparently, the transitions that happen more often should carry higher probability/weights.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;ads-application&quot;&gt;Ads application&lt;/h2&gt;
-
-&lt;p&gt;Query expansion can be applied to advertising and would increase ads fill rate. With “KFC” expanded to “fried chicken”, the sponsored merchants who buy the keyword “fried chicken” would be eligible to show up when the user searches “KFC”. This would enable Grab to provide more relevant sponsored content to our users, which helps not only the consumers but also the merchants.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Zhengmin Xu and Daniel Ng for proofreading this article.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 16 Nov 2022 00:29:00 +0000</pubDate>
-        <link>https://engineering.grab.com/query-expansion-based-on-user-behaviour</link>
-        <guid isPermaLink="true">https://engineering.grab.com/query-expansion-based-on-user-behaviour</guid>
-        
-        <category>Analytics</category>
-        
-        <category>Data Science</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
         
       </item>
     
