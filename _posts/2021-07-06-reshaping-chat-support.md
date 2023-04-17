@@ -8,7 +8,7 @@ categories: [Product]
 tags: [Product, Design, Chat support]
 comments: true
 cover_photo: /img/reshaping-chat-support/cover.png
-excerpt: "Learn how the Grab Support (GS) TF reshaped chat support through experimentation and design updates."
+excerpt: "Learn how the Grab Support (GS) Tech Family reshaped chat support through experimentation and design updates."
 ---
 
 Introduction
