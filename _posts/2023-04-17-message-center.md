@@ -1,9 +1,9 @@
 ---
 layout: post
 id: 2023-04-17-message-center
-title: Message Center - Redesigning the messaging experience on Grab
-date: 2023-04-12 01:23:05
-authors: [jie-zhang, vasu-krishnamoorthy, jonathan-lee]
+title: Message Center - Redesigning the messaging experience on the Grab superapp
+date: 2023-04-17 01:23:05
+authors: [jonathan-lee, jie-zhang, vasu-krishnamoorthy]
 categories: [Engineering, Design]
 tags: [Engineering, GrabChat, Redesign, Messaging, Chat support]
 comments: true
@@ -58,7 +58,7 @@ The following diagram shows the high-level sequence of events when sending a mes
 
 Following the sequence of events involved in sending a message and updating its status for the sender from `sending` to `sent` to `delivered` to `read`, the process can get very complicated quickly. For example, the sender will retry the 1302 TCP new message *until* it receives a server ACK. Similarly, the server will also keep attempting to send the 1402 TCP message receipt or 1303 TCP message unless it receives a client ACK. With this in mind, we knew we had to give special attention to the ACK implementation, to prevent infinite retries on the client and server, which can quickly cascade to a system-wide failure.
 
-Lastly, we also had to consider dropped TCP connections on mobile devices, which happens more frequently than you’d think. What happens then? Message Center relies on Hedwig, another in-house notification service, to send push notifications to the mobile device when it receives a failed response from Hermes. Message Center also maintains a user-events DynamoDB database, which updates the state of every pending event of the client to `delivered` whenever a client ACK is received.
+Lastly, we also had to consider dropped TCP connections on mobile devices, which happens quite frequently. What happens then? Message Center relies on Hedwig, another in-house notification service, to send push notifications to the mobile device when it receives a failed response from Hermes. Message Center also maintains a user-events DynamoDB database, which updates the state of every pending event of the client to `delivered` whenever a client ACK is received.
 
 Every time the mobile client reconnects to Hermes, it also sends a special TCP message to notify Message Center that the client is back online, and then the server retries sending all the pending events to the client.
 
