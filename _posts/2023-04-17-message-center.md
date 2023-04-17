@@ -22,7 +22,7 @@ To some, building our own chat function might not be the ideal approach, especia
 
 Some of these requirements include, but are not limited to:
 
-* Handle multiple user types (passengers, driver-partners, consumers, delivery-partners, customer support agents, merchant-partners, etc.) with custom user-interface (UI) rendering logic and behaviour.
+* Handle multiple user types (passengers, driver-partners, consumers, delivery-partners, customer support agents, merchant-partners, etc.) with custom user interface (UI) rendering logic and behaviour.
 * Enable other Grab backend services to send system generated messages (e.g. your driver is reaching) and customise push notifications.
 * Persist message state even if users uninstall and reinstall their apps. Users should be able to receive undelivered messages even if they were offline for hours.
 * Provide translation options for non-native speakers.
