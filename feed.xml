@@ -6,9 +6,198 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 17 Apr 2023 07:24:34 +0000</pubDate>
-    <lastBuildDate>Mon, 17 Apr 2023 07:24:34 +0000</lastBuildDate>
+    <pubDate>Tue, 02 May 2023 08:38:00 +0000</pubDate>
+    <lastBuildDate>Tue, 02 May 2023 08:38:00 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Safer deployment of streaming applications</title>
+        <description>&lt;p&gt;The &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; framework has gained popularity as a real-time stateful stream processing solution for distributed stream and batch data processing. Flink also provides data distribution, communication, and fault tolerance for distributed computations over data streams. To fully leverage Flink’s features, Coban, Grab’s real-time data platform team, has adopted Flink as part of our service offerings.&lt;/p&gt;
+
+&lt;p&gt;In this article, we explore how we ensure that deploying Flink applications remain safe as we incorporate the lessons learned through our &lt;a href=&quot;/our-journey-to-continuous-delivery-at-grab&quot;&gt;journey to continuous delivery&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/safer-flink-deployments/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Flink platform architecture within Coban&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Users interact with our systems to develop and deploy Flink applications in three different ways.&lt;/p&gt;
+
+&lt;p&gt;Firstly, users create a Merge Request (MR) to develop their Flink applications on our Flink Scala repository, according to business requirements. After the MR is merged, GitOps Continuous Integration/Continuous Deployment (CI/CD) automatically runs and dockerises the application, allowing the containerised applications to be deployed easily.&lt;/p&gt;
+
+&lt;p&gt;Secondly, users create another MR to our &lt;a href=&quot;/securing-gitops-pipeline&quot;&gt;infrastructure as a code&lt;/a&gt; repository. The GitOps CI/CD that is integrated with Terraform runs and configures the created Spinnaker application. This process configures the Flink application that will be deployed.&lt;/p&gt;
+
+&lt;p&gt;Finally, users trigger the actual deployment of the Flink applications on Spinnaker, which orchestrates the deployment of the Docker image onto our Kubernetes cluster. Flink applications are deployed as standalone clusters in Grab to ensure resource isolation.&lt;/p&gt;
+
+&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;/h2&gt;
+
+&lt;p&gt;The main issue we noticed with streaming pipelines like these, is that they are often interconnected, where application A depends on application B’s output. This makes it hard to find a solution that perfectly includes integration tests and ensures that propagated changes do not affect downstream applications.&lt;/p&gt;
+
+&lt;p&gt;However, this problem statement is too large to solve with a single solution. As such, we are narrowing the problem statement to focus on ensuring safety of our applications, where engineers can deploy Flink applications that will be rolled back if they fail health checks. In our case, the definition of a Flink application’s health is limited to the uptime of the Flink application itself.&lt;/p&gt;
+
+&lt;p&gt;It is worth noting that Flink applications are designed to be &lt;strong&gt;stateful streaming applications&lt;/strong&gt;, meaning a “state” is shared between events (stream entities) and thus, past events can influence the way current events are processed. This also implies that traditional deployment strategies do not apply to the deployment of Flink applications.&lt;/p&gt;
+
+&lt;h3 id=&quot;current-strategy&quot;&gt;Current strategy&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/safer-flink-deployments/image3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Current deployment stages&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Figure 2, our current deployment stages are split into three parts:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Delete current deployment&lt;/strong&gt;: Remove current configurations (if applicable) to allow applications to pick up the new configurations.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Bake (Manifest)&lt;/strong&gt;: Bake the Helm charts with the provided configurations.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Deploy (Manifest)&lt;/strong&gt;: Deploy the charts onto Kubernetes.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Over time, we learnt that this strategy can be risky. Part 2 can result in a loss of Flink application states due to how internal CI/CD processes are set up. There is also no easy way to rollback if an issue arises. Engineers will need to revert all config changes and rollback the deployment &lt;strong&gt;manually&lt;/strong&gt; by re-deploying the older Docker image – which results in slower operation recovery.&lt;/p&gt;
+
+&lt;p&gt;Lastly, there are no in-built monitoring mechanisms that perform regular health probes. Engineers need to manually monitor their applications to see if their deployment was successful or if they need to perform a rollback.&lt;/p&gt;
+
+&lt;p&gt;With all these issues, deploying Flink applications for engineers are often stressful and fraught with uncertainty. Common mitigation strategies are &lt;em&gt;canary&lt;/em&gt; and &lt;em&gt;blue-green deployments&lt;/em&gt;, which we cover in the next section.&lt;/p&gt;
+
+&lt;h3 id=&quot;canary-deployments&quot;&gt;Canary deployments&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/safer-flink-deployments/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Canary deployment&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In canary deployments, you gradually roll out new versions of the application in parallel with the production version, while serving a percentage of total traffic before promoting it gradually.&lt;/p&gt;
+
+&lt;p&gt;This does not work for Flink deployments due to the nature of stream processing. Applications are frequently required to do streaming operations like stream joining, which involves matching related events in different Kafka topics. So, if a Flink application is only receiving a portion of the total traffic, the data generated will be considered inaccurate due to incomplete data inputs.&lt;/p&gt;
+
+&lt;h3 id=&quot;blue-greendeployments&quot;&gt;Blue-green deployments&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/safer-flink-deployments/image6.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Blue-green deployment&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Blue-green deployments work by running two versions of the application with a Load Balancer that acts as a traffic switch, which determines which version traffic is directed to.&lt;/p&gt;
+
+&lt;p&gt;This method might work for Flink applications if we only allow one version of the application to consume Kafka messages at any point in time. However, we noticed some issues when switching traffic to another version. For example, the state of both versions will be inconsistent because of the different data traffic each version receives, which complicates the process of switching Kafka consumption traffic.&lt;/p&gt;
+
+&lt;p&gt;So if there’s a failure and we need to rollback from Green to Blue deployment, or vice versa, we will need to take an extra step and ensure that before the failure, the data traffic received is &lt;strong&gt;exactly the same&lt;/strong&gt; for both deployments.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+&lt;p&gt;As previously mentioned, it is crucial for streaming applications to ensure that at any point in time, only one application is receiving data traffic to ensure data completeness and accuracy. Although employing blue-green deployments can technically fulfil this requirement, the process must be modified to handle state consistency such that both versions have the same starting internal state and receive the &lt;strong&gt;same data traffic&lt;/strong&gt; as each other, if a rollback is needed.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/safer-flink-deployments/image5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Visualised deployment flow&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;This deployment flow will operate in the following way:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Collect metadata regarding current application&lt;/li&gt;
+  &lt;li&gt;Take savepoint and stop the current application&lt;/li&gt;
+  &lt;li&gt;Clear up high availability configurations&lt;/li&gt;
+  &lt;li&gt;Bake and deploy the new application&lt;/li&gt;
+  &lt;li&gt;Monitor application and rollback if the health check fails&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Let’s elaborate on the key changes implemented in this new process.&lt;/p&gt;
+
+&lt;h3 id=&quot;savepointing&quot;&gt;Savepointing&lt;/h3&gt;
+
+&lt;p&gt;Flink’s savepointing feature helps address the issue of state consistency and ensures safer deployments.&lt;/p&gt;
+
+&lt;p&gt;A savepoint in Flink is a snapshot of a Flink application’s state at the point in time. This savepoint allows us to pause the Flink application and restore the application to this snapshot state, if there’s an issue.&lt;/p&gt;
+
+&lt;p&gt;Before deploying a Flink application, we perform a savepoint via the Flink API before killing the current application. This would enable us to save the current state of the Flink application and rollback if our deployment fails – just like how you would do a quick save before attempting a difficult level when playing games. This mechanism ensures that both deployment versions have the same internal state during deployment as they both start from the same savepoint.&lt;/p&gt;
+
+&lt;p&gt;Additionally, this feature allows us to easily handle Kafka offsets since these consumed offsets are stored as part of the savepoint. As Flink manages their own state, they don’t need to rely on Kafka’s consumer offset management. With this savepoint feature, we can ensure that the application receives the same data traffic post rollback and that no messages are lost due to processing on the failed version.&lt;/p&gt;
+
+&lt;h3 id=&quot;monitoring&quot;&gt;Monitoring&lt;/h3&gt;
+
+&lt;p&gt;To consistently monitor Flink applications, we can conduct health probes to the respective API endpoints to check if the application is stuck in a restart state or if it is running healthily.&lt;/p&gt;
+
+&lt;p&gt;We also configured our monitoring jobs to wait for a few minutes for the deployment to stabilise before probing it over a defined duration, to ensure that the application is in a stable running state.&lt;/p&gt;
+
+&lt;h3 id=&quot;rollback&quot;&gt;Rollback&lt;/h3&gt;
+
+&lt;p&gt;If the health checks fail, we then perform an automatic rollback. Typically, Flink applications are deployed as a standalone cluster and a rollback involves changes in one of the following:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Application and Flink configurations&lt;/li&gt;
+  &lt;li&gt;Taskmanager or Jobmanager resource provision&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;application-and-flink-configuration-changes&quot;&gt;Application and Flink configuration changes&lt;/h4&gt;
+
+&lt;p&gt;For configuration changes, we leverage the fact that Spinnaker performs versioned deployment of &lt;a href=&quot;https://kubernetes.io/docs/concepts/configuration/configmap/&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;configmap&lt;/code&gt;&lt;/a&gt; resources. In this case, a rollback simply involves mounting the old &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;configmap&lt;/code&gt; back onto the Kubernetes deployment.&lt;/p&gt;
+
+&lt;p&gt;To retrieve the old version of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;configmap&lt;/code&gt; mount, we can simply utilise Kubernetes’ rollback mechanisms – Kubernetes updates a deployment by creating a new &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;replicaset&lt;/code&gt; with an incremental version before attaching it to the current deployment and scaling the previous &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;replicaset&lt;/code&gt; to 0. To retrieve previous deployment specs, we just need to list all &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;replicasets&lt;/code&gt; related to the deployment and find the previous deployed version, before updating the current deployment to mimic the previous template specifications.&lt;/p&gt;
+
+&lt;p&gt;However, this deployment does not contain the number of replicas of previously configured task managers. Kubernetes does not register the number of replicas as part of deployment configuration as this is a dynamic configuration and might be changed during processing due to auto scaling operations.&lt;/p&gt;
+
+&lt;p&gt;Our Flink applications are deployed as standalone clusters and do not use native or yarn resource providers. Coupled with the fact that Flink has strict resource provision, we realised that we do not have enough information to perform rollbacks, without the exact number of replicas created.&lt;/p&gt;
+
+&lt;h4 id=&quot;taskmanager-or-jobmanager-resource-provision-changes&quot;&gt;Taskmanager or Jobmanager resource provision changes&lt;/h4&gt;
+
+&lt;p&gt;To gather information about resource provision changes, we can simply include the previously configured number of replicas as part of our metadata annotation. This allows us to retrieve it in future during rollback.&lt;/p&gt;
+
+&lt;p&gt;Making this change involves creating an additional step of metadata retrieval to retrieve and store previous deployment states as annotations of the new deployment.&lt;/p&gt;
+
+&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
+
+&lt;p&gt;With this solution, the deployment flow on Spinnaker looks like this:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/safer-flink-deployments/image7.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. New deployment flow on Spinnaker&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Engineers no longer need to monitor the deployment pipeline as closely as they get notified of their application’s deployment status via Slack. They only need to interact or take action when they get notified that the different stages of the deployment pipeline are completed.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/safer-flink-deployments/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Slack notifications on deployment status&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;It is also easier to deploy Flink applications since failures and rollbacks are handled automatically. Furthermore, application state management is also automated, which reduces the amount of uncertainties.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+&lt;p&gt;As we work to further improve our deployment pipeline, we will look into extending the capabilities at our monitoring stage to allow engineers to define and configure their own health probes, allowing our deployment configurations to be more extendable.&lt;/p&gt;
+
+&lt;p&gt;Another interesting improvement will be to make this deployment flow seamlessly, ensuring as little downtime as possible by minimising cold start duration.&lt;/p&gt;
+
+&lt;p&gt;Coban also looks forward to pushing more features on our Flink platform to enable our engineers to explore more use cases that utilises real-time data to allow our operations to become auto adaptive and make data-driven decisions.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://nightlies.apache.org/flink/flink-docs-release-1.16/docs/ops/state/savepoints/&quot;&gt;Flink Savepointing&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/&quot;&gt;Flink API&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://kubernetes.io/docs/concepts/workloads/controllers/deployment/%23updating-a-deployment&quot;&gt;Kubernetes rollback&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 02 May 2023 01:23:05 +0000</pubDate>
+        <link>https://engineering.grab.com/safer-flink-deployments</link>
+        <guid isPermaLink="true">https://engineering.grab.com/safer-flink-deployments</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Deployments</category>
+        
+        <category>Streaming applications</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Message Center - Redesigning the messaging experience on the Grab superapp</title>
@@ -1505,182 +1694,6 @@ is_owner(md) if {
         <category>Product</category>
         
         <category>Design</category>
-        
-      </item>
-    
-      <item>
-        <title>Graph for fraud detection</title>
-        <description>&lt;p&gt;In earlier articles of this series, we’ve covered the &lt;a href=&quot;/graph-networks&quot;&gt;importance of graph networks&lt;/a&gt;, &lt;a href=&quot;/graph-concepts&quot;&gt;graph concepts&lt;/a&gt; and &lt;a href=&quot;/graph-visualisation&quot;&gt;how graph visualisation makes fraud investigations easier and more effective&lt;/a&gt;. In this article, we will explore how we use graph-based models to tackle fraud detection as fraud patterns increase and diversify.&lt;/p&gt;
-
-&lt;p&gt;Grab has grown rapidly in the past few years. It has expanded its business from ride hailing to food and grocery delivery, financial services, and more. Fraud detection is challenging in Grab, because new fraud patterns always arise whenever we introduce a new business product. We cannot afford to develop a new model whenever a new fraud pattern appears as it is time consuming and introduces a cold start problem, that is no protection at the early stage. We need a general fraud detection framework to better protect Grab from various unknown fraud risks.&lt;/p&gt;
-
-&lt;p&gt;Our key observation is that although Grab has many different business verticals, the entities within those businesses are connected to each other (Figure 1. Left), for example, two passengers may be connected by a Wi-Fi router or phone device, a merchant may be connected to a passenger by a food order, and so on. A graph provides an elegant way to capture the spatial correlation among different entities in the Grab ecosystem. A common fraud shows clear patterns on a graph, for example, a fraud syndicate tends to share physical devices, and collusion happens between a merchant and an isolated set of passengers (Figure 1. Right).&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-for-fraud-detection/fig1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Left: The graph captures different correlations in the Grab ecosystem. &lt;br /&gt; Right: The graph shows that common fraud has clear patterns.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We believe graphs can help us discover subtle traces and complicated fraud patterns more effectively. Graph-based solutions will be a sustainable foundation for us to fight against known and unknown fraud risks.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-graph&quot;&gt;Why graph?&lt;/h2&gt;
-
-&lt;p&gt;The most common fraud detection methods include the rule engine and the decision tree-based models, for example, boosted tree, random forest, and so on. Rules are a set of simple logical expressions designed by human experts to target a particular fraud problem. They are good for simple fraud detection, but they usually do not work well in complicated fraud or unknown fraud cases.&lt;/p&gt;
-
-&lt;table&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;Fraud detection methods &lt;br /&gt;&lt;br /&gt;&lt;/th&gt;
-      &lt;th&gt;Utilises correlations &lt;br /&gt; (Higher is better)&lt;/th&gt;
-      &lt;th&gt;Detects unknown fraud &lt;br /&gt; (Higher is better)&lt;/th&gt;
-      &lt;th&gt;Requires feature engineering &lt;br /&gt; (Lower is better)&lt;/th&gt;
-      &lt;th&gt;Depends on labels &lt;br /&gt; (Lower is better)&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Rule engine&lt;/td&gt;
-      &lt;td&gt;Low&lt;/td&gt;
-      &lt;td&gt;N/A&lt;/td&gt;
-      &lt;td&gt;N/A&lt;/td&gt;
-      &lt;td&gt;Low&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Decision tree&lt;/td&gt;
-      &lt;td&gt;Low&lt;/td&gt;
-      &lt;td&gt;Low&lt;/td&gt;
-      &lt;td&gt;High&lt;/td&gt;
-      &lt;td&gt;High&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;strong&gt;Graph model&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;strong&gt;High&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;strong&gt;High&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;strong&gt;Low&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;strong&gt;Low&lt;/strong&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;br /&gt;
-Table 1. Graph vs. common fraud detection methods.&lt;/p&gt;
-
-&lt;p&gt;Decision tree-based models have been dominating fraud detection and Kaggle competitions for structured or tabular data in the past few years. With that said, the performance of a tree-based model is highly dependent on the quality of labels and feature engineering, which is often hard to obtain in real life. In addition, it usually does not work well in unknown fraud which has not been seen in the labels.&lt;/p&gt;
-
-&lt;p&gt;On the other hand, a graph-based model requires little amount of feature engineering and it is applicable to unknown fraud detection with less dependence on labels, because it utilises the structural correlations on the graph.&lt;/p&gt;
-
-&lt;p&gt;In particular, fraudsters tend to show strong correlations on a graph, because they have to share physical properties such as personal identities, phone devices, Wi-Fi routers, delivery addresses, and so on, to reduce cost and maximise revenue as shown in Figure 2 (left). An example of such strong correlations is shown in Figure 2 (right), where the entities on the graph are densely connected, and the known fraudsters are highlighted in red. Those strong correlations on the graph are the key reasons that make the graph based approach a sustainable foundation for various fraud detection tasks.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-for-fraud-detection/fig2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Fraudsters tend to share physical properties to reduce cost (left), and they are densely connected as shown on a graph (right).&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h1 id=&quot;semi-supervised-graph-learning&quot;&gt;Semi-supervised graph learning&lt;/h1&gt;
-
-&lt;p&gt;Unlike traditional decision tree-based models, the graph-based machine learning model can utilise the graph’s correlations and achieve great performance even with few labels. The semi-supervised Graph Convolutional Network model has been extremely popular in recent years &lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;. It has proven its success in many fraud detection tasks across industries, for example, e-commerce fraud, financial fraud, internet traffic fraud, etc.
-We apply the Relational Graph Convolutional Network (RGCN) &lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; for fraud detection in Grab’s ecosystem. Figure 3 shows the overall architecture of RGCN. It takes a graph as input, and the graph passes through several graph convolutional layers to get node embeddings. The final layer outputs a fraud probability for each node. At each graph convolutional layer, the information is propagated along the neighbourhood nodes within the graph, that is nodes that are close on the graph are similar to each other.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-for-fraud-detection/fig3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 3. A semi-supervised Relational Graph Convolutional Network model.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We train the RGCN model on a graph with millions of nodes and edges, where only a few percentages of the nodes on the graph have labels. The semi-supervised graph model has little dependency on the labels, which makes it a robust model for tackling various types of unknown fraud.&lt;/p&gt;
-
-&lt;p&gt;Figure 4 shows the overall performance of the RGCN model. On the left is the Receiver Operating Characteristic (ROC) curve on the label dataset, in particular, the Area Under the Receiver Operating Characteristic (AUROC) value is close to 1, which means the RGCN model can fit the label data quite well. The right column shows the low dimensional projections of the node embeddings on the label dataset. It is clear that the embeddings of the genuine passenger are well separated from the embeddings of the fraud passenger. The model can distinguish between a fraud and a genuine passenger quite well.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-for-fraud-detection/fig4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 4. Left: ROC curve of the RGCN model on the label dataset. &lt;br /&gt; Right: Low dimensional projections of the graph node embeddings.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Finally, we would like to share a few tips that will make the RGCN model work well in practice.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Use less than three convolutional layers&lt;/strong&gt;: The node feature will be over-smoothed if there are many convolutional layers, that is all the nodes on the graph look similar.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Node features are important&lt;/strong&gt;: Domain knowledge of the node can be formulated as node features for the graph model, and rich node features are likely to boost the model performance.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;graph-explainability&quot;&gt;Graph explainability&lt;/h1&gt;
-
-&lt;p&gt;Unlike other deep network models, graph neural network models usually come with great explainability, that is why a user is classified as fraudulent. For example, fraudulent accounts are likely to share hardware devices and form dense clusters on the graph, and those fraud clusters can be easily spotted on a graph visualiser &lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
-
-&lt;p&gt;Figure 5 shows an example where graph visualisation helps to explain the model prediction scores. The genuine passenger with a low RGCN score does not share devices with other passengers, while the fraudulent passenger with a high RGCN score shares devices with many other passengers, that is, dense clusters.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/graph-for-fraud-detection/fig5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Upper left: A genuine passenger with a low RGCN score has no device sharing with other passengers. Bottom right: A fraudulent user with a high RGCN score shares devices with many other passengers.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h1 id=&quot;closing-thoughts&quot;&gt;Closing thoughts&lt;/h1&gt;
-
-&lt;p&gt;Graphs provide a sustainable foundation for combating many different types of fraud risks. Fraudsters are evolving very fast these days, and the best traditional rules or models can do is to chase after those fraudsters given that a fraud pattern has already been discovered. This is suboptimal as the damage has already been done on the platform. With the help of graph models, we can potentially detect those fraudsters before any fraudulent activity has been conducted, thus reducing the fraud cost.&lt;/p&gt;
-
-&lt;p&gt;The graph structural information can significantly boost the model performance without much dependence on labels, which is often hard to get and might have a large bias in fraud detection tasks. We have shown that with only a small percentage of labelled nodes on the graph, our model can already achieve great performance.&lt;/p&gt;
-
-&lt;p&gt;With that said, there are also many challenges to making a graph model work well in practice. We are working towards solving the following challenges we are facing.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Feature initialisation&lt;/strong&gt;: Sometimes, it is hard to initialise the node feature, for example, a device node does not carry many semantic meanings. We have explored self-supervised pre-training &lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; to help the feature initialisation, and the preliminary results are promising.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Real-time model prediction&lt;/strong&gt;: Realtime graph model prediction is challenging because real-time graph updating is a heavy operation in most cases. One possible solution is to do batch real-time prediction to reduce the overhead.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Noisy connections&lt;/strong&gt;: Some connections on the graph are inherently noisy on the graph, for example, two users sharing the same IP address does not necessarily mean they are physically connected. The IP might come from a mobile network. One possible solution is to use the attention mechanism in the graph convolutional kernel and control the message passing based on the type of connection and node profiles.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;speak-to-us&quot;&gt;Speak to us&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&quot;https://www.grab.com/sg/business/defence/&quot;&gt;GrabDefence&lt;/a&gt; is a proprietary fraud prevention platform built by Grab, Southeast Asia’s leading superapp. Since 2019, the GrabDefence team has shared its fraud management capabilities and platform with enterprises and startups to leverage Grab’s advanced AI/ML models, hyper local insights and patented device intelligence technologies.&lt;/p&gt;
-
-&lt;p&gt;To learn more about GrabDefence or to speak to our fraud management experts, contact us at &lt;a href=&quot;mailto:gd.contact@grabtaxi.com&quot;&gt;gd.contact@grabtaxi.com&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-
-&lt;h1 id=&quot;references&quot;&gt;References&lt;/h1&gt;
-
-&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
-  &lt;ol&gt;
-    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;T. Kipf and M. Welling, “Semi-supervised classification with graph convolutional networks,” in ICLR, 2017 &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Schlichtkrull, Michael, et al. “Modeling relational data with graph convolutional networks.” European semantic web conference. Springer, Cham, 2018. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Fujiao Liu, Shuqi Wang, et al.. “&lt;a href=&quot;https://engineering.grab.com/graph-visualisation&quot;&gt;Graph Networks - 10X investigation with Graph Visualisations&lt;/a&gt;”. Grab Tech Blog. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Wang, Chen, et al.. “Deep Fraud Detection on Non-attributed Graph.” IEEE Big Data conference, PSBD, 2021. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;/ol&gt;
-&lt;/div&gt;
-</description>
-        <pubDate>Thu, 24 Nov 2022 00:13:40 +0000</pubDate>
-        <link>https://engineering.grab.com/graph-for-fraud-detection</link>
-        <guid isPermaLink="true">https://engineering.grab.com/graph-for-fraud-detection</guid>
-        
-        <category>Analytics</category>
-        
-        <category>Data Science</category>
-        
-        <category>Security</category>
-        
-        <category>Graphs</category>
-        
-        <category>Graph visualisation</category>
-        
-        <category>Graph networks</category>
-        
-        <category>Fraud detection</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
-        
-        <category>Security</category>
         
       </item>
     

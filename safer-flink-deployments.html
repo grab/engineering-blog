@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Safer deployment of streaming applications</title>
+    <meta name="description" content="As Flink becomes more popular with real-time stream applications, we realise that Flink deployments are sometimes stressful and prone to errors. The Coban team deep dives into the issues with our existing Flink deployment process, possible mitigations, and the eventual solution to ensure safer deployments of Flink streaming applications.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/safer-flink-deployments">
+    <meta property="og:title" content="Safer deployment of streaming applications">
+    <meta property="og:description" content="As Flink becomes more popular with real-time stream applications, we realise that Flink deployments are sometimes stressful and prone to errors. The Coban team deep dives into the issues with our existing Flink deployment process, possible mitigations, and the eventual solution to ensure safer deployments of Flink streaming applications.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/safer-flink-deployments/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/safer-flink-deployments">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/safer-flink-deployments/cover.png" class="post-cover-photo" alt="Safer deployment of streaming applications cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Safer deployment of streaming applications</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/shikai-ng.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#shikai-ng">Shi Kai Ng</a>
+                  
+                
+              </span>
+              <span class="post-date-large">2 May 2023 | 9 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p>The <a href="https://flink.apache.org/">Flink</a> framework has gained popularity as a real-time stateful stream processing solution for distributed stream and batch data processing. Flink also provides data distribution, communication, and fault tolerance for distributed computations over data streams. To fully leverage Flink’s features, Coban, Grab’s real-time data platform team, has adopted Flink as part of our service offerings.</p>
+
+<p>In this article, we explore how we ensure that deploying Flink applications remain safe as we incorporate the lessons learned through our <a href="/our-journey-to-continuous-delivery-at-grab">journey to continuous delivery</a>.</p>
+
+<h2 id="background">Background</h2>
+
+<div class="post-image-section"><figure>
+  <img src="/img/safer-flink-deployments/image2.png" alt="" style="width:70%" /><figcaption align="middle">Figure 1. Flink platform architecture within Coban</figcaption>
+  </figure>
+</div>
+
+<p>Users interact with our systems to develop and deploy Flink applications in three different ways.</p>
+
+<p>Firstly, users create a Merge Request (MR) to develop their Flink applications on our Flink Scala repository, according to business requirements. After the MR is merged, GitOps Continuous Integration/Continuous Deployment (CI/CD) automatically runs and dockerises the application, allowing the containerised applications to be deployed easily.</p>
+
+<p>Secondly, users create another MR to our <a href="/securing-gitops-pipeline">infrastructure as a code</a> repository. The GitOps CI/CD that is integrated with Terraform runs and configures the created Spinnaker application. This process configures the Flink application that will be deployed.</p>
+
+<p>Finally, users trigger the actual deployment of the Flink applications on Spinnaker, which orchestrates the deployment of the Docker image onto our Kubernetes cluster. Flink applications are deployed as standalone clusters in Grab to ensure resource isolation.</p>
+
+<h2 id="problem">Problem</h2>
+
+<p>The main issue we noticed with streaming pipelines like these, is that they are often interconnected, where application A depends on application B’s output. This makes it hard to find a solution that perfectly includes integration tests and ensures that propagated changes do not affect downstream applications.</p>
+
+<p>However, this problem statement is too large to solve with a single solution. As such, we are narrowing the problem statement to focus on ensuring safety of our applications, where engineers can deploy Flink applications that will be rolled back if they fail health checks. In our case, the definition of a Flink application’s health is limited to the uptime of the Flink application itself.</p>
+
+<p>It is worth noting that Flink applications are designed to be <strong>stateful streaming applications</strong>, meaning a “state” is shared between events (stream entities) and thus, past events can influence the way current events are processed. This also implies that traditional deployment strategies do not apply to the deployment of Flink applications.</p>
+
+<h3 id="current-strategy">Current strategy</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/safer-flink-deployments/image3.png" alt="" style="width:70%" /><figcaption align="middle">Figure 2. Current deployment stages</figcaption>
+  </figure>
+</div>
+
+<p>In Figure 2, our current deployment stages are split into three parts:</p>
+
+<ol>
+  <li><strong>Delete current deployment</strong>: Remove current configurations (if applicable) to allow applications to pick up the new configurations.</li>
+  <li><strong>Bake (Manifest)</strong>: Bake the Helm charts with the provided configurations.</li>
+  <li><strong>Deploy (Manifest)</strong>: Deploy the charts onto Kubernetes.</li>
+</ol>
+
+<p>Over time, we learnt that this strategy can be risky. Part 2 can result in a loss of Flink application states due to how internal CI/CD processes are set up. There is also no easy way to rollback if an issue arises. Engineers will need to revert all config changes and rollback the deployment <strong>manually</strong> by re-deploying the older Docker image – which results in slower operation recovery.</p>
+
+<p>Lastly, there are no in-built monitoring mechanisms that perform regular health probes. Engineers need to manually monitor their applications to see if their deployment was successful or if they need to perform a rollback.</p>
+
+<p>With all these issues, deploying Flink applications for engineers are often stressful and fraught with uncertainty. Common mitigation strategies are <em>canary</em> and <em>blue-green deployments</em>, which we cover in the next section.</p>
+
+<h3 id="canary-deployments">Canary deployments</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/safer-flink-deployments/image1.png" alt="" style="width:70%" /><figcaption align="middle">Figure 3. Canary deployment</figcaption>
+  </figure>
+</div>
+
+<p>In canary deployments, you gradually roll out new versions of the application in parallel with the production version, while serving a percentage of total traffic before promoting it gradually.</p>
+
+<p>This does not work for Flink deployments due to the nature of stream processing. Applications are frequently required to do streaming operations like stream joining, which involves matching related events in different Kafka topics. So, if a Flink application is only receiving a portion of the total traffic, the data generated will be considered inaccurate due to incomplete data inputs.</p>
+
+<h3 id="blue-greendeployments">Blue-green deployments</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/safer-flink-deployments/image6.png" alt="" style="width:60%" /><figcaption align="middle">Figure 4. Blue-green deployment</figcaption>
+  </figure>
+</div>
+
+<p>Blue-green deployments work by running two versions of the application with a Load Balancer that acts as a traffic switch, which determines which version traffic is directed to.</p>
+
+<p>This method might work for Flink applications if we only allow one version of the application to consume Kafka messages at any point in time. However, we noticed some issues when switching traffic to another version. For example, the state of both versions will be inconsistent because of the different data traffic each version receives, which complicates the process of switching Kafka consumption traffic.</p>
+
+<p>So if there’s a failure and we need to rollback from Green to Blue deployment, or vice versa, we will need to take an extra step and ensure that before the failure, the data traffic received is <strong>exactly the same</strong> for both deployments.</p>
+
+<h2 id="solution">Solution</h2>
+<p>As previously mentioned, it is crucial for streaming applications to ensure that at any point in time, only one application is receiving data traffic to ensure data completeness and accuracy. Although employing blue-green deployments can technically fulfil this requirement, the process must be modified to handle state consistency such that both versions have the same starting internal state and receive the <strong>same data traffic</strong> as each other, if a rollback is needed.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/safer-flink-deployments/image5.png" alt="" style="width:80%" /><figcaption align="middle">Figure 5. Visualised deployment flow</figcaption>
+  </figure>
+</div>
+
+<p>This deployment flow will operate in the following way:</p>
+
+<ol>
+  <li>Collect metadata regarding current application</li>
+  <li>Take savepoint and stop the current application</li>
+  <li>Clear up high availability configurations</li>
+  <li>Bake and deploy the new application</li>
+  <li>Monitor application and rollback if the health check fails</li>
+</ol>
+
+<p>Let’s elaborate on the key changes implemented in this new process.</p>
+
+<h3 id="savepointing">Savepointing</h3>
+
+<p>Flink’s savepointing feature helps address the issue of state consistency and ensures safer deployments.</p>
+
+<p>A savepoint in Flink is a snapshot of a Flink application’s state at the point in time. This savepoint allows us to pause the Flink application and restore the application to this snapshot state, if there’s an issue.</p>
+
+<p>Before deploying a Flink application, we perform a savepoint via the Flink API before killing the current application. This would enable us to save the current state of the Flink application and rollback if our deployment fails – just like how you would do a quick save before attempting a difficult level when playing games. This mechanism ensures that both deployment versions have the same internal state during deployment as they both start from the same savepoint.</p>
+
+<p>Additionally, this feature allows us to easily handle Kafka offsets since these consumed offsets are stored as part of the savepoint. As Flink manages their own state, they don’t need to rely on Kafka’s consumer offset management. With this savepoint feature, we can ensure that the application receives the same data traffic post rollback and that no messages are lost due to processing on the failed version.</p>
+
+<h3 id="monitoring">Monitoring</h3>
+
+<p>To consistently monitor Flink applications, we can conduct health probes to the respective API endpoints to check if the application is stuck in a restart state or if it is running healthily.</p>
+
+<p>We also configured our monitoring jobs to wait for a few minutes for the deployment to stabilise before probing it over a defined duration, to ensure that the application is in a stable running state.</p>
+
+<h3 id="rollback">Rollback</h3>
+
+<p>If the health checks fail, we then perform an automatic rollback. Typically, Flink applications are deployed as a standalone cluster and a rollback involves changes in one of the following:</p>
+
+<ul>
+  <li>Application and Flink configurations</li>
+  <li>Taskmanager or Jobmanager resource provision</li>
+</ul>
+
+<h4 id="application-and-flink-configuration-changes">Application and Flink configuration changes</h4>
+
+<p>For configuration changes, we leverage the fact that Spinnaker performs versioned deployment of <a href="https://kubernetes.io/docs/concepts/configuration/configmap/"><code class="language-plaintext highlighter-rouge">configmap</code></a> resources. In this case, a rollback simply involves mounting the old <code class="language-plaintext highlighter-rouge">configmap</code> back onto the Kubernetes deployment.</p>
+
+<p>To retrieve the old version of the <code class="language-plaintext highlighter-rouge">configmap</code> mount, we can simply utilise Kubernetes’ rollback mechanisms – Kubernetes updates a deployment by creating a new <code class="language-plaintext highlighter-rouge">replicaset</code> with an incremental version before attaching it to the current deployment and scaling the previous <code class="language-plaintext highlighter-rouge">replicaset</code> to 0. To retrieve previous deployment specs, we just need to list all <code class="language-plaintext highlighter-rouge">replicasets</code> related to the deployment and find the previous deployed version, before updating the current deployment to mimic the previous template specifications.</p>
+
+<p>However, this deployment does not contain the number of replicas of previously configured task managers. Kubernetes does not register the number of replicas as part of deployment configuration as this is a dynamic configuration and might be changed during processing due to auto scaling operations.</p>
+
+<p>Our Flink applications are deployed as standalone clusters and do not use native or yarn resource providers. Coupled with the fact that Flink has strict resource provision, we realised that we do not have enough information to perform rollbacks, without the exact number of replicas created.</p>
+
+<h4 id="taskmanager-or-jobmanager-resource-provision-changes">Taskmanager or Jobmanager resource provision changes</h4>
+
+<p>To gather information about resource provision changes, we can simply include the previously configured number of replicas as part of our metadata annotation. This allows us to retrieve it in future during rollback.</p>
+
+<p>Making this change involves creating an additional step of metadata retrieval to retrieve and store previous deployment states as annotations of the new deployment.</p>
+
+<h3 id="impact">Impact</h3>
+
+<p>With this solution, the deployment flow on Spinnaker looks like this:</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/safer-flink-deployments/image7.png" alt="" style="width:70%" /><figcaption align="middle">Figure 6. New deployment flow on Spinnaker</figcaption>
+  </figure>
+</div>
+
+<p>Engineers no longer need to monitor the deployment pipeline as closely as they get notified of their application’s deployment status via Slack. They only need to interact or take action when they get notified that the different stages of the deployment pipeline are completed.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/safer-flink-deployments/image4.png" alt="" style="width:70%" /><figcaption align="middle">Figure 7. Slack notifications on deployment status</figcaption>
+  </figure>
+</div>
+
+<p>It is also easier to deploy Flink applications since failures and rollbacks are handled automatically. Furthermore, application state management is also automated, which reduces the amount of uncertainties.</p>
+
+<h2 id="whats-next">What’s next?</h2>
+<p>As we work to further improve our deployment pipeline, we will look into extending the capabilities at our monitoring stage to allow engineers to define and configure their own health probes, allowing our deployment configurations to be more extendable.</p>
+
+<p>Another interesting improvement will be to make this deployment flow seamlessly, ensuring as little downtime as possible by minimising cold start duration.</p>
+
+<p>Coban also looks forward to pushing more features on our Flink platform to enable our engineers to explore more use cases that utilises real-time data to allow our operations to become auto adaptive and make data-driven decisions.</p>
+
+<h2 id="references">References</h2>
+
+<ul>
+  <li><a href="https://nightlies.apache.org/flink/flink-docs-release-1.16/docs/ops/state/savepoints/">Flink Savepointing</a></li>
+  <li><a href="https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/">Flink API</a></li>
+  <li><a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/%23updating-a-deployment">Kubernetes rollback</a></li>
+</ul>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#deployments" class="label tags-label">Deployments</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#streaming-applications" class="label tags-label">Streaming applications</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Safer deployment of streaming applications&url=https://engineering.grab.com/safer-flink-deployments&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/safer-flink-deployments" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/safer-flink-deployments&title=Safer deployment of streaming applications
+&summary=As Flink becomes more popular with real-time stream applications, we realise that Flink deployments are sometimes stressful and prone to errors. The Coban team deep dives into the issues with our existing Flink deployment process, possible mitigations, and the eventual solution to ensure safer deployments of Flink streaming applications.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/safer-flink-deployments';
+    this.page.identifier = '/safer-flink-deployments';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
