@@ -1,11 +1,11 @@
 ---
 layout: post
-id: 2023-05-11-2.3x_faster_using_the_go_plugin_to_replace_Lua_VM
+id: 2023-05-15-faster_using_the_go_plugin_to_replace_Lua_VM
 title: 2.3x faster using the Go plugin to replace Lua virtual machine
 date: 2023-05-15 01:23:05
 authors: [yonghao-hu, fabianto-wangsamulya]
 categories: [Engineering]
-tags: [Engineering, Virtual Machines, Faster, go plugin, Lua VM]
+tags: [Engineering, Virtual machines, Faster, Go plugin, Lua VM]
 comments: true
 cover_photo: /img/faster_using_the_go_plugin_to_replace_Lua_VM/cover.png
 excerpt: "The Talaria open-source project has made significant improvements by replacing Lua VM with the Go plugin resulting in 2.3x faster performance and memory usage reduction. Talaria is a time-series database designed for Big Data systems used to process millions of transactions and connections daily at Grab, requiring scalable data-driven decision-making."
@@ -219,7 +219,5 @@ https://github.com/atlas-comstock/talaria_benchmark/tree/master/benchmark_plugin
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
- 
+
 Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
-
-
