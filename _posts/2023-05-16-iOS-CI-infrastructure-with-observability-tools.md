@@ -1,9 +1,9 @@
 ---
 layout: post
-id: iOS-CI-infrastructure-with-observability-tools
+id: 2023-05-16-iOS-CI-infrastructure-with-observability-tools
 title: How we improved our iOS CI infrastructure with observability tools
 date: 2023-05-16 04:39:00
-authors: [Bunty Madan,Hoh Siew Foo Krist,Denis Sakhapov]
+authors: [bunty-madan,krist-foo,denis-sakhapov]
 categories: [Engineering]
 tags: [iOS, Mobile, Engineering, UITesting]
 comments: true
@@ -30,14 +30,20 @@ Before we started UITest, we moved the spotlight.app into a new folder. When th
 
 This table helps you better visualise how the different versions of Xcode affected CPU utilisation.
 
-#### Xcode 12.1
-![](img/iOS-CI-infrastructure-with-observability-tools/image6.png)
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image6.png" alt="" style="width:70%"><figcaption align="middle">Xcode 12.1</figcaption>
+  </figure>
+</div>
 
-#### Xcode 13.1 Before Fix
-![](img/iOS-CI-infrastructure-with-observability-tools/image1.png)
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image6.png" alt="" style="width:70%"><figcaption align="middle">XXcode 13.1 Before Fix</figcaption>
+  </figure>
+</div>
 
-#### Xcode 13.1 After Fix
-![](img/iOS-CI-infrastructure-with-observability-tools/image2.png)
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image2.png" alt="" style="width:70%"><figcaption align="middle">Xcode 13.1 After Fix</figcaption>
+  </figure>
+</div>
 
 ### Remove iOS Safari's dependency during deep link testing
 
@@ -47,15 +53,20 @@ More than 10% of the total number of tests are deep link tests. Typically, it is
 
 As a result, we created a mock browser in UITest. We used the URL to the mock browser as the launch argument, and the same URL is then called back. This method results in a 20% reduction in CI time and more stable tests.
 
-![](img/iOS-CI-infrastructure-with-observability-tools/image4.gif)
-
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image4.png" alt="" style="width:70%"><figcaption align="middle"></figcaption>
+  </figure>
+</div>
 
 ### Boot the iOS simulator with permission
 
 It is always a good idea to reset the simulator before running UITest so that there are no residual presets or simulated data from a different test. Additionally, using any of the simulator's services (location, ATT, contacts, etc.) will prompt the simulator to request permission, which slows down execution. We used UIInterruptionHandler (a handler block for managing alerts and other dialogues) to manage asynchronous UI interruptions during the test.
 
-We wanted to reduce the time taken for test execution, which we knew includes many permissions.Therefore, in order to speed up execution, we boot the simulator with permissions. This removes the need for permissions during UITest, which speeds up performance by 5%.  
-![](img/iOS-CI-infrastructure-with-observability-tools/image7.png)  
+We wanted to reduce the time taken for test execution, which we knew includes many permissions. Therefore, in order to speed up execution, we boot the simulator with permissions. This removes the need for permissions during UITest, which speeds up performance by 5%.  
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image7.png" alt="" style="width:70%"><figcaption align="middle"></figcaption>
+  </figure>
+</div>
 
 ### Monitor HTTP traffic during the UITest
 
@@ -66,9 +77,9 @@ Developers often make changes to code, and UITests are essential for ensuring th
 
 In large teams working simultaneously, preventing downloads from the internet can be quite challenging. To tackle this issue, we devised a custom tool that tracks all URLs accessed throughout the UITest. This enabled us to identify resources being downloaded from the internet during the testing process.
 
-By using our custom tool to analyze network traffic, we were able to ensure that no resources were being downloaded during testing. Instead, we relied on mocked dependencies, resulting in reduced testing times and improved stability.
+By using our custom tool to analyse network traffic, we were able to ensure that no resources were being downloaded during testing. Instead, we relied on mocked dependencies, resulting in reduced testing times and improved stability.
 
-#### GitLab load runner analysis
+### GitLab load runner analysis
 
 At Grab, we have many teams of developers who maintain the app, make code changes, and raise merge requests (MRs) on a daily basis. To make sure that new changes don't conflict with existing code, these MRs are integrated with CI.
 
@@ -79,15 +90,20 @@ Additionally, to manage the number of MRs, we maintain a list of clusters that r
 
 We have a tool that we use to mock API requests, which we improved to also support HTML responses. This increases the scope of testing and ensures the HTML response sequences work properly.
 
-#### Use explicit waiting commands
+### Use explicit waiting commands
 
-When running multiple tests, timing issues are inevitable and they cause tests to occasionally pass and fail. To mitigate this, most of the developers prefer to add a sleep command so there is time for the element to render properly before we verify it – but this slows down execution. In order to improve CI execution, we introduced a link that allows us to track sleep function usage and suggest developers use waitForExistence wrappers in UI tests.
+When running multiple tests, timing issues are inevitable and they cause tests to occasionally pass and fail. To mitigate this, most of the developers prefer to add a sleep command so there is time for the element to render properly before we verify it – but this slows down execution. In order to improve CI execution, we introduced a link that allows us to track sleep function usage and suggest developers use ``waitForExistence`` wrappers in UI tests.
 
-#### Track each failure state
+### Track each failure state
 
-With large codebases, it is quite common to see flakiness in UITests, where tests occasionally succeed and fail without any code changes. This means that test results can be inconsistent and in some cases, faulty. Faulty testing can be frustrating, and quite expensive.. This is because engineers need to re-trigger entire builds, which ends up consuming more time.
+With large codebases, it is quite common to see flakiness in UITests, where tests occasionally succeed and fail without any code changes. This means that test results can be inconsistent and in some cases, faulty. Faulty testing can be frustrating, and quite expensive. This is because engineers need to re-trigger entire builds, which ends up consuming more time.
 
-Initially, we used an internal tool that required all tests to pass on the first run, before merging was allowed. However, we realised that this significantly increased engineers’ manual retry time, hence, we modified the rules to allow merging as long as a subsequent retry passes the tests. This minor change improved our engineers’ CI overall experience and did not result in more flaky tests.![](img/iOS-CI-infrastructure-with-observability-tools/image5.png)
+Initially, we used an internal tool that required all tests to pass on the first run, before merging was allowed. However, we realised that this significantly increased engineers’ manual retry time, hence, we modified the rules to allow merging as long as a subsequent retry passes the tests. This minor change improved our engineers’ CI overall experience and did not result in more flaky tests.
+
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image5.png" alt="" style="width:70%"><figcaption align="middle"></figcaption>
+  </figure>
+</div>
 
 ## Learnings/Conclusion
 
