@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2023-05-16-iOS-CI-infrastructure-with-observability-tools
+id: 2023-05-18-iOS-CI-infrastructure-with-observability-tools
 title: How we improved our iOS CI infrastructure with observability tools
-date: 2023-05-16 04:39:00
+date: 2023-05-18 04:39:00
 authors: [bunty-madan,krist-foo,denis-sakhapov]
 categories: [Engineering]
 tags: [iOS, Mobile, Engineering, UITesting]
@@ -28,7 +28,7 @@ As an iOS developer, we are certain that you have also experienced Spotlight pro
 
 Before we started UITest, we moved the spotlight.app into a new folder. When the test was complete, we restored the application to its original location. This significantly decreased CPU utilisation by more than 50%.
 
-This table helps you better visualise how the different versions of Xcode affected CPU utilisation.
+This section helps you better visualise how the different versions of Xcode affected CPU utilisation.
 
 <div class="post-image-section"><figure>
   <img src="img/iOS-CI-infrastructure-with-observability-tools/image6.png" alt="" style="width:70%"><figcaption align="middle">Xcode 12.1</figcaption>
@@ -36,12 +36,12 @@ This table helps you better visualise how the different versions of Xcode affect
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="img/iOS-CI-infrastructure-with-observability-tools/image6.png" alt="" style="width:70%"><figcaption align="middle">XXcode 13.1 Before Fix</figcaption>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image1.png" alt="" style="width:70%"><figcaption align="middle">Xcode 13.1 before fix</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="img/iOS-CI-infrastructure-with-observability-tools/image2.png" alt="" style="width:70%"><figcaption align="middle">Xcode 13.1 After Fix</figcaption>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image2.png" alt="" style="width:70%"><figcaption align="middle">Xcode 13.1 after fix</figcaption>
   </figure>
 </div>
 
@@ -54,7 +54,7 @@ More than 10% of the total number of tests are deep link tests. Typically, it is
 As a result, we created a mock browser in UITest. We used the URL to the mock browser as the launch argument, and the same URL is then called back. This method results in a 20% reduction in CI time and more stable tests.
 
 <div class="post-image-section"><figure>
-  <img src="img/iOS-CI-infrastructure-with-observability-tools/image4.png" alt="" style="width:70%"><figcaption align="middle"></figcaption>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image4.gif" alt="" style="width:20% ;height:20% " ><figcaption align="middle"></figcaption>
   </figure>
 </div>
 
@@ -92,7 +92,7 @@ We have a tool that we use to mock API requests, which we improved to also suppo
 
 ### Use explicit waiting commands
 
-When running multiple tests, timing issues are inevitable and they cause tests to occasionally pass and fail. To mitigate this, most of the developers prefer to add a sleep command so there is time for the element to render properly before we verify it – but this slows down execution. In order to improve CI execution, we introduced a link that allows us to track sleep function usage and suggest developers use ``waitForExistence`` wrappers in UI tests.
+When running multiple tests, timing issues are inevitable and they cause tests to occasionally pass and fail. To mitigate this, most of the developers prefer to add a sleep command so there is time for the element to render properly before we verify it – but this slows down execution. In order to improve CI execution, we introduced a link that allows us to track sleep function usage and suggest developers use `waitForExistence` wrappers in UI tests.
 
 ### Track each failure state
 
