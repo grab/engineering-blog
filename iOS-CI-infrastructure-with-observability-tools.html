@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>How we improved our iOS CI infrastructure with observability tools</title>
+    <meta name="description" content="After upgrading to Xcode 13.1, we noticed a few issues such as instability of the CI tests and high CPU utilisation. Read to find out how the Test Automation - Mobile team investigated these issues and resolved them by integrating observability tools into our iOS CI development process.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/iOS-CI-infrastructure-with-observability-tools">
+    <meta property="og:title" content="How we improved our iOS CI infrastructure with observability tools">
+    <meta property="og:description" content="After upgrading to Xcode 13.1, we noticed a few issues such as instability of the CI tests and high CPU utilisation. Read to find out how the Test Automation - Mobile team investigated these issues and resolved them by integrating observability tools into our iOS CI development process.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/iOS-CI-infrastructure-with-observability-tools/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/iOS-CI-infrastructure-with-observability-tools">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/iOS-CI-infrastructure-with-observability-tools/cover.png" class="post-cover-photo" alt="How we improved our iOS CI infrastructure with observability tools cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">How we improved our iOS CI infrastructure with observability tools</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/bunty-madan.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/krist-foo.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/denis-sakhapov.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#bunty-madan">Bunty Madan</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#krist-foo">Hoh Siew Foo Krist</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#denis-sakhapov">Denis Sakhapov</a>
+                  
+                
+              </span>
+              <span class="post-date-large">18 May 2023 | 6 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p><small><em>Note: Timestamps used in this article are in UTC+8 Singapore time, unless stated otherwise.</em></small></p>
+
+<h2 id="background">Background</h2>
+
+<p>When we upgraded to Xcode 13.1 in April 2022, we noticed a few issues such as instability of the CI tests and other problems related to the switch to Xcode 13.1. </p>
+
+<p>After taking a step back, we investigated this issue by integrating some observability tools into our iOS CI development process. This gave us a comprehensive perspective of the entire process, from the beginning to the end of the UITest job. In this article, we share the improvements we made, the insights we gathered, and the impact of these improvements on the overall process and resource utilisation.</p>
+
+<h2 id="solution">Solution</h2>
+
+<p>In the following sections, we elaborate the various steps we took to investigate the issues, like unstable CI tests and high CPU utilisation, and the improvements we made to make our iOS CI infrastructure more reliable.</p>
+
+<h3 id="analyse-xcode-131-cpu-utilisation">Analyse Xcode 13.1 CPU utilisation</h3>
+
+<p>As an iOS developer, we are certain that you have also experienced Spotlight process-related CPU usage problems with Xcode 13.1, which have since been resolved in Xcode 13.2. After investigating, we found that the CPU usage issues were one of the root causes of UITest’s instability and it was something we needed to fix urgently. We decided not to wait for Apple’s update as it would cost us more time to perform another round of migration.</p>
+
+<p>Before we started UITest, we moved the spotlight.app into a new folder. When the test was complete, we restored the application to its original location. This significantly decreased CPU utilisation by more than 50%.</p>
+
+<p>This section helps you better visualise how the different versions of Xcode affected CPU utilisation.</p>
+
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image6.png" alt="" style="width:70%" /><figcaption align="middle">Xcode 12.1</figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image1.png" alt="" style="width:70%" /><figcaption align="middle">Xcode 13.1 before fix</figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image2.png" alt="" style="width:70%" /><figcaption align="middle">Xcode 13.1 after fix</figcaption>
+  </figure>
+</div>
+
+<h3 id="remove-ios-safaris-dependency-during-deep-link-testing">Remove iOS Safari’s dependency during deep link testing</h3>
+
+<p>As a superapp, there are countless scenarios that need to be thoroughly tested at Grab before the feature is released in production. One of these tests is deep link testing.</p>
+
+<p>More than 10% of the total number of tests are deep link tests. Typically, it is advised to mock the dependencies throughout the test to ensure that it runs quickly and reliably. However, this creates another reliance on iOS Safari.</p>
+
+<p>As a result, we created a mock browser in UITest. We used the URL to the mock browser as the launch argument, and the same URL is then called back. This method results in a 20% reduction in CI time and more stable tests.</p>
+
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image4.gif" alt="" style="width:20% ;height:20% " /><figcaption align="middle"></figcaption>
+  </figure>
+</div>
+
+<h3 id="boot-the-ios-simulator-with-permission">Boot the iOS simulator with permission</h3>
+
+<p>It is always a good idea to reset the simulator before running UITest so that there are no residual presets or simulated data from a different test. Additionally, using any of the simulator’s services (location, ATT, contacts, etc.) will prompt the simulator to request permission, which slows down execution. We used UIInterruptionHandler (a handler block for managing alerts and other dialogues) to manage asynchronous UI interruptions during the test.</p>
+
+<p>We wanted to reduce the time taken for test execution, which we knew includes many permissions. Therefore, in order to speed up execution, we boot the simulator with permissions. This removes the need for permissions during UITest, which speeds up performance by 5%.</p>
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image7.png" alt="" style="width:70%" /><figcaption align="middle"></figcaption>
+  </figure>
+</div>
+
+<h3 id="monitor-http-traffic-during-the-uitest">Monitor HTTP traffic during the UITest</h3>
+
+<p>When writing tests, it is important to mock all resources as this enables us to focus on the code that’s being tested and not how external dependencies interact or respond. However, with a large team working concurrently, it can be challenging to ensure that nothing is actually downloaded from the internet.</p>
+
+<p>Developers often make changes to code, and UITests are essential for ensuring that these modifications do not adversely affect existing functionality. It is advised to mock all dependencies while writing tests to simulate all possible behavior. We discovered that a significant number of resources were being downloaded each time we ran the tests, which was highly inefficient.</p>
+
+<p>In large teams working simultaneously, preventing downloads from the internet can be quite challenging. To tackle this issue, we devised a custom tool that tracks all URLs accessed throughout the UITest. This enabled us to identify resources being downloaded from the internet during the testing process.</p>
+
+<p>By using our custom tool to analyse network traffic, we were able to ensure that no resources were being downloaded during testing. Instead, we relied on mocked dependencies, resulting in reduced testing times and improved stability.</p>
+
+<h3 id="gitlab-load-runner-analysis">GitLab load runner analysis</h3>
+
+<p>At Grab, we have many teams of developers who maintain the app, make code changes, and raise merge requests (MRs) on a daily basis. To make sure that new changes don’t conflict with existing code, these MRs are integrated with CI.</p>
+
+<p>Additionally, to manage the number of MRs, we maintain a list of clusters that run test runners concurrently for better resource utilisation and performance. We frequently run these tests to determine how many parallel processors are required for stable results.</p>
+
+<p>####Return HTTP responses to the local mock server</p>
+
+<p>We have a tool that we use to mock API requests, which we improved to also support HTML responses. This increases the scope of testing and ensures the HTML response sequences work properly.</p>
+
+<h3 id="use-explicit-waiting-commands">Use explicit waiting commands</h3>
+
+<p>When running multiple tests, timing issues are inevitable and they cause tests to occasionally pass and fail. To mitigate this, most of the developers prefer to add a sleep command so there is time for the element to render properly before we verify it – but this slows down execution. In order to improve CI execution, we introduced a link that allows us to track sleep function usage and suggest developers use <code class="language-plaintext highlighter-rouge">waitForExistence</code> wrappers in UI tests.</p>
+
+<h3 id="track-each-failure-state">Track each failure state</h3>
+
+<p>With large codebases, it is quite common to see flakiness in UITests, where tests occasionally succeed and fail without any code changes. This means that test results can be inconsistent and in some cases, faulty. Faulty testing can be frustrating, and quite expensive. This is because engineers need to re-trigger entire builds, which ends up consuming more time.</p>
+
+<p>Initially, we used an internal tool that required all tests to pass on the first run, before merging was allowed. However, we realised that this significantly increased engineers’ manual retry time, hence, we modified the rules to allow merging as long as a subsequent retry passes the tests. This minor change improved our engineers’ CI overall experience and did not result in more flaky tests.</p>
+
+<div class="post-image-section"><figure>
+  <img src="img/iOS-CI-infrastructure-with-observability-tools/image5.png" alt="" style="width:70%" /><figcaption align="middle"></figcaption>
+  </figure>
+</div>
+
+<h2 id="learningsconclusion">Learnings/Conclusion</h2>
+
+<p>Our journey to improve iOS CI infrastructure is still ongoing, but from this experience, we learnt several things:</p>
+
+<ul>
+  <li>Focus on the feature being tested by ensuring all external responses are mocked.</li>
+  <li>A certain degree of test flakiness is expected, but you should monitor past trends. If flakiness increases, there’s probably a deeper lying issue within your code.</li>
+  <li>Regularly monitor resource utilisation and performance – detecting a sudden spike early could save you a lot of time and money.</li>
+</ul>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#ios" class="label tags-label">iOS</a>
+  
+    <a href="/tags#mobile" class="label tags-label">Mobile</a>
+  
+    <a href="/tags#uitesting" class="label tags-label">UITesting</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=How we improved our iOS CI infrastructure with observability tools&url=https://engineering.grab.com/iOS-CI-infrastructure-with-observability-tools&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/iOS-CI-infrastructure-with-observability-tools" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/iOS-CI-infrastructure-with-observability-tools&title=How we improved our iOS CI infrastructure with observability tools
+&summary=After upgrading to Xcode 13.1, we noticed a few issues such as instability of the CI tests and high CPU utilisation. Read to find out how the Test Automation - Mobile team investigated these issues and resolved them by integrating observability tools into our iOS CI development process.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/iOS-CI-infrastructure-with-observability-tools';
+    this.page.identifier = '/iOS-CI-infrastructure-with-observability-tools';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73060858-2', 'auto');
+    ga('send', 'pageview');
+  </script>
+
+
+  </body>
+</html>
