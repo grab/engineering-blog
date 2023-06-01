@@ -8,12 +8,12 @@ categories: [Engineering, Security]
 tags: [Engineering, Privacy, Data masking, Machine learning]
 comments: true
 cover_photo: /img/pii-masking/cover.png
-excerpt: "Data engineers at Grab work with large sets of data to build and train advanced machine learning models, in order to continuously improve our user experience. However, as with any data-handling company, dealing with this sort of data may present a potential privacy risk as it contains personally identifiable information (PII) of users. Read this article to find out more about Grab’s mature privacy protective measures and how the Coban team uses PII tagging and masking on data streaming pipelines to protect our users."
+excerpt: "Data engineers at Grab work with large sets of data to build and train advanced machine learning models to continuously improve our user experience. However, as with any data-handling company, dealing with users' data may present a potential privacy risk as it contains Personally Identifiable Information (PII). Read this article to find out more about Grab’s mature privacy protective measures and how our data streaming team uses PII tagging and masking on data streaming pipelines to protect our users."
 ---
 
-At Grab, data engineers work with large sets of data on a daily basis. They design and build advanced machine learning models that provide strategic insights using all of the data that flow through the Grab Platform. This enables us to provide a better experience to our users, for example by increasing - in a timely fashion - the supply of drivers in areas where our predictive models indicate a surge in demand.
+At Grab, data engineers work with large sets of data on a daily basis. They design and build advanced machine learning models that provide strategic insights using all of the data that flow through the Grab Platform. This enables us to provide a better experience to our users, for example by increasing the supply of drivers in areas where our predictive models indicate a surge in demand in a timely fashion.
 
-Grab has a mature privacy programme that complies with applicable privacy laws and regulations and we use tools to help identify, assess and appropriately manage our privacy risk. To ensure that our users’ data are well-protected and avoid any human-related errors, we always take extra measures to secure this data.
+Grab has a mature privacy programme that complies with applicable privacy laws and regulations and we use tools to help identify, assess, and appropriately manage our privacy risks. To ensure that our users’ data are well-protected and avoid any human-related errors, we always take extra measures to secure this data.
 
 However, data engineers **will still require** access to actual production data in order to tune effective machine learning models and ensure the models work as intended in production.
 
@@ -35,7 +35,7 @@ message Booking {
 }
 ```
 
-Over here, the fourth field `passengerName` describes a PII and the data pertaining to that field should never be accessible by any data engineer. Therefore, developers owning the stream must tag that field with a PII label like this:
+Over here, the fourth field `passengerName` involves a PII and the data pertaining to that field should never be accessible by any data engineer. Therefore, developers owning the stream must tag that field with a PII label like this:
 
 ```
 import "streams/coban/options/v1/pii.proto";
@@ -49,9 +49,9 @@ message Booking {
 }
 ```
 
-The imported `pii.proto` library defines the tags for all possible types of PII. In the example above, the `passengerName` field has not only been flagged as PII, but is also marked as `PII_TYPE_NAME` – a specific type of PII that conveys the name of individuals. This high level typing enables more flexible PII masking methods, which we will explain later.
+The imported `pii.proto` library defines the tags for all possible types of PII. In the example above, the `passengerName` field has not only been flagged as PII, but is also marked as `PII_TYPE_NAME` – a specific type of PII that conveys the names of individuals. This high-level typing enables more flexible PII masking methods, which we will explain later.
 
-Once the PII fields have been properly identified and tagged, developers need to publish the schema of their new stream into Coban's Git repository for schemas. A Continuous Integration (CI) pipeline described below ensures that all fields describing PII are correctly tagged.
+Once the PII fields have been properly identified and tagged, developers need to publish the schema of their new stream into Coban's Git repository. A Continuous Integration (CI) pipeline described below ensures that all fields describing PII are correctly tagged.
 
 The following diagram shows this CI pipeline in action.
 
@@ -60,7 +60,7 @@ The following diagram shows this CI pipeline in action.
   </figure>
 </div>
 
-When a developer creates a Merge Request (MR) or pushes a new commit to create or update a schema (step 1), the CI pipeline is triggered. This runs an in-house Python script that scans each variable name of the committed schema and tests it against an extensive list of PII keywords, which is regularly updated, such as `name`, `address`, `email`, `phone`, etc (step 2). If there is a match and the variable is not tagged with the expected PII label, the pipeline fails (step 3) with an explicit error message in the CI pipeline's output, similar to this:
+When a developer creates a Merge Request (MR) or pushes a new commit to create or update a schema (step 1), the CI pipeline is triggered. It runs an in-house Python script that scans each variable name of the committed schema and tests it against an extensive list of PII keywords that is regularly updated, such as `name`, `address`, `email`, `phone`, etc (step 2). If there is a match and the variable is not tagged with the expected PII label, the pipeline fails (step 3) with an explicit error message in the CI pipeline's output, similar to this:
 
 ```
 Field name [Booking.passengerName] should have been marked with type streams.coban.options.v1.pii_type = PII_TYPE_NAME
@@ -68,7 +68,7 @@ Field name [Booking.passengerName] should have been marked with type st
 
 There are cases where a variable name in the schema is a partial match against a PII keyword but is legitimately not a PII – for example, `carModelName` is a partial match against `name` but does not contain PII data. In this case, the developer can choose to add it to a whitelist to pass the CI.
 
-However, modifying the whitelist requires approval from the Coban team, for verification purposes. Apart from this particular case, the requesting team can autonomously approve their MR, in a self-service fashion.
+However, modifying the whitelist requires approval from the Coban team for verification purposes. Apart from this particular case, the requesting team can autonomously approve their MR in a self-service fashion.
 
 Now let us look at an example of a successful CI pipeline execution.
 
@@ -79,7 +79,7 @@ Now let us look at an example of a successful CI pipeline execution.
 
 In Fig. 2, the committed schema (step 1) is properly tagged so our in-house Python script is unable to find any untagged PII fields (step 2). The MR is approved by a code owner (step 3), then merged to the master branch of the repository (step 4).
 
-Upon merging, another CI pipeline is triggered. It runs a job to package the protobuf schema in a Java Archive (JAR) of [Scala classes](https://docs.scala-lang.org/tour/classes.html) (step 5), which in turn is stored into a package registry (step 6). We will explain the reason for this in a later section.
+Upon merging, another CI pipeline is triggered to package the protobuf schema in a Java Archive (JAR) of [Scala classes](https://docs.scala-lang.org/tour/classes.html) (step 5), which in turn is stored into a package registry (step 6). We will explain the reason for this in a later section.
 
 ## Production environment
 
@@ -98,7 +98,7 @@ At this part of the process, this is not much of a concern because access to the
 
 ## PII masking
 
-To ensure security, stability and privacy of our users, data engineers who need to tune their new machine learning models based on production data are **not granted access** to the production environment. Instead, they have access to the staging environment, where production data is mirrored and PII is masked.
+To ensure the security, stability, and privacy of our users, data engineers who need to tune their new machine learning models based on production data are **not granted access** to the production environment. Instead, they have access to the staging environment, where production data is mirrored and PII is masked.
 
 <div class="post-image-section"><figure>
   <img src="img/pii-masking/image2.png" alt="" style="width:70%"><figcaption align="middle">Fig. 4 PII masking pipeline from the production environment to the staging environment</figcaption>
@@ -126,7 +126,7 @@ Finally, whenever a new PII-tagged field is added to a schema, the PII masking F
 
 For the immediate next steps, we are going to enhance this design with an in-house product based on [AWS Macie](https://aws.amazon.com/macie/) to automatically detect the PII that would have fallen through the cracks. Caspian, Grab’s data lake team and one of Coban’s sister teams, has built a service that is already able to detect PII data in relational databases and data lake tables. It is currently being adapted for data streaming.
 
-In the longer run, we are committed to take our privacy by design posture to the next level. Indeed, the PII masking described in this article does not prevent a bad actor from retrieving the consistent hash of a particular individual based on their non-PII data. For example, the target might be identifiable by a signature in the masked data set, such as unique food or transportation habits.
+In the longer run, we are committed to taking our privacy by design posture to the next level. Indeed, the PII masking described in this article does not prevent a bad actor from retrieving the consistent hash of a particular individual based on their non-PII data. For example, the target might be identifiable by a signature in the masked data set, such as unique food or transportation habits.
 
 A possible counter-measure could be one or a combination of the following techniques, ordered by difficulty of implementation:
 
