@@ -6,9 +6,161 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 01 Jun 2023 03:05:40 +0000</pubDate>
-    <lastBuildDate>Thu, 01 Jun 2023 03:05:40 +0000</lastBuildDate>
+    <pubDate>Thu, 01 Jun 2023 03:30:36 +0000</pubDate>
+    <lastBuildDate>Thu, 01 Jun 2023 03:30:36 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>PII masking for privacy-grade machine learning</title>
+        <description>&lt;p&gt;At Grab, data engineers work with large sets of data on a daily basis. They design and build advanced machine learning models that provide strategic insights using all of the data that flow through the Grab Platform. This enables us to provide a better experience to our users, for example by increasing the supply of drivers in areas where our predictive models indicate a surge in demand in a timely fashion.&lt;/p&gt;
+
+&lt;p&gt;Grab has a mature privacy programme that complies with applicable privacy laws and regulations and we use tools to help identify, assess, and appropriately manage our privacy risks. To ensure that our users’ data are well-protected and avoid any human-related errors, we always take extra measures to secure this data.&lt;/p&gt;
+
+&lt;p&gt;However, data engineers &lt;strong&gt;will still require&lt;/strong&gt; access to actual production data in order to tune effective machine learning models and ensure the models work as intended in production.&lt;/p&gt;
+
+&lt;p&gt;In this article, we will describe how the Grab’s data streaming team (Coban), along with the data platform and user teams, have enforced Personally Identifiable Information (PII) masking on machine learning data streaming pipelines. This ensures that we uphold a high standard and embody a &lt;em&gt;privacy by design&lt;/em&gt; culture, while enabling data engineers to refine their models with sanitised production data.&lt;/p&gt;
+
+&lt;h2 id=&quot;pii-tagging&quot;&gt;PII tagging&lt;/h2&gt;
+
+&lt;p&gt;Data streaming at Grab leverages the Protocol Buffers (&lt;a href=&quot;https://protobuf.dev/&quot;&gt;protobuf&lt;/a&gt;) data format to structure in-transit data. When creating a new stream, developers &lt;strong&gt;must&lt;/strong&gt; describe its fields in a protobuf schema that is then used for serialising the data wherever it is sent over the wire, and deserialising it wherever it is consumed.&lt;/p&gt;
+
+&lt;p&gt;A fictional example schema looks like this (the indexes are arbitrary, but commonly created in sequence):&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;message Booking {
+  string bookingID = 1;
+  int64 creationTime = 2;
+  int64 passengerID = 3;
+  string passengerName = 4;
+  ... truncated output ...
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Over here, the fourth field &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;passengerName&lt;/code&gt; involves a PII and the data pertaining to that field should never be accessible by any data engineer. Therefore, developers owning the stream must tag that field with a PII label like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import &quot;streams/coban/options/v1/pii.proto&quot;;
+
+message Booking {
+  string bookingID = 1;
+  int64 creationTime = 2;
+  int64 passengerID = 3;
+  string passengerName = 4 [(streams.coban.options.v1.pii_type) = PII_TYPE_NAME];
+  ... truncated output ...
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The imported &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pii.proto&lt;/code&gt; library defines the tags for all possible types of PII. In the example above, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;passengerName&lt;/code&gt; field has not only been flagged as PII, but is also marked as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PII_TYPE_NAME&lt;/code&gt; – a specific type of PII that conveys the names of individuals. This high-level typing enables more flexible PII masking methods, which we will explain later.&lt;/p&gt;
+
+&lt;p&gt;Once the PII fields have been properly identified and tagged, developers need to publish the schema of their new stream into Coban’s Git repository. A Continuous Integration (CI) pipeline described below ensures that all fields describing PII are correctly tagged.&lt;/p&gt;
+
+&lt;p&gt;The following diagram shows this CI pipeline in action.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/pii-masking/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 1 CI pipeline failure due to untagged PII fields&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;When a developer creates a Merge Request (MR) or pushes a new commit to create or update a schema (step 1), the CI pipeline is triggered. It runs an in-house Python script that scans each variable name of the committed schema and tests it against an extensive list of PII keywords that is regularly updated, such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;name&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;address&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;email&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;phone&lt;/code&gt;, etc (step 2). If there is a match and the variable is not tagged with the expected PII label, the pipeline fails (step 3) with an explicit error message in the CI pipeline’s output, similar to this:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Field name [Booking.passengerName] should have been marked with type streams.coban.options.v1.pii_type = PII_TYPE_NAME
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;There are cases where a variable name in the schema is a partial match against a PII keyword but is legitimately not a PII – for example, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;carModelName&lt;/code&gt; is a partial match against &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;name&lt;/code&gt; but does not contain PII data. In this case, the developer can choose to add it to a whitelist to pass the CI.&lt;/p&gt;
+
+&lt;p&gt;However, modifying the whitelist requires approval from the Coban team for verification purposes. Apart from this particular case, the requesting team can autonomously approve their MR in a self-service fashion.&lt;/p&gt;
+
+&lt;p&gt;Now let us look at an example of a successful CI pipeline execution.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/pii-masking/image3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 2 CI pipeline success and schema publishing&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Fig. 2, the committed schema (step 1) is properly tagged so our in-house Python script is unable to find any untagged PII fields (step 2). The MR is approved by a code owner (step 3), then merged to the master branch of the repository (step 4).&lt;/p&gt;
+
+&lt;p&gt;Upon merging, another CI pipeline is triggered to package the protobuf schema in a Java Archive (JAR) of &lt;a href=&quot;https://docs.scala-lang.org/tour/classes.html&quot;&gt;Scala classes&lt;/a&gt; (step 5), which in turn is stored into a package registry (step 6). We will explain the reason for this in a later section.&lt;/p&gt;
+
+&lt;h2 id=&quot;production-environment&quot;&gt;Production environment&lt;/h2&gt;
+
+&lt;p&gt;With the schemas published and all of their PII fields properly tagged, we can now take a look at the data streaming pipelines.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/pii-masking/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 3 PII flow in the production environment&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In this example, the user generates data by interacting with the Grab superapp and making a booking (step 1). The booking service, compiled with the stream’s schema definition, generates and produces Kafka records for other services to consume (step 2). Among those consuming services are the production machine learning pipelines that are of interest to this article (step 3).&lt;/p&gt;
+
+&lt;p&gt;PII is not masked in this process because it is actually required by the consuming services. For example, the driver app needs to display the passenger’s actual name, so the driver can confirm their identity easily.&lt;/p&gt;
+
+&lt;p&gt;At this part of the process, this is not much of a concern because access to the sacrosanct production environment is highly restricted and monitored by Grab.&lt;/p&gt;
+
+&lt;h2 id=&quot;pii-masking&quot;&gt;PII masking&lt;/h2&gt;
+
+&lt;p&gt;To ensure the security, stability, and privacy of our users, data engineers who need to tune their new machine learning models based on production data are &lt;strong&gt;not granted access&lt;/strong&gt; to the production environment. Instead, they have access to the staging environment, where production data is mirrored and PII is masked.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/pii-masking/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 4 PII masking pipeline from the production environment to the staging environment&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The actual PII masking is performed by an in-house &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; application that resides in the production environment. Flink is a reference framework for data streaming that we use extensively. It is also fault tolerant, with the ability to restart from a checkpoint.&lt;/p&gt;
+
+&lt;p&gt;The Flink application is compiled along with the JAR containing the schema as Scala classes previously mentioned. Therefore, it is able to consume the original data as a regular Kafka consumer (step 1). It then dynamically masks the PII of the consumed data stream, based on the PII tags of the schema (step 2). Ultimately, it produces the sanitised data to the Kafka cluster in the staging environment as a normal Kafka producer (step 3).&lt;/p&gt;
+
+&lt;p&gt;Depending on the kind of PII, there are several methods of masking such as:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Names and strings of characters&lt;/strong&gt;: They are replaced by consistent &lt;a href=&quot;https://csrc.nist.gov/glossary/term/hash_based_message_authentication_code&quot;&gt;HMAC&lt;/a&gt; (Hash-based message authentication code). A HMAC is a digest produced by a one-way cryptographic hash function that takes a secret key as a parameter. Leveraging a secret key here is a defence against chosen plaintext attacks, i.e. computing the digest of a particular plaintext, like a targeted individual’s name.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Numbers and dates&lt;/strong&gt;: Similarly, they are transformed in a consistent manner, by leveraging a random generator that takes the unmasked value as a seed, so that the same PII input consistently produces the same masked output.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Note that consistency is a recurring pattern. This is because it is a key requirement for certain machine learning models.&lt;/p&gt;
+
+&lt;p&gt;This sanitised data produced to the Kafka cluster in the staging environment is then consumed by the staging machine learning pipelines (step 4). There, it is used by data engineers to tune their models effectively with near real-time production data (step 5).&lt;/p&gt;
+
+&lt;p&gt;The Kafka cluster in the staging environment is secured with authorisation and authentication (see &lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Zero Trust with Kafka&lt;/a&gt;). This is an extra layer of security in case some PII data inadvertently fall through the cracks of PII tagging, following the defence in depth principle.&lt;/p&gt;
+
+&lt;p&gt;Finally, whenever a new PII-tagged field is added to a schema, the PII masking Flink application needs to be compiled and deployed again. If the schema is not updated, the Flink pipeline is unable to decode this new field when deserialising the stream. Thus, the added field is just dropped and the new PII data does not make it to the staging environment.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;For the immediate next steps, we are going to enhance this design with an in-house product based on &lt;a href=&quot;https://aws.amazon.com/macie/&quot;&gt;AWS Macie&lt;/a&gt; to automatically detect the PII that would have fallen through the cracks. Caspian, Grab’s data lake team and one of Coban’s sister teams, has built a service that is already able to detect PII data in relational databases and data lake tables. It is currently being adapted for data streaming.&lt;/p&gt;
+
+&lt;p&gt;In the longer run, we are committed to taking our privacy by design posture to the next level. Indeed, the PII masking described in this article does not prevent a bad actor from retrieving the consistent hash of a particular individual based on their non-PII data. For example, the target might be identifiable by a signature in the masked data set, such as unique food or transportation habits.&lt;/p&gt;
+
+&lt;p&gt;A possible counter-measure could be one or a combination of the following techniques, ordered by difficulty of implementation:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Data minimisation&lt;/strong&gt;: Non-essential fields in the data stream should not be mirrored at all. E.g. fields of the data stream that are not required by the data engineers to tune their models. We can introduce a dedicated tag in the schema to flag those fields and instruct the mirroring pipeline to drop them. This is the most straightforward approach.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Differential privacy&lt;/strong&gt;: The mirroring pipeline could introduce some noise in the mirrored data, in a way that would obfuscate the signatures of particular individuals while still preserving the essential statistical properties of the dataset required for machine learning. It happens that Flink is a suitable framework to do so, as it can split a stream into multiple windows and apply computation over those windows. Designing and generalising a logic that meets the objective is challenging though.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;PII encryption at source&lt;/strong&gt;: PII could be encrypted by the producing services (like the booking service), and dynamically decrypted where plaintext values are required. However, key management and performance are two tremendous challenges of this approach.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We will explore these techniques further to find the solution that works best for Grab and ensures the highest level of privacy for our users.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 01 Jun 2023 01:18:00 +0000</pubDate>
+        <link>https://engineering.grab.com/pii-masking</link>
+        <guid isPermaLink="true">https://engineering.grab.com/pii-masking</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Privacy</category>
+        
+        <category>Data masking</category>
+        
+        <category>Machine learning</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Security</category>
+        
+      </item>
     
       <item>
         <title>Performance bottlenecks of Go application on Kubernetes with non-integer (floating) CPU allocation</title>
@@ -1685,103 +1837,6 @@ is_owner(md) if {
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>New zoom freezing feature for Geohash plugin</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Geohash is an encoding system with a unique identifier for each region on the planet. Therefore, all geohash units can be associated with an individual set of digits and letters.&lt;/p&gt;
-
-&lt;p&gt;Geohash is a plugin built by Grab that is available in the Java OpenStreetMap Editor (JOSM) tool, which comes in handy for those who work on precise areas based on geohash units.&lt;/p&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Up until recently, users of the Geohash JOSM plugin were unable to stop the displaying of new geohashes with every zoom-in or zoom-out. This meant that every time they changed the zoom, new geohashes would be displayed, and this became bothersome for many users when it was unneeded. The previous behaviour of the plugin when zooming in and out is depicted in the following short video:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/geohash-plugin/image7.gif&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-&lt;p&gt;This led to the implementation of the zoom freeze feature, which helps users toggle between Enable zoom freeze and Disable zoom freeze, based on their needs.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;As you can see in the following image, a new label was created with the purpose of freezing or unfreezing the display of new geohashes with each zoom change:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/geohash-plugin/image3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;By default, this label says “Enable zoom freeze”, and when zoom freezing is enabled, the label changes to “Disable zoom freeze”.&lt;/p&gt;
-
-&lt;p&gt;In order to see how zoom freezing works, let’s consider the following example: a user wants to zoom inside the geohash with the code w886hu, without triggering the display of smaller geohashes inside of it. For this purpose, the user will enable the zoom freezing feature by clicking on the label, and then they will proceed with the zoom. The map will look like this:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/geohash-plugin/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;It is apparent from the image that no new geohashes were created. Now, let’s say the user has finished what they wanted to do, and wants to go back to the “normal” geohash visualisation mode, which means disabling the zoom freeze option. After clicking on the label that now says ‘Disable zoom freeze’, new, smaller geohashes will be displayed, according to the current zoom level:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/geohash-plugin/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The functionality is illustrated in the following short video:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/geohash-plugin/image5.gif&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Another effect that enabling zoom freeze has is that it disables the ‘Display larger geohashes’ and ‘Display smaller geohashes’ options, since the geohashes are now fixed. The following images show how these options work before and after disabling zoom freeze:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/geohash-plugin/image6.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/geohash-plugin/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;To conclude, we believe that the release of this new feature will benefit users by making it more comfortable for them to zoom in and out of a map. By turning off the display of new geohashes when this is unwanted, map readability is improved, and this translates to a better user experience.&lt;/p&gt;
-
-&lt;h2 id=&quot;impactlimitations&quot;&gt;Impact/Limitations&lt;/h2&gt;
-
-&lt;p&gt;In order to start using this new feature, users need to update the Geohash JOSM plugin.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;Grab has come a long way in map-making, from using open source map-making software and developing its own suite of map-making tools to contributing to the open-source map community and building and launching GrabMaps. To find out more, read &lt;a href=&quot;/kartacam-powers-grabmaps&quot;&gt;How KartaCam powers GrabMaps&lt;/a&gt; and &lt;a href=&quot;https://www.grab.com/sg/enterprise-blog/kartacam-delivers-comprehensive-cost-effective-mapping-data/&quot;&gt;KartaCam delivers comprehensive, cost-effective mapping data&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 21 Feb 2023 01:18:05 +0000</pubDate>
-        <link>https://engineering.grab.com/geohash-plugin</link>
-        <guid isPermaLink="true">https://engineering.grab.com/geohash-plugin</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Geohash</category>
-        
-        <category>Maps</category>
-        
-        <category>Open source</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Product</category>
         
       </item>
     
