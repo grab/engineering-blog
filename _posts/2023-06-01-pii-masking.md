@@ -56,7 +56,7 @@ Once the PII fields have been properly identified and tagged, developers need to
 The following diagram shows this CI pipeline in action.
 
 <div class="post-image-section"><figure>
-  <img src="img/pii-masking/image4.png" alt="" style="width:70%"><figcaption align="middle">Fig. 1 CI pipeline failure due to untagged PII fields</figcaption>
+  <img src="img/pii-masking/image1.png" alt="" style="width:70%"><figcaption align="middle">Fig. 1 CI pipeline failure due to untagged PII fields</figcaption>
   </figure>
 </div>
 
@@ -73,7 +73,7 @@ However, modifying the whitelist requires approval from the Coban team for verif
 Now let us look at an example of a successful CI pipeline execution.
 
 <div class="post-image-section"><figure>
-  <img src="img/pii-masking/image3.png" alt="" style="width:70%"><figcaption align="middle">Fig. 2 CI pipeline success and schema publishing</figcaption>
+  <img src="img/pii-masking/image2.png" alt="" style="width:70%"><figcaption align="middle">Fig. 2 CI pipeline success and schema publishing</figcaption>
   </figure>
 </div>
 
@@ -86,7 +86,7 @@ Upon merging, another CI pipeline is triggered to package the protobuf schema in
 With the schemas published and all of their PII fields properly tagged, we can now take a look at the data streaming pipelines.
 
 <div class="post-image-section"><figure>
-  <img src="img/pii-masking/image1.png" alt="" style="width:70%"><figcaption align="middle">Fig. 3 PII flow in the production environment</figcaption>
+  <img src="img/pii-masking/image3.png" alt="" style="width:70%"><figcaption align="middle">Fig. 3 PII flow in the production environment</figcaption>
   </figure>
 </div>
 
@@ -101,7 +101,7 @@ At this part of the process, this is not much of a concern because access to the
 To ensure the security, stability, and privacy of our users, data engineers who need to tune their new machine learning models based on production data are **not granted access** to the production environment. Instead, they have access to the staging environment, where production data is mirrored and PII is masked.
 
 <div class="post-image-section"><figure>
-  <img src="img/pii-masking/image2.png" alt="" style="width:70%"><figcaption align="middle">Fig. 4 PII masking pipeline from the production environment to the staging environment</figcaption>
+  <img src="img/pii-masking/image4.png" alt="" style="width:70%"><figcaption align="middle">Fig. 4 PII masking pipeline from the production environment to the staging environment</figcaption>
   </figure>
 </div>
 
