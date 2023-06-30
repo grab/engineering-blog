@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Go module proxy at Grab</title>
+    <meta name="description" content="While consolidating code into a single monorepo has its benefits, there are also several challenges that come with managing a large monorepo like slow performance and low developer productivity. Find out how Grab’s FLIP team contributes and leverages the open-sourced Athens Go module proxy to improve developer productivity at Grab.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/go-module-proxy">
+    <meta property="og:title" content="Go module proxy at Grab">
+    <meta property="og:description" content="While consolidating code into a single monorepo has its benefits, there are also several challenges that come with managing a large monorepo like slow performance and low developer productivity. Find out how Grab’s FLIP team contributes and leverages the open-sourced Athens Go module proxy to improve developer productivity at Grab.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/go-module-proxy/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/go-module-proxy">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+</head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/go-module-proxy/cover.png" class="post-cover-photo" alt="Go module proxy at Grab cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Go module proxy at Grab</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/jerry-ng.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#jerry-ng">Jerry Ng</a>
+                  
+                
+              </span>
+              <span class="post-date-large">30 Jun 2023 | 14 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p>At Grab, we rely heavily on <a href="/go-module-a-guide-for-monorepos-part-1">a large Go monorepo</a> for backend development, which offers benefits like code reusability and discoverability. However, as we continue to grow, managing a large monorepo brings about its own set of unique challenges.</p>
+
+<p>As an example, using Go commands such as <code class="language-plaintext highlighter-rouge">go get</code> and <code class="language-plaintext highlighter-rouge">go list</code> can be incredibly slow when fetching Go modules residing in a large <a href="https://github.com/golang/go/wiki/Modules#what-are-multi-module-repositories">multi-module repository</a>. This sluggishness takes a toll on developer productivity, burdens our Continuous Integration (CI) systems, and strains our Version Control System host (VCS), GitLab.</p>
+
+<p>In this blog post, we look at how <a href="https://github.com/gomods/athens">Athens</a>, a Go module proxy, helps to improve the overall developer experience of engineers working with a large Go monorepo at Grab.</p>
+
+<h2 id="key-highlights">Key highlights</h2>
+
+<ul>
+  <li>We reduced the time of executing the <code class="language-plaintext highlighter-rouge">go get</code> command from <strong>~18 minutes</strong> to <strong>~12 seconds</strong> when fetching monorepo Go modules.</li>
+  <li>We scaled in and <strong>scaled down our entire Athens cluster by 70%</strong> by utilising the fallback network mode in Athens along with Golang’s <code class="language-plaintext highlighter-rouge">GOVCS</code> mode, resulting in cost savings and enhanced efficiency.</li>
+</ul>
+
+<h2 id="problem-statements-and-solutions">Problem statements and solutions</h2>
+
+<h3 id="1-painfully-slow-performance-of-go-commands">1. Painfully slow performance of Go commands</h3>
+
+<p><em>Problem summary: Running the <code class="language-plaintext highlighter-rouge">go get</code> command in our monorepo takes a considerable amount of time and can lead to performance degradation in our VCS.</em></p>
+
+<p>When working with the Go programming language, <code class="language-plaintext highlighter-rouge">go get</code> is one of the most common commands that you’ll use every day. Besides developers, this command is also used by CI systems.</p>
+
+<h4 id="what-does-go-getdo">What does <code class="language-plaintext highlighter-rouge">go get</code> do?</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">go get</code> command is used to download and install packages and their dependencies in Go. Note that it operates differently depending on whether it is run in <a href="https://pkg.go.dev/cmd/go#hdr-Legacy_GOPATH_go_get">legacy GOPATH mode</a> or module-aware mode. In Grab, we’re using the <a href="https://go.dev/ref/mod#mod-commands">module-aware mode</a> in a <a href="https://github.com/golang/go/wiki/Modules#faqs--multi-module-repositories">multi-module repository</a> setup.</p>
+
+<div class="post-image-section"><figure>
+  <img src="img/go-module-proxy/image2.png" alt="" style="width:70%" /><figcaption align="middle"></figcaption>
+  </figure>
+</div>
+
+<p>Every time <code class="language-plaintext highlighter-rouge">go get</code> is run, it uses Git commands, like <code class="language-plaintext highlighter-rouge">git ls-remote</code>, <code class="language-plaintext highlighter-rouge">git tag</code>, <code class="language-plaintext highlighter-rouge">git fetch</code>, etc, to search and download the entire worktree. The excessive use of these Git commands on our monorepo contributes to the long processing time and can be strenuous to our VCS.</p>
+
+<h4 id="how-big-is-our-monorepo">How big is our monorepo?</h4>
+
+<p>To fully grasp the challenges faced by our engineering teams, it’s crucial to understand the vast scale of the monorepo that we work with daily. For this, we use <a href="https://github.com/github/git-sizer">git-sizer</a> to analyse our monorepo.</p>
+
+<p>Here’s what we found:</p>
+
+<ul>
+  <li><strong>Overall repository size</strong>: The monorepo has a total uncompressed size of <strong>69.3 GiB</strong>, a fairly substantial figure. To put things into perspective, the <a href="https://github.com/torvalds/linux">Linux kernel repository</a>, known for its vastness, currently stands at 55.8 GiB.</li>
+  <li><strong>Trees</strong>: The total number of trees is 3.21M and tree entries are 99.8M, which consume 3.65 GiB. This may cause performance issues during some Git operations.</li>
+  <li><strong>References</strong>: Totalling 10.7k references.</li>
+  <li><strong>Biggest checkouts</strong>: There are 64.7k directories in our monorepo. This affects operations like <code class="language-plaintext highlighter-rouge">git status</code> and <code class="language-plaintext highlighter-rouge">git checkout</code>. Moreover, our monorepo has a maximum path depth of 20. This contributes to a slow processing time on Git and negatively impacts developer experience. The number of files (354k) and the total size of files (5.08 GiB) are also concerns due to their potential impact on the repository’s performance.</li>
+</ul>
+
+<p>To draw a comparison, refer to <a href="https://github.com/github/git-sizer/blob/0b6d3a21c6ccbd49463534a19cc1b3f71526c077/README.md#usage">the <code class="language-plaintext highlighter-rouge">git-sizer</code> output of the Linux repository</a>.</p>
+
+<h4 id="how-slow-is-slow">How slow is “slow”?</h4>
+
+<p>To illustrate the issue further, we will compare the time taken for various Go commands to fetch a single module in our monorepo at a 10 MBps download speed.</p>
+
+<p>This is an example of how a module is structured in our monorepo:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gitlab.company.com/monorepo/go
+  |-- go.mod
+  |-- commons/util/gk
+        |-- go.mod
+</code></pre></div></div>
+
+<table class="table" border="1">
+  <thead>
+    <tr>
+      <th>Go commands</th>
+      <th>GOPROXY</th>
+      <th>Previously cached?</th>
+      <th>Description</th>
+      <th>Result (time taken)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>go get -x gitlab.company.com/monorepo/go/commons/util/gk</code></td>
+      <td>proxy.golang.org,direct</td>
+      <td>Yes</td>
+      <td>Download and install the latest version of the module. This is a common scenario that developers often encounter.</td>
+      <td>18:50.71 minutes</td>
+    </tr>
+    <tr>
+      <td><code>go get -x gitlab.company.com/monorepo/go/commons/util/gk</code></td>
+      <td>proxy.golang.org,direct</td>
+      <td>No</td>
+      <td>Download and install the latest version of the module <strong>without any module cache</strong></td>
+      <td>1:11:54.56 hour</td>
+    </tr>
+    <tr>
+      <td><code>go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk</code></td>
+      <td>proxy.golang.org,direct</td>
+      <td>Yes</td>
+      <td>List information about the module</td>
+      <td>3.873 seconds</td>
+    </tr>
+    <tr>
+      <td><code>go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk</code></td>
+      <td>proxy.golang.org,direct</td>
+      <td>No</td>
+      <td>List information about the module <strong>without any module cache</strong></td>
+      <td>3:18.58 minutes</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>In this example, using <code class="language-plaintext highlighter-rouge">go get</code> to fetch a module took over <strong>18 minutes</strong> to complete. If we needed to retrieve more than one module in our monorepo, it can be incredibly time-consuming.</p>
+
+<h4 id="why-is-it-slow-in-a-monorepo">Why is it slow in a monorepo?</h4>
+
+<p>In a large Go monorepo, <code class="language-plaintext highlighter-rouge">go get</code> commands can be slow due to several factors:</p>
+
+<ol>
+  <li><strong>Large number of files and directories</strong>: When running <code class="language-plaintext highlighter-rouge">go get</code>, the command needs to search and download the entire worktree. In a large multi-module monorepo, the vast number of files and directories make this search process very expensive and time-consuming.</li>
+  <li><strong>Number of refs</strong>: A large number of refs (branches or tags) in our monorepo can affect performance. Ref advertisements (<code class="language-plaintext highlighter-rouge">git ls-remote</code>), which contain every ref in our monorepo, are the first phase in any remote Git operation, such as <code class="language-plaintext highlighter-rouge">git clone</code> or <code class="language-plaintext highlighter-rouge">git fetch</code>. With a large number of refs, performance takes a hit when performing these operations.</li>
+  <li><strong>Commit history traversal</strong>: Operations that need to traverse a repository’s commit history and consider each ref will be slow in a monorepo. The larger the monorepo, the more time-consuming these operations become.</li>
+</ol>
+
+<h4 id="the-consequences-stifled-productivity-and-strained-systems">The consequences: Stifled productivity and strained systems</h4>
+
+<h5 id="developers-and-ci">Developers and CI</h5>
+
+<p>When Go command operations like <code class="language-plaintext highlighter-rouge">go get</code> are slow, they contribute to significant delays and inefficiencies in software development workflows. This leads to reduced productivity and demotivated developers.</p>
+
+<p>Optimising Go command operations’ speed is crucial to ensure efficient software development workflows and high-quality software products.</p>
+
+<h5 id="version-control-system">Version Control System</h5>
+
+<p>It’s also worth noting that overusing <code class="language-plaintext highlighter-rouge">go get</code> commands can also lead to performance issues for VCS. When Go packages are frequently downloaded using <code class="language-plaintext highlighter-rouge">go get</code>, we saw that it caused a bottleneck in our VCS cluster, which can lead to performance degradation or even cause rate-limiting queue issues.</p>
+
+<p>This negatively impacts the performance of our VCS infrastructure, causing delays or sometimes unavailability for some users and CI.</p>
+
+<h4 id="solution-athens--fallbacknetwork-mode--govcs-custom-cache-refresh-solution">Solution: Athens + <code class="language-plaintext highlighter-rouge">fallback</code> Network Mode + <code class="language-plaintext highlighter-rouge">GOVCS</code> + Custom Cache Refresh Solution</h4>
+
+<p><em>Problem summary: Speed up <code class="language-plaintext highlighter-rouge">go get</code> command by not fetching from our VCS</em></p>
+
+<p>We addressed the speed issue by using Athens, <a href="https://www.practical-go-lessons.com/chap-18-go-module-proxies#what-is-a-proxy-server">a proxy server for Go modules</a> (read more about the <a href="https://go.dev/ref/mod#goproxy-protocol">GOPROXY protocol</a>).</p>
+
+<h5 id="how-does-athens-work">How does Athens work?</h5>
+
+<p>The following sequence diagram describes the default flow of <code class="language-plaintext highlighter-rouge">go get</code> command with Athens.</p>
+
+<div class="post-image-section"><figure>
+  <img src="img/go-module-proxy/image1.png" alt="" style="width:70%" /><figcaption align="middle"></figcaption>
+  </figure>
+</div>
+
+<p>Athens uses a <a href="https://docs.gomods.io/configuration/storage/">storage system</a> for Go module packages, which can also be configured to use various storage systems such as Amazon S3, and Google Cloud Storage, among others.</p>
+
+<p>By caching these module packages in storage, Athens can serve the packages directly from storage rather than requesting them from an upstream VCS while serving Go commands such as <code class="language-plaintext highlighter-rouge">go mod download</code> and <a href="https://go.dev/ref/mod#build-commands">certain go build modes</a>. However, just using a Go module proxy didn’t fully resolve our issue since the <strong><code class="language-plaintext highlighter-rouge">go get</code> and <code class="language-plaintext highlighter-rouge">go list</code></strong> commands still hit our VCS through the proxy.</p>
+
+<p>With this in mind, we thought “what if we could just serve the Go modules directly from Athens’ storage for <code class="language-plaintext highlighter-rouge">go get</code>?” This question led us to discover Athens network mode.</p>
+
+<p><strong>What is Athens network mode?</strong></p>
+
+<p>Athens <code class="language-plaintext highlighter-rouge">NetworkMode</code> configures how Athens will return the results of the Go commands. It can be assembled from both its own storage and the upstream VCS. As of <a href="https://github.com/gomods/athens/releases/tag/v0.12.1">Athens v0.12.1</a>, it currently supports these 3 modes:</p>
+
+<ol>
+  <li><strong>strict</strong>: merge VCS versions with storage versions, but fail if either of them fails.</li>
+  <li><strong>offline</strong>: only get storage versions, <strong>never reach out to VCS</strong>.</li>
+  <li><strong>fallback</strong>: only return storage versions, if VCS fails. Fallback mode does the best effort of giving you what’s available at the time of requesting versions.</li>
+</ol>
+
+<p>Our Athens clusters were initially set to use <code class="language-plaintext highlighter-rouge">strict</code> network mode, but this was not ideal for us. So we explored the other network modes.</p>
+
+<p><strong>Exploring <code class="language-plaintext highlighter-rouge">offline</code> mode</strong></p>
+
+<p>We initially sought to explore the idea of putting Athens in <code class="language-plaintext highlighter-rouge">offline</code> network mode, which would allow Athens to serve Go requests only from its storage. This concept aligned with our aim of reducing VCS hits while also leading to significant performance improvement in Go workflows.</p>
+
+<div class="post-image-section"><figure>
+  <img src="img/go-module-proxy/image4.png" alt="" style="width:70%" /><figcaption align="middle"></figcaption>
+  </figure>
+</div>
+
+<p>However in practice, it’s not an ideal approach. The default Athens setup (<code class="language-plaintext highlighter-rouge">strict</code> mode) automatically updates the module version when a user requests a new module version. Nevertheless, switching Athens to <code class="language-plaintext highlighter-rouge">offline</code> mode would disable the automatic updates as it wouldn’t connect to the VCS.</p>
+
+<p><strong>Custom cache refresh solution</strong></p>
+
+<p>To solve this, we implemented a CI pipeline that refreshes Athens’ module cache whenever a new module is released in our monorepo. Employing this with <code class="language-plaintext highlighter-rouge">offline</code> mode made Athens effective for the monorepo but it resulted in the loss of automatic updates for other repositories</p>
+
+<p>Restoring this feature requires applying our custom cache refresh solution to all other Go repositories. However, implementing this workaround can be quite cumbersome and significant additional time and effort. We decided to look for another solution that would be easier to maintain in the long run.</p>
+
+<p><strong>A balanced approach: <code class="language-plaintext highlighter-rouge">fallback</code> Mode and <code class="language-plaintext highlighter-rouge">GOVCS</code></strong></p>
+
+<p>This approach builds upon our aforementioned custom cache refresh which is specifically designed for the monorepo.</p>
+
+<p>We came across the <a href="https://go.dev/ref/mod#vcs-govcs">GOVCS environment variable</a>, which we use in combination with the <code class="language-plaintext highlighter-rouge">fallback</code> network mode to effectively put only the monorepo in “offline” mode.</p>
+
+<p>When <code class="language-plaintext highlighter-rouge">GOVCS</code> is set to <code class="language-plaintext highlighter-rouge">gitlab.company.com/monorepo/go:off</code>, Athens encounters an error whenever it tries to fetch modules from VCS:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gitlab.company.com/monorepo/go/commons/util/gk@v1.1.44: unrecognized import path "gitlab.company.com/monorepo/go/commons/util/gk": GOVCS disallows using git for private gitlab.company.com/monorepo/go; see 'go help vcs'
+</code></pre></div></div>
+
+<p>If Athens network mode is set to <code class="language-plaintext highlighter-rouge">strict</code>, Athens returns 404 errors to the user. By switching to <code class="language-plaintext highlighter-rouge">fallback</code> mode, Athens tries to retrieve the module from its storage if a <code class="language-plaintext highlighter-rouge">GOVCS</code> failure occurs.</p>
+
+<p>Here’s the updated Athens configuration (<a href="https://github.com/gomods/athens/blob/8e1581e10b0d3a70a30f45b10c24c3f992464d7a/config.dev.toml#L46">example default config</a>):</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GoBinaryEnvVars = ["GOPROXY=direct", 
+"GOPRIVATE=gitlab.company.com", 
+"GOVCS=gitlab.company.com/monorepo/go:off"]
+
+NetworkMode = "fallback"
+</code></pre></div></div>
+
+<p>With the custom cache refresh solution coupled with this approach, we not only accelerate the retrieval of Go modules within the monorepo but also allow for automatic updates for non-monorepo Go modules.</p>
+
+<h4 id="final-results">Final results</h4>
+
+<p>This solution resulted in a significant improvement in the performance of Go commands for our developers. With Athens, the same command is completed in just <strong>~12 seconds (down from ~18 minutes)</strong>, which is impressively fast.</p>
+
+<table class="table" border="1">
+  <thead>
+    <tr>
+      <th>Go commands</th>
+      <th>GOPROXY</th>
+      <th>Previously cached?</th>
+      <th>Description</th>
+      <th>Result (time taken)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>go get -x gitlab.company.com/monorepo/go/commons/util/gk</code></td>
+      <td>goproxy.company.com</td>
+      <td>Yes</td>
+      <td>Download and install the latest version of the module. This is a common scenario that developers often encounter.</td>
+      <td>11.556 seconds</td>
+    </tr>
+    <tr>
+      <td><code>go get -x gitlab.company.com/monorepo/go/commons/util/gk</code></td>
+      <td>goproxy.company.com</td>
+      <td>No</td>
+      <td>Download and install the latest version of the module <strong>without any module cache</strong></td>
+      <td>1:05.60 minutes</td>
+    </tr>
+    <tr>
+      <td><code>go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk</code></td>
+      <td>goproxy.company.com</td>
+      <td>Yes</td>
+      <td>List information about the monorepo module</td>
+      <td>0.592 seconds</td>
+    </tr>
+    <tr>
+      <td><code>go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk</code></td>
+      <td>goproxy.company.com</td>
+      <td>No</td>
+      <td>List information about the monorepo module <strong>without any module cache</strong></td>
+      <td>1.023 seconds</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+<tr>
+<td>
+<div class="post-image-section"><figure>
+  <img src="img/go-module-proxy/image5.png" alt="" style="width:90%" /><figcaption align="middle">Average cluster CPU utlisation</figcaption>
+  </figure>
+</div>
+</td>
+<td>
+<div class="post-image-section"><figure>
+  <img src="img/go-module-proxy/image3.png" alt="" style="width:90%" /><figcaption align="middle">Average cluster memory utlisation</figcaption>
+  </figure>
+</div>
+</td>
+</tr>
+</table>
+
+<p>In addition, this change to our Athens cluster also leads to substantial reduction in average cluster CPU and memory utilisation. This also enabled us to scale in and <strong>scale down our entire Athens cluster by 70%</strong>, resulting in cost savings and enhanced efficiency. On top of that, we were also able to effectively eliminate VCS’s rate-limiting issues while making the monorepo’s command operation considerably faster.</p>
+
+<h3 id="2-go-modules-in-gitlab-subgroups">2. Go modules in GitLab subgroups</h3>
+
+<p><em>Problem summary: Go modules are unable to work natively with private or internal repositories under GitLab subgroups.</em></p>
+
+<p>When it comes to managing code repositories and packages, <a href="https://docs.gitlab.com/ee/user/group/subgroups/">GitLab subgroups</a> and Go modules have become an integral part of the development process at Grab. Go modules help to organise and manage dependencies, and GitLab subgroups provide an additional layer of structure to group related repositories together.</p>
+
+<p>However, a common issue when using Go modules is that they <strong>do not work natively</strong> with private or internal repositories under a GitLab subgroup (see this <a href="https://github.com/golang/go/issues/29953">GitHub issue</a>).</p>
+
+<p>For example, using <code class="language-plaintext highlighter-rouge">go get</code> to retrieve a module from <code class="language-plaintext highlighter-rouge">gitlab.company.com/gitlab-org/subgroup/repo</code> will result in a failure. This problem is not specific to Go modules, all repositories under the subgroup will face the same issue.</p>
+
+<h4 id="a-cumbersome-workaround">A cumbersome workaround</h4>
+
+<p>To overcome this issue, we had to use workarounds. One workaround is to authenticate the HTTPS calls to GitLab by adding authentication details to the <code class="language-plaintext highlighter-rouge">.netrc</code> file on your machine.</p>
+
+<p>The following lines can be added to the <code class="language-plaintext highlighter-rouge">.netrc</code> file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>machine gitlab.company.com
+    login user@company.com
+    password &lt;personal-access-token&gt;
+</code></pre></div></div>
+
+<p>In our case, we are using a Personal Access Token (PAT) since we have 2FA enabled. If 2FA is not enabled, the GitLab password can be used instead. However, this approach would mean configuring the <code class="language-plaintext highlighter-rouge">.netrc</code> file in the CI environments as well as on the machine of <strong>every</strong> Go developer.</p>
+
+<h4 id="solution-athens--netrc">Solution: Athens + <code class="language-plaintext highlighter-rouge">.netrc</code></h4>
+
+<p>A feasible solution is to set up the <code class="language-plaintext highlighter-rouge">.netrc</code> file in the Go proxy server. This method eliminates the need for N number of developers to configure their own <code class="language-plaintext highlighter-rouge">.netrc</code> files. Instead, the responsibility for this task is delegated to the Go proxy server.</p>
+
+<h3 id="3-sharing-common-libraries">3. Sharing common libraries</h3>
+<p><em>Problem summary: Distributing internal common libraries within a monorepo without granting direct repository access can be challenging.</em></p>
+
+<p>At Grab, we work with various cross-functional teams, and some could have distinct network access like different VPNs. This adds complexity to sharing our monorepo’s internal common libraries with them. To maintain the security and integrity of our monorepo, we use a Go proxy for controlled access to necessary libraries.</p>
+
+<p>The key difference between granting direct access to the monorepo via VCS and using a Go proxy is that the former allows users to read everything in the repository, while the latter enables us to grant access only to the specific libraries users need within the monorepo. This approach ensures secure and efficient collaboration across diverse network configurations.</p>
+
+<h4 id="without-go-module-proxy">Without Go module proxy</h4>
+
+<p>Without Athens, we would need to create a separate repository to store the code we want to share and then use a build system to automatically mirror the code from the monorepo to the public repository.</p>
+
+<p>This process can be cumbersome and lead to inconsistencies in code versions between the two repositories, ultimately making it challenging to maintain the shared libraries.</p>
+
+<p>Furthermore, copying code can lead to errors and increase the risk of security breaches by exposing confidential or sensitive information.</p>
+
+<h4 id="solution-athens--download-mode-file">Solution: Athens + Download Mode File</h4>
+
+<p>To tackle this problem statement, we utilise Athens’ <a href="https://docs.gomods.io/configuration/download/">download mode file</a> feature using an allowlist approach to specify which repositories can be downloaded by users.</p>
+
+<p>Here’s an example of the Athens download mode config file:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>downloadURL = "https://proxy.golang.org"
+
+mode = "sync"
+
+download "gitlab.company.com/repo/a" {
+    mode = "sync"
+}
+
+download "gitlab.company.com/repo/b" {
+    mode = "sync"
+}
+
+download "gitlab.company.com/*" {
+    mode = "none"
+}
+</code></pre></div></div>
+
+<p>In the configuration file, we specify allowlist entries for each desired repo, including their respective download modes. For example, in the snippet above, <code class="language-plaintext highlighter-rouge">repo/a</code> and <code class="language-plaintext highlighter-rouge">repo/b</code> are allowed (<code class="language-plaintext highlighter-rouge">mode = “sync”</code>), while everything else is blocked using <code class="language-plaintext highlighter-rouge">mode = “none”</code>.</p>
+
+<h4 id="final-results-1">Final results</h4>
+
+<p>By using Athens’ download mode feature in this case, the benefits are clear. Athens provides a secure, centralised place to store Go modules. This approach not only provides consistency but also improves maintainability, as all code versions are managed in one single location.</p>
+
+<h2 id="additional-benefits-of-go-proxy">Additional benefits of Go proxy</h2>
+
+<p>As we’ve touched upon the impressive results achieved by implementing Athens Go proxy at Grab, it’s crucial to explore the supplementary advantages that accompany this powerful solution.</p>
+
+<p>These unsung benefits, though possibly overlooked, play a vital role in enriching the overall developer experience at Grab and promoting more robust software development practices:</p>
+
+<ol>
+  <li><strong>Module immutability</strong>: ​​As the software world continues to face issues around changing or <a href="https://qz.com/646467/how-one-programmer-broke-the-internet-by-deleting-a-tiny-piece-of-code">disappearing libraries</a>, Athens serves as a useful tool in mitigating build disruptions by providing immutable storage for copied VCS code. The use of a Go proxy also ensures that builds remain deterministic, improving consistency across our software.</li>
+  <li><strong>Uninterrupted development</strong>: Athens allows users to fetch dependencies even when VCS is down, ensuring continuous and seamless development workflows.</li>
+  <li><strong>Enhanced security</strong>: Athens offers access control by enabling the blocking of specific packages within Grab. This added layer of security protects our work against potential risks from malicious third-party packages.</li>
+  <li><strong>Vendor directory removal</strong>: Athens prepares us for the eventual removal of the <a href="https://docs.gomods.io/faq/#when-should-i-use-a-vendor-directory-and-when-should-i-use-athens">vendor directory</a>, fostering faster workflows in the future.</li>
+</ol>
+
+<h2 id="whats-next">What’s next?</h2>
+
+<p>Since adopting Athens as a Go module proxy, we have observed considerable benefits, such as:</p>
+
+<ol>
+  <li>Accelerated Go command operations</li>
+  <li>Reduced infrastructure costs</li>
+  <li>Mitigated VCS load issues</li>
+</ol>
+
+<p>Moreover, its lesser-known advantages like module immutability, uninterrupted development, enhanced security, and vendor directory transition have also contributed to improved development practices and an enriched developer experience for Grab engineers.</p>
+
+<p>Today, the straightforward process of exporting three environment variables has greatly influenced our developers’ experience at Grab.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>export GOPROXY="goproxy.company.com|proxy.golang.org,direct"
+
+export GONOSUMDB="gitlab.company.com"
+
+export GONOPROXY="none"
+</code></pre></div></div>
+
+<p>At Grab, we are always looking for ways to improve and optimise the way we work, so we contribute to open-sourced projects like Athens, where we help with bug fixes. If you are interested in setting up a Go module proxy, do give Athens (<a href="https://github.com/gomods/athens">github.com/gomods/athens</a>) a try!</p>
+
+<p><small class="credits">Special thanks to Swaminathan Venkatraman, En Wei Soh, Anuj More, Darius Tan, and Fernando Christyanto for contributing to this project and this article.</small></p>
+
+<h1 id="join-us">Join us</h1>
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Go module proxy at Grab&url=https://engineering.grab.com/go-module-proxy&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/go-module-proxy" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/go-module-proxy&title=Go module proxy at Grab
+&summary=While consolidating code into a single monorepo has its benefits, there are also several challenges that come with managing a large monorepo like slow performance and low developer productivity. Find out how Grab’s FLIP team contributes and leverages the open-sourced Athens Go module proxy to improve developer productivity at Grab.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/go-module-proxy';
+    this.page.identifier = '/go-module-proxy';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>

@@ -6,9 +6,402 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 16 Jun 2023 03:18:58 +0000</pubDate>
-    <lastBuildDate>Fri, 16 Jun 2023 03:18:58 +0000</lastBuildDate>
+    <pubDate>Fri, 30 Jun 2023 03:33:02 +0000</pubDate>
+    <lastBuildDate>Fri, 30 Jun 2023 03:33:02 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Go module proxy at Grab</title>
+        <description>&lt;p&gt;At Grab, we rely heavily on &lt;a href=&quot;/go-module-a-guide-for-monorepos-part-1&quot;&gt;a large Go monorepo&lt;/a&gt; for backend development, which offers benefits like code reusability and discoverability. However, as we continue to grow, managing a large monorepo brings about its own set of unique challenges.&lt;/p&gt;
+
+&lt;p&gt;As an example, using Go commands such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go list&lt;/code&gt; can be incredibly slow when fetching Go modules residing in a large &lt;a href=&quot;https://github.com/golang/go/wiki/Modules#what-are-multi-module-repositories&quot;&gt;multi-module repository&lt;/a&gt;. This sluggishness takes a toll on developer productivity, burdens our Continuous Integration (CI) systems, and strains our Version Control System host (VCS), GitLab.&lt;/p&gt;
+
+&lt;p&gt;In this blog post, we look at how &lt;a href=&quot;https://github.com/gomods/athens&quot;&gt;Athens&lt;/a&gt;, a Go module proxy, helps to improve the overall developer experience of engineers working with a large Go monorepo at Grab.&lt;/p&gt;
+
+&lt;h2 id=&quot;key-highlights&quot;&gt;Key highlights&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We reduced the time of executing the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command from &lt;strong&gt;~18 minutes&lt;/strong&gt; to &lt;strong&gt;~12 seconds&lt;/strong&gt; when fetching monorepo Go modules.&lt;/li&gt;
+  &lt;li&gt;We scaled in and &lt;strong&gt;scaled down our entire Athens cluster by 70%&lt;/strong&gt; by utilising the fallback network mode in Athens along with Golang’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; mode, resulting in cost savings and enhanced efficiency.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;problem-statements-and-solutions&quot;&gt;Problem statements and solutions&lt;/h2&gt;
+
+&lt;h3 id=&quot;1-painfully-slow-performance-of-go-commands&quot;&gt;1. Painfully slow performance of Go commands&lt;/h3&gt;
+
+&lt;p&gt;&lt;em&gt;Problem summary: Running the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command in our monorepo takes a considerable amount of time and can lead to performance degradation in our VCS.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;When working with the Go programming language, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; is one of the most common commands that you’ll use every day. Besides developers, this command is also used by CI systems.&lt;/p&gt;
+
+&lt;h4 id=&quot;what-does-go-getdo&quot;&gt;What does &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; do?&lt;/h4&gt;
+
+&lt;p&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command is used to download and install packages and their dependencies in Go. Note that it operates differently depending on whether it is run in &lt;a href=&quot;https://pkg.go.dev/cmd/go#hdr-Legacy_GOPATH_go_get&quot;&gt;legacy GOPATH mode&lt;/a&gt; or module-aware mode. In Grab, we’re using the &lt;a href=&quot;https://go.dev/ref/mod#mod-commands&quot;&gt;module-aware mode&lt;/a&gt; in a &lt;a href=&quot;https://github.com/golang/go/wiki/Modules#faqs--multi-module-repositories&quot;&gt;multi-module repository&lt;/a&gt; setup.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/go-module-proxy/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Every time &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; is run, it uses Git commands, like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git ls-remote&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git tag&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git fetch&lt;/code&gt;, etc, to search and download the entire worktree. The excessive use of these Git commands on our monorepo contributes to the long processing time and can be strenuous to our VCS.&lt;/p&gt;
+
+&lt;h4 id=&quot;how-big-is-our-monorepo&quot;&gt;How big is our monorepo?&lt;/h4&gt;
+
+&lt;p&gt;To fully grasp the challenges faced by our engineering teams, it’s crucial to understand the vast scale of the monorepo that we work with daily. For this, we use &lt;a href=&quot;https://github.com/github/git-sizer&quot;&gt;git-sizer&lt;/a&gt; to analyse our monorepo.&lt;/p&gt;
+
+&lt;p&gt;Here’s what we found:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Overall repository size&lt;/strong&gt;: The monorepo has a total uncompressed size of &lt;strong&gt;69.3 GiB&lt;/strong&gt;, a fairly substantial figure. To put things into perspective, the &lt;a href=&quot;https://github.com/torvalds/linux&quot;&gt;Linux kernel repository&lt;/a&gt;, known for its vastness, currently stands at 55.8 GiB.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Trees&lt;/strong&gt;: The total number of trees is 3.21M and tree entries are 99.8M, which consume 3.65 GiB. This may cause performance issues during some Git operations.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;References&lt;/strong&gt;: Totalling 10.7k references.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Biggest checkouts&lt;/strong&gt;: There are 64.7k directories in our monorepo. This affects operations like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git status&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git checkout&lt;/code&gt;. Moreover, our monorepo has a maximum path depth of 20. This contributes to a slow processing time on Git and negatively impacts developer experience. The number of files (354k) and the total size of files (5.08 GiB) are also concerns due to their potential impact on the repository’s performance.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To draw a comparison, refer to &lt;a href=&quot;https://github.com/github/git-sizer/blob/0b6d3a21c6ccbd49463534a19cc1b3f71526c077/README.md#usage&quot;&gt;the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git-sizer&lt;/code&gt; output of the Linux repository&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h4 id=&quot;how-slow-is-slow&quot;&gt;How slow is “slow”?&lt;/h4&gt;
+
+&lt;p&gt;To illustrate the issue further, we will compare the time taken for various Go commands to fetch a single module in our monorepo at a 10 MBps download speed.&lt;/p&gt;
+
+&lt;p&gt;This is an example of how a module is structured in our monorepo:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gitlab.company.com/monorepo/go
+  |-- go.mod
+  |-- commons/util/gk
+        |-- go.mod
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;table class=&quot;table&quot; border=&quot;1&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Go commands&lt;/th&gt;
+      &lt;th&gt;GOPROXY&lt;/th&gt;
+      &lt;th&gt;Previously cached?&lt;/th&gt;
+      &lt;th&gt;Description&lt;/th&gt;
+      &lt;th&gt;Result (time taken)&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
+      &lt;td&gt;Yes&lt;/td&gt;
+      &lt;td&gt;Download and install the latest version of the module. This is a common scenario that developers often encounter.&lt;/td&gt;
+      &lt;td&gt;18:50.71 minutes&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
+      &lt;td&gt;No&lt;/td&gt;
+      &lt;td&gt;Download and install the latest version of the module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt;1:11:54.56 hour&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
+      &lt;td&gt;Yes&lt;/td&gt;
+      &lt;td&gt;List information about the module&lt;/td&gt;
+      &lt;td&gt;3.873 seconds&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
+      &lt;td&gt;No&lt;/td&gt;
+      &lt;td&gt;List information about the module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt;3:18.58 minutes&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;In this example, using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; to fetch a module took over &lt;strong&gt;18 minutes&lt;/strong&gt; to complete. If we needed to retrieve more than one module in our monorepo, it can be incredibly time-consuming.&lt;/p&gt;
+
+&lt;h4 id=&quot;why-is-it-slow-in-a-monorepo&quot;&gt;Why is it slow in a monorepo?&lt;/h4&gt;
+
+&lt;p&gt;In a large Go monorepo, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; commands can be slow due to several factors:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Large number of files and directories&lt;/strong&gt;: When running &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt;, the command needs to search and download the entire worktree. In a large multi-module monorepo, the vast number of files and directories make this search process very expensive and time-consuming.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Number of refs&lt;/strong&gt;: A large number of refs (branches or tags) in our monorepo can affect performance. Ref advertisements (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git ls-remote&lt;/code&gt;), which contain every ref in our monorepo, are the first phase in any remote Git operation, such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git clone&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git fetch&lt;/code&gt;. With a large number of refs, performance takes a hit when performing these operations.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Commit history traversal&lt;/strong&gt;: Operations that need to traverse a repository’s commit history and consider each ref will be slow in a monorepo. The larger the monorepo, the more time-consuming these operations become.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;the-consequences-stifled-productivity-and-strained-systems&quot;&gt;The consequences: Stifled productivity and strained systems&lt;/h4&gt;
+
+&lt;h5 id=&quot;developers-and-ci&quot;&gt;Developers and CI&lt;/h5&gt;
+
+&lt;p&gt;When Go command operations like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; are slow, they contribute to significant delays and inefficiencies in software development workflows. This leads to reduced productivity and demotivated developers.&lt;/p&gt;
+
+&lt;p&gt;Optimising Go command operations’ speed is crucial to ensure efficient software development workflows and high-quality software products.&lt;/p&gt;
+
+&lt;h5 id=&quot;version-control-system&quot;&gt;Version Control System&lt;/h5&gt;
+
+&lt;p&gt;It’s also worth noting that overusing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; commands can also lead to performance issues for VCS. When Go packages are frequently downloaded using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt;, we saw that it caused a bottleneck in our VCS cluster, which can lead to performance degradation or even cause rate-limiting queue issues.&lt;/p&gt;
+
+&lt;p&gt;This negatively impacts the performance of our VCS infrastructure, causing delays or sometimes unavailability for some users and CI.&lt;/p&gt;
+
+&lt;h4 id=&quot;solution-athens--fallbacknetwork-mode--govcs-custom-cache-refresh-solution&quot;&gt;Solution: Athens + &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; Network Mode + &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; + Custom Cache Refresh Solution&lt;/h4&gt;
+
+&lt;p&gt;&lt;em&gt;Problem summary: Speed up &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command by not fetching from our VCS&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;We addressed the speed issue by using Athens, &lt;a href=&quot;https://www.practical-go-lessons.com/chap-18-go-module-proxies#what-is-a-proxy-server&quot;&gt;a proxy server for Go modules&lt;/a&gt; (read more about the &lt;a href=&quot;https://go.dev/ref/mod#goproxy-protocol&quot;&gt;GOPROXY protocol&lt;/a&gt;).&lt;/p&gt;
+
+&lt;h5 id=&quot;how-does-athens-work&quot;&gt;How does Athens work?&lt;/h5&gt;
+
+&lt;p&gt;The following sequence diagram describes the default flow of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command with Athens.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/go-module-proxy/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Athens uses a &lt;a href=&quot;https://docs.gomods.io/configuration/storage/&quot;&gt;storage system&lt;/a&gt; for Go module packages, which can also be configured to use various storage systems such as Amazon S3, and Google Cloud Storage, among others.&lt;/p&gt;
+
+&lt;p&gt;By caching these module packages in storage, Athens can serve the packages directly from storage rather than requesting them from an upstream VCS while serving Go commands such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go mod download&lt;/code&gt; and &lt;a href=&quot;https://go.dev/ref/mod#build-commands&quot;&gt;certain go build modes&lt;/a&gt;. However, just using a Go module proxy didn’t fully resolve our issue since the &lt;strong&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go list&lt;/code&gt;&lt;/strong&gt; commands still hit our VCS through the proxy.&lt;/p&gt;
+
+&lt;p&gt;With this in mind, we thought “what if we could just serve the Go modules directly from Athens’ storage for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt;?” This question led us to discover Athens network mode.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;What is Athens network mode?&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Athens &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NetworkMode&lt;/code&gt; configures how Athens will return the results of the Go commands. It can be assembled from both its own storage and the upstream VCS. As of &lt;a href=&quot;https://github.com/gomods/athens/releases/tag/v0.12.1&quot;&gt;Athens v0.12.1&lt;/a&gt;, it currently supports these 3 modes:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;strict&lt;/strong&gt;: merge VCS versions with storage versions, but fail if either of them fails.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;offline&lt;/strong&gt;: only get storage versions, &lt;strong&gt;never reach out to VCS&lt;/strong&gt;.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;fallback&lt;/strong&gt;: only return storage versions, if VCS fails. Fallback mode does the best effort of giving you what’s available at the time of requesting versions.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Our Athens clusters were initially set to use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;strict&lt;/code&gt; network mode, but this was not ideal for us. So we explored the other network modes.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Exploring &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; mode&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;We initially sought to explore the idea of putting Athens in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; network mode, which would allow Athens to serve Go requests only from its storage. This concept aligned with our aim of reducing VCS hits while also leading to significant performance improvement in Go workflows.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/go-module-proxy/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;However in practice, it’s not an ideal approach. The default Athens setup (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;strict&lt;/code&gt; mode) automatically updates the module version when a user requests a new module version. Nevertheless, switching Athens to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; mode would disable the automatic updates as it wouldn’t connect to the VCS.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Custom cache refresh solution&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;To solve this, we implemented a CI pipeline that refreshes Athens’ module cache whenever a new module is released in our monorepo. Employing this with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; mode made Athens effective for the monorepo but it resulted in the loss of automatic updates for other repositories&lt;/p&gt;
+
+&lt;p&gt;Restoring this feature requires applying our custom cache refresh solution to all other Go repositories. However, implementing this workaround can be quite cumbersome and significant additional time and effort. We decided to look for another solution that would be easier to maintain in the long run.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;A balanced approach: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; Mode and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;This approach builds upon our aforementioned custom cache refresh which is specifically designed for the monorepo.&lt;/p&gt;
+
+&lt;p&gt;We came across the &lt;a href=&quot;https://go.dev/ref/mod#vcs-govcs&quot;&gt;GOVCS environment variable&lt;/a&gt;, which we use in combination with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; network mode to effectively put only the monorepo in “offline” mode.&lt;/p&gt;
+
+&lt;p&gt;When &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; is set to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab.company.com/monorepo/go:off&lt;/code&gt;, Athens encounters an error whenever it tries to fetch modules from VCS:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gitlab.company.com/monorepo/go/commons/util/gk@v1.1.44: unrecognized import path &quot;gitlab.company.com/monorepo/go/commons/util/gk&quot;: GOVCS disallows using git for private gitlab.company.com/monorepo/go; see 'go help vcs'
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;If Athens network mode is set to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;strict&lt;/code&gt;, Athens returns 404 errors to the user. By switching to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; mode, Athens tries to retrieve the module from its storage if a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; failure occurs.&lt;/p&gt;
+
+&lt;p&gt;Here’s the updated Athens configuration (&lt;a href=&quot;https://github.com/gomods/athens/blob/8e1581e10b0d3a70a30f45b10c24c3f992464d7a/config.dev.toml#L46&quot;&gt;example default config&lt;/a&gt;):&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;GoBinaryEnvVars = [&quot;GOPROXY=direct&quot;, 
+&quot;GOPRIVATE=gitlab.company.com&quot;, 
+&quot;GOVCS=gitlab.company.com/monorepo/go:off&quot;]
+
+NetworkMode = &quot;fallback&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;With the custom cache refresh solution coupled with this approach, we not only accelerate the retrieval of Go modules within the monorepo but also allow for automatic updates for non-monorepo Go modules.&lt;/p&gt;
+
+&lt;h4 id=&quot;final-results&quot;&gt;Final results&lt;/h4&gt;
+
+&lt;p&gt;This solution resulted in a significant improvement in the performance of Go commands for our developers. With Athens, the same command is completed in just &lt;strong&gt;~12 seconds (down from ~18 minutes)&lt;/strong&gt;, which is impressively fast.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot; border=&quot;1&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Go commands&lt;/th&gt;
+      &lt;th&gt;GOPROXY&lt;/th&gt;
+      &lt;th&gt;Previously cached?&lt;/th&gt;
+      &lt;th&gt;Description&lt;/th&gt;
+      &lt;th&gt;Result (time taken)&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;goproxy.company.com&lt;/td&gt;
+      &lt;td&gt;Yes&lt;/td&gt;
+      &lt;td&gt;Download and install the latest version of the module. This is a common scenario that developers often encounter.&lt;/td&gt;
+      &lt;td&gt;11.556 seconds&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;goproxy.company.com&lt;/td&gt;
+      &lt;td&gt;No&lt;/td&gt;
+      &lt;td&gt;Download and install the latest version of the module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt;1:05.60 minutes&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;goproxy.company.com&lt;/td&gt;
+      &lt;td&gt;Yes&lt;/td&gt;
+      &lt;td&gt;List information about the monorepo module&lt;/td&gt;
+      &lt;td&gt;0.592 seconds&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
+      &lt;td&gt;goproxy.company.com&lt;/td&gt;
+      &lt;td&gt;No&lt;/td&gt;
+      &lt;td&gt;List information about the monorepo module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
+      &lt;td&gt;1.023 seconds&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;table&gt;
+&lt;tr&gt;
+&lt;td&gt;
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/go-module-proxy/image5.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Average cluster CPU utlisation&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;/td&gt;
+&lt;td&gt;
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/go-module-proxy/image3.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Average cluster memory utlisation&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p&gt;In addition, this change to our Athens cluster also leads to substantial reduction in average cluster CPU and memory utilisation. This also enabled us to scale in and &lt;strong&gt;scale down our entire Athens cluster by 70%&lt;/strong&gt;, resulting in cost savings and enhanced efficiency. On top of that, we were also able to effectively eliminate VCS’s rate-limiting issues while making the monorepo’s command operation considerably faster.&lt;/p&gt;
+
+&lt;h3 id=&quot;2-go-modules-in-gitlab-subgroups&quot;&gt;2. Go modules in GitLab subgroups&lt;/h3&gt;
+
+&lt;p&gt;&lt;em&gt;Problem summary: Go modules are unable to work natively with private or internal repositories under GitLab subgroups.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;When it comes to managing code repositories and packages, &lt;a href=&quot;https://docs.gitlab.com/ee/user/group/subgroups/&quot;&gt;GitLab subgroups&lt;/a&gt; and Go modules have become an integral part of the development process at Grab. Go modules help to organise and manage dependencies, and GitLab subgroups provide an additional layer of structure to group related repositories together.&lt;/p&gt;
+
+&lt;p&gt;However, a common issue when using Go modules is that they &lt;strong&gt;do not work natively&lt;/strong&gt; with private or internal repositories under a GitLab subgroup (see this &lt;a href=&quot;https://github.com/golang/go/issues/29953&quot;&gt;GitHub issue&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;For example, using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; to retrieve a module from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab.company.com/gitlab-org/subgroup/repo&lt;/code&gt; will result in a failure. This problem is not specific to Go modules, all repositories under the subgroup will face the same issue.&lt;/p&gt;
+
+&lt;h4 id=&quot;a-cumbersome-workaround&quot;&gt;A cumbersome workaround&lt;/h4&gt;
+
+&lt;p&gt;To overcome this issue, we had to use workarounds. One workaround is to authenticate the HTTPS calls to GitLab by adding authentication details to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file on your machine.&lt;/p&gt;
+
+&lt;p&gt;The following lines can be added to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;machine gitlab.company.com
+    login user@company.com
+    password &amp;lt;personal-access-token&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In our case, we are using a Personal Access Token (PAT) since we have 2FA enabled. If 2FA is not enabled, the GitLab password can be used instead. However, this approach would mean configuring the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file in the CI environments as well as on the machine of &lt;strong&gt;every&lt;/strong&gt; Go developer.&lt;/p&gt;
+
+&lt;h4 id=&quot;solution-athens--netrc&quot;&gt;Solution: Athens + &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt;&lt;/h4&gt;
+
+&lt;p&gt;A feasible solution is to set up the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file in the Go proxy server. This method eliminates the need for N number of developers to configure their own &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; files. Instead, the responsibility for this task is delegated to the Go proxy server.&lt;/p&gt;
+
+&lt;h3 id=&quot;3-sharing-common-libraries&quot;&gt;3. Sharing common libraries&lt;/h3&gt;
+&lt;p&gt;&lt;em&gt;Problem summary: Distributing internal common libraries within a monorepo without granting direct repository access can be challenging.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;At Grab, we work with various cross-functional teams, and some could have distinct network access like different VPNs. This adds complexity to sharing our monorepo’s internal common libraries with them. To maintain the security and integrity of our monorepo, we use a Go proxy for controlled access to necessary libraries.&lt;/p&gt;
+
+&lt;p&gt;The key difference between granting direct access to the monorepo via VCS and using a Go proxy is that the former allows users to read everything in the repository, while the latter enables us to grant access only to the specific libraries users need within the monorepo. This approach ensures secure and efficient collaboration across diverse network configurations.&lt;/p&gt;
+
+&lt;h4 id=&quot;without-go-module-proxy&quot;&gt;Without Go module proxy&lt;/h4&gt;
+
+&lt;p&gt;Without Athens, we would need to create a separate repository to store the code we want to share and then use a build system to automatically mirror the code from the monorepo to the public repository.&lt;/p&gt;
+
+&lt;p&gt;This process can be cumbersome and lead to inconsistencies in code versions between the two repositories, ultimately making it challenging to maintain the shared libraries.&lt;/p&gt;
+
+&lt;p&gt;Furthermore, copying code can lead to errors and increase the risk of security breaches by exposing confidential or sensitive information.&lt;/p&gt;
+
+&lt;h4 id=&quot;solution-athens--download-mode-file&quot;&gt;Solution: Athens + Download Mode File&lt;/h4&gt;
+
+&lt;p&gt;To tackle this problem statement, we utilise Athens’ &lt;a href=&quot;https://docs.gomods.io/configuration/download/&quot;&gt;download mode file&lt;/a&gt; feature using an allowlist approach to specify which repositories can be downloaded by users.&lt;/p&gt;
+
+&lt;p&gt;Here’s an example of the Athens download mode config file:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;downloadURL = &quot;https://proxy.golang.org&quot;
+
+mode = &quot;sync&quot;
+
+download &quot;gitlab.company.com/repo/a&quot; {
+    mode = &quot;sync&quot;
+}
+
+download &quot;gitlab.company.com/repo/b&quot; {
+    mode = &quot;sync&quot;
+}
+
+download &quot;gitlab.company.com/*&quot; {
+    mode = &quot;none&quot;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In the configuration file, we specify allowlist entries for each desired repo, including their respective download modes. For example, in the snippet above, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;repo/a&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;repo/b&lt;/code&gt; are allowed (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mode = “sync”&lt;/code&gt;), while everything else is blocked using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mode = “none”&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h4 id=&quot;final-results-1&quot;&gt;Final results&lt;/h4&gt;
+
+&lt;p&gt;By using Athens’ download mode feature in this case, the benefits are clear. Athens provides a secure, centralised place to store Go modules. This approach not only provides consistency but also improves maintainability, as all code versions are managed in one single location.&lt;/p&gt;
+
+&lt;h2 id=&quot;additional-benefits-of-go-proxy&quot;&gt;Additional benefits of Go proxy&lt;/h2&gt;
+
+&lt;p&gt;As we’ve touched upon the impressive results achieved by implementing Athens Go proxy at Grab, it’s crucial to explore the supplementary advantages that accompany this powerful solution.&lt;/p&gt;
+
+&lt;p&gt;These unsung benefits, though possibly overlooked, play a vital role in enriching the overall developer experience at Grab and promoting more robust software development practices:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Module immutability&lt;/strong&gt;: ​​As the software world continues to face issues around changing or &lt;a href=&quot;https://qz.com/646467/how-one-programmer-broke-the-internet-by-deleting-a-tiny-piece-of-code&quot;&gt;disappearing libraries&lt;/a&gt;, Athens serves as a useful tool in mitigating build disruptions by providing immutable storage for copied VCS code. The use of a Go proxy also ensures that builds remain deterministic, improving consistency across our software.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Uninterrupted development&lt;/strong&gt;: Athens allows users to fetch dependencies even when VCS is down, ensuring continuous and seamless development workflows.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Enhanced security&lt;/strong&gt;: Athens offers access control by enabling the blocking of specific packages within Grab. This added layer of security protects our work against potential risks from malicious third-party packages.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Vendor directory removal&lt;/strong&gt;: Athens prepares us for the eventual removal of the &lt;a href=&quot;https://docs.gomods.io/faq/#when-should-i-use-a-vendor-directory-and-when-should-i-use-athens&quot;&gt;vendor directory&lt;/a&gt;, fostering faster workflows in the future.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;Since adopting Athens as a Go module proxy, we have observed considerable benefits, such as:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Accelerated Go command operations&lt;/li&gt;
+  &lt;li&gt;Reduced infrastructure costs&lt;/li&gt;
+  &lt;li&gt;Mitigated VCS load issues&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Moreover, its lesser-known advantages like module immutability, uninterrupted development, enhanced security, and vendor directory transition have also contributed to improved development practices and an enriched developer experience for Grab engineers.&lt;/p&gt;
+
+&lt;p&gt;Today, the straightforward process of exporting three environment variables has greatly influenced our developers’ experience at Grab.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;export GOPROXY=&quot;goproxy.company.com|proxy.golang.org,direct&quot;
+
+export GONOSUMDB=&quot;gitlab.company.com&quot;
+
+export GONOPROXY=&quot;none&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;At Grab, we are always looking for ways to improve and optimise the way we work, so we contribute to open-sourced projects like Athens, where we help with bug fixes. If you are interested in setting up a Go module proxy, do give Athens (&lt;a href=&quot;https://github.com/gomods/athens&quot;&gt;github.com/gomods/athens&lt;/a&gt;) a try!&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Swaminathan Venkatraman, En Wei Soh, Anuj More, Darius Tan, and Fernando Christyanto for contributing to this project and this article.&lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 30 Jun 2023 01:18:00 +0000</pubDate>
+        <link>https://engineering.grab.com/go-module-proxy</link>
+        <guid isPermaLink="true">https://engineering.grab.com/go-module-proxy</guid>
+        
+        <category>Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>PII masking for privacy-grade machine learning</title>
@@ -1611,232 +2004,6 @@ is_owner(md) if {
         <category>Engineering</category>
         
         <category>Security</category>
-        
-      </item>
-    
-      <item>
-        <title>Securing GitOps pipelines</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Grab’s real-time data platform team, Coban, has been managing infrastructure resources via Infrastructure-as-code (IaC). Through the IaC approach, Terraform is used to maintain infrastructure consistency, automation, and ease of deployment of our streaming infrastructure, notably:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; pipelines&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt; topics&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://docs.confluent.io/platform/current/connect/index.html#kafka-connect&quot;&gt;Kafka Connect&lt;/a&gt; connectors&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;With Grab’s exponential growth, there needs to be a better way to scale infrastructure automatically. Moving towards GitOps processes benefits us in many ways:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Versioned and immutable&lt;/strong&gt;: With our source code being stored in Git repositories, the desired state of infrastructure is stored in an environment that enforces immutability, versioning, and retention of version history, which helps with auditing and traceability.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Faster deployment&lt;/strong&gt;: By automating the process of deploying resources after code is merged, we eliminate manual steps and improve overall engineering productivity while maintaining consistency.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Easier rollbacks&lt;/strong&gt;: It’s as simple as making a revert for a Git commit as compared to creating a merge request (MR) and commenting Atlantis commands, which add extra steps and contribute to a higher mean-time-to-resolve (MTTR) for incidents.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Originally, Coban implemented automation on Terraform resources using &lt;a href=&quot;https://www.runatlantis.io/&quot;&gt;Atlantis&lt;/a&gt;, an application that operates based on user comments on MRs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/atlantis-user-flow.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 1 User flow with Atlantis&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We have come a long way with Atlantis. It has helped us to automate our workflows and enable self-service capabilities for our engineers. However, there were a few limitations in our setup, which we wanted to improve:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Coarse grained&lt;/strong&gt;: There is no way to restrict the kind of Terraform resources users can create, which introduces security issues. For example, if a user is one of the &lt;a href=&quot;https://docs.gitlab.com/ee/user/project/code_owners.html&quot;&gt;Code owners&lt;/a&gt;, they can create another IAM role with Admin privileges with approval from their own team anywhere in the repository.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Limited automation&lt;/strong&gt;: Users are still required to make comments in their MR such as &lt;a href=&quot;https://www.runatlantis.io/docs/using-atlantis.html#atlantis-apply&quot;&gt;atlantis apply&lt;/a&gt;. This requires the learning of Atlantis commands and is prone to human errors.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Limited capability&lt;/strong&gt;: Having to rely entirely on Terraform and Hashicorp Configuration Language (HCL) functions to validate user input comes with limitations. For example, the ability to validate an input variable based on the value of another has been a &lt;a href=&quot;https://github.com/hashicorp/terraform/issues/25609&quot;&gt;requested feature&lt;/a&gt; for a long time.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Not adhering to Don’t Repeat Yourself (DRY) principle&lt;/strong&gt;: Users need to create an entire Terraform project with boilerplate codes such as Terraform environment, local variables, and Terraform provider configurations to create a simple resource such as a Kafka topic.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;We have developed an in-house GitOps solution named Khone. Its name was inspired by the &lt;a href=&quot;https://en.wikipedia.org/wiki/Khone_Phapheng_Falls&quot;&gt;Khone Phapheng Waterfall&lt;/a&gt;. We have evaluated some of the best and most widely used GitOps products available but chose not to go with any as the majority of them aim to support Kubernetes native or &lt;a href=&quot;https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/&quot;&gt;custom resources&lt;/a&gt;, and we needed infrastructure provisioning that is beyond Kubernetes. With our approach, we have full control of the entire user flow and its implementation, and thus we benefit from:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Security&lt;/strong&gt;: The ability to secure the pipeline with many customised scripts and workflows.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Simple user experience (UX)&lt;/strong&gt;: Simplified user flow and prevents human errors with automation.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;DRY&lt;/strong&gt;: Minimise boilerplate codes. Users only need to create a single Terraform resource and not an entire Terraform project.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-user-flow.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 2 User flow with Khone&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;With all types of streaming infrastructure resources that we support, be it Kafka topics or Flink pipelines, we have identified they all have common properties such as namespace, environment, or cluster name such as Kafka cluster and Kubernetes cluster. As such, using those values as file paths help us to easily validate users input and de-couple them from the resource specific configuration properties in their HCL source code. Moreover, it helps to remove redundant information to maintain consistency. If the piece of information is in the file path, it won’t be elsewhere in resource definition.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-directory-structure.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 3 Khone directory structure&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;With this approach, we can utilise our pipeline scripts, which are written in Python and perform validations on the types of resources and resource names using Regular Expressions (Regex) without relying on HCL functions. Furthermore, we helped prevent human errors and improved developers’ efficiency by deriving these properties and reducing boilerplate codes by automatically parsing out other necessary configurations such as Kafka brokers endpoint from the cluster name and environment.&lt;/p&gt;
-
-&lt;h3 id=&quot;pipeline-stages&quot;&gt;Pipeline stages&lt;/h3&gt;
-
-&lt;p&gt;Khone’s pipeline implementation is designed with three stages. Each stage has different duties and responsibilities in verifying user input and securely creating the resources.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-pipeline-example.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 4 An example of a Khone pipeline&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;initialisation-stage&quot;&gt;Initialisation stage&lt;/h4&gt;
-
-&lt;p&gt;At this stage, we categorise the changes into Deleted, Created or Changed resources and filter out unsupported resource types. We also prevent users from creating unintended resources by validating them based on resource path and inspecting the HCL source code in their Terraform module. This stage also prepares artefacts for subsequent stages.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/terraform-changes.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 5 Terraform changes detected by Khone&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;terraform-stage&quot;&gt;Terraform stage&lt;/h4&gt;
-
-&lt;p&gt;This is a downstream pipeline that runs either the Terraform plan or Terraform apply command depending on the state of the MR, which can either be pending review or merged. &lt;a href=&quot;https://engineering.grab.com/how-we-reduced-our-ci-yaml&quot;&gt;Individual jobs run in parallel&lt;/a&gt; for each resource change, which helps with performance and reduces the overall pipeline run time.&lt;/p&gt;
-
-&lt;p&gt;For each individual job, we implemented multiple security checkpoints such as:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Code inspection&lt;/strong&gt;: We use the &lt;a href=&quot;https://pypi.org/project/python-hcl2/&quot;&gt;python-hcl2&lt;/a&gt; library to read HCL content of Terraform resources to perform validation, restrict the types of Terraform resources users can create, and ensure that resources have the intended configurations. We also validate whitelisted Terraform module source endpoint based on the declared resource type. This enables us to inherit the flexibility of Python as a programming language and perform validations more dynamically rather than relying on HCL functions.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Resource validation&lt;/strong&gt;: We validate configurations based on resource path to ensure users are following the correct and intended directory structure.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Linting and formatting&lt;/strong&gt;: Perform HCL code linting and formatting using Terraform CLI to ensure code consistency.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Furthermore, our Terraform module independently validates parameters by verifying the working directory instead of relying on user input, acting as an additional layer of defence for validation.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;path = one(regexall(join(&quot;/&quot;,
-[
-    &quot;^*&quot;,
-    &quot;(?P&amp;lt;repository&amp;gt;khone|khone-dev)&quot;,
-    &quot;resources&quot;,
-    &quot;(?P&amp;lt;namespace&amp;gt;[^/]*)&quot;,
-    &quot;(?P&amp;lt;resource_type&amp;gt;[^/]*)&quot;,
-    &quot;(?P&amp;lt;env&amp;gt;[^/]*)&quot;,
-    &quot;(?P&amp;lt;cluster_name&amp;gt;[^/]*)&quot;,
-    &quot;(?P&amp;lt;resource_name&amp;gt;[^/]*)$&quot;
-]), path.cwd))
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h4 id=&quot;metric-stage&quot;&gt;Metric stage&lt;/h4&gt;
-
-&lt;p&gt;In this stage, we consolidate previous jobs’ status and publish our pipeline metrics such as success or error rate.&lt;/p&gt;
-
-&lt;p&gt;For our metrics, we identified actual users by omitting users from Coban. This helps us measure success metrics more consistently as we could isolate metrics from test continuous integration/continuous deployment (CI/CD) pipelines.&lt;/p&gt;
-
-&lt;p&gt;For the second half of 2022, we achieved a 100% uptime for Khone pipelines.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/success-metrics.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 6 Khone's success metrics for the second half of 2022&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;preventing-pipeline-config-tampering&quot;&gt;Preventing pipeline config tampering&lt;/h3&gt;
-
-&lt;p&gt;By default, with each repository on GitLab that has CI/CD pipelines enabled, owners or administrators would need to have a pipeline config file at the root directory of the repository with the name &lt;strong&gt;.gitlab-ci.yml&lt;/strong&gt;. Other scripts may also be stored somewhere within the repository.&lt;/p&gt;
-
-&lt;p&gt;With this setup, whenever a user creates an MR, if the pipeline config file is modified as part of the MR, the modified version of the config file will be immediately reflected in the pipeline’s run. Users can exploit this by running arbitrary code on the privileged GitLab runner.&lt;/p&gt;
-
-&lt;p&gt;In order to prevent this, we utilise GitLab’s &lt;a href=&quot;https://docs.gitlab.com/ee/ci/pipelines/settings.html#specify-a-custom-cicd-configuration-file&quot;&gt;remote pipeline config&lt;/a&gt; functionality. We have created another private repository, &lt;strong&gt;khone-admin&lt;/strong&gt;, and stored our pipeline config there.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-remote-pipeline-config.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 7 Khone's remote pipeline config&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In Fig. 7, our configuration is set to a file called &lt;strong&gt;khone-gitlab-ci.yml&lt;/strong&gt; residing in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository under &lt;strong&gt;snd&lt;/strong&gt; group.&lt;/p&gt;
-
-&lt;h3 id=&quot;preventing-pipeline-scripts-tampering&quot;&gt;Preventing pipeline scripts tampering&lt;/h3&gt;
-
-&lt;p&gt;We had scripts that ran before the MR and they were approved and merged to perform preliminary checks or validations. They were also used to run the Terraform plan command. Users could modify these existing scripts to perform malicious actions. For example, they could bypass all validations and directly run the Terraform apply command to create unintended resources.&lt;/p&gt;
-
-&lt;p&gt;This can be prevented by storing all of our scripts in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository and cloning them in each stage of our pipeline using the &lt;strong&gt;before_script&lt;/strong&gt; clause.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;default:
-  before_script:
-    - rm -rf khone_admin
-    - git clone --depth 1 --single-branch https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git khone_admin
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Even though this adds an overhead to each of our pipeline jobs and increases run time, the amount is insignificant as we have optimised the process by using shallow cloning. The Git clone command included in the above script with &lt;strong&gt;depth=1&lt;/strong&gt; and &lt;strong&gt;single-branch&lt;/strong&gt; flag has reduced the time it takes to clone the scripts down to only &lt;strong&gt;0.59 seconds&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;testing-our-pipeline&quot;&gt;Testing our pipeline&lt;/h3&gt;
-
-&lt;p&gt;With all the security measures implemented for Khone, this raises a question of how did we test the pipeline? We have done this by setting up an additional repository called &lt;strong&gt;khone-dev&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/repo-relationship.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 8 Repositories relationship&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;pipeline-config&quot;&gt;Pipeline config&lt;/h4&gt;
-
-&lt;p&gt;Within this &lt;strong&gt;khone-dev&lt;/strong&gt; repository, we have set up a remote pipeline config file following this format:&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;File Name&amp;gt;@&amp;lt;Repository Ref&amp;gt;:&amp;lt;Branch Name&amp;gt;&lt;/code&gt;&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/securing-gitops-pipeline/khone-dev-remote.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;i&gt;Fig. 9 Khone-dev's remote pipeline config&lt;/i&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In Fig. 9, our configuration is set to a file called &lt;strong&gt;khone-gitlab-ci.yml&lt;/strong&gt; residing in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository under the &lt;strong&gt;snd&lt;/strong&gt; group and under a branch named &lt;strong&gt;ci-test&lt;/strong&gt;. With this approach, we can test our pipeline config without having to merge it to master branch that affects the main Khone repository. As a security measure, we only allow users within a certain GitLab group to push changes to this branch.&lt;/p&gt;
-
-&lt;h4 id=&quot;pipeline-scripts&quot;&gt;Pipeline scripts&lt;/h4&gt;
-
-&lt;p&gt;Following the same method for pipeline scripts, instead of cloning from the master branch in the &lt;strong&gt;khone-admin&lt;/strong&gt; repository, we have implemented a logic to clone them from the branch matching our lightweight directory access protocol (LDAP) user account if it exists. We utilised the &lt;strong&gt;GITLAB_USER_LOGIN&lt;/strong&gt; environment variable that is injected by GitLab to each individual CI job to get the respective LDAP account to perform this logic.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;default:
-  before_script:
-    - rm -rf khone_admin
-    - |
-      if git ls-remote --exit-code --heads &quot;https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git&quot; &quot;$GITLAB_USER_LOGIN&quot; &amp;gt; /dev/null; then
-        echo &quot;Cloning khone-admin from dev branch ${GITLAB_USER_LOGIN}&quot;
-        git clone --depth 1 --branch &quot;$GITLAB_USER_LOGIN&quot; --single-branch &quot;https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git&quot; khone_admin
-      else
-        echo &quot;Dev branch ${GITLAB_USER_LOGIN} not found, cloning from master instead&quot;
-        git clone --depth 1 --single-branch &quot;https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.myteksi.net/snd/khone-admin.git&quot; khone_admin
-      fi
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;With security being our main focus for our Khone GitOps pipeline, we plan to abide by the &lt;a href=&quot;https://en.wikipedia.org/wiki/Principle_of_least_privilege&quot;&gt;principle of least privilege&lt;/a&gt; and implement separate GitLab runners for different types of resources and assign them with just enough IAM roles and policies, and minimal network security group rules to access our Kafka or Kubernetes clusters.&lt;/p&gt;
-
-&lt;p&gt;Furthermore, we also plan to maintain high standards and stability by including unit tests in our CI scripts to ensure that every change is well-tested before being deployed.&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://docs.gitlab.com/ee/ci/pipelines/settings.html#specify-a-custom-cicd-configuration-file&quot;&gt;Specify a custom CI/CD configuration file&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html&quot;&gt;IAM roles for service accounts&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://docs.gitlab.com/ee/user/project/code_owners.html&quot;&gt;GitLab code owners&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Fabrice Harbulot for kicking off this project and building a strong foundation for it.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 01 Mar 2023 02:23:05 +0000</pubDate>
-        <link>https://engineering.grab.com/securing-gitops-pipeline</link>
-        <guid isPermaLink="true">https://engineering.grab.com/securing-gitops-pipeline</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Open source</category>
-        
-        <category>Pipelines</category>
-        
-        <category>Continuous Delivery</category>
-        
-        <category>Continuous Integration</category>
-        
-        <category>Optimisation</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
