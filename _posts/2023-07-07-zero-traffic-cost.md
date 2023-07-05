@@ -2,7 +2,7 @@
 layout: post
 id: 2023-07-07-zero-traffic-cost
 title: Zero traffic cost for Kafka consumers
-date: 2023-07-01 00:23:05
+date: 2023-07-07 00:23:05
 authors: [fabrice-harbulot,quangminh-tran]
 categories: [Engineering, Security]
 tags: [Engineering, Kafka, Performance, Access control]
