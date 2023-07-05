@@ -68,7 +68,6 @@ Enabling Kafka consumers to fetch from the closest replica requires a configurat
 In our Kafka brokers’ configuration, we already had `broker.rack` set up to distribute the replicas across different AZs for resiliency. Our Ansible role for Kafka automatically sets it with the AZ ID that is dynamically retrieved from the EC2 instance's metadata at deployment time.
 
 ```
-Unset
 - name: Get availability zone ID
   uri:
     url: http://169.254.169.254/latest/meta-data/placement/availability-zone-id
