@@ -19,7 +19,7 @@ In this article, we explain how the Coban team has substantially reduced Grab's 
 
 ## Problem statement
 
-The Grab platform is primarily hosted on AWS cloud, located in one region, spanning over three Availability Zones (AZ). When it comes to data streaming, both the Kafka brokers and Kafka clients run across these three AZs.
+The Grab platform is primarily hosted on AWS cloud, located in one region, spanning over three Availability Zones (AZs). When it comes to data streaming, both the Kafka brokers and Kafka clients run across these three AZs.
 
 <div class="post-image-section"><figure>
   <img src="/img/zero-traffic-cost/fig-1.png" alt="" style="width:70%"><figcaption align="middle">Figure 1 - Initial design, consumers fetching from the partition leader</figcaption>
@@ -88,7 +88,7 @@ Our users only have to export an environment variable to enable this new feature
 
 We have also implemented the same logic for our non-SDK consumers, namely [Flink](https://flink.apache.org/) pipelines and [Kafka Connect](https://developer.confluent.io/learn-kafka/kafka-connect/intro/) connectors.
 
-### Outcome
+### Impact
 We rolled out fetching from the closest replica at the turn of the year and the feature has been progressively rolled out on more and more Kafka consumers since then.
 
 <div class="post-image-section"><figure>
@@ -98,7 +98,7 @@ We rolled out fetching from the closest replica at the turn of the year and the 
 
 Figure 3 shows the relative impact of this change on our cross-AZ traffic, as reported by AWS Cost Explorer. AWS charges cross-AZ traffic on both ends of the data transfer, thus the two data series. On the Kafka brokers' side, less cross-AZ traffic is sent out, thereby causing the steep drop in the dark green line. On the Kafka consumers' side, less cross-AZ traffic is received, causing the steep drop in the light green line. Hence, both ends benefit by fetching from the closest replica.
 
-Despite a roughly stable volume of consumed data throughout the observed period, we have noted a significant drop of 25% in our cross-AZ traffic after three months, based on December's average. Our cross-AZ cost has also dropped accordingly, as it is essentially a linear function of the cross-AZ traffic.
+Throughout the observeration period, we maintained a relatively stable volume of data consumption. However, after three months, we observed a substantial 25% drop in our cross-AZ traffic compared to December's average. This reduction had a direct impact on our cross-AZ costs as it directly correlates with the cross-AZ traffic volume in a linear manner.
 
 ### Caveats
 
@@ -119,7 +119,7 @@ In the traditional architecture design, Kafka clients only communicate with the 
 
 #### Potentially skewed load
 
-Another caveat we have observed is that the load of the brokers is directly determined by the location of the consumers. If they are not well balanced across all of the three AZs, then the load on the brokers is similarly skewed. At times, new brokers can be added to support an increasing load on an AZ. However, it is undesirable to remove any brokers from the less loaded AZs as more consumers can suddenly relocate there at any time. Having these additional brokers and underutilisation of existing brokers on other AZs can impact cost efficiency.
+Another caveat we have observed is that the load on the brokers is directly determined by the location of the consumers. If they are not well balanced across all of the three AZs, then the load on the brokers is similarly skewed. At times, new brokers can be added to support an increasing load on an AZ. However, it is undesirable to remove any brokers from the less loaded AZs as more consumers can suddenly relocate there at any time. Having these additional brokers and underutilisation of existing brokers on other AZs can also impact cost efficiency.
 
 <div class="post-image-section"><figure>
   <img src="/img/zero-traffic-cost/fig-5.png" alt="" style="width:70%"><figcaption align="middle">Figure 5 - Average CPU utilisation by AZ of one of our critical Kafka clusters</figcaption>
