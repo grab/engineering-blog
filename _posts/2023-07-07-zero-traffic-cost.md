@@ -8,7 +8,7 @@ categories: [Engineering, Security]
 tags: [Engineering, Kafka, Performance, Access control]
 comments: true
 cover_photo: /img/zero-traffic-cost/cover.jpg
-excerpt: "Grab's data streaming infrastructure runs in the cloud across multiple Availability Zones for high availability and resilience, but this also incurs staggering network traffic cost. In this article, we are describing how enabling our Kafka consumers to fetch from the closest replica helped us significantly improve the cost efficiency of our design."
+excerpt: "Grab's data streaming infrastructure runs in the cloud across multiple Availability Zones for high availability and resilience, but this also incurs staggering network traffic cost. In this article, we describe how enabling our Kafka consumers to fetch from the closest replica helped significantly improve the cost efficiency of our design."
 ---
 
 ## Introduction
@@ -58,7 +58,7 @@ Our journey started with the upgrade of our legacy Kafka clusters. We decided to
 To perform an online upgrade with no disruptions for our users, we broke down the process into three stages.
 
 - **Stage 1**: Upgrading Zookeeper. All versions of Kafka are tested by the community with a specific version of Zookeeper. To ensure stability, we followed this same process. The upgraded Zookeeper would be backward compatible with the pre-upgrade version of Kafka which was still in use at this early stage of the operation.
-- **Stage 2**: Rolling out the upgrade of Kafka to version 3.1 with an explicit backward-compatible inter-broker protocol version (`inter.broker.protocol.version`). During this progressive rollout, the Kafka cluster is temporarily composed of brokers with heterogeneous Kafka versions, but they can communicate with one another because they are explicitly set up to use the same inter-broker protocol version. At this stage, we also upgraded Cruise Control to a compatible version, and we configured Kafka to import the updated cruise-control-metrics-reporter JAR file on startup.
+- **Stage 2**: Rolling out the upgrade of Kafka to version 3.1 with an explicit backward-compatible inter-broker protocol version (`inter.broker.protocol.version`). During this progressive rollout, the Kafka cluster is temporarily composed of brokers with heterogeneous Kafka versions, but they can communicate with one another because they are explicitly set up to use the same inter-broker protocol version. At this stage, we also upgraded Cruise Control to a compatible version, and we configured Kafka to import the updated `cruise-control-metrics-reporter` JAR file on startup.
 - **Stage 3**: Upgrading the inter-broker protocol version. This last stage makes all brokers use the most recent version of the inter-broker protocol. During the progressive rollout of this change, brokers with the new protocol version can still communicate with brokers on the old protocol version.
 
 ### Configuration
@@ -104,7 +104,7 @@ Despite a roughly stable volume of consumed data throughout the observed period,
 
 #### Increased end-to-end latency
 
-After enabling fetching from the closest replica, we have observed an increase of up to 500ms of the end-to-end latency, that comes from the producer to the consumers. Though this is expected by design, it makes this new feature unsuitable for Grab's most latency-sensitive use cases. For these use cases we remained with the traditional design whereby consumers fetch directly from the partition leaders, even when they reside in different AZs.
+After enabling fetching from the closest replica, we have observed an increase of up to 500ms in end-to-end latency, that comes from the producer to the consumers. Though this is expected by design, it makes this new feature unsuitable for Grab's most latency-sensitive use cases. For these use cases, we retained the traditional design whereby consumers fetch directly from the partition leaders, even when they reside in different AZs.
 
 <div class="post-image-section"><figure>
   <img src="/img/zero-traffic-cost/fig-4.png" alt="" style="width:70%"><figcaption align="middle">Figure 4 - End-to-end latency (99th percentile) of one of our streams, before and after enabling fetching from the closest replica</figcaption>
@@ -113,7 +113,9 @@ After enabling fetching from the closest replica, we have observed an increase o
 
 #### Inability to gracefully isolate a broker
 
-We have also verified the behavior of Kafka clients during a broker rotation; a common maintenance operation for Kafka. One of the early steps of our corresponding runbook is to demote the broker that is to be rotated, so that all of its partition leaders are drained and moved to other brokers. In the traditional architecture design, Kafka clients only communicate with the partition leaders, so demoting a broker gracefully isolates it from all of the Kafka clients, making sure that the maintenance is seamless for them. However, by fetching from the closest replica, Kafka consumers still consume from the demoted broker, as it keeps serving partition followers. When the broker effectively goes down for maintenance, those consumers are suddenly disconnected. To work around this, they must handle connection errors properly and implement a retry mechanism.
+We have also verified the behaviour of Kafka clients during a broker rotation; a common maintenance operation for Kafka. One of the early steps of our corresponding runbook is to demote the broker that is to be rotated, so that all of its partition leaders are drained and moved to other brokers. 
+
+In the traditional architecture design, Kafka clients only communicate with the partition leaders, so demoting a broker gracefully isolates it from all of the Kafka clients. This ensures that the maintenance is seamless for them. However, by fetching from the closest replica, Kafka consumers still consume from the demoted broker, as it keeps serving partition followers. When the broker effectively goes down for maintenance, those consumers are suddenly disconnected. To work around this, they must handle connection errors properly and implement a retry mechanism.
 
 #### Potentially skewed load
 
@@ -128,9 +130,9 @@ Figure 5 shows the CPU utilisation by AZ for one of our critical Kafka clusters.
 
 ## What’s next?
 
-We have rolled out the feature to fetch from the closest replica on all of our Kafka clusters and all of the Kafka consumers that we control. This includes internal Coban pipelines as well as the managed pipelines that our users can self-serve as part of our data streaming offering.
+We have implemented the feature to fetch from the closest replica on all our Kafka clusters and all Kafka consumers that we control. This includes internal Coban pipelines as well as the managed pipelines that our users can self-serve as part of our data streaming offering.
 
-We are now evangelising and advocating for more and more of our users to adopt this feature. 
+We are now evangelising and advocating for more of our users to adopt this feature. 
 
 Beyond Coban, other teams at Grab are also working to reduce their cross-AZ traffic, notably, Sentry, the team that is in charge of Grab's service mesh.
 
