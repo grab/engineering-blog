@@ -6,9 +6,162 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 06 Jul 2023 07:53:22 +0000</pubDate>
-    <lastBuildDate>Thu, 06 Jul 2023 07:53:22 +0000</lastBuildDate>
+    <pubDate>Fri, 07 Jul 2023 01:49:27 +0000</pubDate>
+    <lastBuildDate>Fri, 07 Jul 2023 01:49:27 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Zero traffic cost for Kafka consumers</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Coban, Grab’s real-time data streaming platform team, has been building an ecosystem around &lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt;, serving all Grab verticals. Along with stability and performance, one of our priorities is also cost efficiency.&lt;/p&gt;
+
+&lt;p&gt;In this article, we explain how the Coban team has substantially reduced Grab’s annual cost for data streaming by enabling Kafka consumers to fetch from the closest replica.&lt;/p&gt;
+
+&lt;h2 id=&quot;problem-statement&quot;&gt;Problem statement&lt;/h2&gt;
+
+&lt;p&gt;The Grab platform is primarily hosted on AWS cloud, located in one region, spanning over three Availability Zones (AZs). When it comes to data streaming, both the Kafka brokers and Kafka clients run across these three AZs.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-traffic-cost/fig-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1 - Initial design, consumers fetching from the partition leader&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Figure 1 shows the initial design of our data streaming platform. To ensure high availability and resilience, we configured each Kafka partition to have three replicas. We have also set up our Kafka clusters to be rack-aware (i.e. 1 “rack” = 1 AZ) so that all three replicas reside in three different AZs.&lt;/p&gt;
+
+&lt;p&gt;The problem with this design is that it generates staggering cross-AZ network traffic. This is because, by default, Kafka clients communicate only with the partition leader, which has a 67% probability of residing in a different AZ.&lt;/p&gt;
+
+&lt;p&gt;This is a concern as we are charged for cross-AZ traffic as per &lt;a href=&quot;https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer_within_the_same_AWS_Region&quot;&gt;AWS’s network traffic pricing model&lt;/a&gt;. With this design, our cross-AZ traffic amounted to half of the total cost of our Kafka platform.&lt;/p&gt;
+
+&lt;p&gt;The Kafka cross-AZ traffic for this design can be broken down into three components as shown in Figure 1:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Producing&lt;/strong&gt; (step 1): Typically, a single service produces data to a given Kafka topic. Cross-AZ traffic occurs when the producer does not reside in the same AZ as the partition leader it is producing data to. This cross-AZ traffic cost is minimal, because the data is transferred to a different AZ at most once (excluding retries).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Replicating&lt;/strong&gt; (step 2): The ingested data is replicated from the partition leader to the two partition followers, which reside in two other AZs. The cost of this is also relatively small, because the data is only transferred to a different AZ twice.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Consuming&lt;/strong&gt; (step 3): Most of the cross-AZ traffic occurs here because there are many consumers for a single Kafka topic. Similar to the producers, the consumers incur cross-AZ traffic when they do not reside in the same AZ as the partition leader. However, on the consuming side, cross-AZ traffic can occur as many times as there are consumers (on average, two-thirds of the number of consumers). The solution described in this article addresses this particular component of the cross-AZ traffic in the initial design.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://archive.apache.org/dist/kafka/2.3.0/RELEASE_NOTES.html&quot;&gt;Kafka 2.3&lt;/a&gt; introduced the ability for consumers to fetch from partition replicas. This opens the door to a more cost-efficient design.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-traffic-cost/fig-2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2 - Target design, consumers fetching from the closest replica&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Step 3 of Figure 2 shows how consumers can now consume data from the replica that resides in their own AZ. Implementing this feature requires rack-awareness and extra configurations for both the Kafka brokers and consumers. We will describe this in the following sections.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-coban-journey&quot;&gt;The Coban journey&lt;/h2&gt;
+
+&lt;h3 id=&quot;kafka-upgrade&quot;&gt;Kafka upgrade&lt;/h3&gt;
+
+&lt;p&gt;Our journey started with the upgrade of our legacy Kafka clusters. We decided to upgrade them directly to version 3.1, in favour of capturing bug fixes and optimisations over version 2.3. This was a safe move as version 3.1 was deemed stable for almost a year and we projected no additional operational cost for this upgrade.&lt;/p&gt;
+
+&lt;p&gt;To perform an online upgrade with no disruptions for our users, we broke down the process into three stages.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Stage 1&lt;/strong&gt;: Upgrading Zookeeper. All versions of Kafka are tested by the community with a specific version of Zookeeper. To ensure stability, we followed this same process. The upgraded Zookeeper would be backward compatible with the pre-upgrade version of Kafka which was still in use at this early stage of the operation.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Stage 2&lt;/strong&gt;: Rolling out the upgrade of Kafka to version 3.1 with an explicit backward-compatible inter-broker protocol version (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;inter.broker.protocol.version&lt;/code&gt;). During this progressive rollout, the Kafka cluster is temporarily composed of brokers with heterogeneous Kafka versions, but they can communicate with one another because they are explicitly set up to use the same inter-broker protocol version. At this stage, we also upgraded Cruise Control to a compatible version, and we configured Kafka to import the updated &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cruise-control-metrics-reporter&lt;/code&gt; JAR file on startup.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Stage 3&lt;/strong&gt;: Upgrading the inter-broker protocol version. This last stage makes all brokers use the most recent version of the inter-broker protocol. During the progressive rollout of this change, brokers with the new protocol version can still communicate with brokers on the old protocol version.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;configuration&quot;&gt;Configuration&lt;/h3&gt;
+&lt;p&gt;Enabling Kafka consumers to fetch from the closest replica requires a configuration change on both Kafka brokers and Kafka consumers. They also need to be aware of their AZ, which is done by leveraging Kafka rack-awareness (1 “rack” = 1 AZ).&lt;/p&gt;
+
+&lt;h4 id=&quot;brokers&quot;&gt;Brokers&lt;/h4&gt;
+&lt;p&gt;In our Kafka brokers’ configuration, we already had &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;broker.rack&lt;/code&gt; set up to distribute the replicas across different AZs for resiliency. Our Ansible role for Kafka automatically sets it with the AZ ID that is dynamically retrieved from the EC2 instance’s metadata at deployment time.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- name: Get availability zone ID
+  uri:
+    url: http://169.254.169.254/latest/meta-data/placement/availability-zone-id
+    method: GET
+    return_content: yes
+  register: ec2_instance_az_id
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Note that we use AWS AZ IDs (suffixed &lt;em&gt;az1, az2, az3&lt;/em&gt;) instead of the typical AWS AZ names (suffixed &lt;em&gt;1a, 1b, 1c&lt;/em&gt;) because the latter’s mapping is &lt;a href=&quot;https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html&quot;&gt;not consistent across AWS accounts&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Also, we added the new &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;replica.selector.class&lt;/code&gt; parameter, set with value &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;org.apache.kafka.common.replica.RackAwareReplicaSelector&lt;/code&gt;, to enable the new feature on the server side.&lt;/p&gt;
+
+&lt;h4 id=&quot;consumers&quot;&gt;Consumers&lt;/h4&gt;
+&lt;p&gt;On the Kafka consumer side, we mostly rely on Coban’s internal Kafka SDK in Golang, which streamlines how service teams across all Grab verticals utilise Coban Kafka clusters. We have updated the SDK to support fetching from the closest replica.&lt;/p&gt;
+
+&lt;p&gt;Our users only have to export an environment variable to enable this new feature. The SDK then dynamically retrieves the underlying host’s AZ ID from the host’s metadata on startup, and sets a new &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;client.rack&lt;/code&gt; parameter with that information. This is similar to what the Kafka brokers do at deployment time.&lt;/p&gt;
+
+&lt;p&gt;We have also implemented the same logic for our non-SDK consumers, namely &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; pipelines and &lt;a href=&quot;https://developer.confluent.io/learn-kafka/kafka-connect/intro/&quot;&gt;Kafka Connect&lt;/a&gt; connectors.&lt;/p&gt;
+
+&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
+&lt;p&gt;We rolled out fetching from the closest replica at the turn of the year and the feature has been progressively rolled out on more and more Kafka consumers since then.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-traffic-cost/fig-3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3 - Variation of our cross-AZ traffic before and after enabling fetching from the closest replica&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Figure 3 shows the relative impact of this change on our cross-AZ traffic, as reported by AWS Cost Explorer. AWS charges cross-AZ traffic on both ends of the data transfer, thus the two data series. On the Kafka brokers’ side, less cross-AZ traffic is sent out, thereby causing the steep drop in the dark green line. On the Kafka consumers’ side, less cross-AZ traffic is received, causing the steep drop in the light green line. Hence, both ends benefit by fetching from the closest replica.&lt;/p&gt;
+
+&lt;p&gt;Throughout the observeration period, we maintained a relatively stable volume of data consumption. However, after three months, we observed a substantial 25% drop in our cross-AZ traffic compared to December’s average. This reduction had a direct impact on our cross-AZ costs as it directly correlates with the cross-AZ traffic volume in a linear manner.&lt;/p&gt;
+
+&lt;h3 id=&quot;caveats&quot;&gt;Caveats&lt;/h3&gt;
+
+&lt;h4 id=&quot;increased-end-to-end-latency&quot;&gt;Increased end-to-end latency&lt;/h4&gt;
+
+&lt;p&gt;After enabling fetching from the closest replica, we have observed an increase of up to 500ms in end-to-end latency, that comes from the producer to the consumers. Though this is expected by design, it makes this new feature unsuitable for Grab’s most latency-sensitive use cases. For these use cases, we retained the traditional design whereby consumers fetch directly from the partition leaders, even when they reside in different AZs.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-traffic-cost/fig-4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4 - End-to-end latency (99th percentile) of one of our streams, before and after enabling fetching from the closest replica&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;inability-to-gracefully-isolate-a-broker&quot;&gt;Inability to gracefully isolate a broker&lt;/h4&gt;
+
+&lt;p&gt;We have also verified the behaviour of Kafka clients during a broker rotation; a common maintenance operation for Kafka. One of the early steps of our corresponding runbook is to demote the broker that is to be rotated, so that all of its partition leaders are drained and moved to other brokers.&lt;/p&gt;
+
+&lt;p&gt;In the traditional architecture design, Kafka clients only communicate with the partition leaders, so demoting a broker gracefully isolates it from all of the Kafka clients. This ensures that the maintenance is seamless for them. However, by fetching from the closest replica, Kafka consumers still consume from the demoted broker, as it keeps serving partition followers. When the broker effectively goes down for maintenance, those consumers are suddenly disconnected. To work around this, they must handle connection errors properly and implement a retry mechanism.&lt;/p&gt;
+
+&lt;h4 id=&quot;potentially-skewed-load&quot;&gt;Potentially skewed load&lt;/h4&gt;
+
+&lt;p&gt;Another caveat we have observed is that the load on the brokers is directly determined by the location of the consumers. If they are not well balanced across all of the three AZs, then the load on the brokers is similarly skewed. At times, new brokers can be added to support an increasing load on an AZ. However, it is undesirable to remove any brokers from the less loaded AZs as more consumers can suddenly relocate there at any time. Having these additional brokers and underutilisation of existing brokers on other AZs can also impact cost efficiency.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/zero-traffic-cost/fig-5.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5 - Average CPU utilisation by AZ of one of our critical Kafka clusters&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Figure 5 shows the CPU utilisation by AZ for one of our critical Kafka clusters. The skewage is visible after 01/03/2023. To better manage this skewage in load across AZs, we have updated our SDK to expose the AZ as a new metric. This allows us to monitor the skewness of the consumers and take measures proactively, for example, moving some of them to different AZs.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;We have implemented the feature to fetch from the closest replica on all our Kafka clusters and all Kafka consumers that we control. This includes internal Coban pipelines as well as the managed pipelines that our users can self-serve as part of our data streaming offering.&lt;/p&gt;
+
+&lt;p&gt;We are now evangelising and advocating for more of our users to adopt this feature.&lt;/p&gt;
+
+&lt;p&gt;Beyond Coban, other teams at Grab are also working to reduce their cross-AZ traffic, notably, Sentry, the team that is in charge of Grab’s service mesh.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 07 Jul 2023 00:23:05 +0000</pubDate>
+        <link>https://engineering.grab.com/zero-traffic-cost</link>
+        <guid isPermaLink="true">https://engineering.grab.com/zero-traffic-cost</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Kafka</category>
+        
+        <category>Performance</category>
+        
+        <category>Access control</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Security</category>
+        
+      </item>
     
       <item>
         <title>Go module proxy at Grab</title>
@@ -1789,221 +1942,6 @@ From this table, we found that the differences between these frameworks are mini
         <category>Engineering</category>
         
         <category>Design</category>
-        
-      </item>
-    
-      <item>
-        <title>Migrating from Role to Attribute-based Access Control</title>
-        <description>&lt;p&gt;Grab has always regarded security as one of our top priorities; this is especially important for data platform teams. We need to control access to data and resources in order to protect our consumers and ensure compliance with various, continuously evolving security standards.&lt;/p&gt;
-
-&lt;p&gt;Additionally, we want to keep the process convenient, simple, and easily scalable for teams. However, as Grab continues to grow, we have more services and resources to manage and it becomes increasingly difficult to keep the process frictionless. That’s why we decided to move from Role-Based Access Control (RBAC) to Attribute-Based Access Control (ABAC) for our Kafka Control Plane (KCP).&lt;/p&gt;
-
-&lt;p&gt;In this article, you will learn how Grab’s streaming data platform team (Coban) deleted manual role and permission management of hundreds of roles and resources, and reduced operational overhead of requesting or approving permissions to zero by moving from RBAC to ABAC.&lt;/p&gt;
-
-&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Kafka is widely used across Grab teams as a streaming platform. For decentralised Kafka resource (e.g. topic) management, teams have the right to create, update, or delete based on their needs. As the data platform team, we implemented a KCP to ensure that these operations are only performed by authorised parties, especially on multi-tenant Kafka clusters.&lt;/p&gt;
-
-&lt;p&gt;For internal access management, Grab uses its own Identity and Access Management (IAM) service, based on RBAC, to support authentication and authorisation processes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Authentication&lt;/strong&gt; verifies the identity of a user or service, for example, if the provided token is valid or expired.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Authorisation&lt;/strong&gt; determines their access rights, for example, whether users can only update and/or delete their own Kafka topics.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In RBAC, roles, permissions, actions, resources, and the relationships between them need to be defined in the IAM service. They are used to determine whether a user can access a certain resource.&lt;/p&gt;
-
-&lt;p&gt;In the following example, we can see how IAM concepts come together. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Coban engineer&lt;/code&gt; role belongs to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Engineering-coban&lt;/code&gt; group and has permission to update the topic’s retention. Any engineer added to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Engineering-coban&lt;/code&gt; group will also be able to update the topic’s retention.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/migrating-to-abac/image5.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Following the same concept, each team using the KCP has its own roles, permissions, and resources created in the system. However, there are some disadvantages to this approach:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;It leads to a significant growth in the number of access control artifacts both platform and user teams need to manage, and increased time and effort to debug access control issues. We start off by finding which group the engineer belongs to and locating the group that should be used for KCP, and then trace to role and permissions.&lt;/li&gt;
-  &lt;li&gt;All group membership access requests of new joiners need to be reviewed and approved by their direct managers. This leads to a lot of backlog as new joiners might have multiple groups to join and managers might not be able to review them timely. In some cases, roles need to be re-applied or renewed every 90 days, which further adds to the delay.&lt;/li&gt;
-  &lt;li&gt;Group memberships are not updated to reflect active members in the team, leaving some engineers with access they don’t need and others with access they should have but don’t.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;With ABAC, access management becomes a lot easier. Any new joiner to a specific team gets the same access rights as everyone on that team – no need for manual approval from a manager. However, for ABAC to work, we need these components in place:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;User attributes: Who is the subject (actor) of a request?&lt;/li&gt;
-  &lt;li&gt;Resource attributes: Which object (resource) does the actor want to deal with?&lt;/li&gt;
-  &lt;li&gt;Evaluation engine: How do we decide if the actor is allowed to perform the action on the resource?&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;User attributes&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;All users have certain attributes depending on the department or team they belong to. This data is then stored and synced automatically with the human resource management system (HRMS) tool, which acts as a source of truth for Grab-wide data, every time a user switches teams, roles, or leaves the company.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Resource attributes&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Resource provisioning is an authenticated operation. This means that KCP knows who sent the requests and what each request/action is about. Similarly, resource attributes can be derived from their creators. For new resource provisioning, it is possible to capture the resource tags and store them after authentication. For existing resources, a major challenge was the need to backfill the tagging and ensure a seamless transition from the user’s perspective. In the past, all resource provisioning operations were done by a centralised platform team and most of the existing resource attributes are still under platform team’s ownership.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Evaluation engine&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;We chose to use &lt;a href=&quot;https://www.openpolicyagent.org/&quot;&gt;Open Policy Agent&lt;/a&gt; (OPA) as our policy evaluation engine mainly for its wide community support, applicable feature set, and extensibility to other tools and platforms in our system. This is also currently used by our team for &lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Kafka authorisation&lt;/a&gt;. The policies are written in &lt;a href=&quot;https://www.openpolicyagent.org/docs/latest/policy-language/&quot;&gt;Rego&lt;/a&gt;, the default language supported by OPA.&lt;/p&gt;
-
-&lt;h2 id=&quot;architectureand-implementation&quot;&gt;Architecture and implementation&lt;/h2&gt;
-
-&lt;p&gt;With ABAC, the access control process looks like this:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/migrating-to-abac/image6.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;user-attributes&quot;&gt;User attributes&lt;/h4&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/migrating-to-abac/image4.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Authentication is handled by the IAM service. In the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/generate_token&lt;/code&gt; call, a user requests an authentication token from KCP before calling an authenticated endpoint. KCP then calls IAM to generate a token and returns it to the user.&lt;/p&gt;
-
-&lt;p&gt;In the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/create_topic&lt;/code&gt; call, the user includes the generated token in the request header. KCP takes the token and verifies the token validity with IAM. User attributes are then extracted from the token payload for later use in request authorisation.&lt;/p&gt;
-
-&lt;p&gt;Some of the common attributes we use for our policy are &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;user identifier&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;department code&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;team code&lt;/code&gt;, which provide details like a user’s department and work scope.&lt;/p&gt;
-
-&lt;p&gt;When it comes to data governance and central platform and identity teams, one of the major challenges was standardising the set of attributes to be used for clear and consistent ABAC policies across platforms so that their lifecycle and changes could be governed. This was an important shift in the mental model for attribute management over the RBAC model.&lt;/p&gt;
-
-&lt;h4 id=&quot;resource-attributes&quot;&gt;Resource attributes&lt;/h4&gt;
-
-&lt;p&gt;For newly created resources, attributes will be derived from user attributes that are captured during the authentication process.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/migrating-to-abac/image3.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Previously with RBAC, existing resources did not have the required attributes. Since migrating to ABAC, the implementation has tagged newly created resources and ensured that their attributes are up to standard. IAM was also still doing the actual authorisation using RBAC.&lt;/p&gt;
-
-&lt;p&gt;It is also important to note that we collaborated with data governance teams to backfill Kafka resource ownership. Having accurate ownership of resources like data lake or Kafka topics enabled us to move toward a self-service model and remove bottlenecks from centralised platform teams.&lt;/p&gt;
-
-&lt;p&gt;After identifying most of the resource ownership, we started switching over to ABAC. The transition was smooth and had no impact on user experience. The remaining unidentified resources were tagged to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;lost-and-found&lt;/code&gt; and could be reclaimed by service teams when they needed permission to manage them.&lt;/p&gt;
-
-&lt;h4 id=&quot;open-policy-agent&quot;&gt;Open Policy Agent&lt;/h4&gt;
-
-&lt;p&gt;The most common question when implementing the policy is “how do you define ownership by attributes?”. With respect to the principle of least privilege, each policy must be sufficiently strict to limit access to only the relevant parties. In the end, we aligned as an organisation on defining ownership by department and team.&lt;/p&gt;
-
-&lt;p&gt;We created a simple example below to demonstrate how to define a policy:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;package authz
-
-import future.keywords
-
-default allow = false
-
-allow if {
-        input.endpoint == &quot;updateTopic&quot;
-        is_owner(input.resource_attributes)
-}
-
-is_owner(md) if {
-        md.department == input.user_attributes.department
-        md.team == input.user_attributes.team
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In this example, we start with denying access to everyone. If the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updateTopic&lt;/code&gt; endpoint is called and the department and team attributes between user and resource are matched, access is allowed.&lt;/p&gt;
-
-&lt;p&gt;With a similar scenario, we would need 1 role, 1 action, 1 resource, and 1 mapping (a.k.a permission) between action and resource. We will need to keep adding resources and permissions when we have new resources created. Compared to the policy above, no other changes are required.&lt;/p&gt;
-
-&lt;p&gt;With ABAC, there are no further setup or access requests needed when a user changes teams. The user will be tagged to different attributes, automatically granted access to the new team’s resources, and excluded from the previous team’s resources.&lt;/p&gt;
-
-&lt;p&gt;Another consideration we had was making sure that the policy is well-written and transparent in terms of change history. We decided to include this as part of our application code so every change is accounted for in the unit test and review process.&lt;/p&gt;
-
-&lt;h4 id=&quot;authorisation&quot;&gt;Authorisation&lt;/h4&gt;
-
-&lt;p&gt;The last part of the ABAC process is authorisation logic. We added the logic to the middleware so that we could make a call to OPA for authorisation.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/migrating-to-abac/image2.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;To ensure token validity after authentication, KCP extracts user attributes from the token payload and fetches resource attributes from the resource store. It combines the request metadata such as method and endpoint, along with the user and resource attributes into an OPA request. OPA then evaluates the request based on the redefined policy above and returns a response.&lt;/p&gt;
-
-&lt;h2 id=&quot;auditability&quot;&gt;Auditability&lt;/h2&gt;
-
-&lt;p&gt;For ABAC authorisation, there are two key areas of consideration:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Who made changes to the policy, who deployed, and when the change was made&lt;/li&gt;
-  &lt;li&gt;Who accessed what resource and when&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We manage policies in a dedicated GitLab repository and changes are submitted via merge requests. Based on the commit history, we can easily tell who made changes, reviewed, approved, and deployed the policy. &lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/migrating-to-abac/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;For resource access, OPA produces a decision log containing user attributes, resource attributes, and the authorisation decision for every call it serves. The log is kept for five days in Kibana for debugging purposes, then moved to S3 where it is kept for 28 days.&lt;/p&gt;
-
-&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
-
-&lt;p&gt;The move to ABAC authorisation has improved our controls as compared to the previous RBAC model, with the biggest impact being fewer resources to manage. Some other benefits include:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Optimised resource allocation: Discarded over 200 roles, 200 permissions, and almost 3000 unused resources from IAM services, simplifying our debugging process. Now, we can simply check the user and resource attributes as needed.&lt;/li&gt;
-  &lt;li&gt;Simplified resource management: In the three months we have been using ABAC, about 600 resources have been added without any increase in complexity for authorisation, which is significantly lesser than the RBAC model.&lt;/li&gt;
-  &lt;li&gt;Reduction in delays and waiting time: Engineers no longer have to wait for approval for KCP access.&lt;/li&gt;
-  &lt;li&gt;Better governance over resource ownership and costs: ABAC allowed us to have a standardised and accurate tagging system of almost 3000 resources.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;learnings&quot;&gt;Learnings&lt;/h2&gt;
-
-&lt;p&gt;Although ABAC does provide significant improvements over RBAC, it comes with its own caveats:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;It needs a reliable and comprehensive attribute tagging system to function properly. This only became possible after roughly three months of identifying and tagging the ownership of existing resources by both automated and manual methods.&lt;/li&gt;
-  &lt;li&gt;Tags should be kept up to date with the company’s growth. Teams could lose access to their resources if they are wrongly tagged. It needs a mechanism to keep up with changes, or people will unexpectedly lose access when user and resource attributes are changed.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;To keep up with organisational growth, KCP needs to start listening to the IAM stream, which is where all IAM changes are published. This will allow KCP to regularly update user attributes and refresh resource attributes when restructuring occurs, allowing authorisation to be done with the right data.&lt;/li&gt;
-  &lt;li&gt;Constant collaboration with HR to ensure that we maintain sufficient user attributes (no extra unused information) that remain clean so ABAC works as expected.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.openpolicyagent.org/&quot;&gt;OPA&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.openpolicyagent.org/docs/latest/policy-language/&quot;&gt;Rego&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Zero trust with Kafka&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 09 Mar 2023 01:23:05 +0000</pubDate>
-        <link>https://engineering.grab.com/migrating-to-abac</link>
-        <guid isPermaLink="true">https://engineering.grab.com/migrating-to-abac</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Access control</category>
-        
-        <category>Security</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Security</category>
         
       </item>
     
