@@ -6,9 +6,119 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 07 Jul 2023 01:49:27 +0000</pubDate>
-    <lastBuildDate>Fri, 07 Jul 2023 01:49:27 +0000</lastBuildDate>
+    <pubDate>Wed, 02 Aug 2023 03:52:02 +0000</pubDate>
+    <lastBuildDate>Wed, 02 Aug 2023 03:52:02 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Unsupervised graph anomaly detection - Catching new fraudulent behaviours</title>
+        <description>&lt;p&gt;Earlier in this series, we covered the &lt;a href=&quot;/graph-networks&quot;&gt;importance of graph networks&lt;/a&gt;, &lt;a href=&quot;/graph-concepts&quot;&gt;graph concepts&lt;/a&gt;, &lt;a href=&quot;/graph-visualisation&quot;&gt;graph visualisation&lt;/a&gt;, and &lt;a href=&quot;/graph-for-fraud-detection&quot;&gt;graph-based fraud detection methods&lt;/a&gt;. In this article, we will discuss how to automatically detect new types of fraudulent behaviour and swiftly take action on them.&lt;/p&gt;
+
+&lt;p&gt;One of the challenges in fraud detection is that fraudsters are incentivised to always adversarially innovate their way of conducting frauds, i.e., their modus operandi (MO in short). Machine learning models trained using historical data may not be able to pick up new MOs, as they are new patterns that are not available in existing training data. To enhance Grab’s existing security defences and protect our users from these new MOs, we needed a machine learning model that is able to detect them quickly without the need for any label supervision, i.e., an unsupervised learning model rather than the regular supervised learning model.&lt;/p&gt;
+
+&lt;p&gt;To address this, we developed an in-house machine learning model for detecting anomalous patterns in graphs, which has led to the discovery of new fraud MOs. Our focus was initially on GrabFood and GrabMart verticals, where we monitored the interactions between consumers and merchants. We modelled these interactions as a bipartite graph (a type of graph for modelling interactions between two groups) and then performed anomaly detection on the graph. Our in-house anomaly detection model was also presented at the International Joint Conference on Neural Networks (IJCNN) 2023, a premier academic conference in the area of neural networks, machine learning, and artificial intelligence.&lt;/p&gt;
+
+&lt;p&gt;In this blog, we discuss the model and its application within Grab. For avid audiences that want to read the details of our model, you can access it here. Note that even though we implemented our model for anomaly detection in GrabFood and GrabMart, the model is designed for general purposes and is applicable to interaction graphs between any two groups.&lt;/p&gt;
+
+&lt;table&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;img src=&quot;/img/graph-anomaly-model/image1.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;&lt;/td&gt;
+&lt;td&gt;&lt;a href=&quot;https://drive.google.com/file/d/1jkPGg6trMA4X3vpBO7qZLRyJ4o1NDfLX/view?usp%3Dsharing&quot; target=&quot;_blank&quot;&gt;Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs&lt;/a&gt;&lt;br /&gt;By Rizal Fathony, Jenn Ng, Jia Chen&lt;br /&gt;Presented at International Joint Conference on Neural Networks (IJCNN) 2023&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;br /&gt;
+Before we dive into how our model works, it is important to understand the process of graph construction in our application as the model assumes the availability of the graphs in a standardised format.&lt;/p&gt;
+
+&lt;h2 id=&quot;graph-construction&quot;&gt;Graph construction &lt;/h2&gt;
+
+&lt;p&gt;We modelled the interactions between consumers and merchants in GrabFood and GrabMart platforms as bipartite graphs (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;G&lt;/code&gt;), where the first group of nodes (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;U&lt;/code&gt;) represents the consumers, the second group of nodes (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;V&lt;/code&gt;) represents the merchants, and the edges (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;E&lt;/code&gt;) connecting them means that the consumers have placed some food/mart orders to the merchants. The graph is also supplied with rich transactional information about the consumers and the merchants in the form of node features (&lt;code&gt;X&lt;sub&gt;u&lt;/sub&gt;&lt;/code&gt; and &lt;code&gt;X&lt;sub&gt;v&lt;/sub&gt;&lt;/code&gt;), as well as order information in the form of edge features (&lt;code&gt;X&lt;sub&gt;e&lt;/sub&gt;&lt;/code&gt;).&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/graph-anomaly-model/image5.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 1. Graph construction process&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The goal of our anomaly model is to detect anomalous and suspicious behaviours from the consumers or merchants (node-level anomaly detection), as well as anomalous order interactions (edge-level anomaly detection). As mentioned, this detection needs to be done without any label supervision.&lt;/p&gt;
+
+&lt;h2 id=&quot;model-architecture&quot;&gt;Model architecture&lt;/h2&gt;
+
+&lt;p&gt;We designed our graph anomaly model as a type of autoencoder, with an encoder and two decoders – a feature decoder and a structure decoder. The key feature of our model is that it accepts a bipartite graph with both node and edge attributes as the input. This is important as both node and edge attributes encode essential information for determining if certain behaviours are suspicious. Many previous works on graph anomaly detection only support node attributes. In addition, our model can produce both node and edge level anomaly scores, unlike most of the previous works that produce node-level scores only. We named our model GraphBEAN, which is short for &lt;strong&gt;B&lt;/strong&gt;ipartite Node-and-&lt;strong&gt;E&lt;/strong&gt;dge-&lt;strong&gt;A&lt;/strong&gt;ttributed &lt;strong&gt;N&lt;/strong&gt;etworks.&lt;/p&gt;
+
+&lt;p&gt;From the input, the encoder then processes the attributed bipartite graph into a series of graph convolution layers to produce latent representations for both node groups. Our graph convolution layers produce new representations for each node in both node groups (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;U&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;V&lt;/code&gt;), as well as for each edge in the graph. Note that the last convolution layer in the encoder only produces the latent representations for nodes, without producing edge representations. The reason for this design is that we only put the latent representations for the active actors, the nodes representing consumers and merchants, but not their interactions.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/graph-anomaly-model/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 2. GraphBEAN architecture&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;From the nodes’ latent representations, the feature decoder is tasked to reconstruct the original graph with both node and edge attributes via a series of graph convolution layers. As the graph structure is provided by the feature decoder, we task the structure decoder to learn the graph structure by predicting if there exists an edge connecting two nodes. This edge prediction, as well as the graph reconstructed by the feature decoder, are then compared to the original input graph via a reconstruction loss function.&lt;/p&gt;
+
+&lt;p&gt;The model is then trained using the bipartite graph constructed from GrabFood and GrabMart transactions. We use a reconstruction-based loss function as the training objective of the model. After the training is completed, we compute the anomaly score of each node and edge in the graph using the trained model.&lt;/p&gt;
+
+&lt;h2 id=&quot;anomaly-score-computation&quot;&gt;Anomaly score computation&lt;/h2&gt;
+&lt;p&gt;Our anomaly scores are reconstruction-based. The score design assumes that normal behaviours are common in the dataset and thus, can be easily reconstructed by the model. On the other hand, anomalous behaviours are rare. Therefore the model will have a hard time reconstructing them, hence producing high errors.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/graph-anomaly-model/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 3. Edge-level and node-level anomaly scores computation
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The model produces two types of anomaly scores. First, the edge-level anomaly scores, which are calculated from the edge reconstruction error. Second, the node-level anomaly scores, which are calculated from node reconstruction error plus an aggregate over the edge scores from the edges connected to the node. This aggregate could be a mean or max aggregate.&lt;/p&gt;
+
+&lt;h2 id=&quot;actioning-system&quot;&gt;Actioning system&lt;/h2&gt;
+
+&lt;p&gt;In our implementation of GraphBEAN within Grab, we designed a full pipeline of anomaly detection and actioning systems. It is a fully-automated system for constructing a bipartite graph from GrabFood and GrabMart transactions, training a GraphBEAN model using the graph, and computing anomaly scores. After computing anomaly scores for all consumers and merchants (node-level), as well as all of their interactions (edge-level), it automatically passes the scores to our actioning system. But before that, it also passes them through a system we call &lt;em&gt;fraud type tagger&lt;/em&gt;. This is also a fully-automated heuristic-based system that tags some of the detected anomalies with some fraud tags. The purpose of this tagging is to provide some context in general, like the types of detected anomalies. Some examples of these tags are &lt;em&gt;promo abuse&lt;/em&gt; or &lt;em&gt;possible collusion&lt;/em&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/graph-anomaly-model/image3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 4. Pipeline in our actioning system&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Both the anomaly scores and the fraud type tags are then forwarded to our actioning system. The system consists of two subsystems:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Human expert actioning system&lt;/strong&gt;: Our fraud experts analyse the detected anomalies and perform certain actioning on them, like suspending certain transaction features from suspicious merchants.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Automatic actioning system&lt;/strong&gt;: Combines the anomaly scores and fraud type tags with other external signals to automatically do actioning on the detected anomalies, like preventing promos from being used by fraudsters or preventing fraudulent transactions from occurring. These actions vary depending on the type of fraud and the scores.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+&lt;p&gt;The GraphBEAN model enables the detection of suspicious behaviour on graph data without the need for label supervision. By implementing the model on GrabFood and GrabMart platforms, we learnt that having such a system enables us to quickly identify new types of fraudulent behaviours and then swiftly perform action on them. This also allows us to enhance Grab’s defence against fraudulent activity and actively protect our users.&lt;/p&gt;
+
+&lt;p&gt;We are currently working on extending the model into more generic heterogeneous (multi-entity) graphs. In addition, we are also working on implementing it to more use cases within Grab.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 02 Aug 2023 01:23:05 +0000</pubDate>
+        <link>https://engineering.grab.com/graph-anomaly-model</link>
+        <guid isPermaLink="true">https://engineering.grab.com/graph-anomaly-model</guid>
+        
+        <category>Data science</category>
+        
+        <category>Graph networks</category>
+        
+        <category>Graphs</category>
+        
+        <category>Graph visualisation</category>
+        
+        <category>Security</category>
+        
+        <category>Fraud detection</category>
+        
+        <category>Anomaly detection</category>
+        
+        <category>Machine learning</category>
+        
+        
+        <category>Data Science</category>
+        
+        <category>Security</category>
+        
+      </item>
     
       <item>
         <title>Zero traffic cost for Kafka consumers</title>
@@ -1733,204 +1843,6 @@ By enabling software engineers to conduct acceptance testing, we minimised back-
         <pubDate>Fri, 31 Mar 2023 01:23:05 +0000</pubDate>
         <link>https://engineering.grab.com/evolution-of-quality</link>
         <guid isPermaLink="true">https://engineering.grab.com/evolution-of-quality</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Technology stack</category>
-        
-        <category>Exploration</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Design</category>
-        
-      </item>
-    
-      <item>
-        <title>How OVO determined the right technology stack for their web-based projects</title>
-        <description>&lt;p&gt;In the current technology landscape, startups are developing rapidly. This usually leads to an increase in the number of engineers in teams, with the goal of increasing the speed of product development and delivery frequency. However, this growth often leads to a diverse selection of technology stacks being used by different teams within the same organisation.&lt;/p&gt;
-
-&lt;p&gt;Having different technology stacks within a team could lead to a bigger problem in the future, especially if documentation is not well-maintained. The best course of action is to pick just one technology stack for your projects, but it begs the question, &lt;strong&gt;“How do I choose the best technology stack for my projects?”&lt;/strong&gt;. &lt;/p&gt;
-
-&lt;p&gt;One such example is OVO, which is an Indonesian payments, rewards, and financial services platform within Grab. We share our process and analysis to determine the best technology stack that complies with precise standards. By the end of the article, you may also learn to choose the best technology stack for your needs.&lt;/p&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;In recent years, we have seen massive growth in modern web technologies, such as React, Angular, Vue, Svelte, Django, TypeScript, and many more. Each technology has its benefits. However, having so many choices can be confusing when you must determine which technologies are best for your projects. To narrow down the choices, a few aspects, such as scalability, stability, and usage in the market, must be considered.&lt;/p&gt;
-
-&lt;p&gt;That’s the problem that we used to face. Most of our legacy services were not standardised and were written in different languages like PHP, React, and Vue. Also, the documentation for these legacy services is not well-structured or regularly updated.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/determining-tech-stack/image1.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Current technology stack usage in OVO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We realised that we had &lt;strong&gt;two&lt;/strong&gt; main problems:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Various technology stacks&lt;/strong&gt; (PHP, Vue, React, Nuxt, and Go) maintained simultaneously, with incomplete documentation, may consume a lot of time to understand the code, especially for engineers unfamiliar with the frameworks or even a new hire.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Context switching&lt;/strong&gt; when reviewing code makes it hard to review other teammates’ merge requests on complex projects and quickly offer better code suggestions.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To prevent these problems from recurring, teams must use &lt;strong&gt;one primary technology stack&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;After detailed comparisons, we narrowed our choices to &lt;strong&gt;two&lt;/strong&gt; options – React and Vue – because we have developed projects in both technologies and already have the user interface (UI) library in each technology stack.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/determining-tech-stack/image4.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Taken from &lt;a href=&quot;https://www.ulam.io/blog/react-vs-vue-framework-comparison&quot;&gt;ulam.io&lt;/a&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Next, we conducted a more detailed research and exploration for each technology. The main goals were to find the unique features, scalability, ease of migration, and compatibility for the UI library for React and Vue. To test the compatibility of each UI library, we also used a sample UI on one of our upcoming projects and sliced it.&lt;/p&gt;
-
-&lt;p&gt;Here’s a quick summary of our exploration:&lt;/p&gt;
-
-&lt;table border=&quot;1&quot;&gt;
-&lt;tr&gt;
-  &lt;th style=&quot;padding: 20px&quot;&gt;Metrics&lt;/th&gt;
-  &lt;th style=&quot;padding: 20px&quot;&gt;Vue&lt;/th&gt;
-  &lt;th style=&quot;padding: 20px&quot;&gt;React&lt;/th&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;UI Library Compatibility&lt;/td&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Doesn’t require much component development&lt;/td&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Doesn’t require much component development&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Scalability&lt;/td&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Easier to upgrade, slower in releasing major updates, clear migration guide&lt;/td&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Quicker release of major versions, supports gradual updates&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Others&lt;/td&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Composition API, strong community (&lt;a href=&quot;https://vue-community.org/&quot;&gt;Vue Community&lt;/a&gt;)&lt;/td&gt;
-  &lt;td style=&quot;padding: 20px&quot;&gt;Latest version (v18) of React gradual updates, doesn’t support IE&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/table&gt;
-
-&lt;p&gt;&lt;br /&gt;
-From this table, we found that the differences between these frameworks are miniscule, making it tough for us to determine which to use. Ultimately, we decided to step back and see the &lt;strong&gt;Big Why&lt;/strong&gt;. &lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;The Big Why here was “Why do we need to standardise our technology stack?”. We wanted to ease the onboarding process for new hires and reduce the complexity, like context switching, during code reviews, which ultimately saves time.&lt;/p&gt;
-
-&lt;p&gt;As Kleppmann (2017) states, &lt;em&gt;“The majority of the cost of software is in its ongoing maintenance”&lt;/em&gt;. In this case, the biggest cost was time. Increasing the ease of maintenance would reduce the cost, so we decided to use maintainability as our north star metric.&lt;/p&gt;
-
-&lt;p&gt;Kleppmann (2017) also highlighted &lt;strong&gt;three design principles&lt;/strong&gt; in any software system:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;em&gt;Operability&lt;/em&gt;: Make it easy to keep the system running.&lt;/li&gt;
-  &lt;li&gt;&lt;em&gt;Simplicity&lt;/em&gt;: Easy for new engineers to understand the system by minimising complexity.&lt;/li&gt;
-  &lt;li&gt;&lt;em&gt;Evolvability&lt;/em&gt;: Make it easy for engineers to make changes to the system in the future.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Keeping these design principles in mind, we defined &lt;strong&gt;three metrics&lt;/strong&gt; that our selected tech stack must achieve:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;em&gt;Scalability&lt;/em&gt;
-    &lt;ul&gt;
-      &lt;li&gt;Keeping software and platforms up to date&lt;/li&gt;
-      &lt;li&gt;Anticipating possible future problems&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;em&gt;Stability of the library and documentation&lt;/em&gt;
-    &lt;ul&gt;
-      &lt;li&gt;Establishing good practices and tools for development&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;em&gt;Usage in the market&lt;/em&gt;
-    &lt;ul&gt;
-      &lt;li&gt;The popularity of the library or framework and variety of coding best practices&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;table border=&quot;1&quot;&gt;
-  &lt;tr&gt;
-    &lt;th style=&quot;padding: 20px&quot;&gt;Metrics&lt;/th&gt;
-    &lt;th style=&quot;padding: 20px&quot;&gt;Vue&lt;/th&gt;
-    &lt;th style=&quot;padding: 20px&quot;&gt;React&lt;/th&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;Scalability&lt;/td&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;&lt;strong&gt;Framework&lt;/strong&gt;&lt;br /&gt;&lt;br /&gt;&lt;strong&gt;Operability&lt;/strong&gt;&lt;br /&gt;Easier to update because there aren’t many approaches to writing Vue.&lt;br /&gt;&lt;br /&gt;&lt;strong&gt;Evolvability&lt;/strong&gt;&lt;br /&gt;Since Vue is a framework, it needs fewer steps to upgrade.&lt;/td&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;&lt;strong&gt;Library&lt;/strong&gt;&lt;br /&gt;Supports gradual updates but there will be many different approaches when upgrading React on our services.&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;Stability of the library and documentation&lt;/td&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;Has standardised documentation&lt;/td&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;Has many versions of documentation&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;Usage on Market&lt;/td&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;Smaller market share.&lt;br /&gt;&lt;br /&gt;&lt;strong&gt;Simplicity&lt;/strong&gt;&lt;br /&gt;We can reduce complexity for new hires, as the Vue standard in OVO remains consistent with standards in other companies.&lt;/td&gt;
-    &lt;td style=&quot;padding: 10px&quot;&gt;Larger &lt;a href=&quot;https://www.statista.com/statistics/1124699/worldwide-developer-survey-most-used-frameworks-web/&quot;&gt;market share&lt;/a&gt;.&lt;br /&gt;&lt;br /&gt;    Many React variants are currently in the market, so different companies may have different folder structures/conventions.&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;/table&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/determining-tech-stack/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Screenshot taken from &lt;a href=&quot;https://www.statista.com/&quot;&gt;https://www.statista.com/&lt;/a&gt; on 2022-10-13&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;After conducting a detailed comparison between Vue and React, we decided to use Vue as our primary tech stack as it best aligns with Kleppmann’s three design principles and our north star metric of maintainability. Even though we noticed a few disadvantages to using Vue, such as smaller market share, we found that Vue is still the better option as it complies with all our metrics.&lt;/p&gt;
-
-&lt;p&gt;Moving forward, we will only use one tech stack across our projects but we decided not to migrate technology for existing projects. This allows us to continue &lt;strong&gt;exploring&lt;/strong&gt; and &lt;strong&gt;learning&lt;/strong&gt; about other technologies’ developments. One of the things we need to do is ensure that our current projects are kept up-to-date.&lt;/p&gt;
-
-&lt;h3 id=&quot;implementation&quot;&gt;Implementation&lt;/h3&gt;
-
-&lt;p&gt;After deciding on the primary technology stack, we had to do the following:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Define a boilerplate for future Vue projects, which will include items like a &lt;strong&gt;general library or dependencies&lt;/strong&gt;, &lt;strong&gt;implementation for unit testing&lt;/strong&gt;, and &lt;strong&gt;folder structure&lt;/strong&gt;, to align with our north star metric.&lt;/li&gt;
-  &lt;li&gt;Update our existing &lt;strong&gt;UI library&lt;/strong&gt; with new components and the latest Vue version.&lt;/li&gt;
-  &lt;li&gt;Perform periodic upgrades to existing React services and create a standardised code structure with proper documentation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;With these practices in place, we can ensure that future projects will be standardised, making them easier for engineers to maintain.&lt;/p&gt;
-
-&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
-
-&lt;p&gt;There are a few key benefits of standardising our technology stack.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Scalability and maintainability&lt;/strong&gt;: It’s much easier to scale and maintain projects using the same technology stack. For example, when implementing security patches on all projects due to certain vulnerabilities in the system or libraries, we will need one patch for each technology. With only one stack, we only need to implement one patch across all projects, saving a lot of time.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Faster onboarding process&lt;/strong&gt;: The onboarding process is simplified for new hires because we have standardisation between all services, which will minimise the amount of context switching and lower the learning curve.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Faster deliveries&lt;/strong&gt;: When it’s easier to implement a change, there’s a compounding impact where the delivery process is shortened and release to production is quicker. Ultimately, faster deliveries of a new product or feature will help increase revenue.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;learningsconclusion&quot;&gt;Learnings/Conclusion&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/determining-tech-stack/image2.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;For every big decision, it is important to take a step back and understand the Big Why or the main motivation behind it, in order to remain objective. That’s why after we identified maintainability as our north star metric, it was easier to narrow down the choices and make detailed comparisons.&lt;/p&gt;
-
-&lt;p&gt;The north star metric, or deciding factor, might differ vastly, but it depends on the problems you are trying to solve.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Note: The OVO web team conducted this research in 2022 and was accurate at the time of publishing. The information here may only be applicable to the OVO web team.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Kleppmann, M. (2017). Designing Data-Intensive Applications. Beijing: O’Reilly. ISBN: 978-1-4493-7332-0&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.statista.com/statistics/1124699/worldwide-developer-survey-most-used-frameworks-web/&quot;&gt;Most used web frameworks 2022 - Statista&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 21 Mar 2023 01:23:05 +0000</pubDate>
-        <link>https://engineering.grab.com/determining-tech-stack</link>
-        <guid isPermaLink="true">https://engineering.grab.com/determining-tech-stack</guid>
         
         <category>Engineering</category>
         
