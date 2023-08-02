@@ -22,7 +22,7 @@ In this blog, we discuss the model and its application within Grab. For avid aud
 <table>
 <tr>
 <td><img src="/img/graph-anomaly-model/image1.png" alt="" style="width:50%"></td>
-<td><a href="/files/GraphBEAN_IJCNN_2023.pdf" download>Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs</a><br>By Rizal Fathony, Jenn Ng, Jia Chen<br>Presented at International Joint Conference on Neural Networks (IJCNN) 2023</td>
+<td><a href="/files/Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs.pdf" download>Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs</a><br>By Rizal Fathony, Jenn Ng, Jia Chen<br>Presented at International Joint Conference on Neural Networks (IJCNN) 2023</td>
 </tr>
 </table>
 
