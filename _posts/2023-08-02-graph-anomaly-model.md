@@ -17,12 +17,12 @@ One of the challenges in fraud detection is that fraudsters are incentivised to 
 
 To address this, we developed an in-house machine learning model for detecting anomalous patterns in graphs, which has led to the discovery of new fraud MOs. Our focus was initially on GrabFood and GrabMart verticals, where we monitored the interactions between consumers and merchants. We modelled these interactions as a bipartite graph (a type of graph for modelling interactions between two groups) and then performed anomaly detection on the graph. Our in-house anomaly detection model was also presented at the International Joint Conference on Neural Networks (IJCNN) 2023, a premier academic conference in the area of neural networks, machine learning, and artificial intelligence.
 
-In this blog, we discuss the model and its application within Grab. For avid audiences that want to read the details of our model, you can access it here. Note that even though we implemented our model for anomaly detection in GrabFood and GrabMart, the model is designed for general purposes and is applicable to interaction graphs between any two groups.
+In this blog, we discuss the model and its application within Grab. For avid audiences that want to read the details of our model, you can access our paper below. Note that even though we implemented our model for anomaly detection in GrabFood and GrabMart, the model is designed for general purposes and is applicable to interaction graphs between any two groups.
 
 <table>
 <tr>
 <td><img src="/img/graph-anomaly-model/image1.png" alt="" style="width:50%"></td>
-<td><a href="/files/Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs.pdf" download>Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs</a><br>By Rizal Fathony, Jenn Ng, Jia Chen<br>Presented at International Joint Conference on Neural Networks (IJCNN) 2023</td>
+<td><a href="/files/Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs.pdf" download>Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs</a><br>By Rizal Fathony, Jenn Ng, Jia Chen<br>Presented at the International Joint Conference on Neural Networks (IJCNN) 2023<br>DOI: <a href="https://ieeexplore.ieee.org/document/10191331" target="_blank">10.1109/IJCNN54540.2023.10191331</a> (<a href="#citation-info">citation</a>)</td>
 </tr>
 </table>
 
@@ -85,6 +85,15 @@ Both the anomaly scores and the fraud type tags are then forwarded to our action
 The GraphBEAN model enables the detection of suspicious behaviour on graph data without the need for label supervision. By implementing the model on GrabFood and GrabMart platforms, we learnt that having such a system enables us to quickly identify new types of fraudulent behaviours and then swiftly perform action on them. This also allows us to enhance Grab’s defence against fraudulent activity and actively protect our users.
 
 We are currently working on extending the model into more generic heterogeneous (multi-entity) graphs. In addition, we are also working on implementing it to more use cases within Grab.
+
+<h2 id="citation-info">Citation information</h2>
+(*) If you use the paper for academic purposes, please cite the following publication:
+
+**R. Fathony, J. Ng and J. Chen, "Interaction-Focused Anomaly Detection on Bipartite Node-and-Edge-Attributed Graphs," 2023 International Joint Conference on Neural Networks (IJCNN), Gold Coast, Australia, 2023, pp. 1-10, doi: 10.1109/IJCNN54540.2023.10191331.**
+
+IEEE copyright notice:
+
+© 2023 IEEE. Personal use of this material is permitted. Permission from IEEE must be obtained for all other uses, in any current or future media, including reprinting/republishing this material for advertising or promotional purposes, creating new collective works, for resale or redistribution to servers or lists, or reuse of any copyrighted component of this work in other works.
 
 # Join us
 Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
