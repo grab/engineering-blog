@@ -6,9 +6,201 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 07 Aug 2023 06:06:59 +0000</pubDate>
-    <lastBuildDate>Mon, 07 Aug 2023 06:06:59 +0000</lastBuildDate>
+    <pubDate>Tue, 15 Aug 2023 03:42:50 +0000</pubDate>
+    <lastBuildDate>Tue, 15 Aug 2023 03:42:50 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Streamlining Grab's Segmentation Platform with faster creation and lower latency</title>
+        <description>&lt;p&gt;Launched in 2019, Segmentation Platform has been Grab’s one-stop platform for user segmentation and audience creation across all business verticals. User segmentation is the process of dividing passengers, driver-partners, or merchant-partners (users) into sub-groups (segments) based on certain attributes. Segmentation Platform empowers Grab’s teams to create segments using attributes available within our data ecosystem and provides APIs for downstream teams to retrieve them.&lt;/p&gt;
+
+&lt;p&gt;Checking whether a user belongs to a segment (Membership Check) influences many critical flows on the Grab app:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;When a passenger launches the Grab app, our in-house experimentation platform will tailor the app experience based on the segments the passenger belongs to.&lt;/li&gt;
+  &lt;li&gt;When a driver-partner goes online on the Grab app, the Drivers service calls Segmentation Platform to ensure that the driver-partner is not blacklisted.&lt;/li&gt;
+  &lt;li&gt;When launching marketing campaigns, Grab’s communications platform relies on Segmentation Platform to determine which passengers, driver-partners, or merchant-partners to send communication to.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This article peeks into the current design of Segmentation Platform and how the team optimised the way segments are stored to reduce read latency thus unlocking new segmentation use cases.&lt;/p&gt;
+
+&lt;h2 id=&quot;architecture&quot;&gt;Architecture&lt;/h2&gt;
+
+&lt;p&gt;Segmentation Platform comprises two major subsystems:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Segment creation&lt;/li&gt;
+  &lt;li&gt;Segment serving&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image1.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 1. Segmentation Platform architecture
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;segment-creation&quot;&gt;Segment creation&lt;/h3&gt;
+
+&lt;p&gt;Segment creation is powered by Spark jobs. When a Grab team creates a segment, a Spark job is started to retrieve data from our data lake. After the data is retrieved, cleaned, and validated, the Spark job calls the serving sub-system to populate the segment with users.&lt;/p&gt;
+
+&lt;h3 id=&quot;segment-serving&quot;&gt;Segment serving&lt;/h3&gt;
+
+&lt;p&gt;Segment serving is powered by a set of Go services. For persistence and serving, we use ScyllaDB as our primary storage layer. We chose to use ScyllaDB as our NoSQL store due to its ability to scale horizontally and meet our &amp;lt;80ms p99 SLA. Users in a segment are stored as rows indexed by the user ID. The table is partitioned by the user ID ensuring that segment data is evenly distributed across the ScyllaDB clusters.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+&lt;thead&gt;
+  &lt;tr&gt;
+    &lt;th&gt;User ID&lt;/th&gt;
+    &lt;th&gt;Segment Name&lt;/th&gt;
+    &lt;th&gt;Other metadata columns&lt;/th&gt;
+  &lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+    &lt;td&gt;1221&lt;/td&gt;
+    &lt;td&gt;Segment_A&lt;/td&gt;
+    &lt;td&gt;…&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;3421&lt;/td&gt;
+    &lt;td&gt;Segment_A&lt;/td&gt;
+    &lt;td&gt;…&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;5632&lt;/td&gt;
+    &lt;td&gt;Segment_B&lt;/td&gt;
+    &lt;td&gt;…&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;7889&lt;/td&gt;
+    &lt;td&gt;Segment_B&lt;/td&gt;
+    &lt;td&gt;…&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;With this design, Segmentation Platform handles up to 12K read and 36K write QPS, with a p99 latency of 40ms.&lt;/p&gt;
+
+&lt;h2 id=&quot;problems&quot;&gt;Problems&lt;/h2&gt;
+
+&lt;p&gt;The existing system has supported Grab, empowering internal teams to create rich and personalised experiences. However, with the increased adoption and use, certain challenges began to emerge:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;As more and larger segments are being created, the write QPS became a bottleneck leading to longer wait times for segment creation.&lt;/li&gt;
+  &lt;li&gt;Grab services requested even lower latency for membership checks.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;long-segment-creation-times&quot;&gt;Long segment creation times&lt;/h3&gt;
+
+&lt;p&gt;As more segments were created by different teams within Grab, the write QPS was no longer able to keep up with the teams’ demands. Teams would have to wait for hours for their segments to be created, reducing their operational velocity.&lt;/p&gt;
+
+&lt;h3 id=&quot;read-latency&quot;&gt;Read latency&lt;/h3&gt;
+
+&lt;p&gt;Further, while the platform already offers sub-40ms p99 latency for reads, this was still too slow for certain services and their use cases. For example, Grab’s communications platform needed to check whether a user belongs to a set of segments before sending out communication and incurring increased latency for every communication request was not acceptable. Another use case was for Experimentation Platform, where checks must have low latency to not impact the user experience. 
+Thus, the team explored alternative ways of storing the segment data with the goals of:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Reducing segment creation time&lt;/li&gt;
+  &lt;li&gt;Reducing segment read latency&lt;/li&gt;
+  &lt;li&gt;Maintaining or reducing cost&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;h3 id=&quot;segments-as-bitmaps&quot;&gt;Segments as bitmaps&lt;/h3&gt;
+
+&lt;p&gt;One of the main engineering challenges was scaling the write throughput of the system to keep pace with the number of segments being created. As a segment is stored across multiple rows in ScyllaDB, creating a large segment incurs a huge number of writes to the database. What we needed was a better way to store a large set of user IDs. Since user IDs are represented as integers in our system, a natural solution to storing a set of integers was a bitmap.&lt;/p&gt;
+
+&lt;p&gt;For example, a segment containing the following user IDs: 1, 6, 25, 26, 89 could be represented with a bitmap as follows:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 2. Bitmap representation of a segment
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;To perform a membership check, a bitwise operation can be used to check if the bit at the user ID’s index is 0 or 1. As a bitmap, the segment can also be stored as a single Blob in object storage instead of inside ScyllaDB.&lt;/p&gt;
+
+&lt;p&gt;However, as the number of user IDs in the system is large, a small and sparse segment would lead to prohibitively large bitmaps. For example, if a segment contains 2 user IDs 100 and 200,000,000, it will require a bitmap containing 200 million bits (25MB) where all but 2 of the bits are just 0. Thus, the team needed an encoding to handle sparse segments more efficiently.&lt;/p&gt;
+
+&lt;h4 id=&quot;roaring-bitmaps&quot;&gt;Roaring Bitmaps&lt;/h4&gt;
+
+&lt;p&gt;After some research, we landed on Roaring Bitmaps, which are compressed uint32 bitmaps. With roaring bitmaps, we are able to store a segment with 1 million members in a Blob smaller than 1 megabyte, compared to 4 megabytes required by a naive encoding.&lt;/p&gt;
+
+&lt;p&gt;Roaring Bitmaps achieve good compression ratios by splitting the set into fixed-size (216) integer chunks and using three different data structures (containers) based on the data distribution within the chunk. The most significant 16 bits of the integer are used as the index of the chunk, and the least significant 16 bits are stored in the containers.&lt;/p&gt;
+
+&lt;h5 id=&quot;array-containers&quot;&gt;Array containers&lt;/h5&gt;
+
+&lt;p&gt;Array containers are used when data is sparse (&amp;lt;= 4096 values). An array container is a sorted array of 16-bit integers. It is memory-efficient for sparse data and provides logarithmic-time access.&lt;/p&gt;
+
+&lt;h5 id=&quot;bitmap-containers&quot;&gt;Bitmap containers&lt;/h5&gt;
+
+&lt;p&gt;Bitmap containers are used when data is dense. A bitmap container is a 216 bit container where each bit represents the presence or absence of a value. It is memory-efficient for dense data and provides constant-time access.&lt;/p&gt;
+
+&lt;h5 id=&quot;run-containers&quot;&gt;Run containers&lt;/h5&gt;
+
+&lt;p&gt;Finally, run containers are used when a chunk has long consecutive values. Run containers use run-length encoding (RLE) to reduce the storage required for dense bitmaps. Run containers store a pair of values representing the start and the length of the run. It provides good memory efficiency and fast lookups.&lt;/p&gt;
+
+&lt;p&gt;The diagram below shows how a dense bitmap container that would have required 91 bits can be compressed into a run container by storing only the start (0) and the length (90). It should be noted that run containers are used only if it reduces the number of bytes required compared to a bitmap.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 3. A dense bitmap container compressed into a run container
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;By using different containers, Roaring Bitmaps are able to achieve good compression across various data distributions, while maintaining excellent lookup performance. Additionally, as segments are represented as Roaring Bitmaps, service teams are able to perform set operations (union, interaction, and difference, etc) on the segments on the fly, which previously required re-materialising the combined segment into the database.&lt;/p&gt;
+
+&lt;h3 id=&quot;caching-with-an-sdk&quot;&gt;Caching with an SDK&lt;/h3&gt;
+
+&lt;p&gt;Even though the segments are now compressed, retrieving a segment from the Blob store for each membership check would incur an unacceptable latency penalty. To mitigate the overhead of retrieving a segment, we developed an SDK that handles the retrieval and caching of segments.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image2.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 4. How the SDK caches segments
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The SDK takes care of the retrieval, decoding, caching, and watching of segments. Users of the  SDK are only required to specify the maximum size of the cache to prevent exhausting the service’s memory. The SDK provides a cache with a least-recently-used eviction policy to ensure that hot segments are kept in the cache. They are also able to watch for updates on a segment and the SDK will automatically refresh the cached segment when it is updated.&lt;/p&gt;
+
+&lt;h2 id=&quot;hero-teams&quot;&gt;Hero teams&lt;/h2&gt;
+
+&lt;h3 id=&quot;communications-platform&quot;&gt;Communications Platform&lt;/h3&gt;
+
+&lt;p&gt;Communications Platform has adopted the SDK to implement a new feature to control the communication frequency based on which segments a user belongs to. Using the SDK, the team is able to perform membership checks on multiple multi-million member segments, achieving peak QPS 15K/s with a p99 latency of &amp;lt;1ms. With the new feature, they have been able to increase communication engagement and reduce the communication unsubscribe rate.&lt;/p&gt;
+
+&lt;h3 id=&quot;experimentation-platform&quot;&gt;Experimentation Platform&lt;/h3&gt;
+
+&lt;p&gt;Experimentation Platform powers experimentation across all Grab services. Segments are used heavily in experiments to determine a user’s experience. Prior to using the SDK, Experimentation Platform limited the maximum size of the segments that could be used to prevent exhausting a service’s memory.&lt;/p&gt;
+
+&lt;p&gt;After migrating to the new SDK, they were able to lift this restriction due to the compression efficiency of Roaring Bitmaps. Users are now able to use any segments as part of their experiment without worrying that it would require too much memory.&lt;/p&gt;
+
+&lt;h2 id=&quot;closing&quot;&gt;Closing&lt;/h2&gt;
+
+&lt;p&gt;This blog post discussed the challenges that Segmentation Platform faced when scaling and how the team explored alternative storage and encoding techniques to improve segment creation time, while also achieving low latency reads. The SDK allows our teams to easily make use of segments without having to handle the details of caching, eviction, and updating of segments.&lt;/p&gt;
+
+&lt;p&gt;Moving forward, there are still existing use cases that are not able to use the Roaring Bitmap segments and thus continue to rely on segments from ScyllaDB. Therefore, the team is also taking steps to optimise and improve the scalability of our service and database.&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Axel, the wider Segmentation Platform team, and Data Technology team for reviewing the post. &lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 15 Aug 2023 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/streamlining-grabs-segmentation-platform</link>
+        <guid isPermaLink="true">https://engineering.grab.com/streamlining-grabs-segmentation-platform</guid>
+        
+        <category>Back End</category>
+        
+        <category>Performance</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Unsupervised graph anomaly detection - Catching new fraudulent behaviours</title>
@@ -1690,174 +1882,6 @@ Golang plugin call has almost the same performance as Golang native function.&lt
         <category>Messaging</category>
         
         <category>Chat support</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Design</category>
-        
-      </item>
-    
-      <item>
-        <title>Evolution of quality at Grab</title>
-        <description>&lt;p&gt;To achieve our vision of becoming the leading superapp in Southeast Asia, we constantly need to balance development velocity with maintaining the high quality of the Grab app. Like most tech companies, we started out with the traditional software development lifecycle (SDLC) but as our app evolved, we soon noticed several challenges like high feature bugs and production issues.  &lt;/p&gt;
-
-&lt;p&gt;In this article, we dive deeper into our quality improvement journey that officially began in 2019, the challenges we faced along the way, and where we stand as of 2022.&lt;/p&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/evolution-of-quality/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1 - Software development life cycle (SDLC) sample&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;When Grab first started in 2012, we were using the Agile SDLC (Figure 1) across all teams and features. This meant that every new feature went through the entire process and was &lt;strong&gt;only released&lt;/strong&gt; to app distribution platforms (PlayStore or AppStore) &lt;strong&gt;after&lt;/strong&gt; the quality assurance (QA) team manually tested and signed off on it.&lt;/p&gt;
-
-&lt;p&gt;Over time, we discovered that feature testing took longer, with more bugs being reported and impact areas that needed to be tested. This was the same for regression testing as QA engineers had to manually test each feature in the app before a release. Despite the best efforts of our QA teams, there were still many major and critical production issues reported on our app – the highest numbers were in 2019 (Figure 2).&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/evolution-of-quality/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2 - Critical open production issue (OPI) trend&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;This surge in production issues and feature bugs was directly impacting our users’ experience on our app. To directly address the high production issues and slow testing process, we changed our testing strategy and adopted shift-left testing.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://www.testim.io/blog/shift-left-testing-guide/&quot;&gt;Shift-left testing&lt;/a&gt; is an approach that brings testing forward to the early phases of software development. This means testing can start as early as the planning and design phases.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/evolution-of-quality/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3 - Shift-left testing&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;By adopting shift-left testing, engineering teams at Grab are able to proactively prevent possible defect leakage in the early stages of testing, directly addressing our users’ concerns without delaying delivery times.&lt;/p&gt;
-
-&lt;p&gt;With shift-left testing, we made three significant changes to our SDLC:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Software engineers conduct acceptance testing&lt;/strong&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Incorporate Definition of Ready (DoR) and Definition of Done (DoD)&lt;/strong&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Balanced testing strategy&lt;/strong&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Let’s dive deeper into how we implemented each change, the challenges, and learnings we gained along the way.&lt;/p&gt;
-
-&lt;h3 id=&quot;software-engineers-conduct-acceptance-testing&quot;&gt;Software engineers conduct acceptance testing&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://www.geeksforgeeks.org/acceptance-testing-software-testing/&quot;&gt;Acceptance testing&lt;/a&gt; determines whether a feature satisfies the defined acceptance criteria, which helps the team evaluate if the feature fulfills our consumers’ needs. Typically, acceptance testing is done after development. But our QA engineers still discovered many bugs and the cost of fixing bugs at this stage is more expensive and time-consuming. We also realised that the most common root causes of bugs were associated with insufficient requirements, vague details, or missing test cases.&lt;/p&gt;
-
-&lt;p&gt;With shift-left testing, QA engineers start writing test cases before development starts and these acceptance tests will be executed by the software engineers during development. Writing acceptance tests early helps identify potential gaps in the requirements before development begins. It also prevents possible bugs and streamlines the testing process as engineers can find and fix bugs even before the testing phase. This is because they can execute the test cases directly during the development stage.&lt;/p&gt;
-
-&lt;p&gt;On top of that, QA and Product managers also made &lt;strong&gt;Given/When/Then (GWT)&lt;/strong&gt; the standard for acceptance criteria and test cases, making them easier for all stakeholders to understand.&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
-&lt;table border=&quot;1&quot;&gt;
-  &lt;tr&gt;
-  &lt;th style=&quot;padding: 20px&quot;&gt;Step by Step style&lt;/th&gt;
-  &lt;th style=&quot;padding: 20px&quot;&gt;GWT format&lt;/th&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td style=&quot;padding: 20px&quot;&gt;&lt;ol&gt;&lt;li&gt;Open the Grab app&lt;/li&gt;&lt;li&gt;Navigate to home feed&lt;/li&gt;&lt;li&gt;Tap on merchant entry point card&lt;/li&gt;&lt;li&gt;Check that merchant landing page is shown&lt;/li&gt;&lt;/ol&gt;&lt;/td&gt;
-    &lt;td style=&quot;padding: 20px&quot;&gt;Given user opens the app &lt;br /&gt;And user navigates to the home feed&lt;br /&gt;When the user taps on the merchant entry point card&lt;br /&gt;Then the user should see the merchant’s landing page&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/table&gt;
-&lt;p&gt;&lt;br /&gt;
-By enabling software engineers to conduct acceptance testing, we minimised back-and-forth discussions within the team regarding bug fixes and also, influenced a significant shift in perspective – quality is everyone’s responsibility.&lt;/p&gt;
-
-&lt;p&gt;Another key aspect of shift-left testing is for teams to agree on a standard of quality in earlier stages of the SDLC. To do that, we started incorporating Definition of Ready (DoR) and Definition of Done (DoD) in our tasks.&lt;/p&gt;
-
-&lt;h3 id=&quot;incorporate-definition-of-ready-dor-and-definition-of-done-dod&quot;&gt;Incorporate Definition of Ready (DoR) and Definition of Done (DoD)&lt;/h3&gt;
-
-&lt;p&gt;As mentioned, quality checks can be done before development even begins and can start as early as backlog grooming and sprint planning. The team needs to agree on a standard for work products such as requirements, design, engineering solutions, and test cases. Having this alignment helps reduce the possibility of unclear requirements or misunderstandings that may lead to re-work or a low-quality feature.&lt;/p&gt;
-
-&lt;p&gt;To enforce consistent quality of work products, everyone in the team should have access to these products and should follow DoRs and DoDs as standards in completing their tasks.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;DoR&lt;/strong&gt;: Explicit criteria that an epic, user story, or task must meet before it can be accepted into an upcoming sprint. &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;DoD&lt;/strong&gt;: List of criteria to fulfill before we can mark the epic, user story, or task complete, or the entry or exit criteria for each story state transitions. &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Including DoRs and DoDs have proven to improve delivery pace and quality. One of the first teams to adopt this observed significant improvements in their delivery speed and app quality – consistently delivering over 90% of task commitments, minimising technical debt, and reducing manual testing times.&lt;/p&gt;
-
-&lt;p&gt;Unfortunately, having these two changes alone were not sufficient – testing was still manually intensive and time consuming. To ease the load on our QA engineers, we needed to develop a balanced testing strategy.  &lt;/p&gt;
-
-&lt;h3 id=&quot;balanced-testing-strategy&quot;&gt;Balanced testing strategy&lt;/h3&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/evolution-of-quality/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4 - Test automation strategy&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Our initial automation strategy only included unit testing, but we have since enhanced our testing strategy to be more balanced.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Unit testing&lt;/li&gt;
-  &lt;li&gt;UI component testing&lt;/li&gt;
-  &lt;li&gt;Backend integration testing&lt;/li&gt;
-  &lt;li&gt;End-to-End (E2E) testing&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Simply having good coverage in one layer does not guarantee good quality of an app or new feature. It is important for teams to test vigorously with different types of testing to ensure that we cover all possible scenarios before a release.&lt;/p&gt;
-
-&lt;p&gt;As you already know, unit tests are written and executed by software engineers during the development phases. Let’s look at what the remaining three layers mean.&lt;/p&gt;
-
-&lt;h4 id=&quot;ui-component-testing&quot;&gt;UI component testing&lt;/h4&gt;
-
-&lt;p&gt;This type of testing focuses on individual components within the application and is useful for testing specific use cases of a service or feature. To reduce manual effort from QA engineers, teams started exploring automation and introduced a mobile testing framework for &lt;a href=&quot;https://applitools.com/learn/concepts/component-testing/&quot;&gt;component testing&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;This UI component testing framework used mocked API responses to test screens and interactions on the elements. These UI component tests were automatically executed whenever the pipeline was run, which helped to reduce manual regression efforts. With shift-left testing, we also revised the DoD for new features to include at least 70% coverage of UI component tests.&lt;/p&gt;
-
-&lt;h4 id=&quot;backend-integration-testing&quot;&gt;Backend integration testing&lt;/h4&gt;
-
-&lt;p&gt;Backend integration testing is especially important if your application regularly interacts with backend services, much like the Grab app. This means we need to ensure the quality and stability of these backend services. Since Grab started its journey toward becoming a superapp, more teams started performing backend integration tests like API integration tests.&lt;/p&gt;
-
-&lt;p&gt;Our backend integration tests also covered positive and negative test cases to determine the happy and unhappy paths. At the moment, majority of Grab teams have complete test coverage for happy path use cases and are continuously improving coverage for other use cases.&lt;/p&gt;
-
-&lt;h4 id=&quot;end-to-end-e2e-testing&quot;&gt;End-to-End (E2E) testing&lt;/h4&gt;
-
-&lt;p&gt;E2E tests are important because they simulate the entire user experience from start to end, ensuring that the system works as expected. We started exploring E2E testing frameworks, from as early as 2015, to automate tests for critical services like logging in and booking a ride.&lt;/p&gt;
-
-&lt;p&gt;But as Grab introduced more services, off-the-shelf solutions were no longer a viable option, as we noticed issues like automation limitations and increased test flakiness. We needed a framework that is compatible with existing processes, stable enough to reduce flakiness, scalable, and easy to learn.&lt;/p&gt;
-
-&lt;p&gt;With this criteria in mind, our QA engineering teams built an internal E2E framework that could make API calls, test different account-based scenarios, and provide many other features. Multiple pilot teams have started implementing tests with the E2E framework, which has helped to reduce regression efforts. We are continuously improving the framework by adding new capabilities to cover more test scenarios.&lt;/p&gt;
-
-&lt;p&gt;Now that we’ve covered all the changes we implemented with shift-left testing, let’s take a look at how this changed our SDLC.&lt;/p&gt;
-
-&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/evolution-of-quality/image6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5 - Updated SDLC process&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Since the implementation of shift-left testing, we have improved our app quality without compromising our project delivery pace. Compared to 2019, we observed the following improvements within the Grab superapp in 2022:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Production issues with “Major and Critical” severity bugs found in production were &lt;strong&gt;reduced by 60%&lt;/strong&gt;&lt;/li&gt;
-  &lt;li&gt;Bugs found in development phase with “Major and Critical” severity were &lt;strong&gt;reduced by 40%&lt;/strong&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-&lt;p&gt;Through this journey, we recognise that there’s no such thing as a bug-free app – no matter how much we test, production issues still happen occasionally. To minimise the occurrence of bugs, we’re regularly conducting root cause analyses and writing postmortem reports for production incidents. These allow us to retrospect with other teams and come up with corrective actions and prevention plans. Through these continuous learnings and improvements, we can continue to shape the future of the Grab superapp.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Sori Han for designing the images in this article.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 31 Mar 2023 01:23:05 +0000</pubDate>
-        <link>https://engineering.grab.com/evolution-of-quality</link>
-        <guid isPermaLink="true">https://engineering.grab.com/evolution-of-quality</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Technology stack</category>
-        
-        <category>Exploration</category>
         
         
         <category>Engineering</category>
