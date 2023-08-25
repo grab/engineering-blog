@@ -15,7 +15,7 @@ excerpt: "Being hyperlocal is a key advantage for GrabMaps. In this article we w
 
 Southeast Asia (SEA) is a dynamic market, very different from other parts of the world. When travelling on the road, you may experience fast-changing road restrictions, new roads appearing overnight, and high traffic congestion. To address these challenges, GrabMaps has adapted to the SEA market by leveraging big data solutions. One of the solutions is the integration of hyperlocal data in GrabMaps.
 
-Hyperlocal information is oriented around very small geographical communities. Hyperlocal data in GrapMaps is obtained from the local knowledge that our map team gathers. The map team is spread across SEA, enabling us to define clear specifications (e.g. legal speed limits), and validate that our solutions are viable.
+Hyperlocal information is oriented around very small geographical communities and obtained from the local knowledge that our map team gathers. The map team is spread across SEA, enabling us to define clear specifications (e.g. legal speed limits), and validate that our solutions are viable.
 
 <div class="post-image-section"><figure>
   <img src="/img/building-hyperlocal-grabmaps/map-detection.gif" alt="" style="width:90%"><figcaption align="middle">Figure 1 - Map showing detections from images and probe data, and hyperlocal data.
@@ -46,7 +46,7 @@ To take advantage of big data computing, the next step in the process is to conv
 
 ### Identify hyperlocal data
 
-After the data is prepared, GrabMaps then identifies and inputs all of our hyperlocal data, and delivers a consolidated view to our downstream services. Our hyperlocal data is obtained from various sources, either by looking at geometry, or other attributes in OSM such as the  direction of travel and speed limit. We also apply customised rules defined by our local map team, all in a fully automated manner. This enhances the map together with data obtained from our rides and deliveries GPS pings and from KartaView, Grab’s product for imagery collection.
+After the data is prepared, GrabMaps then identifies and inputs all of our hyperlocal data, and delivers a consolidated view to our downstream services. Our hyperlocal data is obtained from various sources, either by looking at geometry, or other attributes in OSM such as the direction of travel and speed limit. We also apply customised rules defined by our local map team, all in a fully automated manner. This enhances the map together with data obtained from our rides and deliveries GPS pings and from KartaView, Grab’s product for imagery collection.
 
 <div class="post-image-section"><figure>
   <img src="/img/building-hyperlocal-grabmaps/architecture.png" alt="" style="width:90%"><figcaption align="middle">Figure 3 - Architecture diagram showing how hyperlocal data is integrated into GrabMaps.
@@ -56,7 +56,7 @@ After the data is prepared, GrabMaps then identifies and inputs all of our hyper
 
 ## Benefit of our hyperlocal GrabMaps
 
-GrabNav, which is a turn-by-turn navigation tool available on the Grab driver app,  is one of our products that benefits from having hyperlocal data. Here are some hyperlocal data that are made available through our approach:
+GrabNav, a turn-by-turn navigation tool available on the Grab driver app, is one of our products that benefits from having hyperlocal data. Here are some hyperlocal data that are made available through our approach:
 
 - Localisation of roads: The country, state/county, or city the road is in
 - Language spoken, driving side, and speed limit
@@ -102,7 +102,7 @@ The impact we create with our intersection link can be explained through the fol
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/building-hyperlocal-grabmaps/impact2.png" alt="" style="width:60%"><figcaption align="middle">Figure 7 - Shorter route using GrabMaps by, taking a closer link between two main roads.
+  <img src="/img/building-hyperlocal-grabmaps/impact2.png" alt="" style="width:60%"><figcaption align="middle">Figure 7 - Shorter route using GrabMaps by taking a closer link between two main roads.
 </figcaption>
   </figure>
 </div>
