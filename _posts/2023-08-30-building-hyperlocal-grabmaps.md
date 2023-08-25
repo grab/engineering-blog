@@ -1,11 +1,11 @@
 ---
 layout: post
 id: 2023-08-30-building-hyperlocal-grabmaps
-title: Building hyperlocal Grabmaps
+title: Building hyperlocal GrabMaps
 date: 2023-08-30 00:00:10
 authors: [adriana-lazar]
 categories: [Engineering, Data Science, Product]
-tags: [Maps, Data, Big Data, Data processing, KartaCam, GrabMaps]
+tags: [Maps, Data, Big Data, Data processing, hyperlocalisation, GrabMaps, navigation]
 comments: true
 cover_photo: /img/building-hyperlocal-grabmaps/cover.jpeg
 excerpt: "Being hyperlocal is a key advantage for GrabMaps. In this article we will explain what being hyperlocal means and how it helps GrabMaps bring value to our driver-partners and passengers through the Grab platform."
@@ -96,7 +96,7 @@ Each intersection link we identify is tagged in the map as `intersection_links`.
 The impact we create with our intersection link can be explained through the following example.
 
 <div class="post-image-section"><figure>
-  <img src="/img/building-hyperlocal-grabmaps/impact1.png" alt="" style="width:60%"><figcaption align="middle">Figure 6 - Longer route, without GrabMaps intersection link feature. The arrow indicates where the route should have suggested a u-turn.
+  <img src="/img/building-hyperlocal-grabmaps/impact1.png" alt="" style="width:60%"><figcaption align="middle">Figure 6 - Longer route, without GrabMaps intersection link feature. The arrow indicates where the route should have suggested a U-turn.
 </figcaption>
   </figure>
 </div>
