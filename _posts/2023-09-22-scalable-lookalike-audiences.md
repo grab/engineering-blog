@@ -2,7 +2,7 @@
 layout: post
 id: 2023-09-22-scalable-lookalike-audience
 title: Stepping up marketing for advertisers: Scalable lookalike audience
-date: 2023-09-20 00:00:10
+date: 2023-09-22 00:00:10
 authors: [william-wu]
 categories: [Engineering, Data Science]
 tags: [Data, Advertising, Scalability, Data science, Marketing, Lookalike audience]
