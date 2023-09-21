@@ -47,7 +47,7 @@ Our solution takes into account the fact that representation drift varies among 
 
 Our solution comprises two main components:
 
-1.  **Real-time lookalike audience retrieving**: We developed an in-memory high-performance retrieving service that stores passenger embeddings, Audience embeddings, and audience score thresholds. To further reduce cost, we designed a passenger embedding compression algorithm that reduces the memory needs of passenger embeddings by around 90%.
+1.  **Real-time lookalike audience retrieving**: We developed an in-memory high-performance retrieving service that stores passenger embeddings, audience embeddings, and audience score thresholds. To further reduce cost, we designed a passenger embedding compression algorithm that reduces the memory needs of passenger embeddings by around 90%.
 
 2.  **Embedding-based audience creation and updating**: The output of this part of the project is an online retrieving model that includes passenger embeddings, audience embeddings, and thresholds. To minimise costs, we leverage the passenger embeddings that are also utilised by other projects within Grab, beyond advertising, thus sharing the cost. The audience embeddings and thresholds are produced with a low-cost small neural network.
 
@@ -83,7 +83,7 @@ We use the cosine score of a user and the audience embedding to identify the aud
 
 The online audience service is also tasked with returning all the audiences to which the current user belongs. This is achieved by utilising the cosine score of the user embedding and audience embeddings, and filtering out all audiences that surpass the audience thresholds.
 
-To adhere to latency requirements, we avoid querying any external feature stores like Redis and instead, store all the embeddings in memory. However, the embeddings of all users are  approximately 20 GB, which could affect model loading. Therefore, we devised an embedding compression method based on hash tricks inspired by [Bloom Filter](https://brilliant.org/wiki/bloom-filter/#:~:text=A%20bloom%20filter%20is%20a,is%20added%20to%20the%20set).
+To adhere to latency requirements, we avoid querying any external feature stores like Redis and instead, store all the embeddings in memory. However, the embeddings of all users are approximately 20 GB, which could affect model loading. Therefore, we devised an embedding compression method based on hash tricks inspired by [Bloom Filter](https://brilliant.org/wiki/bloom-filter/#:~:text=A%20bloom%20filter%20is%20a,is%20added%20to%20the%20set).
 
 <div class="post-image-section"><figure>
   <img src="/img/scalable-lookalike-audience/image5.png" alt="" style="width:90%"><figcaption align="middle"></figcaption>
