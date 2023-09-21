@@ -70,7 +70,7 @@ To ensure the efficiency of the lookalike audience retrieval model and minimise 
 
 #### Creating lookalike audiences
 
-The Audience Creation Job retrieves the audience metadata from the online audience service, pulls the passenger embeddings, then averages these embeddings to generate the audience embedding.
+The Audience Creation Job retrieves the audience metadata from the online audience service, pulls the passenger embeddings, and then averages these embeddings to generate the audience embedding.
 
 We use the cosine score of a user and the audience embedding to identify the audiences the user belongs to. Hence, it's sufficient to store only the audience embedding and score threshold. Additionally, a global `target-all-pax` Audience list is stored to return these audiences for each online request.
 
@@ -97,7 +97,7 @@ To adhere to latency requirements, we avoid querying any external feature stores
 ### Impact
 
 *   Users can see advertisements targeting a new audience within 15 mins after the advertiser creates a campaign.
-*   This new system doubled the impressions and clicks, while also improving the CTR, conversion rate and return on investment.
+*   This new system doubled the impressions and clicks, while also improving the CTR, conversion rate, and return on investment.
 *   Costs for generating lookalike audiences decreased by 98%.
 
 ## Learnings/Conclusion
