@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2023-09-22-scalable-lookalike-audience
-title: Stepping up marketing for advertisers: Scalable lookalike audience
+title: 'Stepping up marketing for advertisers: Scalable lookalike audience'
 date: 2023-09-22 00:00:10
 authors: [william-wu]
 categories: [Engineering, Data Science]
@@ -26,13 +26,13 @@ The need for an even more efficient and scalable solution for creating lookalike
 
 In the dynamic world of digital advertising, the ability to quickly and efficiently reach the right audience is paramount and a key strategy is targeted advertising. As such, we have to constantly find ways to improve our current approach to creating lookalike audiences that impacts both advertisers and users. Some of the gaps we identified included:
 
-*   Long SLA for audience creation. Earlier, the platform stored results on Segmentation Platform (SegP) and it took two working days to generate a lookalike audience list. This is because inserting a single audience into SegP took three times longer than generating the audience. Extended creation times impacted the effectiveness of advertising campaigns, as it limited the ability of advertisers to respond quickly to changing market dynamics.
+*   **Long SLA** for audience creation. Earlier, the platform stored results on Segmentation Platform (SegP) and it took two working days to generate a lookalike audience list. This is because inserting a single audience into SegP took three times longer than generating the audience. Extended creation times impacted the effectiveness of advertising campaigns, as it limited the ability of advertisers to respond quickly to changing market dynamics.
 
-*   Low scalability. As the number of onboarded merchant-partners increased, the time and cost of generating lookalike audiences also increased proportionally. This limited the availability of lookalike audience generation for all advertisers, particularly those with large customer bases or rapidly changing audience profiles.
+*   **Low scalability**. As the number of onboarded merchant-partners increased, the time and cost of generating lookalike audiences also increased proportionally. This limited the availability of lookalike audience generation for all advertisers, particularly those with large customer bases or rapidly changing audience profiles.
 
-*   Low updating frequency of lookalike audiences. With automated updates only occurring on a weekly basis, this increased the likelihood that audiences may become outdated and ineffective. This meant there was scope to further improve to help advertisers more effectively reach their campaign goals, by targeting individuals who fit the desired audience profile.
+*   **Low updating frequency** of lookalike audiences. With automated updates only occurring on a weekly basis, this increased the likelihood that audiences may become outdated and ineffective. This meant there was scope to further improve to help advertisers more effectively reach their campaign goals, by targeting individuals who fit the desired audience profile.
 
-*   High cost of creation. The cost of producing one segment can add up quickly for advertisers who need to generate multiple audiences. This could impact scalability for advertisers as they could hesitate to effectively use multiple lookalike audiences in their campaigns.
+*   **High cost of creation**. The cost of producing one segment can add up quickly for advertisers who need to generate multiple audiences. This could impact scalability for advertisers as they could hesitate to effectively use multiple lookalike audiences in their campaigns.
 
 ## Solution
 
@@ -47,9 +47,9 @@ Our solution takes into account the fact that representation drift varies among 
 
 Our solution comprises two main components:
 
-1.  Real-time lookalike audience retrieving: We developed an in-memory high-performance retrieving service that stores passenger embeddings, Audience embeddings, and audience score thresholds. To further reduce cost, we designed a passenger embedding compression algorithm that reduces the memory needs of passenger embeddings by around 90%.
+1.  **Real-time lookalike audience retrieving**: We developed an in-memory high-performance retrieving service that stores passenger embeddings, Audience embeddings, and audience score thresholds. To further reduce cost, we designed a passenger embedding compression algorithm that reduces the memory needs of passenger embeddings by around 90%.
 
-2.  Embedding-based audience creation and updating: The output of this part of the project is an online retrieving model that includes passenger embeddings, audience embeddings, and thresholds. To minimise costs, we leverage the passenger embeddings that are also utilised by other projects within Grab, beyond advertising, thus sharing the cost. The audience embeddings and thresholds are produced with a low-cost small neural network.
+2.  **Embedding-based audience creation and updating**: The output of this part of the project is an online retrieving model that includes passenger embeddings, audience embeddings, and thresholds. To minimise costs, we leverage the passenger embeddings that are also utilised by other projects within Grab, beyond advertising, thus sharing the cost. The audience embeddings and thresholds are produced with a low-cost small neural network.
 
 In summary, our approach to creating scalable lookalike audiences is designed to be cost-effective, accurate, and efficient, leveraging the power of embeddings and smart computational strategies to deliver the best possible audiences for our advertisers.
 
@@ -72,7 +72,7 @@ To ensure the efficiency of the lookalike audience retrieval model and minimise 
 
 The Audience Creation Job retrieves the audience metadata from the online audience service, pulls the passenger embeddings, then averages these embeddings to generate the audience embedding.
 
-We use the cosine score of a user and the audience embedding to identify the audiences the user belongs to. Hence, it's sufficient to store only the audience embedding and score threshold. Additionally, a global target-all-pax Audience list is stored to return these audiences for each online request.
+We use the cosine score of a user and the audience embedding to identify the audiences the user belongs to. Hence, it's sufficient to store only the audience embedding and score threshold. Additionally, a global `target-all-pax` Audience list is stored to return these audiences for each online request.
 
 <div class="post-image-section"><figure>
   <img src="/img/scalable-lookalike-audience/image1.png" alt="" style="width:90%"><figcaption align="middle"></figcaption>
@@ -91,7 +91,7 @@ To adhere to latency requirements, we avoid querying any external feature stores
 </div>
 
 *   We utilise hash functions to obtain the hash64 value of the paxID, which is then segmented into four 16-bit values. Each 16-bit value corresponds to a 16-dimensional embedding block, and the compressed embedding is the concatenation of these four 16-dimensional embeddings.
-*   For each paxID, we have both the original user embedding and the compressed user embedding. The compressed user embeddings are learned by minimising the Mean Square Error loss.
+*   For each `paxID`, we have both the original user embedding and the compressed user embedding. The compressed user embeddings are learned by minimising the Mean Square Error loss.
 *   We can balance the storage cost and the accuracy by altering the number of hash functions used.
 
 ### Impact
