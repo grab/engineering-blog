@@ -2,12 +2,12 @@
 layout: post
 id: 2023-10-11-scaling-marketing-for-merchants
 title: 'Scaling marketing for merchants with targeted and intelligent promos'
-date: 2023-09-22 00:00:10
+date: 2023-10-11 00:00:10
 authors: [sharon-teng]
 categories: [Engineering, Data Science]
 tags: [Data, Advertising, Scalability, Data science, Marketing]
 comments: true
-cover_photo: /img/scaling-marketing-for-merchants/cover.png
+cover_photo: /img/scaling-marketing-for-merchants/cover.jpg
 excerpt: "Apart from ensuring advertisements reach the right audience, it is also important to make promos by merchants more targeted and intelligent to help scale their marketing. Read to find out how the Data Science team at Grab used automation and made merchant advertising a more seamless and intelligent process."
 ---
 
@@ -16,7 +16,7 @@ excerpt: "Apart from ensuring advertisements reach the right audience, it is als
 A promotional campaign is a marketing effort that aims to increase sales, customer engagement, or brand awareness for a product, service, or company. The target is to have more orders and sales by assigning promos to consumers within a given budget during the campaign period. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-marketing-for-merchants/customer-feedback.png" alt="" style="width:70%"><figcaption align="middle"></figcaption>
+  <img src="/img/scaling-marketing-for-merchants/customer-feedback.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
   </figure>
 </div>
 
@@ -103,7 +103,7 @@ We started using Bullseye in 2021. From its use we found that:
 
 We have seen positive results with the implementation of Bullseye such as reduced promo spend and maximised budget spending returns. In our efforts to serve our merchants better and help them achieve their business goals, we will continue to improve Bullseye. In the next phase, we plan to implement a more intelligent service, enabling reinforcement learning, and online assignment. We also aim to scale AI adoption by onboarding regional promotional campaigns as much as possible.
 
-<small class="credits">Special thanks to William Wu, Rui Tan, Rahadyan Pramudita, Krishna Murthy, and Jiesin Chia  for making this project a success.</small>
+<small class="credits">Special thanks to William Wu, Rui Tan, Rahadyan Pramudita, Krishna Murthy, and Jiesin Chia for making this project a success.</small>
 
 # Join us
 
