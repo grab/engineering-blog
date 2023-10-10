@@ -2,7 +2,7 @@
 layout: post
 id: 2023-10-11-scaling-marketing-for-merchants
 title: 'Scaling marketing for merchants with targeted and intelligent promos'
-date: 2023-10-11 00:00:10
+date: 2023-10-01 00:00:10
 authors: [sharon-teng]
 categories: [Engineering, Data Science]
 tags: [Data, Advertising, Scalability, Data science, Marketing]
@@ -16,7 +16,7 @@ excerpt: "Apart from ensuring advertisements reach the right audience, it is als
 A promotional campaign is a marketing effort that aims to increase sales, customer engagement, or brand awareness for a product, service, or company. The target is to have more orders and sales by assigning promos to consumers within a given budget during the campaign period. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-marketing-for-merchants/customer-feedback.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
+  <img src="/img/scaling-marketing-for-merchants/customer-feedback.png" alt="" style="width:80%"><figcaption align="middle">Figure 1 - Merchant feedback on marketing</figcaption>
   </figure>
 </div>
 
@@ -32,7 +32,7 @@ One of Grab’s platform offerings for merchants is the ability to create promot
 As shown in the following figure, AI-driven promotional campaigns are expected to bring higher sales with more promo spend than heuristic ones. Hence, at Grab we looked to introduce an automated, AI-driven tool that helps merchants intelligently target consumers with appropriate promos, while optimising sales and promo spend. That’s where Bullseye comes in. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-marketing-for-merchants/ai-campaign-graph.png" alt="" style="width:60%"><figcaption align="middle"></figcaption>
+  <img src="/img/scaling-marketing-for-merchants/ai-campaign-graph.png" alt="" style="width:60%"><figcaption align="middle">Figure 2 - Graph showing the sales expectations for AI-driven pomotional campaigns</figcaption>
   </figure>
 </div>
 
@@ -49,7 +49,7 @@ Bullseye is an automated, AI-driven promo assignment system that leverages the f
 ## Architecture
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-marketing-for-merchants/architecture.png" alt="" style="width:90%"><figcaption align="middle"></figcaption>
+  <img src="/img/scaling-marketing-for-merchants/architecture.png" alt="" style="width:90%"><figcaption align="middle">Figure 3 - Bullseye architecture</figcaption>
   </figure>
 </div>
 
@@ -60,7 +60,7 @@ The Bullseye architecture consists of a user interface (UI) and a backend servic
 The key components in Bullseye are shown in the following figure:
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-marketing-for-merchants/implementation.png" alt="" style="width:90%"><figcaption align="middle"></figcaption>
+  <img src="/img/scaling-marketing-for-merchants/implementation.png" alt="" style="width:90%"><figcaption align="middle">Figure 4 - Key components of Bullseye</figcaption>
   </figure>
 </div>
 
@@ -71,14 +71,14 @@ The key components in Bullseye are shown in the following figure:
   - **Optimal Promo Selection**: Selects the optimal offer based on the predicted impact and the given campaign objective. The optimal would be based on how you define optimal. For example, if the goal is to maximise merchant sales, the model selects the top candidate which can bring the highest revenue. Finally, with the promo selection, the service returns the promo set to be used in the target campaign. 
     
     <div class="post-image-section"><figure>
-      <img src="/img/scaling-marketing-for-merchants/promo-designer.png" alt="" style="width:90%"><figcaption align="middle"></figcaption>
+      <img src="/img/scaling-marketing-for-merchants/promo-designer.png" alt="" style="width:90%"><figcaption align="middle">Figure 5 - Optimal Promo Selection</figcaption>
       </figure>
     </div>
 
 - **Customer Response Model**: Predicts customer responses such as order value, redemption, and take-up rate if assigning a specific promo. Bullseye captures various user attributes and compares it with an offer’s attributes. Examples of attributes are cuisine type, food spiciness, and discount amount. When there is a high similarity in the attributes, there is a higher probability that the user will take up the offer.
 
     <div class="post-image-section"><figure>
-      <img src="/img/scaling-marketing-for-merchants/customer-response-model.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
+      <img src="/img/scaling-marketing-for-merchants/customer-response-model.png" alt="" style="width:80%"><figcaption align="middle">Figure 6 - Customer Response Model</figcaption>
       </figure>
     </div>  
 
@@ -87,7 +87,7 @@ The key components in Bullseye are shown in the following figure:
   As shown in the image below, AI assignments without hyper-parameter tuning (HPT) leads to a high cpSales uplift but low sales uplift (red dot). So the  hyper-parameters would help to fine-tune the assignment result to be in the optimal space such as the blue dot, which may have lower sales than the red dot but meet the success criteria.
 
     <div class="post-image-section"><figure>
-      <img src="/img/scaling-marketing-for-merchants/hpt.png" alt="" style="width:70%"><figcaption align="middle"></figcaption>
+      <img src="/img/scaling-marketing-for-merchants/hpt.png" alt="" style="width:70%"><figcaption align="middle">Figure 7 - Graph showing the impact of using AI assignments with HPT</figcaption>
       </figure>
     </div>  
 
