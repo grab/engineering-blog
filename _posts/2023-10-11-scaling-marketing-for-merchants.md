@@ -25,11 +25,11 @@ From our research, we found that merchants have specific goals for the promos th
 ## Problem statement
 One of Grab’s platform offerings for merchants is the ability to create promotional campaigns. With the emergence of AI technologies, we found that there are opportunities for us to further optimise the platform. The following are the gaps and opportunities we identified:
 
-- **Globally assigned promos without smart targeting**: The earlier method  targeted every customer, so everyone could redeem until the promo reached the redemption limits. However, this method did not accurately meet business goals or optimise promo spend. The promotional campaign should intelligently target the best promo for each customer to increase sales and better utilise promo spending.
+- **Globally assigned promos without smart targeting**: The earlier method targeted every customer, so everyone could redeem until the promo reached the redemption limits. However, this method did not accurately meet business goals or optimise promo spending. The promotional campaign should intelligently target the best promo for each customer to increase sales and better utilise promo spending.
 - **No customised promos for every merchant**: To better optimise sales for each merchant, merchants should offer customised promos based on their historical consumer trends, not just a general offer set. For example, for a specific merchant, a 27% discount may be the appropriate offer to uplift revenue and sales based on user bookings. However, merchants do not always have the expertise to decide which offer to select to increase profit. 
 - **No AI-driven optimisation**: Without AI models, it was harder for merchants to assign the right promos at scale to each consumer and optimise their business goals. 
 
-As shown in the following figure, AI-driven promotional campaigns are expected to bring higher sales with more promo spend than heuristic ones. Hence, at Grab we looked to introduce an automated, AI-driven tool that helps merchants intelligently target consumers with appropriate promos, while optimising sales and promo spend. That’s where Bullseye comes in. 
+As shown in the following figure, AI-driven promotional campaigns are expected to bring higher sales with more promo spend than heuristic ones. Hence, at Grab we looked to introduce an automated, AI-driven tool that helps merchants intelligently target consumers with appropriate promos, while optimising sales and promo spending. That’s where Bullseye comes in. 
 
 <div class="post-image-section"><figure>
   <img src="/img/scaling-marketing-for-merchants/ai-campaign-graph.png" alt="" style="width:60%"><figcaption align="middle">Figure 2 - Graph showing the sales expectations for AI-driven pomotional campaigns</figcaption>
@@ -97,11 +97,11 @@ We started using Bullseye in 2021. From its use we found that:
 
 - Hyper-parameters tuning and auto promo design can increase sales and reduce promo spend for food campaigns. 
 - Promo Designer optimises budget utilisation and increases the number of promo redemptions for food campaigns.
-- The Customer Response Model reduced promo spend for Mart promotional campaigns.
+- The Customer Response Model reduced promo spending for Mart promotional campaigns.
 
 ## Conclusion
 
-We have seen positive results with the implementation of Bullseye such as reduced promo spend and maximised budget spending returns. In our efforts to serve our merchants better and help them achieve their business goals, we will continue to improve Bullseye. In the next phase, we plan to implement a more intelligent service, enabling reinforcement learning, and online assignment. We also aim to scale AI adoption by onboarding regional promotional campaigns as much as possible.
+We have seen positive results with the implementation of Bullseye such as reduced promo spending and maximised budget spending returns. In our efforts to serve our merchants better and help them achieve their business goals, we will continue to improve Bullseye. In the next phase, we plan to implement a more intelligent service, enabling reinforcement learning, and online assignment. We also aim to scale AI adoption by onboarding regional promotional campaigns as much as possible.
 
 <small class="credits">Special thanks to William Wu, Rui Tan, Rahadyan Pramudita, Krishna Murthy, and Jiesin Chia for making this project a success.</small>
 
