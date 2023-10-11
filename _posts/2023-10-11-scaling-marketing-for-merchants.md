@@ -8,7 +8,7 @@ categories: [Engineering, Data Science]
 tags: [Data, Advertising, Scalability, Data science, Marketing]
 comments: true
 cover_photo: /img/scaling-marketing-for-merchants/cover.jpg
-excerpt: "Apart from ensuring advertisements reach the right audience, it is also important to make promos by merchants more targeted and intelligent to help scale their marketing. Read to find out how the Data Science team at Grab used automation and made promo assignments a more seamless and intelligent process. With Grab’s innovative AI tool, merchants can boosts sales while cutting costs. Dive into this game-changing tool that’s reshaping the future of marketing."
+excerpt: "Apart from ensuring advertisements reach the right audience, it is also important to make promos by merchants more targeted and intelligent to help scale their marketing. With Grab’s innovative AI tool, merchants can boost sales while cutting costs. Dive into this game-changing tool that’s reshaping the future of marketing and find out how the Data Science team at Grab used automation and made promo assignments a more seamless and intelligent process."
 ---
 
 ## Introduction
