@@ -2,13 +2,13 @@
 layout: post
 id: 2023-10-11-scaling-marketing-for-merchants
 title: 'Scaling marketing for merchants with targeted and intelligent promos'
-date: 2023-10-01 00:00:10
+date: 2023-10-11 00:00:10
 authors: [sharon-teng]
 categories: [Engineering, Data Science]
 tags: [Data, Advertising, Scalability, Data science, Marketing]
 comments: true
 cover_photo: /img/scaling-marketing-for-merchants/cover.jpg
-excerpt: "Apart from ensuring advertisements reach the right audience, it is also important to make promos by merchants more targeted and intelligent to help scale their marketing. Read to find out how the Data Science team at Grab used automation and made merchant advertising a more seamless and intelligent process."
+excerpt: "Apart from ensuring advertisements reach the right audience, it is also important to make promos by merchants more targeted and intelligent to help scale their marketing. Read to find out how the Data Science team at Grab used automation and made promo assignments a more seamless and intelligent process. With Grab’s innovative AI tool, merchants can boosts sales while cutting costs. Dive into this game-changing tool that’s reshaping the future of marketing."
 ---
 
 ## Introduction
