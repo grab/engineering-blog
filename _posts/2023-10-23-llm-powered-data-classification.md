@@ -19,11 +19,11 @@ The Caspian team (Data Engineering team) collaborated closely with the Data Go
 
 For ease of reference, here’s a list of terms we’ve used and their definitions:
 
-1.  **Data Entity**: An entity representing a schema that contains rows/streams of data, for example, database tables, stream messages, data lake tables.
-2.  **Prediction**: Refers to the model’s output given a data entity, unverified manually.
-3.  **Data Classification**: The process of classifying a given data entity, which in the context of this blog, involves generating tags that represent sensitive data or Grab-specific types of data.
-4.  **Metadata Generation**: The process of generating the metadata for a given data entity. In this blog, since we limit the metadata to the form of tags, we often use this term and data classification interchangeably.
-5.  **Sensitivity**: Refers to the level of confidentiality of data. High sensitivity means that the data is highly confidential. The lowest level of sensitivity often refers to public-facing or publicly-available data.
+-  **Data Entity**: An entity representing a schema that contains rows/streams of data, for example, database tables, stream messages, data lake tables.
+-  **Prediction**: Refers to the model’s output given a data entity, unverified manually.
+-  **Data Classification**: The process of classifying a given data entity, which in the context of this blog, involves generating tags that represent sensitive data or Grab-specific types of data.
+-  **Metadata Generation**: The process of generating the metadata for a given data entity. In this blog, since we limit the metadata to the form of tags, we often use this term and data classification interchangeably.
+-  **Sensitivity**: Refers to the level of confidentiality of data. High sensitivity means that the data is highly confidential. The lowest level of sensitivity often refers to public-facing or publicly-available data.
 
 ## Background
 
@@ -36,12 +36,12 @@ Shifting access controls from the schema-level to the table-level could not be d
 1.  The volume, velocity, and variety of data had skyrocketed within the organisation, so it took significantly more time to classify at table level compared to schema level. Hence, a programmatic solution was needed to streamline the classification process, reducing the need for manual effort.
 2.  App developers, despite being familiar with the business scope of their data, interpreted internal data classification policies and external data regulations differently, leading to inconsistencies in understanding.
 
-A service called Gemini *(named before Google announced the Gemini model!)* was built internally to automate the tag generation process using a third party data classification service. Its purpose was to scan the data entities in batches and generate column/field level tags. These tags would then go through a review process by the data producers. The data governance team provided classification rules and regex classifiers, alongside the third-party tool’s own machine learning classifiers, were used to discover sensitive information.
+A service called Gemini *(named before Google announced the Gemini model!)* was built internally to automate the tag generation process using a third party data classification service. Its purpose was to scan the data entities in batches and generate column/field level tags. These tags would then go through a review process by the data producers. The data governance team provided classification rules and used regex classifiers, alongside the third-party tool’s own machine learning classifiers, to discover sensitive information.
 
 After the implementation of the initial version of Gemini, a few challenges remained.
 
 1.  The third-party tool did not allow customisations of its machine learning classifiers, and the regex patterns produced too many false positives during our evaluation.
-2.  Building in-house classifiers would require a dedicated data science team to train a customised model. They would need to invest a significant amount of time to  understand data governance rules thoroughly and prepare datasets with manually labelled training data.
+2.  Building in-house classifiers would require a dedicated data science team to train a customised model. They would need to invest a significant amount of time to understand data governance rules thoroughly and prepare datasets with manually labelled training data.
 
 LLM came up on our radar following its recent *“iPhone moment”* with ChatGPT’s explosion onto the scene. It is trained using an extremely large corpus of text and contains trillions of parameters. It is capable of conducting natural language understanding tasks, writing code, and even analysing data based on requirements. The LLM naturally solves the mentioned pain points as it provides a natural language interface for data governance personnel. They can express governance requirements through text prompts, and the LLM can be customised effortlessly without code or model training.
 
@@ -135,7 +135,7 @@ We also curated a tag library for LLM to classify. Here is an example:
   </thead>
   <tbody>
     <tr>
-      <td rowspan="2">Personal.ID</td>
+      <td>Personal.ID</td>
       <td>Refers to external identification numbers that can be used to uniquely identify a person and should be assigned to columns containing "NRIC", "Passport", "FIN", "License Plate", "Social Security" or similar.</td>
     </tr>
     <tr>
@@ -143,7 +143,7 @@ We also curated a tag library for LLM to classify. Here is an example:
       <td>Refers to the name or username of a person and should be assigned to columns containing "name", "username" or similar.</td>
     </tr>
     <tr>
-      <td rowspan="2">Personal.Contact_Info</td>
+      <td>Personal.Contact_Info</td>
       <td>Refers to the contact information of a person and should be assigned to columns containing "email", "phone", "address", "social media" or similar.</td>
     </tr>
     <tr>
@@ -156,14 +156,6 @@ We also curated a tag library for LLM to classify. Here is an example:
     </tr>
   </tbody>
 </table>
-
-| Column-level Tag | Definition |
-| ----------- | ---------------------- |
-| Personal.ID | Refers to external identification numbers that can be used to uniquely identify a person and should be assigned to columns containing "NRIC", "Passport", "FIN", "License Plate", "Social Security" or similar.|
-| Personal.Name | Refers to the name or username of a person and should be assigned to columns containing "name", "username" or similar.|
-| Personal.Contact_Info | Refers to the contact information of a person and should be assigned to columns containing "email", "phone", "address", "social media" or similar.|
-| Geo.Geohash | Refers to a geohash and should be assigned to columns containing "geohash" or similar.|
-| None | Should be used when none of the above can be assigned to a column.|
 
 The output of the language model is typically in free text format, however, we want the output in a fixed format for downstream processing. Due to this nature, prompt engineering is a crucial component to make sure downstream workflows can process the LLM’s output.
 
