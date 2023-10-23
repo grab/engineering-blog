@@ -7,7 +7,7 @@ authors: [hualin-liu,stefan-jaro,harvey-li,jerome-tong,andrew-lam,chamal-sapumoh
 categories: [Engineering, Data Science]
 tags: [Data, Machine Learning, Generative AI]
 comments: true
-cover_photo: /img/scaling-marketing-for-merchants/cover.jpg
+cover_photo: /img/llm-powered-data-classification/cover.png
 excerpt: "With the advent of the Large Language Model (LLM), new possibilities dawned for metadata generation and sensitive data identification at Grab. This prompted the inception of our project aimed to integrate LLM classification into our existing data management service."
 ---
 
