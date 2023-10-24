@@ -80,7 +80,7 @@ Specific to LLM orchestration, there are two limits to be mindful of. The first 
 
 In this section, we focus on LLM-powered column-level tag classification. The tag classification process is defined as follows:
 
-Given a data entity with a defined schema, we want to tag each field of the schema with metadata classifications that follow an internal classification scheme from the data governance team. For example, the field can be tagged as a *<particular kind of business metric>* or a *<particular type of personally identifiable information (PII)>. These tags indicate that the field contains a business metric or PII.
+Given a data entity with a defined schema, we want to tag each field of the schema with metadata classifications that follow an internal classification scheme from the data governance team. For example, the field can be tagged as a `<particular kind of business metric>` or a `<particular type of personally identifiable information (PII)`. These tags indicate that the field contains a business metric or PII.
 
 We ask the language model to be a column tag generator and to assign the most appropriate tag to each column. Here we showcase an excerpt of the prompt we use:
 
@@ -162,9 +162,9 @@ The output of the language model is typically in free text format, however, we w
 Here are some of the techniques we found useful during our development:
 
 1.  Articulate the requirements: The requirement of the task should be as clear as possible, LLM is only instructed to do what you ask it to do.
-2.  [Few-shot learning](https://learn.microsoft.com/en-gb/azure/ai-services/openai/concepts/advanced-prompt-engineering?pivots%3Dprogramming-language-chat-completions%23few-shot-learning&sa=D&source=editors&ust=1697793455121262&usg=AOvVaw1R67bUbUkYBLRUeGcclyWF): By showing the example of interaction, models understand how they should respond.
-3.  [Schema Enforcement](https://github.com/microsoft/TypeChat&sa=D&source=editors&ust=1697793455122085&usg=AOvVaw1t9gUkvl64Bxi7qd8B5uAq): Leveraging its ability of understanding code, we explicitly provide the DTO (Data Transfer Object) schema to the model so that it understands that its output must conform to it.
-4.  Allow for confusion: In our prompt we specifically added a default tag – the LLM is instructed to output the default *<None>* tag when it cannot make a decision or is confused.
+2.  [Few-shot learning](https://learn.microsoft.com/en-gb/azure/ai-services/openai/concepts/advanced-prompt-engineering?pivots=programming-language-chat-completions#few-shot-learning): By showing the example of interaction, models understand how they should respond.
+3.  [Schema Enforcement](https://github.com/microsoft/TypeChat): Leveraging its ability of understanding code, we explicitly provide the DTO (Data Transfer Object) schema to the model so that it understands that its output must conform to it.
+4.  Allow for confusion: In our prompt we specifically added a default tag – the LLM is instructed to output the default `<None>` tag when it cannot make a decision or is confused.
 
 Regarding classification accuracy, we found that it is surprisingly accurate with its great semantic understanding. For acknowledged tables, users on average change less than one tag. Also, during an internal survey done among data owners at Grab in September 2023, 80% reported that this new tagging process helped them in tagging their data entities.
 
@@ -184,7 +184,7 @@ Since the new system was rolled out, we have successfully integrated this with G
 
 Using a quick back-of-the-envelope calculation, we can see the significant time savings achieved through automated tagging. Assuming it takes a data owner approximately 2 minutes to classify each entity, we are saving approximately 360 man-days per year for the company. This allows our engineers and analysts to focus more on their core tasks of engineering and analysis rather than spending excessive time on data governance.
 
-The classified tags pave the way for more use cases downstream. These tags, in combination with rules provided by data privacy office in Grab, enable us to determine the sensitivity tier of data entities, which in turn will be leveraged for enforcing the Attribute-based Access Control (ABAC) policies and enforcing Dynamic Data Masking for downstream queries. To learn more about the benefits of ABAC, readers can refer to another engineering [blog](https://engineering.grab.com/migrating-to-abac&sa=D&source=editors&ust=1697793455126778&usg=AOvVaw0Tj8G8B2WX2ztqoXJio1sA) posted earlier.
+The classified tags pave the way for more use cases downstream. These tags, in combination with rules provided by data privacy office in Grab, enable us to determine the sensitivity tier of data entities, which in turn will be leveraged for enforcing the Attribute-based Access Control (ABAC) policies and enforcing Dynamic Data Masking for downstream queries. To learn more about the benefits of ABAC, readers can refer to another engineering [blog](https://engineering.grab.com/migrating-to-abac) posted earlier.
 
 Cost wise, for the current load, it is extremely affordable contrary to common intuition. This affordability enables us to scale the solution to cover more data entities in the company.
 
