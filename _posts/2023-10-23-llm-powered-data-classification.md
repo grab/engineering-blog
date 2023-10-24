@@ -3,7 +3,7 @@ layout: post
 id: 2023-10-23-llm-powered-data-classification
 title: 'LLM-powered data classification for data entities at scale'
 date: 2023-10-23 00:00:10
-authors: [hualin-liu,stefan-jaro,harvey-li,jerome-tong,andrew-lam,chamal-sapumohotti,feng-cheng]
+authors: [hualin-liu,stefan-jaro,harvey-li,jerome-tong,andrew-lam,chamal-sapumohotti,feng-cheng,aaqib-kufran]
 categories: [Engineering, Data Science]
 tags: [Data, Machine Learning, Generative AI]
 comments: true
