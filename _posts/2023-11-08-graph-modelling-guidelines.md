@@ -25,7 +25,7 @@ Graph modelling is a method for representing real-world entities and their relat
 Before diving into graph modelling, it's crucial to have a clear understanding of the domain you're working with. This involves getting acquainted with the relevant terms, concepts, and relationships that exist in your specific field. To create a social network graph, familiarise yourself with terms like users, friendships, posts, likes, and comments.
 
 ### Step 2: Identify entities and relationships
-After defining the domain, you need to determine the entities (nodes) and relationships (edges) that exist within it. Entities are the primary objects in your domain, while relationships represent how these entities interact with each other. In a social network graph, users are entities, and friendships are relationships.
+After defining your domain, you need to determine the entities (nodes) and relationships (edges) that exist within it. Entities are the primary objects in your domain, while relationships represent how these entities interact with each other. In a social network graph, users are entities, and friendships are relationships.
 
 ### Step 3: Establish properties
 Each entity and relationship may have a set of properties that carry additional information. In this step, identify relevant properties based on their significance to the domain. A user entity might have properties like name, age, and location. A friendship relationship could have a 'since' property to denote the establishment of the friendship.
@@ -49,7 +49,7 @@ Although not required, developing a schema can be helpful for large-scale projec
 ### Step 6: Import or generate data
 Next, acquire the data needed to populate your graph. This can come in the form of existing datasets or generated data from your application. For a social network graph, you can import user information from a CSV file and generate simulated friendships, posts, likes, and comments.
 
-### Step 7: Implement the graph using graph database or other storage options
+### Step 7: Implement the graph using a graph database or other storage options
 Finally, you need to store your graph data using a suitable graph database. Neo4j, Amazon Neptune, or Microsoft Azure Cosmos DB are examples of graph databases. Alternatively, depending on your specific requirements, you can use a non-graph database or an in-memory data structure to store the graph.
 
 ### Step 8: Analyse and visualise the graph
