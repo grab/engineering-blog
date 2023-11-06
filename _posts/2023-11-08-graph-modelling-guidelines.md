@@ -28,13 +28,13 @@ Before diving into graph modelling, it's crucial to have a clear understanding o
 After defining your domain, you need to determine the entities (nodes) and relationships (edges) that exist within it. Entities are the primary objects in your domain, while relationships represent how these entities interact with each other. In a social network graph, users are entities, and friendships are relationships.
 
 ### Step 3: Establish properties
-Each entity and relationship may have a set of properties that carry additional information. In this step, identify relevant properties based on their significance to the domain. A user entity might have properties like name, age, and location. A friendship relationship could have a 'since' property to denote the establishment of the friendship.
+Each entity and relationship may have a set of properties that provide additional information. In this step, identify relevant properties based on their significance to the domain. A user entity might have properties like name, age, and location. A friendship relationship could have a 'since' property to denote the establishment of the friendship.
 
 ### Step 4: Choose a graph model
 Once you've identified the entities, relationships, and properties, it's time to choose a suitable graph model. Two common models are:
 
 - **Property graph**: A versatile model that easily accommodates properties on both nodes and edges. It's well-suited for most applications.
-- **Resource Description Framework (RDF)**: A W3C standard model, using triples of subject-predicate-object to represent data. It is commonly used in semantic web applications.
+- **Resource Description Framework (RDF)**: A World Wide Web Consortium (W3C) standard model, using triples of subject-predicate-object to represent data. It is commonly used in semantic web applications.
 
 For a social network graph, a property graph model is typically suitable. This is because user entities have many attributes and features. Property graphs provide a clear representation of the relationships between people and their attribute profiles.
 
