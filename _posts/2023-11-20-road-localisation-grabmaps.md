@@ -82,7 +82,7 @@ Since this operation is expensive both in terms of cloud cost and time to run, w
 So we transformed this large, one step operation, where we test each road segment for inclusion in a border, into a series of smaller operations where we perform the following steps:
 
 1. Identify all the geohashes that are part of a certain area or belong to a certain border. In this process we include additional areas to make sure that we cover the entire surface inside the border.
-2. For each road segment, we identify the list of geohashes that it belongs to. A road, depending on its length or depending on its shape might belong to multiple geohashes. 
+2. For each road segment, we identify the list of geohashes that it belongs to. A road, depending on its length or depending on its shape, might belong to multiple geohashes. 
 
 In Figure 5, we identify that the road belongs to two geohashes and we also identify that the two geohashes are part of the border we use.
 
@@ -126,7 +126,7 @@ To find a balance between precision and data loss, we looked into calculating th
   </figure>
 </div>
 
-However, take for example the geohash in Figure 9. It touches the border and has only around 80% of its surface inside the area. Given that most of its surface is within the border, we still can say that it belongs to the  area.
+However, take for example the geohash in Figure 9. It touches the border and has only around 80% of its surface inside the area. Given that most of its surface is within the border, we still can say that it belongs to the area.
 
 <div class="post-image-section"><figure>
   <img src="/img/road-localisation-grabmaps/geohash-partial-border.png" alt="" style="width:20%"><figcaption align="middle">Figure 9 - Geohash partially inside the border</figcaption>
