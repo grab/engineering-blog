@@ -5,7 +5,7 @@ title: 'Road localisation in GrabMaps'
 date: 2023-11-08 00:00:10
 authors: [roxana-crisan, mihai-chintoanu]
 categories: [Engineering, Data Science, Product]
-tags: [Maps, Data, Big Data, Data processing, Hyperlocalisation, GrabMaps, Navigation]
+tags: [Maps, Data, Big Data, Data processing, Hyperlocalisation, GrabMaps]
 comments: true
 cover_photo: /img/road-localisation-grabmaps/cover.jpg
 excerpt: "With GrabMaps powering the Grab superapp we have the opportunity to improve our services and enhance our map with hyperlocal data. No matter the use case, road localisation plays an important role in Grab’s map-making process. However, road localisation entails handling a substantial volume of data, making it a costly and time-consuming endeavour. In this article, we explore the strategies we have implemented to drive down costs and reduce processing times associated with road localisation."
@@ -34,7 +34,7 @@ In Figure 1, Image 1 shows a visualisation of the road network, the roads belong
   </figure>
 </div>
 
-For this to be possible we have to find a way to localise each road and identify its associated country. Once this localisation process is complete, we can replicate all this information specific to a given border onto each individual road. This information includes details such as the country name, driving side, and official language. We can go even further and infer more information, and add hyperlocal data. For example, in Vietnam, we can automatically prevent motorcycle access on the motorways.
+For this to be possible, we have to find a way to localise each road and identify its associated country. Once this localisation process is complete, we can replicate all this information specific to a given border onto each individual road. This information includes details such as the country name, driving side, and official language. We can go even further and infer more information, and add hyperlocal data. For example, in Vietnam, we can automatically prevent motorcycle access on the motorways.
 
 Assigning each road on the map to a specific area, such as a country, service area, or subdivision, presents a complex task. So, how can we efficiently accomplish this?
 
@@ -56,10 +56,10 @@ Geohashes uses a Base-32 alphabet encoding system comprising characters ranging 
 
 The precision factor of the geohash determines the size of the cell. For instance, a precision factor of one creates a cell 5,000 km high and 5,000 km wide. A precision factor of six creates a cell 0.61km high and 1.22 km wide. Furthermore, a precision factor of nine creates a cell 4.77 m high and 4.77 m wide. It is important to note that cells are not always square and can have varying dimensions.
 
-In Figure 2,  we have exemplified a geohash 6 grid and its code is **wdts33**.
+In Figure 2,  we have exemplified a geohash 6 grid and its code is **wsdt33**.
 
 <div class="post-image-section"><figure>
-  <img src="/img/road-localisation-grabmaps/geohash-code-wdts33.png" alt="" style="width:80%"><figcaption align="middle">Figure 2 - An example of geohash code wdts33</figcaption>
+  <img src="/img/road-localisation-grabmaps/geohash-code-wsdt33.jpg" alt="" style="width:80%"><figcaption align="middle">Figure 2 - An example of geohash code wsdt33</figcaption>
   </figure>
 </div>
 
@@ -84,7 +84,7 @@ So we transformed this large, one step operation, where we test each road segmen
 1. Identify all the geohashes that are part of a certain area or belong to a certain border. In this process we include additional areas to make sure that we cover the entire surface inside the border.
 2. For each road segment, we identify the list of geohashes that it belongs to. A road, depending on its length or depending on its shape, might belong to multiple geohashes. 
 
-In Figure 5, we identify that the road belongs to two geohashes and we also identify that the two geohashes are part of the border we use.
+In Figure 5, we identify that the road belongs to two geohashes and that the two geohashes are part of the border we use.
 
 <div class="post-image-section"><figure>
   <img src="/img/road-localisation-grabmaps/geohash-proxy.png" alt="" style="width:50%"><figcaption align="middle">Figure 5 - Geohashes as proxy</figcaption>
@@ -93,7 +93,7 @@ In Figure 5, we identify that the road belongs to two geohashes and we also iden
 
 Now, all we need to do is join the two data sets together. This kind of operation is a great candidate for a big data approach, as it allows us to run it in parallel and speed up the processing time.
 
-## Impact
+## Precision tradeoff
 
 We mentioned earlier that, for the sake of argument, we replace precision with a decent approximation. Let’s now delve into the real tradeoff by adopting this approach.
 
