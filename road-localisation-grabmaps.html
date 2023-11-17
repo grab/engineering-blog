@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Road localisation in GrabMaps</title>
+    <meta name="description" content="With GrabMaps powering the Grab superapp we have the opportunity to improve our services and enhance our map with hyperlocal data. No matter the use case, road localisation plays an important role in Grab’s map-making process. However, road localisation entails handling a substantial volume of data, making it a costly and time-consuming endeavour. In this article, we explore the strategies we have implemented to drive down costs and reduce processing times associated with road localisation.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/road-localisation-grabmaps">
+    <meta property="og:title" content="Road localisation in GrabMaps">
+    <meta property="og:description" content="With GrabMaps powering the Grab superapp we have the opportunity to improve our services and enhance our map with hyperlocal data. No matter the use case, road localisation plays an important role in Grab’s map-making process. However, road localisation entails handling a substantial volume of data, making it a costly and time-consuming endeavour. In this article, we explore the strategies we have implemented to drive down costs and reduce processing times associated with road localisation.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/road-localisation-grabmaps/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/road-localisation-grabmaps">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/road-localisation-grabmaps/cover.jpg" class="post-cover-photo" alt="Road localisation in GrabMaps cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+        
+          &middot;
+        
+          <a class="post-category" href="/categories/data-science/">Data Science </a>
+      
+        
+          &middot;
+        
+          <a class="post-category" href="/categories/product/">Product </a>
+      
+
+      <h1 class="post-title">Road localisation in GrabMaps</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/roxana-crisan.jpeg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#roxana-crisan">Roxana Crisan</a>
+                  
+                
+              </span>
+              <span class="post-date-large">17 Nov 2023 | 13 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>In 2022, Grab achieved self-sufficiency in its Geo services. As part of this transition, one crucial step was moving towards using an internally-developed map tailored specifically to the market in which Grab operates. Now that we have full control over the map layer, we can add more data to it or improve it according to the needs of the services running on top. One key aspect that this transition unlocked for us was the possibility of creating hyperlocal data at map level.</p>
+
+<p>For instance, by determining the country to which a road belongs, we can now automatically infer the official language of that country and display the street name in that language. In another example, knowing the country for a specific road, we can automatically infer the driving side (left-handed or right-handed) leading to an improved navigation experience. Furthermore, this capability also enables us to efficiently handle various scenarios. For example, if we know that a road is part of a gated community, an area where our driver partners face restricted access, we can prevent the transit through that area.</p>
+
+<p>These are just some examples of the possibilities from having full control over the map layer. By having an internal map, we can align our maps with specific markets and provide better experiences for our driver-partners and customers.</p>
+
+<h2 id="background">Background</h2>
+
+<p>For all these to be possible, we first needed to localise the roads inside the map. Our goal was to include hyperlocal data into the map, which refers to data that is specific to a certain area, such as a country, city, or even a smaller part of the city like a gated community. At the same time, we aimed to deliver our map with a high cadence, thus, we needed to find the right way to process this large amount of data while continuing to create maps in a cost-effective manner.</p>
+
+<h2 id="solution">Solution</h2>
+
+<p>In the following sections of this article, we will use an extract from the Southeast Asia map to provide visual representations of the concepts discussed.</p>
+
+<p>In Figure 1, Image 1 shows a visualisation of the road network, the roads belonging to this area. The coloured lines in Image 2 represent the borders identifying the countries in the same area. Overlapping the information from Image 1 and Image 2, we can extrapolate and say that the entire surface included in a certain border could have the same set of common properties as shown in Image 3. In Image 4, we then proceed with adding localised roads for each area.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/localisation.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1 - Map of Southeast Asia</figcaption>
+  </figure>
+</div>
+
+<p>For this to be possible, we have to find a way to localise each road and identify its associated country. Once this localisation process is complete, we can replicate all this information specific to a given border onto each individual road. This information includes details such as the country name, driving side, and official language. We can go even further and infer more information, and add hyperlocal data. For example, in Vietnam, we can automatically prevent motorcycle access on the motorways.</p>
+
+<p>Assigning each road on the map to a specific area, such as a country, service area, or subdivision, presents a complex task. So, how can we efficiently accomplish this?</p>
+
+<h2 id="implementation">Implementation</h2>
+
+<p>The most straightforward approach would be to test the inclusion of each road into each area boundary, but that is easier said than done. With close to 30 million road segments in the Southeast Asia map and over 10 thousand areas, the computational cost of determining inclusion or intersection between a polyline and a polygon is expensive.</p>
+
+<p>Our solution to this challenge involves replacing the expensive yet precise operation with a decent approximation. We introduce a proxy entity, the geohash, and we use it to approximate the areas and also to localise the roads.</p>
+
+<p>We replace the geometrical inclusion with a series of simpler and less expensive operations. First, we conduct an inexpensive precomputation where we identify all the geohases that belong to a certain area or within a defined border. We then identify the geohashes to which the roads  belong to. Finally, we use these precomputed values to assign roads to their respective areas. This process is also computationally inexpensive.</p>
+
+<p>Given the large area we process, we leverage big data techniques to distribute the execution across multiple nodes and thus speed up the operation. We want to deliver the map daily and this is one of the many operations that are part of the map-making process.</p>
+
+<h3 id="what-is-a-geohash">What is a geohash?</h3>
+
+<p>To further understand our implementation we will first explain the <a href="https://en.wikipedia.org/wiki/Geohash">geohash concept</a>. A geohash is a unique identifier of a specific region on the Earth. The basic idea is that the Earth is divided into regions of user-defined size and each region is assigned a unique id, which is known as its geohash. For a given location on earth, the geohash algorithm converts its latitude and longitude into a string.</p>
+
+<p>Geohashes uses a Base-32 alphabet encoding system comprising characters ranging from  0 to 9 and A to Z, excluding “A”, “I”, “L” and “O”. Imagine dividing the world into a grid with 32 cells. The first character in a geohash identifies the initial location of one of these 32 cells. Each of these cells are then further subdivided into 32 smaller cells.This subdivision process continues and refines to specific areas in the world. Adding characters to the geohash sub-divides a cell, effectively zooming in to a more detailed area.</p>
+
+<p>The precision factor of the geohash determines the size of the cell. For instance, a precision factor of one creates a cell 5,000 km high and 5,000 km wide. A precision factor of six creates a cell 0.61km high and 1.22 km wide. Furthermore, a precision factor of nine creates a cell 4.77 m high and 4.77 m wide. It is important to note that cells are not always square and can have varying dimensions.</p>
+
+<p>In Figure 2,  we have exemplified a geohash 6 grid and its code is <strong>wsdt33</strong>.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/geohash-code-wsdt33.jpg" alt="" style="width:80%" /><figcaption align="middle">Figure 2 - An example of geohash code wsdt33</figcaption>
+  </figure>
+</div>
+
+<h3 id="using-less-expensive-operations">Using less expensive operations</h3>
+
+<p>Calculating the inclusion of the roads inside a certain border is an expensive operation. However, quantifying the exact expense is challenging as it depends on several factors. One factor is the complexity of the border. Borders are usually irregular and very detailed, as they need to correctly reflect the actual border. The complexity of the road geometry is another factor that plays an important role as roads are not always straight lines.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/roads-to-localise.png" alt="" style="width:30%" /><figcaption align="middle">Figure 3 - Roads to localise</figcaption>
+  </figure>
+</div>
+
+<p>Since this operation is expensive both in terms of cloud cost and time to run, we need to identify a cheaper and faster way that would yield similar results. Knowing that the complexity of the border lines is the cause of the problem, we tried using a different alternative, a rectangle. Calculating the inclusion of a polyline inside a rectangle is a cheaper operation.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/roads-inside-rectangle.png" alt="" style="width:20%" /><figcaption align="middle">Figure 4 - Roads inside a rectangle</figcaption>
+  </figure>
+</div>
+
+<p>So we transformed this large, one step operation, where we test each road segment for inclusion in a border, into a series of smaller operations where we perform the following steps:</p>
+
+<ol>
+  <li>Identify all the geohashes that are part of a certain area or belong to a certain border. In this process we include additional areas to make sure that we cover the entire surface inside the border.</li>
+  <li>For each road segment, we identify the list of geohashes that it belongs to. A road, depending on its length or depending on its shape, might belong to multiple geohashes.</li>
+</ol>
+
+<p>In Figure 5, we identify that the road belongs to two geohashes and that the two geohashes are part of the border we use.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/geohash-proxy.png" alt="" style="width:50%" /><figcaption align="middle">Figure 5 - Geohashes as proxy</figcaption>
+  </figure>
+</div>
+
+<p>Now, all we need to do is join the two data sets together. This kind of operation is a great candidate for a big data approach, as it allows us to run it in parallel and speed up the processing time.</p>
+
+<h2 id="precision-tradeoff">Precision tradeoff</h2>
+
+<p>We mentioned earlier that, for the sake of argument, we replace precision with a decent approximation. Let’s now delve into the real tradeoff by adopting this approach.</p>
+
+<p>The first thing that stands out with this approach is that we traded precision for cost. We are able to reduce the cost as this approach uses less hardware resources and computation time. However, this reduction in precision suffers, particularly for roads located near the borders as they might be wrongly classified.</p>
+
+<p>Going back to the initial example, let’s take the case of the external road, on the left side of the area. As you can see in Figure 6, it is clear that the road does not belong to our border. But when we apply the geohash approach it gets included into the middle geohash.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/wrong-road-localisation.png" alt="" style="width:60%" /><figcaption align="middle">Figure 6 - Wrong road localisation</figcaption>
+  </figure>
+</div>
+
+<p>Given that just a small part of the geohash falls inside the border, the entire geohash will be classified as belonging to that area, and, as a consequence, the road that belongs to that geohash will be wrongly localised and we’ll end up adding the wrong localisation information to that road. This is clearly a consequence of the precision tradeoff. So, how can we solve this?</p>
+
+<h3 id="geohash-precision">Geohash precision</h3>
+
+<p>One option is to increase the geohash precision. By using smaller and smaller geohashes, we can better reflect the actual area. As we go deeper and we further split the geohash, we can accurately follow the border. However, a high geohash precision also equates to a computationally intensive operation bringing us back to our initial situation. Therefore, it is crucial to find the right balance between the geohash size and the complexity of operations.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/geohash-precision.png" alt="" style="width:80%" /><figcaption align="middle">Figure 7 - Geohash precision</figcaption>
+  </figure>
+</div>
+
+<h3 id="geohash-coverage-percentage">Geohash coverage percentage</h3>
+
+<p>To find a balance between precision and data loss, we looked into calculating the geohash coverage percentage. For example, in Figure 8, the blue geohash is entirely within the border.  Here we can say that it has a 100% geohash coverage.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/geohash-inside-border.png" alt="" style="width:50%" /><figcaption align="middle">Figure 8 - Geohash inside the border</figcaption>
+  </figure>
+</div>
+
+<p>However, take for example the geohash in Figure 9. It touches the border and has only around 80% of its surface inside the area. Given that most of its surface is within the border, we still can say that it belongs to the area.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/geohash-partial-border.png" alt="" style="width:20%" /><figcaption align="middle">Figure 9 - Geohash partially inside the border</figcaption>
+  </figure>
+</div>
+
+<p>Let’s look at another example. In Figure 10, only a small part of the geohash is within the border. We can say that the geohash coverage percentage here is around 5%. For these cases, it becomes difficult for us to determine whether the geohash does belong to the area. What would be a good tradeoff in this case?</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/geohash-barely-border.png" alt="" style="width:20%" /><figcaption align="middle">Figure 10 - Geohash barely inside the border</figcaption>
+  </figure>
+</div>
+
+<h3 id="border-shape">Border shape</h3>
+
+<p>To go one step further, we can consider a mixed solution, where we use the border shape but only for the geohashes touching the border. This would still be an intensive computational operation but the number of roads located in these geohashes will be much smaller, so it is still a gain.</p>
+
+<p>For the geohashes with full coverage inside the area, we’ll use the geohash for the localisation, the simpler operation. For the geohashes that are near the border, we’ll use a different approach. To increase the precision around the borders, we can cut the geohash following the  border’s shape. Instead of having a rectangle, we’ll use a more complex shape which is still simpler than the initial border shape.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/geohash-border-shape.png" alt="" style="width:50%" /><figcaption align="middle">Figure 11 - Geohash following a border’s shape</figcaption>
+  </figure>
+</div>
+
+<h2 id="result">Result</h2>
+
+<p>We began with a simple approach and we enhanced it to improve precision. This also increased the complexity of the operation. We then asked, what are the actual gains? Was it worthwhile to go through all this process? In this section, we put this to the test.</p>
+
+<p>We first created a benchmark by taking a small sample of the data and ran the localisation process on a laptop. The sample comprised approximately 2% of the borders and 0.0014% of the roads. We ran the localisation process using two approaches.</p>
+
+<ul>
+  <li>With the first approach, we calculated the intersection between all the roads and borders. The entire operation took around 38 minutes.</li>
+  <li>For the second approach, we optimised the operation using geohashes. In this approach, the runtime was only 78 seconds (1.3 minutes).</li>
+</ul>
+
+<p>However, it is important to note that this is not an apples-to-apples comparison. The operation that we measured was the localisation of the roads but we did not include the border filling operation where we fill the borders with geohashes. This is because this operation does not need to be run every time. It can be run once and reused multiple times.</p>
+
+<p>Though not often required, it is still crucial to understand and consider the operation of precomputing areas and filling borders with geohashes. The precomputation process depends on several factors:</p>
+
+<ul>
+  <li>Number and shape of the borders - The more borders and the more complex the borders are, the longer the operation will take.</li>
+  <li>Geohash precision - How accurate do we need our localisation to be? The more accurate it needs to be, the longer it will take.</li>
+  <li>Hardware availability</li>
+</ul>
+
+<p>Going back to our hypothesis, although this precomputation might be expensive, it is rarely run as the borders don’t change often and can be triggered only when needed. However, regular computation, where we find the area to which each road belongs to, is often run as the roads change constantly. In our system, we run this localisation for each map processing.</p>
+
+<p>We can also further optimise this process by applying the opposite approach. Geohashes that have full coverage inside a border can be merged together into larger geohashes thus simplifying the computation inside the border. In the end, we can have a solution that is fully optimised for our needs with the best cost-to-performance ratio.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/optimised-geohash.png" alt="" style="width:20%" /><figcaption align="middle">Figure 12 - Optimised geohashes</figcaption>
+  </figure>
+</div>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Although geohashes seem to be the right solution for this kind of problem, we also need to monitor their content. One consideration is the road density inside a geohash. For example, a geohash inside a city centre usually has a lot of roads while one in the countryside may have much less. We need to consider this aspect to have a balanced computation operation and take full advantage of the big data approach. In our case, we achieve this balance by considering the number of road kilometres within a geohash.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/unbalanced-data.png" alt="" style="width:80%" /><figcaption align="middle">Figure 13 - Unbalanced data</figcaption>
+  </figure>
+</div>
+
+<p>Additionally, the resources that we choose also matter. To optimise time and cost, we need to find the right balance between the running time and resource cost. As shown in Figure 14, based on a sample data we ran, sometimes, we get the best result when using smaller machines.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/road-localisation-grabmaps/cost-vs-runtime.png" alt="" style="width:80%" /><figcaption align="middle">Figure 14 - Cost vs runtime</figcaption>
+  </figure>
+</div>
+
+<p><small class="credits">The achievements and insights showcased in this article are indebted to the contributions made by Mihai Chintoanu. His expertise and collaborative efforts have profoundly enriched the content and findings presented herein.</small></p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#big-data" class="label tags-label">Big Data</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#data-processing" class="label tags-label">Data processing</a>
+  
+    <a href="/tags#grabmaps" class="label tags-label">GrabMaps</a>
+  
+    <a href="/tags#hyperlocalisation" class="label tags-label">Hyperlocalisation</a>
+  
+    <a href="/tags#maps" class="label tags-label">Maps</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Road localisation in GrabMaps&url=https://engineering.grab.com/road-localisation-grabmaps&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/road-localisation-grabmaps" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/road-localisation-grabmaps&title=Road localisation in GrabMaps
+&summary=With GrabMaps powering the Grab superapp we have the opportunity to improve our services and enhance our map with hyperlocal data. No matter the use case, road localisation plays an important role in Grab’s map-making process. However, road localisation entails handling a substantial volume of data, making it a costly and time-consuming endeavour. In this article, we explore the strategies we have implemented to drive down costs and reduce processing times associated with road localisation.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/road-localisation-grabmaps';
+    this.page.identifier = '/road-localisation-grabmaps';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>

@@ -6,9 +6,233 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 08 Nov 2023 08:26:02 +0000</pubDate>
-    <lastBuildDate>Wed, 08 Nov 2023 08:26:02 +0000</lastBuildDate>
+    <pubDate>Fri, 17 Nov 2023 10:21:12 +0000</pubDate>
+    <lastBuildDate>Fri, 17 Nov 2023 10:21:12 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Road localisation in GrabMaps</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;In 2022, Grab achieved self-sufficiency in its Geo services. As part of this transition, one crucial step was moving towards using an internally-developed map tailored specifically to the market in which Grab operates. Now that we have full control over the map layer, we can add more data to it or improve it according to the needs of the services running on top. One key aspect that this transition unlocked for us was the possibility of creating hyperlocal data at map level.&lt;/p&gt;
+
+&lt;p&gt;For instance, by determining the country to which a road belongs, we can now automatically infer the official language of that country and display the street name in that language. In another example, knowing the country for a specific road, we can automatically infer the driving side (left-handed or right-handed) leading to an improved navigation experience. Furthermore, this capability also enables us to efficiently handle various scenarios. For example, if we know that a road is part of a gated community, an area where our driver partners face restricted access, we can prevent the transit through that area.&lt;/p&gt;
+
+&lt;p&gt;These are just some examples of the possibilities from having full control over the map layer. By having an internal map, we can align our maps with specific markets and provide better experiences for our driver-partners and customers.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;For all these to be possible, we first needed to localise the roads inside the map. Our goal was to include hyperlocal data into the map, which refers to data that is specific to a certain area, such as a country, city, or even a smaller part of the city like a gated community. At the same time, we aimed to deliver our map with a high cadence, thus, we needed to find the right way to process this large amount of data while continuing to create maps in a cost-effective manner.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;In the following sections of this article, we will use an extract from the Southeast Asia map to provide visual representations of the concepts discussed.&lt;/p&gt;
+
+&lt;p&gt;In Figure 1, Image 1 shows a visualisation of the road network, the roads belonging to this area. The coloured lines in Image 2 represent the borders identifying the countries in the same area. Overlapping the information from Image 1 and Image 2, we can extrapolate and say that the entire surface included in a certain border could have the same set of common properties as shown in Image 3. In Image 4, we then proceed with adding localised roads for each area.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/localisation.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1 - Map of Southeast Asia&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;For this to be possible, we have to find a way to localise each road and identify its associated country. Once this localisation process is complete, we can replicate all this information specific to a given border onto each individual road. This information includes details such as the country name, driving side, and official language. We can go even further and infer more information, and add hyperlocal data. For example, in Vietnam, we can automatically prevent motorcycle access on the motorways.&lt;/p&gt;
+
+&lt;p&gt;Assigning each road on the map to a specific area, such as a country, service area, or subdivision, presents a complex task. So, how can we efficiently accomplish this?&lt;/p&gt;
+
+&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;/h2&gt;
+
+&lt;p&gt;The most straightforward approach would be to test the inclusion of each road into each area boundary, but that is easier said than done. With close to 30 million road segments in the Southeast Asia map and over 10 thousand areas, the computational cost of determining inclusion or intersection between a polyline and a polygon is expensive.&lt;/p&gt;
+
+&lt;p&gt;Our solution to this challenge involves replacing the expensive yet precise operation with a decent approximation. We introduce a proxy entity, the geohash, and we use it to approximate the areas and also to localise the roads.&lt;/p&gt;
+
+&lt;p&gt;We replace the geometrical inclusion with a series of simpler and less expensive operations. First, we conduct an inexpensive precomputation where we identify all the geohases that belong to a certain area or within a defined border. We then identify the geohashes to which the roads  belong to. Finally, we use these precomputed values to assign roads to their respective areas. This process is also computationally inexpensive.&lt;/p&gt;
+
+&lt;p&gt;Given the large area we process, we leverage big data techniques to distribute the execution across multiple nodes and thus speed up the operation. We want to deliver the map daily and this is one of the many operations that are part of the map-making process.&lt;/p&gt;
+
+&lt;h3 id=&quot;what-is-a-geohash&quot;&gt;What is a geohash?&lt;/h3&gt;
+
+&lt;p&gt;To further understand our implementation we will first explain the &lt;a href=&quot;https://en.wikipedia.org/wiki/Geohash&quot;&gt;geohash concept&lt;/a&gt;. A geohash is a unique identifier of a specific region on the Earth. The basic idea is that the Earth is divided into regions of user-defined size and each region is assigned a unique id, which is known as its geohash. For a given location on earth, the geohash algorithm converts its latitude and longitude into a string.&lt;/p&gt;
+
+&lt;p&gt;Geohashes uses a Base-32 alphabet encoding system comprising characters ranging from  0 to 9 and A to Z, excluding “A”, “I”, “L” and “O”. Imagine dividing the world into a grid with 32 cells. The first character in a geohash identifies the initial location of one of these 32 cells. Each of these cells are then further subdivided into 32 smaller cells.This subdivision process continues and refines to specific areas in the world. Adding characters to the geohash sub-divides a cell, effectively zooming in to a more detailed area.&lt;/p&gt;
+
+&lt;p&gt;The precision factor of the geohash determines the size of the cell. For instance, a precision factor of one creates a cell 5,000 km high and 5,000 km wide. A precision factor of six creates a cell 0.61km high and 1.22 km wide. Furthermore, a precision factor of nine creates a cell 4.77 m high and 4.77 m wide. It is important to note that cells are not always square and can have varying dimensions.&lt;/p&gt;
+
+&lt;p&gt;In Figure 2,  we have exemplified a geohash 6 grid and its code is &lt;strong&gt;wsdt33&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/geohash-code-wsdt33.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2 - An example of geohash code wsdt33&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;using-less-expensive-operations&quot;&gt;Using less expensive operations&lt;/h3&gt;
+
+&lt;p&gt;Calculating the inclusion of the roads inside a certain border is an expensive operation. However, quantifying the exact expense is challenging as it depends on several factors. One factor is the complexity of the border. Borders are usually irregular and very detailed, as they need to correctly reflect the actual border. The complexity of the road geometry is another factor that plays an important role as roads are not always straight lines.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/roads-to-localise.png&quot; alt=&quot;&quot; style=&quot;width:30%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3 - Roads to localise&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Since this operation is expensive both in terms of cloud cost and time to run, we need to identify a cheaper and faster way that would yield similar results. Knowing that the complexity of the border lines is the cause of the problem, we tried using a different alternative, a rectangle. Calculating the inclusion of a polyline inside a rectangle is a cheaper operation.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/roads-inside-rectangle.png&quot; alt=&quot;&quot; style=&quot;width:20%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4 - Roads inside a rectangle&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;So we transformed this large, one step operation, where we test each road segment for inclusion in a border, into a series of smaller operations where we perform the following steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Identify all the geohashes that are part of a certain area or belong to a certain border. In this process we include additional areas to make sure that we cover the entire surface inside the border.&lt;/li&gt;
+  &lt;li&gt;For each road segment, we identify the list of geohashes that it belongs to. A road, depending on its length or depending on its shape, might belong to multiple geohashes.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;In Figure 5, we identify that the road belongs to two geohashes and that the two geohashes are part of the border we use.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/geohash-proxy.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5 - Geohashes as proxy&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Now, all we need to do is join the two data sets together. This kind of operation is a great candidate for a big data approach, as it allows us to run it in parallel and speed up the processing time.&lt;/p&gt;
+
+&lt;h2 id=&quot;precision-tradeoff&quot;&gt;Precision tradeoff&lt;/h2&gt;
+
+&lt;p&gt;We mentioned earlier that, for the sake of argument, we replace precision with a decent approximation. Let’s now delve into the real tradeoff by adopting this approach.&lt;/p&gt;
+
+&lt;p&gt;The first thing that stands out with this approach is that we traded precision for cost. We are able to reduce the cost as this approach uses less hardware resources and computation time. However, this reduction in precision suffers, particularly for roads located near the borders as they might be wrongly classified.&lt;/p&gt;
+
+&lt;p&gt;Going back to the initial example, let’s take the case of the external road, on the left side of the area. As you can see in Figure 6, it is clear that the road does not belong to our border. But when we apply the geohash approach it gets included into the middle geohash.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/wrong-road-localisation.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6 - Wrong road localisation&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Given that just a small part of the geohash falls inside the border, the entire geohash will be classified as belonging to that area, and, as a consequence, the road that belongs to that geohash will be wrongly localised and we’ll end up adding the wrong localisation information to that road. This is clearly a consequence of the precision tradeoff. So, how can we solve this?&lt;/p&gt;
+
+&lt;h3 id=&quot;geohash-precision&quot;&gt;Geohash precision&lt;/h3&gt;
+
+&lt;p&gt;One option is to increase the geohash precision. By using smaller and smaller geohashes, we can better reflect the actual area. As we go deeper and we further split the geohash, we can accurately follow the border. However, a high geohash precision also equates to a computationally intensive operation bringing us back to our initial situation. Therefore, it is crucial to find the right balance between the geohash size and the complexity of operations.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/geohash-precision.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7 - Geohash precision&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;geohash-coverage-percentage&quot;&gt;Geohash coverage percentage&lt;/h3&gt;
+
+&lt;p&gt;To find a balance between precision and data loss, we looked into calculating the geohash coverage percentage. For example, in Figure 8, the blue geohash is entirely within the border.  Here we can say that it has a 100% geohash coverage.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/geohash-inside-border.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8 - Geohash inside the border&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;However, take for example the geohash in Figure 9. It touches the border and has only around 80% of its surface inside the area. Given that most of its surface is within the border, we still can say that it belongs to the area.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/geohash-partial-border.png&quot; alt=&quot;&quot; style=&quot;width:20%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 9 - Geohash partially inside the border&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Let’s look at another example. In Figure 10, only a small part of the geohash is within the border. We can say that the geohash coverage percentage here is around 5%. For these cases, it becomes difficult for us to determine whether the geohash does belong to the area. What would be a good tradeoff in this case?&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/geohash-barely-border.png&quot; alt=&quot;&quot; style=&quot;width:20%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 10 - Geohash barely inside the border&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;border-shape&quot;&gt;Border shape&lt;/h3&gt;
+
+&lt;p&gt;To go one step further, we can consider a mixed solution, where we use the border shape but only for the geohashes touching the border. This would still be an intensive computational operation but the number of roads located in these geohashes will be much smaller, so it is still a gain.&lt;/p&gt;
+
+&lt;p&gt;For the geohashes with full coverage inside the area, we’ll use the geohash for the localisation, the simpler operation. For the geohashes that are near the border, we’ll use a different approach. To increase the precision around the borders, we can cut the geohash following the  border’s shape. Instead of having a rectangle, we’ll use a more complex shape which is still simpler than the initial border shape.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/geohash-border-shape.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 11 - Geohash following a border’s shape&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;result&quot;&gt;Result&lt;/h2&gt;
+
+&lt;p&gt;We began with a simple approach and we enhanced it to improve precision. This also increased the complexity of the operation. We then asked, what are the actual gains? Was it worthwhile to go through all this process? In this section, we put this to the test.&lt;/p&gt;
+
+&lt;p&gt;We first created a benchmark by taking a small sample of the data and ran the localisation process on a laptop. The sample comprised approximately 2% of the borders and 0.0014% of the roads. We ran the localisation process using two approaches.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;With the first approach, we calculated the intersection between all the roads and borders. The entire operation took around 38 minutes.&lt;/li&gt;
+  &lt;li&gt;For the second approach, we optimised the operation using geohashes. In this approach, the runtime was only 78 seconds (1.3 minutes).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;However, it is important to note that this is not an apples-to-apples comparison. The operation that we measured was the localisation of the roads but we did not include the border filling operation where we fill the borders with geohashes. This is because this operation does not need to be run every time. It can be run once and reused multiple times.&lt;/p&gt;
+
+&lt;p&gt;Though not often required, it is still crucial to understand and consider the operation of precomputing areas and filling borders with geohashes. The precomputation process depends on several factors:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Number and shape of the borders - The more borders and the more complex the borders are, the longer the operation will take.&lt;/li&gt;
+  &lt;li&gt;Geohash precision - How accurate do we need our localisation to be? The more accurate it needs to be, the longer it will take.&lt;/li&gt;
+  &lt;li&gt;Hardware availability&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Going back to our hypothesis, although this precomputation might be expensive, it is rarely run as the borders don’t change often and can be triggered only when needed. However, regular computation, where we find the area to which each road belongs to, is often run as the roads change constantly. In our system, we run this localisation for each map processing.&lt;/p&gt;
+
+&lt;p&gt;We can also further optimise this process by applying the opposite approach. Geohashes that have full coverage inside a border can be merged together into larger geohashes thus simplifying the computation inside the border. In the end, we can have a solution that is fully optimised for our needs with the best cost-to-performance ratio.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/optimised-geohash.png&quot; alt=&quot;&quot; style=&quot;width:20%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 12 - Optimised geohashes&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Although geohashes seem to be the right solution for this kind of problem, we also need to monitor their content. One consideration is the road density inside a geohash. For example, a geohash inside a city centre usually has a lot of roads while one in the countryside may have much less. We need to consider this aspect to have a balanced computation operation and take full advantage of the big data approach. In our case, we achieve this balance by considering the number of road kilometres within a geohash.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/unbalanced-data.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 13 - Unbalanced data&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Additionally, the resources that we choose also matter. To optimise time and cost, we need to find the right balance between the running time and resource cost. As shown in Figure 14, based on a sample data we ran, sometimes, we get the best result when using smaller machines.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/road-localisation-grabmaps/cost-vs-runtime.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 14 - Cost vs runtime&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;The achievements and insights showcased in this article are indebted to the contributions made by Mihai Chintoanu. His expertise and collaborative efforts have profoundly enriched the content and findings presented herein.&lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+
+</description>
+        <pubDate>Fri, 17 Nov 2023 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/road-localisation-grabmaps</link>
+        <guid isPermaLink="true">https://engineering.grab.com/road-localisation-grabmaps</guid>
+        
+        <category>Maps</category>
+        
+        <category>Data</category>
+        
+        <category>Big Data</category>
+        
+        <category>Data processing</category>
+        
+        <category>Hyperlocalisation</category>
+        
+        <category>GrabMaps</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+        <category>Product</category>
+        
+      </item>
     
       <item>
         <title>Graph modelling guidelines</title>
@@ -1606,158 +1830,6 @@ export GONOPROXY=&quot;none&quot;
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>PII masking for privacy-grade machine learning</title>
-        <description>&lt;p&gt;At Grab, data engineers work with large sets of data on a daily basis. They design and build advanced machine learning models that provide strategic insights using all of the data that flow through the Grab Platform. This enables us to provide a better experience to our users, for example by increasing the supply of drivers in areas where our predictive models indicate a surge in demand in a timely fashion.&lt;/p&gt;
-
-&lt;p&gt;Grab has a mature privacy programme that complies with applicable privacy laws and regulations and we use tools to help identify, assess, and appropriately manage our privacy risks. To ensure that our users’ data are well-protected and avoid any human-related errors, we always take extra measures to secure this data.&lt;/p&gt;
-
-&lt;p&gt;However, data engineers &lt;strong&gt;will still require&lt;/strong&gt; access to actual production data in order to tune effective machine learning models and ensure the models work as intended in production.&lt;/p&gt;
-
-&lt;p&gt;In this article, we will describe how the Grab’s data streaming team (Coban), along with the data platform and user teams, have enforced Personally Identifiable Information (PII) masking on machine learning data streaming pipelines. This ensures that we uphold a high standard and embody a &lt;em&gt;privacy by design&lt;/em&gt; culture, while enabling data engineers to refine their models with sanitised production data.&lt;/p&gt;
-
-&lt;h2 id=&quot;pii-tagging&quot;&gt;PII tagging&lt;/h2&gt;
-
-&lt;p&gt;Data streaming at Grab leverages the Protocol Buffers (&lt;a href=&quot;https://protobuf.dev/&quot;&gt;protobuf&lt;/a&gt;) data format to structure in-transit data. When creating a new stream, developers &lt;strong&gt;must&lt;/strong&gt; describe its fields in a protobuf schema that is then used for serialising the data wherever it is sent over the wire, and deserialising it wherever it is consumed.&lt;/p&gt;
-
-&lt;p&gt;A fictional example schema looks like this (the indexes are arbitrary, but commonly created in sequence):&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;message Booking {
-  string bookingID = 1;
-  int64 creationTime = 2;
-  int64 passengerID = 3;
-  string passengerName = 4;
-  ... truncated output ...
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Over here, the fourth field &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;passengerName&lt;/code&gt; involves a PII and the data pertaining to that field should never be accessible by any data engineer. Therefore, developers owning the stream must tag that field with a PII label like this:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;import &quot;streams/coban/options/v1/pii.proto&quot;;
-
-message Booking {
-  string bookingID = 1;
-  int64 creationTime = 2;
-  int64 passengerID = 3;
-  string passengerName = 4 [(streams.coban.options.v1.pii_type) = PII_TYPE_NAME];
-  ... truncated output ...
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The imported &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pii.proto&lt;/code&gt; library defines the tags for all possible types of PII. In the example above, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;passengerName&lt;/code&gt; field has not only been flagged as PII, but is also marked as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PII_TYPE_NAME&lt;/code&gt; – a specific type of PII that conveys the names of individuals. This high-level typing enables more flexible PII masking methods, which we will explain later.&lt;/p&gt;
-
-&lt;p&gt;Once the PII fields have been properly identified and tagged, developers need to publish the schema of their new stream into Coban’s Git repository. A Continuous Integration (CI) pipeline described below ensures that all fields describing PII are correctly tagged.&lt;/p&gt;
-
-&lt;p&gt;The following diagram shows this CI pipeline in action.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/pii-masking/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 1 CI pipeline failure due to untagged PII fields&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;When a developer creates a Merge Request (MR) or pushes a new commit to create or update a schema (step 1), the CI pipeline is triggered. It runs an in-house Python script that scans each variable name of the committed schema and tests it against an extensive list of PII keywords that is regularly updated, such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;name&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;address&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;email&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;phone&lt;/code&gt;, etc (step 2). If there is a match and the variable is not tagged with the expected PII label, the pipeline fails (step 3) with an explicit error message in the CI pipeline’s output, similar to this:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Field name [Booking.passengerName] should have been marked with type streams.coban.options.v1.pii_type = PII_TYPE_NAME
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;There are cases where a variable name in the schema is a partial match against a PII keyword but is legitimately not a PII – for example, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;carModelName&lt;/code&gt; is a partial match against &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;name&lt;/code&gt; but does not contain PII data. In this case, the developer can choose to add it to a whitelist to pass the CI.&lt;/p&gt;
-
-&lt;p&gt;However, modifying the whitelist requires approval from the Coban team for verification purposes. Apart from this particular case, the requesting team can autonomously approve their MR in a self-service fashion.&lt;/p&gt;
-
-&lt;p&gt;Now let us look at an example of a successful CI pipeline execution.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/pii-masking/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 2 CI pipeline success and schema publishing&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In Fig. 2, the committed schema (step 1) is properly tagged so our in-house Python script is unable to find any untagged PII fields (step 2). The MR is approved by a code owner (step 3), then merged to the master branch of the repository (step 4).&lt;/p&gt;
-
-&lt;p&gt;Upon merging, another CI pipeline is triggered to package the protobuf schema in a Java Archive (JAR) of &lt;a href=&quot;https://docs.scala-lang.org/tour/classes.html&quot;&gt;Scala classes&lt;/a&gt; (step 5), which in turn is stored into a package registry (step 6). We will explain the reason for this in a later section.&lt;/p&gt;
-
-&lt;h2 id=&quot;production-environment&quot;&gt;Production environment&lt;/h2&gt;
-
-&lt;p&gt;With the schemas published and all of their PII fields properly tagged, we can now take a look at the data streaming pipelines.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/pii-masking/image3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 3 PII flow in the production environment&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In this example, the user generates data by interacting with the Grab superapp and making a booking (step 1). The booking service, compiled with the stream’s schema definition, generates and produces Kafka records for other services to consume (step 2). Among those consuming services are the production machine learning pipelines that are of interest to this article (step 3).&lt;/p&gt;
-
-&lt;p&gt;PII is not masked in this process because it is actually required by the consuming services. For example, the driver app needs to display the passenger’s actual name, so the driver can confirm their identity easily.&lt;/p&gt;
-
-&lt;p&gt;At this part of the process, this is not much of a concern because access to the sacrosanct production environment is highly restricted and monitored by Grab.&lt;/p&gt;
-
-&lt;h2 id=&quot;pii-masking&quot;&gt;PII masking&lt;/h2&gt;
-
-&lt;p&gt;To ensure the security, stability, and privacy of our users, data engineers who need to tune their new machine learning models based on production data are &lt;strong&gt;not granted access&lt;/strong&gt; to the production environment. Instead, they have access to the staging environment, where production data is mirrored and PII is masked.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/pii-masking/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 4 PII masking pipeline from the production environment to the staging environment&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The actual PII masking is performed by an in-house &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; application that resides in the production environment. Flink is a reference framework for data streaming that we use extensively. It is also fault tolerant, with the ability to restart from a checkpoint.&lt;/p&gt;
-
-&lt;p&gt;The Flink application is compiled along with the JAR containing the schema as Scala classes previously mentioned. Therefore, it is able to consume the original data as a regular Kafka consumer (step 1). It then dynamically masks the PII of the consumed data stream, based on the PII tags of the schema (step 2). Ultimately, it produces the sanitised data to the Kafka cluster in the staging environment as a normal Kafka producer (step 3).&lt;/p&gt;
-
-&lt;p&gt;Depending on the kind of PII, there are several methods of masking such as:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Names and strings of characters&lt;/strong&gt;: They are replaced by consistent &lt;a href=&quot;https://csrc.nist.gov/glossary/term/hash_based_message_authentication_code&quot;&gt;HMAC&lt;/a&gt; (Hash-based message authentication code). A HMAC is a digest produced by a one-way cryptographic hash function that takes a secret key as a parameter. Leveraging a secret key here is a defence against chosen plaintext attacks, i.e. computing the digest of a particular plaintext, like a targeted individual’s name.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Numbers and dates&lt;/strong&gt;: Similarly, they are transformed in a consistent manner, by leveraging a random generator that takes the unmasked value as a seed, so that the same PII input consistently produces the same masked output.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Note that consistency is a recurring pattern. This is because it is a key requirement for certain machine learning models.&lt;/p&gt;
-
-&lt;p&gt;This sanitised data produced to the Kafka cluster in the staging environment is then consumed by the staging machine learning pipelines (step 4). There, it is used by data engineers to tune their models effectively with near real-time production data (step 5).&lt;/p&gt;
-
-&lt;p&gt;The Kafka cluster in the staging environment is secured with authorisation and authentication (see &lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Zero Trust with Kafka&lt;/a&gt;). This is an extra layer of security in case some PII data inadvertently fall through the cracks of PII tagging, following the defence in depth principle.&lt;/p&gt;
-
-&lt;p&gt;Finally, whenever a new PII-tagged field is added to a schema, the PII masking Flink application needs to be compiled and deployed again. If the schema is not updated, the Flink pipeline is unable to decode this new field when deserialising the stream. Thus, the added field is just dropped and the new PII data does not make it to the staging environment.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;For the immediate next steps, we are going to enhance this design with an in-house product based on &lt;a href=&quot;https://aws.amazon.com/macie/&quot;&gt;AWS Macie&lt;/a&gt; to automatically detect the PII that would have fallen through the cracks. Caspian, Grab’s data lake team and one of Coban’s sister teams, has built a service that is already able to detect PII data in relational databases and data lake tables. It is currently being adapted for data streaming.&lt;/p&gt;
-
-&lt;p&gt;In the longer run, we are committed to taking our privacy by design posture to the next level. Indeed, the PII masking described in this article does not prevent a bad actor from retrieving the consistent hash of a particular individual based on their non-PII data. For example, the target might be identifiable by a signature in the masked data set, such as unique food or transportation habits.&lt;/p&gt;
-
-&lt;p&gt;A possible counter-measure could be one or a combination of the following techniques, ordered by difficulty of implementation:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Data minimisation&lt;/strong&gt;: Non-essential fields in the data stream should not be mirrored at all. E.g. fields of the data stream that are not required by the data engineers to tune their models. We can introduce a dedicated tag in the schema to flag those fields and instruct the mirroring pipeline to drop them. This is the most straightforward approach.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Differential privacy&lt;/strong&gt;: The mirroring pipeline could introduce some noise in the mirrored data, in a way that would obfuscate the signatures of particular individuals while still preserving the essential statistical properties of the dataset required for machine learning. It happens that Flink is a suitable framework to do so, as it can split a stream into multiple windows and apply computation over those windows. Designing and generalising a logic that meets the objective is challenging though.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;PII encryption at source&lt;/strong&gt;: PII could be encrypted by the producing services (like the booking service), and dynamically decrypted where plaintext values are required. However, key management and performance are two tremendous challenges of this approach.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We will explore these techniques further to find the solution that works best for Grab and ensures the highest level of privacy for our users.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 01 Jun 2023 01:18:00 +0000</pubDate>
-        <link>https://engineering.grab.com/pii-masking</link>
-        <guid isPermaLink="true">https://engineering.grab.com/pii-masking</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Privacy</category>
-        
-        <category>Data masking</category>
-        
-        <category>Machine learning</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Security</category>
         
       </item>
     
