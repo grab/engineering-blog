@@ -3,7 +3,7 @@ layout: post
 id: 2023-11-20-road-localisation-grabmaps
 title: 'Road localisation in GrabMaps'
 date: 2023-11-17 00:00:10
-authors: [roxana-crisan, mihai-chintoanu]
+authors: [roxana-crisan]
 categories: [Engineering, Data Science, Product]
 tags: [Maps, Data, Big Data, Data processing, Hyperlocalisation, GrabMaps]
 comments: true
