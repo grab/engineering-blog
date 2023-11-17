@@ -2,7 +2,7 @@
 layout: post
 id: 2023-11-20-road-localisation-grabmaps
 title: 'Road localisation in GrabMaps'
-date: 2023-11-08 00:00:10
+date: 2023-11-17 00:00:10
 authors: [roxana-crisan, mihai-chintoanu]
 categories: [Engineering, Data Science, Product]
 tags: [Maps, Data, Big Data, Data processing, Hyperlocalisation, GrabMaps]
@@ -192,6 +192,8 @@ Additionally, the resources that we choose also matter. To optimise time and cos
   <img src="/img/road-localisation-grabmaps/cost-vs-runtime.png" alt="" style="width:80%"><figcaption align="middle">Figure 14 - Cost vs runtime</figcaption>
   </figure>
 </div>
+
+<small class="credits">The achievements and insights showcased in this article are indebted to the contributions made by Mihai Chintoanu. His expertise and collaborative efforts have profoundly enriched the content and findings presented herein.</small>
 
 # Join us
 
