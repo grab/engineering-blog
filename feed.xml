@@ -6,9 +6,298 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 17 Nov 2023 10:21:12 +0000</pubDate>
-    <lastBuildDate>Fri, 17 Nov 2023 10:21:12 +0000</lastBuildDate>
+    <pubDate>Thu, 30 Nov 2023 02:55:41 +0000</pubDate>
+    <lastBuildDate>Thu, 30 Nov 2023 02:55:41 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>An elegant platform</title>
+        <description>&lt;p&gt;Coban is Grab’s real-time data streaming platform team. As a platform team, we thrive on providing our internal users from all verticals with self-served data-streaming resources, such as &lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt; topics, &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; and &lt;a href=&quot;https://www.confluent.io/learn/change-data-capture/&quot;&gt;Change Data Capture&lt;/a&gt; (CDC) pipelines, various kinds of &lt;a href=&quot;https://docs.confluent.io/platform/current/connect/&quot;&gt;Kafka-Connect&lt;/a&gt; connectors, as well as &lt;a href=&quot;https://zeppelin.apache.org/&quot;&gt;Apache Zeppelin&lt;/a&gt; notebooks, so that they can effortlessly leverage real-time data to build intelligent applications and services.&lt;/p&gt;
+
+&lt;p&gt;In this article, we present our journey from pure Infrastructure-as-Code (IaC) towards a more sophisticated control plane that has revolutionised the way data streaming resources are self-served at Grab. This change also leads to improved scalability, stability, security, and user adoption of our data streaming platform.&lt;/p&gt;
+
+&lt;h2 id=&quot;problem-statement&quot;&gt;Problem statement&lt;/h2&gt;
+
+&lt;p&gt;In the early ages of public cloud, it was a common practice to create virtual resources by clicking through the web console of a cloud provider, which is sometimes referred to as &lt;em&gt;ClickOps&lt;/em&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;
+&lt;em&gt;ClickOps&lt;/em&gt; has many downsides, such as:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Inability to review, track, and audit changes to the infrastructure.&lt;/li&gt;
+  &lt;li&gt;Inability to massively scale the infrastructure operations.&lt;/li&gt;
+  &lt;li&gt;Inconsistencies between environments, e.g. staging and production.&lt;/li&gt;
+  &lt;li&gt;Inability to quickly recover from a disaster by re-creating the infrastructure at a different location.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;That said, &lt;em&gt;ClickOps&lt;/em&gt; has one tremendous advantage; it makes creating resources using a graphical User Interface (UI) fairly easy for anyone like Infrastructure Engineers, Software Engineers, Data Engineers etc. This also leads to a high iteration speed towards innovation in general.&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;
+IaC resolved many of the limitations of &lt;em&gt;ClickOps&lt;/em&gt;, such as:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Changes are committed to a Version Control System (VCS) like Git: They can be reviewed by peers before being merged. The full history of all changes is available for investigating issues and for audit.&lt;/li&gt;
+  &lt;li&gt;The infrastructure operations scale better: Code for similar pieces of infrastructure can be modularised. Changes can be rolled out automatically by Continuous Integration (CI) pipelines in the VCS system, when a change is merged to the main branch.&lt;/li&gt;
+  &lt;li&gt;The same code can be used to deploy the staging and production environments consistently.&lt;/li&gt;
+  &lt;li&gt;The infrastructure can be re-created anytime from its source code, in case of a disaster.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;However, IaC unwittingly posed a new entry barrier too, requiring the learning of new tools like Ansible, Puppet, Chef, Terraform, etc.&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;
+Some organisations set up dedicated Site Reliability Engineer (SRE) teams to centrally manage, operate, and support those tools and the infrastructure as a whole, but that soon created the potential of new bottlenecks in the path to innovation.&lt;/p&gt;
+
+&lt;p&gt;On the other hand, others let engineering teams manage their own infrastructure, and Grab adopted that same approach. We use &lt;a href=&quot;https://www.terraform.io/&quot;&gt;Terraform&lt;/a&gt; to manage infrastructure, and all teams are expected to have select engineers who have received Terraform training and have a clear understanding of it.&lt;/p&gt;
+
+&lt;p&gt;In this context, Coban’s platform initially started as a handful of Git repositories where users had to submit their Merge Requests (MR) of Terraform code to create their data streaming resources. Once reviewed by a Coban engineer, those Terraform changes would be applied by a CI pipeline running &lt;a href=&quot;https://www.runatlantis.io/&quot;&gt;Atlantis&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;
+While this was a meaningful first step towards self-service and platformisation of Coban’s offering within Grab, it had several significant downsides:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Stability&lt;/strong&gt;: Due to the lack of control on the Terraform changes, the CI pipeline was prone to human errors and frequent failures. For example, users would initiate a new Terraform project by duplicating an existing one, but then would forget to change the location of the remote Terraform state, leading to the in-place replacement of an existing resource.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scalability&lt;/strong&gt;: The Coban team needed to review all MRs and provide ad hoc support whenever the pipeline failed.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Security&lt;/strong&gt;: In the absence of Identity and Access Management (IAM), MRs could potentially contain changes pertaining to other teams’ resources, or even changes to Coban’s core infrastructure, with code review as the only guardrail.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Limited user growth&lt;/strong&gt;: We could only acquire users who were well-versed in Terraform.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;It soon became clear that we needed to build a layer of abstraction between our users and the Terraform code, to increase the level of control and lower the entry barrier to our platform, while still retaining all of the benefits of IaC under the hood.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;We designed and built an in-house three-tier control plane made of:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Coban UI&lt;/strong&gt;, a front-end web interface, providing our users with a seamless ClickOps experience.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Heimdall&lt;/strong&gt;, the Go back-end of the web interface, transforming ClickOps into IaC.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Khone&lt;/strong&gt;, the storage and provisioner layer, a Git repository storing Terraform code and metadata of all resources as well as the CI pipelines to plan and apply the changes.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In the next sections, we will deep dive in those three components.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 1 Simplified architecture of a request flowing from the user to the Coban infrastructure, via the three components of the control plane: the Coban UI, Heimdall, and Khone.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Although we designed the user journey to start from the Coban UI, our users can still opt to communicate with Heimdall and with Khone directly, e.g. for batch changes, or just because many engineers love Git and we want to encourage broad adoption. To make sure that data is eventually consistent across the three systems, we made Khone the only persistent storage layer. Heimdall regularly fetches data from Khone, caches it, and presents it to the Coban UI upon each query.&lt;/p&gt;
+
+&lt;p&gt;We also continued using Terraform for all resources, instead of mixing various declarative infrastructure approaches (e.g. Kubernetes &lt;a href=&quot;https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/&quot;&gt;Custom Resource Definition&lt;/a&gt;, &lt;a href=&quot;https://helm.sh/docs/topics/charts/&quot;&gt;Helm charts&lt;/a&gt;), for the sake of consistency of the logic in Khone’s CI pipelines.&lt;/p&gt;
+
+&lt;h3 id=&quot;coban-ui&quot;&gt;Coban UI&lt;/h3&gt;
+
+&lt;p&gt;The Coban UI is a &lt;a href=&quot;https://react.dev/&quot;&gt;React&lt;/a&gt; &lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Glossary/SPA&quot;&gt;Single Page Application&lt;/a&gt; (React SPA) designed by our partner team Chroma, a dedicated team of front-end engineers who thrive on building legendary UIs and reusable components for platform teams at Grab.&lt;/p&gt;
+
+&lt;p&gt;It serves as a comprehensive self-service portal, enabling users to effortlessly create data streaming resources by filling out web forms with just a few clicks.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image7.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 2 Screen capture of a new Kafka topic creation in the Coban UI.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In addition to facilitating resource creation and configuration, the Coban UI is seamlessly integrated with multiple monitoring systems. This integration allows for real-time monitoring of critical metrics and health status for Coban infrastructure components, including Kafka clusters, Kafka topic bytes in/out rates, and more. Under the hood, all this information is exposed by Heimdall APIs.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 3 Screen capture of the metrics of a Kafka cluster in the Coban UI.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In terms of infrastructure, the Coban UI is hosted in &lt;a href=&quot;https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteHosting.html&quot;&gt;AWS S3 website hosting&lt;/a&gt;. All dynamic content is generated by querying the APIs of the back-end: Heimdall.&lt;/p&gt;
+
+&lt;h3 id=&quot;heimdall&quot;&gt;Heimdall&lt;/h3&gt;
+
+&lt;p&gt;Heimdall is the Go back-end of the Coban UI. It serves a collection of APIs for:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Managing the data streaming resources of the Coban platform with Create, Read, Update and Delete (CRUD) operations, treating the Coban UI as a first-class citizen.&lt;/li&gt;
+  &lt;li&gt;Exposing the metadata of all Coban resources, so that they can be used by other platforms or searched in the Coban UI.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;All operations are authenticated and authorised. Read more about Heimdall’s access control in &lt;a href=&quot;/migrating-to-abac&quot;&gt;Migrating from Role to Attribute-based Access Control&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;In the next sections, we are going to dive deeper into these two features.&lt;/p&gt;
+
+&lt;h4 id=&quot;managing-the-data-streaming-resources&quot;&gt;Managing the data streaming resources&lt;/h4&gt;
+
+&lt;p&gt;First and foremost, Heimdall enables our users to self-manage their data streaming resources. It primarily relies on Khone as its storage and provisioner layer for actual resource management via Git CI pipelines. Therefore, we designed Heimdall’s resource management workflow to leverage the underlying Git flow.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 4 Diagram flow of a request in Heimdall.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 4 shows the diagram flow of a typical request in Heimdall to create, update, or delete a resource.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;An authenticated user initiates a request, either by navigating in the Coban UI or by calling the Heimdall API directly. At this stage, the request state is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Initiated&lt;/code&gt; on Heimdall.&lt;/li&gt;
+  &lt;li&gt;Heimdall validates the request against multiple validation rules. For example, if an ongoing change request exists for the same resource, the request fails. If all tests succeed, the request state moves to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Ongoing&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;Heimdall then creates an MR in Khone, which contains the Terraform files describing the desired state of the resource, as well as an in-house metadata file describing the key attributes of both resource and requester.&lt;/li&gt;
+  &lt;li&gt;After the MR has been created successfully, Heimdall notifies the requester via Slack and shares the MR URL.&lt;/li&gt;
+  &lt;li&gt;After that, Heimdall starts polling the status of the MR in a loop.&lt;/li&gt;
+  &lt;li&gt;For changes pertaining to production resources, an approver who is code owner in the repository of the resource has to approve the MR. Typically, the approver is an immediate teammate of the requester. Indeed, as a platform team, we empower our users to manage their own resources in a self-service fashion. Ultimately, the requester would merge the MR to trigger the CI pipeline applying the actual Terraform changes. Note that for staging resources, this entire step 6 is automatically performed by Heimdall.&lt;/li&gt;
+  &lt;li&gt;Depending on the MR status and the status of its CI pipeline in Khone, the final state of the request can be:
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Failed&lt;/code&gt; if the CI pipeline has failed in Khone.&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Completed&lt;/code&gt; if the CI pipeline has succeeded in Khone.&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Cancelled&lt;/code&gt; if the MR was closed in Khone.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Heimdall exposes APIs to let users track the status of their requests. In the Coban UI, a page queries those APIs to elegantly display the requests.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 5 Screen capture of the Coban UI showing all requests.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;exposing-the-metadata&quot;&gt;Exposing the metadata&lt;/h4&gt;
+
+&lt;p&gt;Apart from managing the data streaming resources, Heimdall also centralises and exposes the metadata pertaining to those resources so other Grab systems can fetch and use it. They can make various queries, for example, listing the producers and consumers of a given Kafka topic, or determining if a database (DB) is the data source for any CDC pipeline.&lt;/p&gt;
+
+&lt;p&gt;To make this happen, Heimdall not only retains the metadata of all of the resources that it creates, but also regularly ingests additional information from a variety of upstream systems and platforms, to enrich and make this metadata comprehensive.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 6 Diagram showing some of Heimdall's upstreams (on the left) and downstreams (on the right) for metadata collection, enrichment, and serving. The arrows show the data flow. The network connection (client -&amp;gt; server) is actually the other way around.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;br /&gt;
+On the left side of Fig. 6, we illustrate Heimdall’s ingestion mechanism with several examples (step 1):&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The metadata of all Coban resources is ingested from Khone. This means the metadata of the resources that were created directly in Khone is also available in Heimdall.&lt;/li&gt;
+  &lt;li&gt;The list of Kafka producers is retrieved from our monitoring platform, where most of them emit metrics.&lt;/li&gt;
+  &lt;li&gt;The list of Kafka consumers is retrieved directly from the respective Kafka clusters, by listing the &lt;a href=&quot;https://docs.confluent.io/platform/current/clients/consumer.html#consumer-groups&quot;&gt;consumer groups&lt;/a&gt; and respective &lt;a href=&quot;https://developer.confluent.io/faq/apache-kafka/kafka-clients/#kafka-clients-what-is-clientid-in-kafka&quot;&gt;Client IDs&lt;/a&gt; of each partition.&lt;/li&gt;
+  &lt;li&gt;The metadata of all DBs, that are used as a data source for CDC pipelines, is fetched from Grab’s internal DB management platform.&lt;/li&gt;
+  &lt;li&gt;The Kafka stream schemas are retrieved from the Coban schema repository.&lt;/li&gt;
+  &lt;li&gt;The Kafka stream configuration of each stream is retrieved from Grab Universal Configuration Management platform.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;With all of this ingested data, Heimdall can provide comprehensive and accurate information about all data streaming resources to any other Grab platforms via a set of dedicated APIs.&lt;/p&gt;
+
+&lt;p&gt;&lt;br /&gt;
+The right side of Fig. 6 shows some examples (step 2) of Heimdall’s serving mechanism:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;As a downstream of Heimdall, the Coban UI enables our direct users to conveniently browse their data streaming resources and access their attributes.&lt;/li&gt;
+  &lt;li&gt;The entire resource inventory is ingested into the broader Grab inventory platform, based on &lt;a href=&quot;https://backstage.io/&quot;&gt;backstage.io&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;The Kafka streams are ingested into Grab’s internal data discovery platform, based on &lt;a href=&quot;https://datahubproject.io/&quot;&gt;DataHub&lt;/a&gt;, where users can discover and trace the lineage of any piece of data.&lt;/li&gt;
+  &lt;li&gt;The CDC connectors pertaining to DBs are ingested by Grab internal DB management platform, so that they are made visible in that platform when users are browsing their DBs.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Note that the downstream platforms that ingest data from Heimdall each expose a particular view of the Coban inventory that serves their purpose, but the Coban platform remains the only source of truth for any data streaming resource at Grab.&lt;/p&gt;
+
+&lt;p&gt;Lastly, Heimdall leverages an internal MySQL DB to support quick data query and exploration. The corresponding API is called by the Coban UI to let our users conveniently search globally among all resources’ attributes.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image8.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 7 Screen capture of the global search feature in the Coban UI.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;khone&quot;&gt;Khone&lt;/h3&gt;
+
+&lt;p&gt;Khone is the persistent storage layer of our platform, as well as the executor for actual resource creation, changes, and deletion. Under the hood, it is actually a GitLab repository of Terraform code in typical &lt;a href=&quot;https://about.gitlab.com/topics/gitops/&quot;&gt;GitOps&lt;/a&gt; fashion, with CI pipelines to plan and apply the Terraform changes automatically. In addition, it also stores a metadata file for each resource.&lt;/p&gt;
+
+&lt;p&gt;Compared to letting the platform create the infrastructure directly and keep track of the desired state in its own way, relying on a standard IaC tool like Terraform for the actual changes to the infrastructure presents two major advantages:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The Terraform code can directly be used for disaster recovery. In case of a disaster, any entitled Cobaner with a local copy of the main branch of the Khone repository is able to recreate all our platform resources directly from their machine. There is no need to rebuild the entire platform’s control plane, thus reducing our Recovery Time Objective (RTO).&lt;/li&gt;
+  &lt;li&gt;Minimal effort required to follow the API changes of our infrastructure ecosystem (AWS, Kubernetes, Kafka, etc.). When such a change happens, all we need to do is to update the corresponding Terraform provider.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If you’d like to read more about Khone, check out &lt;a href=&quot;/securing-gitops-pipeline&quot;&gt;Securing GitOps pipelines&lt;/a&gt;. In this section, we will only focus on Khone’s features that are relevant from the platform perspective.&lt;/p&gt;
+
+&lt;h4 id=&quot;lightweightterraform&quot;&gt;Lightweight Terraform&lt;/h4&gt;
+
+&lt;p&gt;In Khone, each resource is stored as a Terraform definition. There are two major differences from a normal Terraform project:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;No Terraform environment, such as the required Terraform providers and the location of the remote Terraform state file. They are automatically generated by the CI pipeline via a simple wrapper.&lt;/li&gt;
+  &lt;li&gt;Only vetted Khone Terraform modules can be used. This is controlled and enforced by the CI pipeline via code inspection. There is one such Terraform module for each kind of supported resource of our platform (e.g. Kafka topic, Flink pipeline, Kafka Connect mirror source connector etc.). Furthermore, those in-house Terraform modules are designed to automatically derive their key variables (e.g. resource name, cluster name, environment) from the relative path of the parent Terraform project in the Khone repository.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Those characteristics are designed to limit the risk and blast radius of human errors. They also make sure that all resources created in Khone are supported by our platform, so that they can also be discovered and managed in Heimdall and the Coban UI. Lastly, by generating the Terraform environment on the fly, we can destroy resources simply by deleting the directory of the project in the code base – this would not be possible otherwise.&lt;/p&gt;
+
+&lt;h4 id=&quot;resource-metadata&quot;&gt;Resource metadata&lt;/h4&gt;
+
+&lt;p&gt;All resource metadata is stored in a YAML file that is present in the Terraform directory of each resource in the Khone repository. This is mainly used for ownership and cost attribution.&lt;/p&gt;
+
+&lt;p&gt;With this metadata, we can:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Better communicate with our users whenever their resources are impacted by an incident or an upcoming maintenance operation.&lt;/li&gt;
+  &lt;li&gt;Help teams understand the costs of their usage of our platform, a significant step towards cost efficiency.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;There are two different ways resource metadata can be created:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Automatically through Heimdall: The YAML metadata file is automatically generated by Heimdall.&lt;/li&gt;
+  &lt;li&gt;Through Khone by a human user: The user needs to prepare the YAML metadata file and include it in the MR. This file is then verified by the CI pipeline.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;outcome&quot;&gt;Outcome&lt;/h2&gt;
+
+&lt;p&gt;The initial version of the three-tier Coban platform, as described in this article, was internally released in March 2022, supporting only Kafka topic management at the time. Since then, we have added support for Flink pipelines, four kinds of Kafka Connect connectors, CDC pipelines, and more recently, Apache Zeppelin notebooks. At the time of writing, the Coban platform manages about 5000 data streaming resources, all described as IaC under the hood.&lt;/p&gt;
+
+&lt;p&gt;Our platform also exposes enriched metadata that includes the full data lineage from Kafka producers to Kafka consumers, as well as ownership information, and cost attribution.&lt;/p&gt;
+
+&lt;p&gt;With that, our monthly active users have almost quadrupled, truly moving the needle towards democratising the usage of real-time data within all Grab verticals.&lt;/p&gt;
+
+&lt;p&gt;In spite of that user growth, the end-to-end workflow success rate for self-served resource creation, change or deletion, remained well above 90% in the first half of 2023, while the Heimdall API uptime was above 99.95%.&lt;/p&gt;
+
+&lt;h2 id=&quot;challenges-faced&quot;&gt;Challenges faced&lt;/h2&gt;
+
+&lt;p&gt;A common challenge for platform teams resides in the misalignment between the Service Level Objective (SLO) of the platform, and the various environments (e.g. staging, production) of the managed resources and upstream/downstream systems and platforms.&lt;/p&gt;
+
+&lt;p&gt;Indeed, the platform aims to guarantee the same level of service, regardless of whether it is used to create resources in the staging or the production environment. From the platform team’s perspective, the platform as a whole is considered production-grade, as soon as it serves actual users.&lt;/p&gt;
+
+&lt;p&gt;A naive approach to address this challenge is to let the production version of the platform manage all resources regardless of their respective environments. However, doing so does not permit a hermetic segregation of the staging and production environments across the organisation, which is a good security practice, and often a requirement for compliance. For example, the production version of the platform would have to connect to upstream systems in the staging environment, e.g. staging Kafka clusters to collect their consumer groups, in the case of Heimdall. Conversely, the staging version of certain downstreams would have to connect to the production version of Heimdall, to fetch the metadata of relevant staging resources.&lt;/p&gt;
+
+&lt;p&gt;The alternative approach, generally adopted across Grab, is to instantiate all platforms in each environment (staging and production), while still considering both instances as production-grade and guaranteeing tight SLOs in both environments.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/elegant-platform/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 8 Architecture of the Coban platform, broken down by environment.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Fig. 8, both instances of Heimdall have equivalent SLOs. The caveat is that all upstream systems and platforms must also guarantee a strict SLO in both environments. This obviously comes with a cost, for example, tighter maintenance windows for the operations pertaining to the Kafka clusters in the staging environment.&lt;/p&gt;
+
+&lt;p&gt;A strong “platform” culture is required for platform teams to fully understand that their instance residing in the staging environment is not their own staging environment and should not be used for testing new features.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;Currently, users creating, updating, or deleting production resources in the Coban UI (or directly by calling Heimdall API) receive the URL of the generated GitLab MR in a Slack message. From there, they must get the MR approved by a code owner, typically another team member, and finally merge the MR, for the requested change to be actually implemented by the CI pipeline.&lt;/p&gt;
+
+&lt;p&gt;Although this was a fairly easy way to implement a maker/checker process that was immediately compliant with our regulatory requirements for any changes in production, the user experience is not optimal. In the near future, we plan to bring the approval mechanism into Heimdall and the Coban UI, while still providing our more advanced users with the option to directly create, approve, and merge MRs in GitLab. In the longer run, we would also like to enhance the Coban UI with the output of the Khone CI jobs that include the Terraform plan and apply results.&lt;/p&gt;
+
+&lt;p&gt;There is another aspect of the platform that we want to improve. As Heimdall regularly polls the upstream platforms to collect their metadata, this introduces a latency between a change in one of those platforms and its reflection in the Coban platform, which can hinder the user experience. To refresh resource metadata in Heimdall in near real time, we plan to leverage an existing Grab-wide event stream, where most of the configuration and code changes at Grab are produced as events. Heimdall will soon be able to consume those events and update the metadata of the affected resources immediately, without waiting for the next periodic refresh.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 30 Nov 2023 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/an-elegant-platform</link>
+        <guid isPermaLink="true">https://engineering.grab.com/an-elegant-platform</guid>
+        
+        <category>Data</category>
+        
+        <category>Data streaming</category>
+        
+        <category>Real-time streaming</category>
+        
+        <category>Platformisation</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+        <category>Product</category>
+        
+      </item>
     
       <item>
         <title>Road localisation in GrabMaps</title>
@@ -1437,399 +1726,6 @@ Before we dive into how our model works, it is important to understand the proce
         <category>Engineering</category>
         
         <category>Security</category>
-        
-      </item>
-    
-      <item>
-        <title>Go module proxy at Grab</title>
-        <description>&lt;p&gt;At Grab, we rely heavily on &lt;a href=&quot;/go-module-a-guide-for-monorepos-part-1&quot;&gt;a large Go monorepo&lt;/a&gt; for backend development, which offers benefits like code reusability and discoverability. However, as we continue to grow, managing a large monorepo brings about its own set of unique challenges.&lt;/p&gt;
-
-&lt;p&gt;As an example, using Go commands such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go list&lt;/code&gt; can be incredibly slow when fetching Go modules residing in a large &lt;a href=&quot;https://github.com/golang/go/wiki/Modules#what-are-multi-module-repositories&quot;&gt;multi-module repository&lt;/a&gt;. This sluggishness takes a toll on developer productivity, burdens our Continuous Integration (CI) systems, and strains our Version Control System host (VCS), GitLab.&lt;/p&gt;
-
-&lt;p&gt;In this blog post, we look at how &lt;a href=&quot;https://github.com/gomods/athens&quot;&gt;Athens&lt;/a&gt;, a Go module proxy, helps to improve the overall developer experience of engineers working with a large Go monorepo at Grab.&lt;/p&gt;
-
-&lt;h2 id=&quot;key-highlights&quot;&gt;Key highlights&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;We reduced the time of executing the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command from &lt;strong&gt;~18 minutes&lt;/strong&gt; to &lt;strong&gt;~12 seconds&lt;/strong&gt; when fetching monorepo Go modules.&lt;/li&gt;
-  &lt;li&gt;We scaled in and &lt;strong&gt;scaled down our entire Athens cluster by 70%&lt;/strong&gt; by utilising the fallback network mode in Athens along with Golang’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; mode, resulting in cost savings and enhanced efficiency.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;problem-statements-and-solutions&quot;&gt;Problem statements and solutions&lt;/h2&gt;
-
-&lt;h3 id=&quot;1-painfully-slow-performance-of-go-commands&quot;&gt;1. Painfully slow performance of Go commands&lt;/h3&gt;
-
-&lt;p&gt;&lt;em&gt;Problem summary: Running the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command in our monorepo takes a considerable amount of time and can lead to performance degradation in our VCS.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;When working with the Go programming language, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; is one of the most common commands that you’ll use every day. Besides developers, this command is also used by CI systems.&lt;/p&gt;
-
-&lt;h4 id=&quot;what-does-go-getdo&quot;&gt;What does &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; do?&lt;/h4&gt;
-
-&lt;p&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command is used to download and install packages and their dependencies in Go. Note that it operates differently depending on whether it is run in &lt;a href=&quot;https://pkg.go.dev/cmd/go#hdr-Legacy_GOPATH_go_get&quot;&gt;legacy GOPATH mode&lt;/a&gt; or module-aware mode. In Grab, we’re using the &lt;a href=&quot;https://go.dev/ref/mod#mod-commands&quot;&gt;module-aware mode&lt;/a&gt; in a &lt;a href=&quot;https://github.com/golang/go/wiki/Modules#faqs--multi-module-repositories&quot;&gt;multi-module repository&lt;/a&gt; setup.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/go-module-proxy/image2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Every time &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; is run, it uses Git commands, like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git ls-remote&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git tag&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git fetch&lt;/code&gt;, etc, to search and download the entire worktree. The excessive use of these Git commands on our monorepo contributes to the long processing time and can be strenuous to our VCS.&lt;/p&gt;
-
-&lt;h4 id=&quot;how-big-is-our-monorepo&quot;&gt;How big is our monorepo?&lt;/h4&gt;
-
-&lt;p&gt;To fully grasp the challenges faced by our engineering teams, it’s crucial to understand the vast scale of the monorepo that we work with daily. For this, we use &lt;a href=&quot;https://github.com/github/git-sizer&quot;&gt;git-sizer&lt;/a&gt; to analyse our monorepo.&lt;/p&gt;
-
-&lt;p&gt;Here’s what we found:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Overall repository size&lt;/strong&gt;: The monorepo has a total uncompressed size of &lt;strong&gt;69.3 GiB&lt;/strong&gt;, a fairly substantial figure. To put things into perspective, the &lt;a href=&quot;https://github.com/torvalds/linux&quot;&gt;Linux kernel repository&lt;/a&gt;, known for its vastness, currently stands at 55.8 GiB.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Trees&lt;/strong&gt;: The total number of trees is 3.21M and tree entries are 99.8M, which consume 3.65 GiB. This may cause performance issues during some Git operations.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;References&lt;/strong&gt;: Totalling 10.7k references.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Biggest checkouts&lt;/strong&gt;: There are 64.7k directories in our monorepo. This affects operations like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git status&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git checkout&lt;/code&gt;. Moreover, our monorepo has a maximum path depth of 20. This contributes to a slow processing time on Git and negatively impacts developer experience. The number of files (354k) and the total size of files (5.08 GiB) are also concerns due to their potential impact on the repository’s performance.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To draw a comparison, refer to &lt;a href=&quot;https://github.com/github/git-sizer/blob/0b6d3a21c6ccbd49463534a19cc1b3f71526c077/README.md#usage&quot;&gt;the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git-sizer&lt;/code&gt; output of the Linux repository&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h4 id=&quot;how-slow-is-slow&quot;&gt;How slow is “slow”?&lt;/h4&gt;
-
-&lt;p&gt;To illustrate the issue further, we will compare the time taken for various Go commands to fetch a single module in our monorepo at a 10 MBps download speed.&lt;/p&gt;
-
-&lt;p&gt;This is an example of how a module is structured in our monorepo:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gitlab.company.com/monorepo/go
-  |-- go.mod
-  |-- commons/util/gk
-        |-- go.mod
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;table class=&quot;table&quot; border=&quot;1&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;Go commands&lt;/th&gt;
-      &lt;th&gt;GOPROXY&lt;/th&gt;
-      &lt;th&gt;Previously cached?&lt;/th&gt;
-      &lt;th&gt;Description&lt;/th&gt;
-      &lt;th&gt;Result (time taken)&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
-      &lt;td&gt;Yes&lt;/td&gt;
-      &lt;td&gt;Download and install the latest version of the module. This is a common scenario that developers often encounter.&lt;/td&gt;
-      &lt;td&gt;18:50.71 minutes&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
-      &lt;td&gt;No&lt;/td&gt;
-      &lt;td&gt;Download and install the latest version of the module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;1:11:54.56 hour&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
-      &lt;td&gt;Yes&lt;/td&gt;
-      &lt;td&gt;List information about the module&lt;/td&gt;
-      &lt;td&gt;3.873 seconds&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;proxy.golang.org,direct&lt;/td&gt;
-      &lt;td&gt;No&lt;/td&gt;
-      &lt;td&gt;List information about the module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;3:18.58 minutes&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;In this example, using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; to fetch a module took over &lt;strong&gt;18 minutes&lt;/strong&gt; to complete. If we needed to retrieve more than one module in our monorepo, it can be incredibly time-consuming.&lt;/p&gt;
-
-&lt;h4 id=&quot;why-is-it-slow-in-a-monorepo&quot;&gt;Why is it slow in a monorepo?&lt;/h4&gt;
-
-&lt;p&gt;In a large Go monorepo, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; commands can be slow due to several factors:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Large number of files and directories&lt;/strong&gt;: When running &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt;, the command needs to search and download the entire worktree. In a large multi-module monorepo, the vast number of files and directories make this search process very expensive and time-consuming.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Number of refs&lt;/strong&gt;: A large number of refs (branches or tags) in our monorepo can affect performance. Ref advertisements (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git ls-remote&lt;/code&gt;), which contain every ref in our monorepo, are the first phase in any remote Git operation, such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git clone&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git fetch&lt;/code&gt;. With a large number of refs, performance takes a hit when performing these operations.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Commit history traversal&lt;/strong&gt;: Operations that need to traverse a repository’s commit history and consider each ref will be slow in a monorepo. The larger the monorepo, the more time-consuming these operations become.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;the-consequences-stifled-productivity-and-strained-systems&quot;&gt;The consequences: Stifled productivity and strained systems&lt;/h4&gt;
-
-&lt;h5 id=&quot;developers-and-ci&quot;&gt;Developers and CI&lt;/h5&gt;
-
-&lt;p&gt;When Go command operations like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; are slow, they contribute to significant delays and inefficiencies in software development workflows. This leads to reduced productivity and demotivated developers.&lt;/p&gt;
-
-&lt;p&gt;Optimising Go command operations’ speed is crucial to ensure efficient software development workflows and high-quality software products.&lt;/p&gt;
-
-&lt;h5 id=&quot;version-control-system&quot;&gt;Version Control System&lt;/h5&gt;
-
-&lt;p&gt;It’s also worth noting that overusing &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; commands can also lead to performance issues for VCS. When Go packages are frequently downloaded using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt;, we saw that it caused a bottleneck in our VCS cluster, which can lead to performance degradation or even cause rate-limiting queue issues.&lt;/p&gt;
-
-&lt;p&gt;This negatively impacts the performance of our VCS infrastructure, causing delays or sometimes unavailability for some users and CI.&lt;/p&gt;
-
-&lt;h4 id=&quot;solution-athens--fallbacknetwork-mode--govcs-custom-cache-refresh-solution&quot;&gt;Solution: Athens + &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; Network Mode + &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; + Custom Cache Refresh Solution&lt;/h4&gt;
-
-&lt;p&gt;&lt;em&gt;Problem summary: Speed up &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command by not fetching from our VCS&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;We addressed the speed issue by using Athens, &lt;a href=&quot;https://www.practical-go-lessons.com/chap-18-go-module-proxies#what-is-a-proxy-server&quot;&gt;a proxy server for Go modules&lt;/a&gt; (read more about the &lt;a href=&quot;https://go.dev/ref/mod#goproxy-protocol&quot;&gt;GOPROXY protocol&lt;/a&gt;).&lt;/p&gt;
-
-&lt;h5 id=&quot;how-does-athens-work&quot;&gt;How does Athens work?&lt;/h5&gt;
-
-&lt;p&gt;The following sequence diagram describes the default flow of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; command with Athens.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/go-module-proxy/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Athens uses a &lt;a href=&quot;https://docs.gomods.io/configuration/storage/&quot;&gt;storage system&lt;/a&gt; for Go module packages, which can also be configured to use various storage systems such as Amazon S3, and Google Cloud Storage, among others.&lt;/p&gt;
-
-&lt;p&gt;By caching these module packages in storage, Athens can serve the packages directly from storage rather than requesting them from an upstream VCS while serving Go commands such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go mod download&lt;/code&gt; and &lt;a href=&quot;https://go.dev/ref/mod#build-commands&quot;&gt;certain go build modes&lt;/a&gt;. However, just using a Go module proxy didn’t fully resolve our issue since the &lt;strong&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go list&lt;/code&gt;&lt;/strong&gt; commands still hit our VCS through the proxy.&lt;/p&gt;
-
-&lt;p&gt;With this in mind, we thought “what if we could just serve the Go modules directly from Athens’ storage for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt;?” This question led us to discover Athens network mode.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;What is Athens network mode?&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Athens &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NetworkMode&lt;/code&gt; configures how Athens will return the results of the Go commands. It can be assembled from both its own storage and the upstream VCS. As of &lt;a href=&quot;https://github.com/gomods/athens/releases/tag/v0.12.1&quot;&gt;Athens v0.12.1&lt;/a&gt;, it currently supports these 3 modes:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;strict&lt;/strong&gt;: merge VCS versions with storage versions, but fail if either of them fails.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;offline&lt;/strong&gt;: only get storage versions, &lt;strong&gt;never reach out to VCS&lt;/strong&gt;.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;fallback&lt;/strong&gt;: only return storage versions, if VCS fails. Fallback mode does the best effort of giving you what’s available at the time of requesting versions.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Our Athens clusters were initially set to use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;strict&lt;/code&gt; network mode, but this was not ideal for us. So we explored the other network modes.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Exploring &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; mode&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;We initially sought to explore the idea of putting Athens in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; network mode, which would allow Athens to serve Go requests only from its storage. This concept aligned with our aim of reducing VCS hits while also leading to significant performance improvement in Go workflows.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/go-module-proxy/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;However in practice, it’s not an ideal approach. The default Athens setup (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;strict&lt;/code&gt; mode) automatically updates the module version when a user requests a new module version. Nevertheless, switching Athens to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; mode would disable the automatic updates as it wouldn’t connect to the VCS.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Custom cache refresh solution&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;To solve this, we implemented a CI pipeline that refreshes Athens’ module cache whenever a new module is released in our monorepo. Employing this with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;offline&lt;/code&gt; mode made Athens effective for the monorepo but it resulted in the loss of automatic updates for other repositories&lt;/p&gt;
-
-&lt;p&gt;Restoring this feature requires applying our custom cache refresh solution to all other Go repositories. However, implementing this workaround can be quite cumbersome and significant additional time and effort. We decided to look for another solution that would be easier to maintain in the long run.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;A balanced approach: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; Mode and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt;&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;This approach builds upon our aforementioned custom cache refresh which is specifically designed for the monorepo.&lt;/p&gt;
-
-&lt;p&gt;We came across the &lt;a href=&quot;https://go.dev/ref/mod#vcs-govcs&quot;&gt;GOVCS environment variable&lt;/a&gt;, which we use in combination with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; network mode to effectively put only the monorepo in “offline” mode.&lt;/p&gt;
-
-&lt;p&gt;When &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; is set to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab.company.com/monorepo/go:off&lt;/code&gt;, Athens encounters an error whenever it tries to fetch modules from VCS:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gitlab.company.com/monorepo/go/commons/util/gk@v1.1.44: unrecognized import path &quot;gitlab.company.com/monorepo/go/commons/util/gk&quot;: GOVCS disallows using git for private gitlab.company.com/monorepo/go; see 'go help vcs'
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;If Athens network mode is set to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;strict&lt;/code&gt;, Athens returns 404 errors to the user. By switching to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fallback&lt;/code&gt; mode, Athens tries to retrieve the module from its storage if a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GOVCS&lt;/code&gt; failure occurs.&lt;/p&gt;
-
-&lt;p&gt;Here’s the updated Athens configuration (&lt;a href=&quot;https://github.com/gomods/athens/blob/8e1581e10b0d3a70a30f45b10c24c3f992464d7a/config.dev.toml#L46&quot;&gt;example default config&lt;/a&gt;):&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;GoBinaryEnvVars = [&quot;GOPROXY=direct&quot;, 
-&quot;GOPRIVATE=gitlab.company.com&quot;, 
-&quot;GOVCS=gitlab.company.com/monorepo/go:off&quot;]
-
-NetworkMode = &quot;fallback&quot;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;With the custom cache refresh solution coupled with this approach, we not only accelerate the retrieval of Go modules within the monorepo but also allow for automatic updates for non-monorepo Go modules.&lt;/p&gt;
-
-&lt;h4 id=&quot;final-results&quot;&gt;Final results&lt;/h4&gt;
-
-&lt;p&gt;This solution resulted in a significant improvement in the performance of Go commands for our developers. With Athens, the same command is completed in just &lt;strong&gt;~12 seconds (down from ~18 minutes)&lt;/strong&gt;, which is impressively fast.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot; border=&quot;1&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;Go commands&lt;/th&gt;
-      &lt;th&gt;GOPROXY&lt;/th&gt;
-      &lt;th&gt;Previously cached?&lt;/th&gt;
-      &lt;th&gt;Description&lt;/th&gt;
-      &lt;th&gt;Result (time taken)&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;goproxy.company.com&lt;/td&gt;
-      &lt;td&gt;Yes&lt;/td&gt;
-      &lt;td&gt;Download and install the latest version of the module. This is a common scenario that developers often encounter.&lt;/td&gt;
-      &lt;td&gt;11.556 seconds&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go get -x gitlab.company.com/monorepo/go/commons/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;goproxy.company.com&lt;/td&gt;
-      &lt;td&gt;No&lt;/td&gt;
-      &lt;td&gt;Download and install the latest version of the module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;1:05.60 minutes&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;goproxy.company.com&lt;/td&gt;
-      &lt;td&gt;Yes&lt;/td&gt;
-      &lt;td&gt;List information about the monorepo module&lt;/td&gt;
-      &lt;td&gt;0.592 seconds&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;code&gt;go list -x -m -json -versions gitlab.company.com/monorepo/go/util/gk&lt;/code&gt;&lt;/td&gt;
-      &lt;td&gt;goproxy.company.com&lt;/td&gt;
-      &lt;td&gt;No&lt;/td&gt;
-      &lt;td&gt;List information about the monorepo module &lt;strong&gt;without any module cache&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;1.023 seconds&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;table&gt;
-&lt;tr&gt;
-&lt;td&gt;
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/go-module-proxy/image5.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Average cluster CPU utlisation&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-&lt;/td&gt;
-&lt;td&gt;
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;img/go-module-proxy/image3.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Average cluster memory utlisation&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/table&gt;
-
-&lt;p&gt;In addition, this change to our Athens cluster also leads to substantial reduction in average cluster CPU and memory utilisation. This also enabled us to scale in and &lt;strong&gt;scale down our entire Athens cluster by 70%&lt;/strong&gt;, resulting in cost savings and enhanced efficiency. On top of that, we were also able to effectively eliminate VCS’s rate-limiting issues while making the monorepo’s command operation considerably faster.&lt;/p&gt;
-
-&lt;h3 id=&quot;2-go-modules-in-gitlab-subgroups&quot;&gt;2. Go modules in GitLab subgroups&lt;/h3&gt;
-
-&lt;p&gt;&lt;em&gt;Problem summary: Go modules are unable to work natively with private or internal repositories under GitLab subgroups.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;When it comes to managing code repositories and packages, &lt;a href=&quot;https://docs.gitlab.com/ee/user/group/subgroups/&quot;&gt;GitLab subgroups&lt;/a&gt; and Go modules have become an integral part of the development process at Grab. Go modules help to organise and manage dependencies, and GitLab subgroups provide an additional layer of structure to group related repositories together.&lt;/p&gt;
-
-&lt;p&gt;However, a common issue when using Go modules is that they &lt;strong&gt;do not work natively&lt;/strong&gt; with private or internal repositories under a GitLab subgroup (see this &lt;a href=&quot;https://github.com/golang/go/issues/29953&quot;&gt;GitHub issue&lt;/a&gt;).&lt;/p&gt;
-
-&lt;p&gt;For example, using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go get&lt;/code&gt; to retrieve a module from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gitlab.company.com/gitlab-org/subgroup/repo&lt;/code&gt; will result in a failure. This problem is not specific to Go modules, all repositories under the subgroup will face the same issue.&lt;/p&gt;
-
-&lt;h4 id=&quot;a-cumbersome-workaround&quot;&gt;A cumbersome workaround&lt;/h4&gt;
-
-&lt;p&gt;To overcome this issue, we had to use workarounds. One workaround is to authenticate the HTTPS calls to GitLab by adding authentication details to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file on your machine.&lt;/p&gt;
-
-&lt;p&gt;The following lines can be added to the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;machine gitlab.company.com
-    login user@company.com
-    password &amp;lt;personal-access-token&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In our case, we are using a Personal Access Token (PAT) since we have 2FA enabled. If 2FA is not enabled, the GitLab password can be used instead. However, this approach would mean configuring the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file in the CI environments as well as on the machine of &lt;strong&gt;every&lt;/strong&gt; Go developer.&lt;/p&gt;
-
-&lt;h4 id=&quot;solution-athens--netrc&quot;&gt;Solution: Athens + &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt;&lt;/h4&gt;
-
-&lt;p&gt;A feasible solution is to set up the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; file in the Go proxy server. This method eliminates the need for N number of developers to configure their own &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.netrc&lt;/code&gt; files. Instead, the responsibility for this task is delegated to the Go proxy server.&lt;/p&gt;
-
-&lt;h3 id=&quot;3-sharing-common-libraries&quot;&gt;3. Sharing common libraries&lt;/h3&gt;
-&lt;p&gt;&lt;em&gt;Problem summary: Distributing internal common libraries within a monorepo without granting direct repository access can be challenging.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;At Grab, we work with various cross-functional teams, and some could have distinct network access like different VPNs. This adds complexity to sharing our monorepo’s internal common libraries with them. To maintain the security and integrity of our monorepo, we use a Go proxy for controlled access to necessary libraries.&lt;/p&gt;
-
-&lt;p&gt;The key difference between granting direct access to the monorepo via VCS and using a Go proxy is that the former allows users to read everything in the repository, while the latter enables us to grant access only to the specific libraries users need within the monorepo. This approach ensures secure and efficient collaboration across diverse network configurations.&lt;/p&gt;
-
-&lt;h4 id=&quot;without-go-module-proxy&quot;&gt;Without Go module proxy&lt;/h4&gt;
-
-&lt;p&gt;Without Athens, we would need to create a separate repository to store the code we want to share and then use a build system to automatically mirror the code from the monorepo to the public repository.&lt;/p&gt;
-
-&lt;p&gt;This process can be cumbersome and lead to inconsistencies in code versions between the two repositories, ultimately making it challenging to maintain the shared libraries.&lt;/p&gt;
-
-&lt;p&gt;Furthermore, copying code can lead to errors and increase the risk of security breaches by exposing confidential or sensitive information.&lt;/p&gt;
-
-&lt;h4 id=&quot;solution-athens--download-mode-file&quot;&gt;Solution: Athens + Download Mode File&lt;/h4&gt;
-
-&lt;p&gt;To tackle this problem statement, we utilise Athens’ &lt;a href=&quot;https://docs.gomods.io/configuration/download/&quot;&gt;download mode file&lt;/a&gt; feature using an allowlist approach to specify which repositories can be downloaded by users.&lt;/p&gt;
-
-&lt;p&gt;Here’s an example of the Athens download mode config file:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;downloadURL = &quot;https://proxy.golang.org&quot;
-
-mode = &quot;sync&quot;
-
-download &quot;gitlab.company.com/repo/a&quot; {
-    mode = &quot;sync&quot;
-}
-
-download &quot;gitlab.company.com/repo/b&quot; {
-    mode = &quot;sync&quot;
-}
-
-download &quot;gitlab.company.com/*&quot; {
-    mode = &quot;none&quot;
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In the configuration file, we specify allowlist entries for each desired repo, including their respective download modes. For example, in the snippet above, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;repo/a&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;repo/b&lt;/code&gt; are allowed (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mode = “sync”&lt;/code&gt;), while everything else is blocked using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mode = “none”&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h4 id=&quot;final-results-1&quot;&gt;Final results&lt;/h4&gt;
-
-&lt;p&gt;By using Athens’ download mode feature in this case, the benefits are clear. Athens provides a secure, centralised place to store Go modules. This approach not only provides consistency but also improves maintainability, as all code versions are managed in one single location.&lt;/p&gt;
-
-&lt;h2 id=&quot;additional-benefits-of-go-proxy&quot;&gt;Additional benefits of Go proxy&lt;/h2&gt;
-
-&lt;p&gt;As we’ve touched upon the impressive results achieved by implementing Athens Go proxy at Grab, it’s crucial to explore the supplementary advantages that accompany this powerful solution.&lt;/p&gt;
-
-&lt;p&gt;These unsung benefits, though possibly overlooked, play a vital role in enriching the overall developer experience at Grab and promoting more robust software development practices:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Module immutability&lt;/strong&gt;: ​​As the software world continues to face issues around changing or &lt;a href=&quot;https://qz.com/646467/how-one-programmer-broke-the-internet-by-deleting-a-tiny-piece-of-code&quot;&gt;disappearing libraries&lt;/a&gt;, Athens serves as a useful tool in mitigating build disruptions by providing immutable storage for copied VCS code. The use of a Go proxy also ensures that builds remain deterministic, improving consistency across our software.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Uninterrupted development&lt;/strong&gt;: Athens allows users to fetch dependencies even when VCS is down, ensuring continuous and seamless development workflows.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Enhanced security&lt;/strong&gt;: Athens offers access control by enabling the blocking of specific packages within Grab. This added layer of security protects our work against potential risks from malicious third-party packages.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Vendor directory removal&lt;/strong&gt;: Athens prepares us for the eventual removal of the &lt;a href=&quot;https://docs.gomods.io/faq/#when-should-i-use-a-vendor-directory-and-when-should-i-use-athens&quot;&gt;vendor directory&lt;/a&gt;, fostering faster workflows in the future.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;Since adopting Athens as a Go module proxy, we have observed considerable benefits, such as:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Accelerated Go command operations&lt;/li&gt;
-  &lt;li&gt;Reduced infrastructure costs&lt;/li&gt;
-  &lt;li&gt;Mitigated VCS load issues&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Moreover, its lesser-known advantages like module immutability, uninterrupted development, enhanced security, and vendor directory transition have also contributed to improved development practices and an enriched developer experience for Grab engineers.&lt;/p&gt;
-
-&lt;p&gt;Today, the straightforward process of exporting three environment variables has greatly influenced our developers’ experience at Grab.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;export GOPROXY=&quot;goproxy.company.com|proxy.golang.org,direct&quot;
-
-export GONOSUMDB=&quot;gitlab.company.com&quot;
-
-export GONOPROXY=&quot;none&quot;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;At Grab, we are always looking for ways to improve and optimise the way we work, so we contribute to open-sourced projects like Athens, where we help with bug fixes. If you are interested in setting up a Go module proxy, do give Athens (&lt;a href=&quot;https://github.com/gomods/athens&quot;&gt;github.com/gomods/athens&lt;/a&gt;) a try!&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Swaminathan Venkatraman, En Wei Soh, Anuj More, Darius Tan, and Fernando Christyanto for contributing to this project and this article.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 30 Jun 2023 01:18:00 +0000</pubDate>
-        <link>https://engineering.grab.com/go-module-proxy</link>
-        <guid isPermaLink="true">https://engineering.grab.com/go-module-proxy</guid>
-        
-        <category>Engineering</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
