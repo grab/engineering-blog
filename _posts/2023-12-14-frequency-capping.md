@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2023-12-15-frequency-capping
+id: 2023-12-14-frequency-capping
 title: 'Sliding window rate limits in distributed systems'
-date: 2023-12-12 00:00:10
+date: 2023-12-14 00:00:10
 authors: [naveen-kumar, abdullah-mamun]
 categories: [Engineering]
 tags: [Data, Big data, Rate limiting, Frequency capping, Distributed systems]
