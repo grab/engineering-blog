@@ -6,9 +6,216 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 30 Nov 2023 02:55:41 +0000</pubDate>
-    <lastBuildDate>Thu, 30 Nov 2023 02:55:41 +0000</lastBuildDate>
+    <pubDate>Thu, 14 Dec 2023 09:22:29 +0000</pubDate>
+    <lastBuildDate>Thu, 14 Dec 2023 09:22:29 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Sliding window rate limits in distributed systems</title>
+        <description>&lt;p&gt;Like many other companies, Grab uses marketing communications to notify users of promotions or other news. If a user receives these notifications from multiple companies, it would be a form of information overload and they might even start considering these communications as spam. Over time, this could lead to some users revoking their consent to receive marketing communications altogether. Hence, it is important to find a rate-limited solution that sends the right amount of communications to our users.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;In Grab, marketing emails and push notifications are part of carefully designed campaigns to ensure that users get the right notifications (i.e. based on past orders or usage patterns). Trident is Grab’s in-house tool to compose these campaigns so that they run efficiently at scale. An example of a campaign is scheduling a marketing email blast to 10 million users at 4 pm. Read more about Trident’s architecture &lt;a href=&quot;/supporting-large-campaigns-at-scale&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Trident relies on Hedwig, another in-house service, to deliver the messages to users. Hedwig does the heavy lifting of delivering large amounts of emails and push notifications to users while maintaining a high query per second (QPS) rate and minimal delay. The following high-level architectural illustration demonstrates the interaction between Trident and Hedwig.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/frequency-capping/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Diagram of data interaction between Trident and Hedwig&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The aim is to regulate the number of marketing comms sent to users daily and weekly, tailored based on their interaction patterns with the Grab superapp.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;Based on their interaction patterns with our superapp, we have clustered users into a few segments.&lt;/p&gt;
+
+&lt;p&gt;For example:&lt;/p&gt;
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;New: Users recently signed up to the Grab app but haven’t taken any rides yet.
+Active: Users who took rides in the past month.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;With these metrics, we came up with optimal daily and weekly frequency limit values for each clustered user segment. The solution discussed in this article ensures that the comms sent to a user do not exceed the daily and weekly thresholds for the segment. This is also called frequency capping.&lt;/p&gt;
+
+&lt;p&gt;However, frequency capping can be split into two sub-problems:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Efficient storage of clustered user data&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;With a huge customer base of over 270 million users, storing the user segment membership information has to be cost-efficient and memory-sleek. Querying the segment to which a user belongs should also have minimal latency.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Persistent tracking of comms sent per user&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;To stay within the daily and weekly thresholds, we need to actively track the number of comms sent to each user, which can be referred to make rate limiting decisions. The rate limiting logic should also have minimal latency, be cost efficient, and not take up too much memory storage.&lt;/p&gt;
+
+&lt;h4 id=&quot;optimising-storage-of-user-segment-data&quot;&gt;Optimising storage of user segment data&lt;/h4&gt;
+
+&lt;p&gt;The problem here is figuring out which segment a particular user belongs to and ensuring that the user doesn’t appear in more than one segment. There are two options that suit our needs and we’ll explain more about each option, as well as what was the best option for us.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Bloom filter&lt;/strong&gt; &lt;/p&gt;
+
+&lt;p&gt;A &lt;a href=&quot;https://www.geeksforgeeks.org/bloom-filters-introduction-and-python-implementation/&quot;&gt;Bloom filter&lt;/a&gt; is a space-efficient probabilistic data structure that addresses this problem well. Simply put, Bloom filters internally use arrays to track memberships of the elements.&lt;/p&gt;
+
+&lt;p&gt;For our scenario, each user segment would need its own bloom filter. We used &lt;a href=&quot;https://hur.st/bloomfilter/?n%3D270000000%26p%3D1.0E-7%26m%3D%26k%3D&quot;&gt;this bloom filter&lt;/a&gt; calculator to estimate the memory required for each bloom filter. We found that we needed approximately 1 GB of memory and 23 hash functions to accurately represent the membership information of 270 million users in an array. Additionally, this method guarantees a false positive rate of  1.0E-7, which means 1 in 1 million elements may get wrong membership results because of hash collision.&lt;/p&gt;
+
+&lt;p&gt;With Grab’s existing segments, this approach needs 4GB of memory, which may increase as we increase the number of segments in the future. Moreover, the potential hash collision needs to be handled by increasing the memory size with even more hash functions. Another thing to note is that Bloom filters do not support deletion so every time a change needs to be done, you need to create a new version of the Bloom filter. Although Bloom filters have many advantages, these shortcomings led us to explore another approach.&lt;/p&gt;
+
+&lt;p&gt;Roaring bitmaps Roaring bitmaps are sets of unsigned integers consisting of containers of disjoint subsets, which can store large amounts of data in a compressed form. Essentially, roaring bitmaps could reduce memory storage significantly and overcome the hash collision problem. To understand the intuition behind this, first, we need to know how bitmaps work and the possible drawbacks behind it.&lt;/p&gt;
+
+&lt;p&gt;To represent a list of numbers as a bitmap, we first need to create an array with a size equivalent to the largest element in the list. For every element in the list, we then mark the bit value as 1 in the corresponding index in the array. While bitmaps work very well for storing integers in closer intervals, they occupy more space and become sparse when storing integer ranges with uneven distribution, as shown in the image below.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/frequency-capping/image6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Diagram of bitmaps with uneven distribution&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;To reduce memory footprint and improve the performance of bitmaps, there are compression techniques such as Run-Length Encoding (RLE), and Word Aligned Hybrid (WAH). However, this would require additional effort to implement, whereas using roaring bitmaps would solve these issues.&lt;/p&gt;
+
+&lt;p&gt;Roaring bitmaps’ hybrid data storage approach offers the following advantages:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Faster set operations (union, intersection, differencing).&lt;/li&gt;
+  &lt;li&gt;Better compression ratio when handling mixed datasets (both dense and sparse data distribution).&lt;/li&gt;
+  &lt;li&gt;Ability to scale to large datasets without significant performance loss.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To summarise, roaring bitmaps can store positive integers from 0 to (2^32)-1. Each positive integer value is converted to a 32-bit binary, where the 16 Most Significant Bits (MSB) are used as the key and the remaining 16 Least Significant Bits (LSB) are represented as the value. The values are then stored in an array, a bitmap, or used to run containers with RLE encoding data structures.&lt;/p&gt;
+
+&lt;p&gt;If the number of integers mapped to the key is less than 4096, then all the integers are stored in an array in sorted order and converted into a bitmap container in the runtime as the size exceeds. Roaring bitmap analyses the distribution of set bits in the bitmap container i.e. if the continuous interval of set bits is more than a given threshold, the bitmap container can be more efficiently represented using the RLE container. Internally, the RLE container uses an array where the even indices store the beginning of the runs and the odd indices represent the length of the runs. This enables the roaring bitmap to dynamically switch between the containers to optimise storage and performance.&lt;/p&gt;
+
+&lt;p&gt;The following diagram shows how a set of elements with different distributions are stored in roaring bitmaps.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/frequency-capping/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Diagram of how roaring bitmaps store elements with different distributions &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In Grab, we developed a microservice that abstracts roaring bitmaps implementations and provides an API to check set membership and enumeration of elements in the sets. &lt;a href=&quot;/streamlining-grabs-segmentation-platform&quot;&gt;Check out this blog to learn more about it.&lt;/a&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;distributed-rate-limiting&quot;&gt;Distributed rate limiting&lt;/h4&gt;
+
+&lt;p&gt;The second part of the problem involves rate limiting the number of communication messages sent to users on a daily or weekly basis and each segment has specific daily and weekly limits. By utilising roaring bitmaps, we can determine the segment to which a user belongs. After identifying the appropriate segment, we will apply the personalised limits to the user using a distributed rate limiter, which will be discussed in further detail in the following sections.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Choosing the right datastore&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Based on our use case, Amazon ElasticCache for Redis and DynamoDB were two viable options for storing the sent communication messages count per user. However, we decided to choose Redis due to a number of factors:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Higher throughput at lower latency – Redis shards data across nodes in the cluster.&lt;/li&gt;
+  &lt;li&gt;Cost-effective – Usage of Lua script reduces unnecessary data transfer overheads.&lt;/li&gt;
+  &lt;li&gt;Better at handling spiky rate limiting workloads at scale.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Distributed rate limiter&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;To appropriately limit the comms our users receive, we needed a rate limiting algorithm, which could execute directly in the datastore cluster, then return the results in the application logic for further processing. The two rate limiting algorithms we considered were the sliding window rate limiter and sliding log rate limiter.&lt;/p&gt;
+
+&lt;p&gt;The sliding window rate limiter algorithm divides time into a fixed-size window (we defined this as 1 minute) and counts the number of requests within each window. On the other hand, the sliding log maintains a log of each request timestamp and counts the number of requests between two timestamp ranges, providing a more fine-grained method of rate limiting. Although sliding log consumes more memory to store the log of request timestamp, we opted for the sliding log approach as the accuracy of the rate limiting was more important than memory consumption.&lt;/p&gt;
+
+&lt;p&gt;The sliding log rate limiter utilises a Redis sorted set data structure to efficiently track and organise request logs. Each timestamp in milliseconds is stored as a unique member in the set. The score assigned to each member represents the corresponding timestamp, allowing for easy sorting in ascending order. This design choice optimises the speed of search operations when querying for the total request count within specific time ranges.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Sliding Log Rate limiter Algorithm:
+
+Input:
+  # user specific redis key where the request timestamp logs are stored as sorted set
+  keys =&amp;gt; user_redis_key
+
+  # limit_value is the limit that needs to be applied for the user
+  # start_time_in_millis is the starting point of the time window
+  # end_time_in_millis is the ending point of the time window
+  # current_time_in_millis is the current time the request is sent
+  # eviction_time_in_millis, members in the set whose value is less than this will be evicted from the set
+
+  args =&amp;gt; limit_value, start_time_in_millis, end_time_in_millis, current_time_in_millis, eviction_time_in_millis
+
+Output:
+  # 0 means not_allowed and 1 means allowed
+  response =&amp;gt; 0 / 1
+
+Logic:
+  # zcount fetches the count of the request timestamp logs falling between the start and the end timestamp
+  request_count = zcount user_redis_key start_time_in_millis end_time_in_millis
+
+  response = 0
+  # if the count of request logs is less than allowed limits then record the usage by adding current timestamp in sorted set
+
+  if request_count &amp;lt; limit_value then
+    zadd user_redis_key current_time_in_millis current_time_in_millis
+    response = 1
+
+  # zremrangebyscore removes the members in the sorted set whose score is less than eviction_time_in_millis
+
+  zremrangebyscore user_redis_key -inf eviction_time_in_millis
+  return response
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This algorithm takes O(log n) time complexity, where n is the number of request logs stored in the sorted set. It is not possible to evict entries in the sorted set like how we have time-to-live (TTL) for Redis keys. To prevent the size of the sorted set from increasing over time, we have a fixed variable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;eviction_time_in_millis&lt;/code&gt; that is passed to the script. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;zremrangebyscore&lt;/code&gt; command then deletes members from the sorted set whose score is less than &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;eviction_time_in_millis&lt;/code&gt; in O(log n) time complexity.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Lua script optimisations&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;In Redis Cluster mode, all Redis keys accessed by a Lua script must be present on the same node, and they should be passed as part of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;KEYS&lt;/code&gt; input array of the script. If the script attempts to access keys located on different nodes within the cluster, a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CROSSSLOT&lt;/code&gt; error will be thrown. Redis keys, or userIDs, are distributed across multiple nodes in the cluster so it is not feasible to send a batch of userIDs within the same Lua script for rate limiting, as this might result in a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CROSSSLOT&lt;/code&gt; error.&lt;/p&gt;
+
+&lt;p&gt;Invoking a separate Lua script call for each user is a possible approach, but it incurs a significant number of network calls, which can be optimised further with the following approach:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Upload the Lua script into the Redis server during the server startup with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SCRIPT LOAD&lt;/code&gt; command and we get the SHA1 hash of the script if the upload is successful.&lt;/li&gt;
+  &lt;li&gt;The SHA1 hash can then be used to invoke the Lua script with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;EVALSHA&lt;/code&gt; command passing the keys and arguments as script input.&lt;/li&gt;
+  &lt;li&gt;Redis pipelining takes in multiple &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;EVALSHA&lt;/code&gt; commands that call the Lua script and each invocation corresponds to a userID for getting the rate limiting result.&lt;/li&gt;
+  &lt;li&gt;Redis pipelining groups the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;EVALSHA&lt;/code&gt; Redis commands with Redis keys located on the same nodes internally. It then sends the grouped commands in a single network call to the relevant nodes within the Redis cluster and provides the rate limiting outcome to the client.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Since Redis operates on a single thread, any long-running Lua script can cause other Redis commands to be blocked until the script completes execution. Thus, it’s optimal for the Lua script to execute in under 5 milliseconds. Additionally, the current time is passed as an argument to the script to account for potential variations in time when the script is executed on a node’s replica, which could be caused by &lt;a href=&quot;https://medium.com/geekculture/all-things-clock-time-and-order-in-distributed-systems-physical-time-in-depth-3c0a4389a838%23:~:text%3DClock%2520Drift%253A%2520As%2520mentioned%252C%2520no,rate%2520is%2520called%2520clock%2520drift.&quot;&gt;clock drift&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;By bringing together roaring bitmaps and the distributed rate limiter, this is what our final solution looks like:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/frequency-capping/image5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Our final solution using roaring bitmaps and distributed rate limiter&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The roaring bitmaps structure is serialised and stored in an AWS S3 bucket, which is then downloaded in the instance during server startup. After which, triggering a user segment membership check can simply be done with a local method call. The configuration service manages the mapping information between the segment and allowed rate limiting values.&lt;/p&gt;
+
+&lt;p&gt;Whenever a marketing message needs to be sent to a user, we first find the segment to which the user belongs, retrieve the defined rate limiting values from the configuration service, then execute the Lua script to get the rate limiting decision. If there is enough quota available for the user, we send the comms.&lt;/p&gt;
+
+&lt;p&gt;The architecture of the messaging service looks something like this:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/frequency-capping/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Architecture of the messaging service&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
+
+&lt;p&gt;In addition to decreasing the unsubscription rate, there was a significant enhancement in the latency of sending communications. Eliminating redundant communications also alleviated the system load, resulting in a reduction of the delay between the scheduled time and the actual send time of comms.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Applying rate limiters to safeguard our services is not only a standard practice but also a necessary process. Many times, this can be achieved by configuring the rate limiters at the instance level. The need for rate limiters for business logic may not be as common, but when you need it, the solution must be lightning-fast, and capable of seamlessly operating within a distributed environment.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 14 Dec 2023 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/frequency-capping</link>
+        <guid isPermaLink="true">https://engineering.grab.com/frequency-capping</guid>
+        
+        <category>Data</category>
+        
+        <category>Big data</category>
+        
+        <category>Rate limiting</category>
+        
+        <category>Frequency capping</category>
+        
+        <category>Distributed systems</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>An elegant platform</title>
@@ -1571,159 +1778,6 @@ Before we dive into how our model works, it is important to understand the proce
         
         
         <category>Data Science</category>
-        
-        <category>Security</category>
-        
-      </item>
-    
-      <item>
-        <title>Zero traffic cost for Kafka consumers</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Coban, Grab’s real-time data streaming platform team, has been building an ecosystem around &lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt;, serving all Grab verticals. Along with stability and performance, one of our priorities is also cost efficiency.&lt;/p&gt;
-
-&lt;p&gt;In this article, we explain how the Coban team has substantially reduced Grab’s annual cost for data streaming by enabling Kafka consumers to fetch from the closest replica.&lt;/p&gt;
-
-&lt;h2 id=&quot;problem-statement&quot;&gt;Problem statement&lt;/h2&gt;
-
-&lt;p&gt;The Grab platform is primarily hosted on AWS cloud, located in one region, spanning over three Availability Zones (AZs). When it comes to data streaming, both the Kafka brokers and Kafka clients run across these three AZs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/zero-traffic-cost/fig-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1 - Initial design, consumers fetching from the partition leader&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Figure 1 shows the initial design of our data streaming platform. To ensure high availability and resilience, we configured each Kafka partition to have three replicas. We have also set up our Kafka clusters to be rack-aware (i.e. 1 “rack” = 1 AZ) so that all three replicas reside in three different AZs.&lt;/p&gt;
-
-&lt;p&gt;The problem with this design is that it generates staggering cross-AZ network traffic. This is because, by default, Kafka clients communicate only with the partition leader, which has a 67% probability of residing in a different AZ.&lt;/p&gt;
-
-&lt;p&gt;This is a concern as we are charged for cross-AZ traffic as per &lt;a href=&quot;https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer_within_the_same_AWS_Region&quot;&gt;AWS’s network traffic pricing model&lt;/a&gt;. With this design, our cross-AZ traffic amounted to half of the total cost of our Kafka platform.&lt;/p&gt;
-
-&lt;p&gt;The Kafka cross-AZ traffic for this design can be broken down into three components as shown in Figure 1:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Producing&lt;/strong&gt; (step 1): Typically, a single service produces data to a given Kafka topic. Cross-AZ traffic occurs when the producer does not reside in the same AZ as the partition leader it is producing data to. This cross-AZ traffic cost is minimal, because the data is transferred to a different AZ at most once (excluding retries).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Replicating&lt;/strong&gt; (step 2): The ingested data is replicated from the partition leader to the two partition followers, which reside in two other AZs. The cost of this is also relatively small, because the data is only transferred to a different AZ twice.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Consuming&lt;/strong&gt; (step 3): Most of the cross-AZ traffic occurs here because there are many consumers for a single Kafka topic. Similar to the producers, the consumers incur cross-AZ traffic when they do not reside in the same AZ as the partition leader. However, on the consuming side, cross-AZ traffic can occur as many times as there are consumers (on average, two-thirds of the number of consumers). The solution described in this article addresses this particular component of the cross-AZ traffic in the initial design.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://archive.apache.org/dist/kafka/2.3.0/RELEASE_NOTES.html&quot;&gt;Kafka 2.3&lt;/a&gt; introduced the ability for consumers to fetch from partition replicas. This opens the door to a more cost-efficient design.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/zero-traffic-cost/fig-2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2 - Target design, consumers fetching from the closest replica&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Step 3 of Figure 2 shows how consumers can now consume data from the replica that resides in their own AZ. Implementing this feature requires rack-awareness and extra configurations for both the Kafka brokers and consumers. We will describe this in the following sections.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-coban-journey&quot;&gt;The Coban journey&lt;/h2&gt;
-
-&lt;h3 id=&quot;kafka-upgrade&quot;&gt;Kafka upgrade&lt;/h3&gt;
-
-&lt;p&gt;Our journey started with the upgrade of our legacy Kafka clusters. We decided to upgrade them directly to version 3.1, in favour of capturing bug fixes and optimisations over version 2.3. This was a safe move as version 3.1 was deemed stable for almost a year and we projected no additional operational cost for this upgrade.&lt;/p&gt;
-
-&lt;p&gt;To perform an online upgrade with no disruptions for our users, we broke down the process into three stages.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Stage 1&lt;/strong&gt;: Upgrading Zookeeper. All versions of Kafka are tested by the community with a specific version of Zookeeper. To ensure stability, we followed this same process. The upgraded Zookeeper would be backward compatible with the pre-upgrade version of Kafka which was still in use at this early stage of the operation.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Stage 2&lt;/strong&gt;: Rolling out the upgrade of Kafka to version 3.1 with an explicit backward-compatible inter-broker protocol version (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;inter.broker.protocol.version&lt;/code&gt;). During this progressive rollout, the Kafka cluster is temporarily composed of brokers with heterogeneous Kafka versions, but they can communicate with one another because they are explicitly set up to use the same inter-broker protocol version. At this stage, we also upgraded Cruise Control to a compatible version, and we configured Kafka to import the updated &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cruise-control-metrics-reporter&lt;/code&gt; JAR file on startup.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Stage 3&lt;/strong&gt;: Upgrading the inter-broker protocol version. This last stage makes all brokers use the most recent version of the inter-broker protocol. During the progressive rollout of this change, brokers with the new protocol version can still communicate with brokers on the old protocol version.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;configuration&quot;&gt;Configuration&lt;/h3&gt;
-&lt;p&gt;Enabling Kafka consumers to fetch from the closest replica requires a configuration change on both Kafka brokers and Kafka consumers. They also need to be aware of their AZ, which is done by leveraging Kafka rack-awareness (1 “rack” = 1 AZ).&lt;/p&gt;
-
-&lt;h4 id=&quot;brokers&quot;&gt;Brokers&lt;/h4&gt;
-&lt;p&gt;In our Kafka brokers’ configuration, we already had &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;broker.rack&lt;/code&gt; set up to distribute the replicas across different AZs for resiliency. Our Ansible role for Kafka automatically sets it with the AZ ID that is dynamically retrieved from the EC2 instance’s metadata at deployment time.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- name: Get availability zone ID
-  uri:
-    url: http://169.254.169.254/latest/meta-data/placement/availability-zone-id
-    method: GET
-    return_content: yes
-  register: ec2_instance_az_id
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Note that we use AWS AZ IDs (suffixed &lt;em&gt;az1, az2, az3&lt;/em&gt;) instead of the typical AWS AZ names (suffixed &lt;em&gt;1a, 1b, 1c&lt;/em&gt;) because the latter’s mapping is &lt;a href=&quot;https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html&quot;&gt;not consistent across AWS accounts&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Also, we added the new &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;replica.selector.class&lt;/code&gt; parameter, set with value &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;org.apache.kafka.common.replica.RackAwareReplicaSelector&lt;/code&gt;, to enable the new feature on the server side.&lt;/p&gt;
-
-&lt;h4 id=&quot;consumers&quot;&gt;Consumers&lt;/h4&gt;
-&lt;p&gt;On the Kafka consumer side, we mostly rely on Coban’s internal Kafka SDK in Golang, which streamlines how service teams across all Grab verticals utilise Coban Kafka clusters. We have updated the SDK to support fetching from the closest replica.&lt;/p&gt;
-
-&lt;p&gt;Our users only have to export an environment variable to enable this new feature. The SDK then dynamically retrieves the underlying host’s AZ ID from the host’s metadata on startup, and sets a new &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;client.rack&lt;/code&gt; parameter with that information. This is similar to what the Kafka brokers do at deployment time.&lt;/p&gt;
-
-&lt;p&gt;We have also implemented the same logic for our non-SDK consumers, namely &lt;a href=&quot;https://flink.apache.org/&quot;&gt;Flink&lt;/a&gt; pipelines and &lt;a href=&quot;https://developer.confluent.io/learn-kafka/kafka-connect/intro/&quot;&gt;Kafka Connect&lt;/a&gt; connectors.&lt;/p&gt;
-
-&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
-&lt;p&gt;We rolled out fetching from the closest replica at the turn of the year and the feature has been progressively rolled out on more and more Kafka consumers since then.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/zero-traffic-cost/fig-3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3 - Variation of our cross-AZ traffic before and after enabling fetching from the closest replica&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Figure 3 shows the relative impact of this change on our cross-AZ traffic, as reported by AWS Cost Explorer. AWS charges cross-AZ traffic on both ends of the data transfer, thus the two data series. On the Kafka brokers’ side, less cross-AZ traffic is sent out, thereby causing the steep drop in the dark green line. On the Kafka consumers’ side, less cross-AZ traffic is received, causing the steep drop in the light green line. Hence, both ends benefit by fetching from the closest replica.&lt;/p&gt;
-
-&lt;p&gt;Throughout the observeration period, we maintained a relatively stable volume of data consumption. However, after three months, we observed a substantial 25% drop in our cross-AZ traffic compared to December’s average. This reduction had a direct impact on our cross-AZ costs as it directly correlates with the cross-AZ traffic volume in a linear manner.&lt;/p&gt;
-
-&lt;h3 id=&quot;caveats&quot;&gt;Caveats&lt;/h3&gt;
-
-&lt;h4 id=&quot;increased-end-to-end-latency&quot;&gt;Increased end-to-end latency&lt;/h4&gt;
-
-&lt;p&gt;After enabling fetching from the closest replica, we have observed an increase of up to 500ms in end-to-end latency, that comes from the producer to the consumers. Though this is expected by design, it makes this new feature unsuitable for Grab’s most latency-sensitive use cases. For these use cases, we retained the traditional design whereby consumers fetch directly from the partition leaders, even when they reside in different AZs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/zero-traffic-cost/fig-4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4 - End-to-end latency (99th percentile) of one of our streams, before and after enabling fetching from the closest replica&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;inability-to-gracefully-isolate-a-broker&quot;&gt;Inability to gracefully isolate a broker&lt;/h4&gt;
-
-&lt;p&gt;We have also verified the behaviour of Kafka clients during a broker rotation; a common maintenance operation for Kafka. One of the early steps of our corresponding runbook is to demote the broker that is to be rotated, so that all of its partition leaders are drained and moved to other brokers.&lt;/p&gt;
-
-&lt;p&gt;In the traditional architecture design, Kafka clients only communicate with the partition leaders, so demoting a broker gracefully isolates it from all of the Kafka clients. This ensures that the maintenance is seamless for them. However, by fetching from the closest replica, Kafka consumers still consume from the demoted broker, as it keeps serving partition followers. When the broker effectively goes down for maintenance, those consumers are suddenly disconnected. To work around this, they must handle connection errors properly and implement a retry mechanism.&lt;/p&gt;
-
-&lt;h4 id=&quot;potentially-skewed-load&quot;&gt;Potentially skewed load&lt;/h4&gt;
-
-&lt;p&gt;Another caveat we have observed is that the load on the brokers is directly determined by the location of the consumers. If they are not well balanced across all of the three AZs, then the load on the brokers is similarly skewed. At times, new brokers can be added to support an increasing load on an AZ. However, it is undesirable to remove any brokers from the less loaded AZs as more consumers can suddenly relocate there at any time. Having these additional brokers and underutilisation of existing brokers on other AZs can also impact cost efficiency.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/zero-traffic-cost/fig-5.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5 - Average CPU utilisation by AZ of one of our critical Kafka clusters&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Figure 5 shows the CPU utilisation by AZ for one of our critical Kafka clusters. The skewage is visible after 01/03/2023. To better manage this skewage in load across AZs, we have updated our SDK to expose the AZ as a new metric. This allows us to monitor the skewness of the consumers and take measures proactively, for example, moving some of them to different AZs.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;We have implemented the feature to fetch from the closest replica on all our Kafka clusters and all Kafka consumers that we control. This includes internal Coban pipelines as well as the managed pipelines that our users can self-serve as part of our data streaming offering.&lt;/p&gt;
-
-&lt;p&gt;We are now evangelising and advocating for more of our users to adopt this feature.&lt;/p&gt;
-
-&lt;p&gt;Beyond Coban, other teams at Grab are also working to reduce their cross-AZ traffic, notably, Sentry, the team that is in charge of Grab’s service mesh.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 07 Jul 2023 00:23:05 +0000</pubDate>
-        <link>https://engineering.grab.com/zero-traffic-cost</link>
-        <guid isPermaLink="true">https://engineering.grab.com/zero-traffic-cost</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Kafka</category>
-        
-        <category>Performance</category>
-        
-        <category>Access control</category>
-        
-        
-        <category>Engineering</category>
         
         <category>Security</category>
         

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Sliding window rate limits in distributed systems</title>
+    <meta name="description" content="In the field of distributed systems, there are several common challenges, such as rate limiters and fast queries in big data. In this blog post, we delve into how we address these challenges with sliding window rate limits to optimise marketing communications for our users.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/frequency-capping">
+    <meta property="og:title" content="Sliding window rate limits in distributed systems">
+    <meta property="og:description" content="In the field of distributed systems, there are several common challenges, such as rate limiters and fast queries in big data. In this blog post, we delve into how we address these challenges with sliding window rate limits to optimise marketing communications for our users.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/frequency-capping/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/frequency-capping">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/frequency-capping/cover.jpg" class="post-cover-photo" alt="Sliding window rate limits in distributed systems cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Sliding window rate limits in distributed systems</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/naveen-kumar.jpg">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/abdullah-mamun.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#naveen-kumar">Naveen Kumar Jakuva Premkumar</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#abdullah-mamun">Abdullah Al Mamun</a>
+                  
+                
+              </span>
+              <span class="post-date-large">14 Dec 2023 | 11 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p>Like many other companies, Grab uses marketing communications to notify users of promotions or other news. If a user receives these notifications from multiple companies, it would be a form of information overload and they might even start considering these communications as spam. Over time, this could lead to some users revoking their consent to receive marketing communications altogether. Hence, it is important to find a rate-limited solution that sends the right amount of communications to our users.</p>
+
+<h2 id="background">Background</h2>
+
+<p>In Grab, marketing emails and push notifications are part of carefully designed campaigns to ensure that users get the right notifications (i.e. based on past orders or usage patterns). Trident is Grab’s in-house tool to compose these campaigns so that they run efficiently at scale. An example of a campaign is scheduling a marketing email blast to 10 million users at 4 pm. Read more about Trident’s architecture <a href="/supporting-large-campaigns-at-scale">here</a>.</p>
+
+<p>Trident relies on Hedwig, another in-house service, to deliver the messages to users. Hedwig does the heavy lifting of delivering large amounts of emails and push notifications to users while maintaining a high query per second (QPS) rate and minimal delay. The following high-level architectural illustration demonstrates the interaction between Trident and Hedwig.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/frequency-capping/image3.png" alt="" style="width:80%" /><figcaption align="middle">Diagram of data interaction between Trident and Hedwig</figcaption>
+  </figure>
+</div>
+
+<p>The aim is to regulate the number of marketing comms sent to users daily and weekly, tailored based on their interaction patterns with the Grab superapp.</p>
+
+<h2 id="solution">Solution</h2>
+
+<p>Based on their interaction patterns with our superapp, we have clustered users into a few segments.</p>
+
+<p>For example:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>New: Users recently signed up to the Grab app but haven’t taken any rides yet.
+Active: Users who took rides in the past month.
+</code></pre></div></div>
+
+<p>With these metrics, we came up with optimal daily and weekly frequency limit values for each clustered user segment. The solution discussed in this article ensures that the comms sent to a user do not exceed the daily and weekly thresholds for the segment. This is also called frequency capping.</p>
+
+<p>However, frequency capping can be split into two sub-problems:</p>
+
+<p><strong>Efficient storage of clustered user data</strong></p>
+
+<p>With a huge customer base of over 270 million users, storing the user segment membership information has to be cost-efficient and memory-sleek. Querying the segment to which a user belongs should also have minimal latency.</p>
+
+<p><strong>Persistent tracking of comms sent per user</strong></p>
+
+<p>To stay within the daily and weekly thresholds, we need to actively track the number of comms sent to each user, which can be referred to make rate limiting decisions. The rate limiting logic should also have minimal latency, be cost efficient, and not take up too much memory storage.</p>
+
+<h4 id="optimising-storage-of-user-segment-data">Optimising storage of user segment data</h4>
+
+<p>The problem here is figuring out which segment a particular user belongs to and ensuring that the user doesn’t appear in more than one segment. There are two options that suit our needs and we’ll explain more about each option, as well as what was the best option for us.</p>
+
+<p><strong>Bloom filter</strong> </p>
+
+<p>A <a href="https://www.geeksforgeeks.org/bloom-filters-introduction-and-python-implementation/">Bloom filter</a> is a space-efficient probabilistic data structure that addresses this problem well. Simply put, Bloom filters internally use arrays to track memberships of the elements.</p>
+
+<p>For our scenario, each user segment would need its own bloom filter. We used <a href="https://hur.st/bloomfilter/?n%3D270000000%26p%3D1.0E-7%26m%3D%26k%3D">this bloom filter</a> calculator to estimate the memory required for each bloom filter. We found that we needed approximately 1 GB of memory and 23 hash functions to accurately represent the membership information of 270 million users in an array. Additionally, this method guarantees a false positive rate of  1.0E-7, which means 1 in 1 million elements may get wrong membership results because of hash collision.</p>
+
+<p>With Grab’s existing segments, this approach needs 4GB of memory, which may increase as we increase the number of segments in the future. Moreover, the potential hash collision needs to be handled by increasing the memory size with even more hash functions. Another thing to note is that Bloom filters do not support deletion so every time a change needs to be done, you need to create a new version of the Bloom filter. Although Bloom filters have many advantages, these shortcomings led us to explore another approach.</p>
+
+<p>Roaring bitmaps Roaring bitmaps are sets of unsigned integers consisting of containers of disjoint subsets, which can store large amounts of data in a compressed form. Essentially, roaring bitmaps could reduce memory storage significantly and overcome the hash collision problem. To understand the intuition behind this, first, we need to know how bitmaps work and the possible drawbacks behind it.</p>
+
+<p>To represent a list of numbers as a bitmap, we first need to create an array with a size equivalent to the largest element in the list. For every element in the list, we then mark the bit value as 1 in the corresponding index in the array. While bitmaps work very well for storing integers in closer intervals, they occupy more space and become sparse when storing integer ranges with uneven distribution, as shown in the image below.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/frequency-capping/image6.png" alt="" style="width:80%" /><figcaption align="middle">Diagram of bitmaps with uneven distribution</figcaption>
+  </figure>
+</div>
+
+<p>To reduce memory footprint and improve the performance of bitmaps, there are compression techniques such as Run-Length Encoding (RLE), and Word Aligned Hybrid (WAH). However, this would require additional effort to implement, whereas using roaring bitmaps would solve these issues.</p>
+
+<p>Roaring bitmaps’ hybrid data storage approach offers the following advantages:</p>
+
+<ul>
+  <li>Faster set operations (union, intersection, differencing).</li>
+  <li>Better compression ratio when handling mixed datasets (both dense and sparse data distribution).</li>
+  <li>Ability to scale to large datasets without significant performance loss.</li>
+</ul>
+
+<p>To summarise, roaring bitmaps can store positive integers from 0 to (2^32)-1. Each positive integer value is converted to a 32-bit binary, where the 16 Most Significant Bits (MSB) are used as the key and the remaining 16 Least Significant Bits (LSB) are represented as the value. The values are then stored in an array, a bitmap, or used to run containers with RLE encoding data structures.</p>
+
+<p>If the number of integers mapped to the key is less than 4096, then all the integers are stored in an array in sorted order and converted into a bitmap container in the runtime as the size exceeds. Roaring bitmap analyses the distribution of set bits in the bitmap container i.e. if the continuous interval of set bits is more than a given threshold, the bitmap container can be more efficiently represented using the RLE container. Internally, the RLE container uses an array where the even indices store the beginning of the runs and the odd indices represent the length of the runs. This enables the roaring bitmap to dynamically switch between the containers to optimise storage and performance.</p>
+
+<p>The following diagram shows how a set of elements with different distributions are stored in roaring bitmaps.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/frequency-capping/image1.png" alt="" style="width:80%" /><figcaption align="middle">Diagram of how roaring bitmaps store elements with different distributions </figcaption>
+  </figure>
+</div>
+
+<p>In Grab, we developed a microservice that abstracts roaring bitmaps implementations and provides an API to check set membership and enumeration of elements in the sets. <a href="/streamlining-grabs-segmentation-platform">Check out this blog to learn more about it.</a></p>
+
+<h4 id="distributed-rate-limiting">Distributed rate limiting</h4>
+
+<p>The second part of the problem involves rate limiting the number of communication messages sent to users on a daily or weekly basis and each segment has specific daily and weekly limits. By utilising roaring bitmaps, we can determine the segment to which a user belongs. After identifying the appropriate segment, we will apply the personalised limits to the user using a distributed rate limiter, which will be discussed in further detail in the following sections.</p>
+
+<p><strong>Choosing the right datastore</strong></p>
+
+<p>Based on our use case, Amazon ElasticCache for Redis and DynamoDB were two viable options for storing the sent communication messages count per user. However, we decided to choose Redis due to a number of factors:</p>
+
+<ul>
+  <li>Higher throughput at lower latency – Redis shards data across nodes in the cluster.</li>
+  <li>Cost-effective – Usage of Lua script reduces unnecessary data transfer overheads.</li>
+  <li>Better at handling spiky rate limiting workloads at scale.</li>
+</ul>
+
+<p><strong>Distributed rate limiter</strong></p>
+
+<p>To appropriately limit the comms our users receive, we needed a rate limiting algorithm, which could execute directly in the datastore cluster, then return the results in the application logic for further processing. The two rate limiting algorithms we considered were the sliding window rate limiter and sliding log rate limiter.</p>
+
+<p>The sliding window rate limiter algorithm divides time into a fixed-size window (we defined this as 1 minute) and counts the number of requests within each window. On the other hand, the sliding log maintains a log of each request timestamp and counts the number of requests between two timestamp ranges, providing a more fine-grained method of rate limiting. Although sliding log consumes more memory to store the log of request timestamp, we opted for the sliding log approach as the accuracy of the rate limiting was more important than memory consumption.</p>
+
+<p>The sliding log rate limiter utilises a Redis sorted set data structure to efficiently track and organise request logs. Each timestamp in milliseconds is stored as a unique member in the set. The score assigned to each member represents the corresponding timestamp, allowing for easy sorting in ascending order. This design choice optimises the speed of search operations when querying for the total request count within specific time ranges.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Sliding Log Rate limiter Algorithm:
+
+Input:
+  # user specific redis key where the request timestamp logs are stored as sorted set
+  keys =&gt; user_redis_key
+
+  # limit_value is the limit that needs to be applied for the user
+  # start_time_in_millis is the starting point of the time window
+  # end_time_in_millis is the ending point of the time window
+  # current_time_in_millis is the current time the request is sent
+  # eviction_time_in_millis, members in the set whose value is less than this will be evicted from the set
+
+  args =&gt; limit_value, start_time_in_millis, end_time_in_millis, current_time_in_millis, eviction_time_in_millis
+
+Output:
+  # 0 means not_allowed and 1 means allowed
+  response =&gt; 0 / 1
+
+Logic:
+  # zcount fetches the count of the request timestamp logs falling between the start and the end timestamp
+  request_count = zcount user_redis_key start_time_in_millis end_time_in_millis
+
+  response = 0
+  # if the count of request logs is less than allowed limits then record the usage by adding current timestamp in sorted set
+
+  if request_count &lt; limit_value then
+    zadd user_redis_key current_time_in_millis current_time_in_millis
+    response = 1
+
+  # zremrangebyscore removes the members in the sorted set whose score is less than eviction_time_in_millis
+
+  zremrangebyscore user_redis_key -inf eviction_time_in_millis
+  return response
+</code></pre></div></div>
+
+<p>This algorithm takes O(log n) time complexity, where n is the number of request logs stored in the sorted set. It is not possible to evict entries in the sorted set like how we have time-to-live (TTL) for Redis keys. To prevent the size of the sorted set from increasing over time, we have a fixed variable <code class="language-plaintext highlighter-rouge">eviction_time_in_millis</code> that is passed to the script. The <code class="language-plaintext highlighter-rouge">zremrangebyscore</code> command then deletes members from the sorted set whose score is less than <code class="language-plaintext highlighter-rouge">eviction_time_in_millis</code> in O(log n) time complexity.</p>
+
+<p><strong>Lua script optimisations</strong></p>
+
+<p>In Redis Cluster mode, all Redis keys accessed by a Lua script must be present on the same node, and they should be passed as part of the <code class="language-plaintext highlighter-rouge">KEYS</code> input array of the script. If the script attempts to access keys located on different nodes within the cluster, a <code class="language-plaintext highlighter-rouge">CROSSSLOT</code> error will be thrown. Redis keys, or userIDs, are distributed across multiple nodes in the cluster so it is not feasible to send a batch of userIDs within the same Lua script for rate limiting, as this might result in a <code class="language-plaintext highlighter-rouge">CROSSSLOT</code> error.</p>
+
+<p>Invoking a separate Lua script call for each user is a possible approach, but it incurs a significant number of network calls, which can be optimised further with the following approach:</p>
+
+<ol>
+  <li>Upload the Lua script into the Redis server during the server startup with the <code class="language-plaintext highlighter-rouge">SCRIPT LOAD</code> command and we get the SHA1 hash of the script if the upload is successful.</li>
+  <li>The SHA1 hash can then be used to invoke the Lua script with the <code class="language-plaintext highlighter-rouge">EVALSHA</code> command passing the keys and arguments as script input.</li>
+  <li>Redis pipelining takes in multiple <code class="language-plaintext highlighter-rouge">EVALSHA</code> commands that call the Lua script and each invocation corresponds to a userID for getting the rate limiting result.</li>
+  <li>Redis pipelining groups the <code class="language-plaintext highlighter-rouge">EVALSHA</code> Redis commands with Redis keys located on the same nodes internally. It then sends the grouped commands in a single network call to the relevant nodes within the Redis cluster and provides the rate limiting outcome to the client.</li>
+</ol>
+
+<p>Since Redis operates on a single thread, any long-running Lua script can cause other Redis commands to be blocked until the script completes execution. Thus, it’s optimal for the Lua script to execute in under 5 milliseconds. Additionally, the current time is passed as an argument to the script to account for potential variations in time when the script is executed on a node’s replica, which could be caused by <a href="https://medium.com/geekculture/all-things-clock-time-and-order-in-distributed-systems-physical-time-in-depth-3c0a4389a838%23:~:text%3DClock%2520Drift%253A%2520As%2520mentioned%252C%2520no,rate%2520is%2520called%2520clock%2520drift.">clock drift</a>.</p>
+
+<p>By bringing together roaring bitmaps and the distributed rate limiter, this is what our final solution looks like:</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/frequency-capping/image5.png" alt="" style="width:80%" /><figcaption align="middle">Our final solution using roaring bitmaps and distributed rate limiter</figcaption>
+  </figure>
+</div>
+
+<p>The roaring bitmaps structure is serialised and stored in an AWS S3 bucket, which is then downloaded in the instance during server startup. After which, triggering a user segment membership check can simply be done with a local method call. The configuration service manages the mapping information between the segment and allowed rate limiting values.</p>
+
+<p>Whenever a marketing message needs to be sent to a user, we first find the segment to which the user belongs, retrieve the defined rate limiting values from the configuration service, then execute the Lua script to get the rate limiting decision. If there is enough quota available for the user, we send the comms.</p>
+
+<p>The architecture of the messaging service looks something like this:</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/frequency-capping/image2.png" alt="" style="width:80%" /><figcaption align="middle">Architecture of the messaging service</figcaption>
+  </figure>
+</div>
+
+<h3 id="impact">Impact</h3>
+
+<p>In addition to decreasing the unsubscription rate, there was a significant enhancement in the latency of sending communications. Eliminating redundant communications also alleviated the system load, resulting in a reduction of the delay between the scheduled time and the actual send time of comms.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Applying rate limiters to safeguard our services is not only a standard practice but also a necessary process. Many times, this can be achieved by configuring the rate limiters at the instance level. The need for rate limiters for business logic may not be as common, but when you need it, the solution must be lightning-fast, and capable of seamlessly operating within a distributed environment.</p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#big-data" class="label tags-label">Big data</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#distributed-systems" class="label tags-label">Distributed systems</a>
+  
+    <a href="/tags#frequency-capping" class="label tags-label">Frequency capping</a>
+  
+    <a href="/tags#rate-limiting" class="label tags-label">Rate limiting</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Sliding window rate limits in distributed systems&url=https://engineering.grab.com/frequency-capping&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/frequency-capping" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/frequency-capping&title=Sliding window rate limits in distributed systems
+&summary=In the field of distributed systems, there are several common challenges, such as rate limiters and fast queries in big data. In this blog post, we delve into how we address these challenges with sliding window rate limits to optimise marketing communications for our users.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/frequency-capping';
+    this.page.identifier = '/frequency-capping';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
