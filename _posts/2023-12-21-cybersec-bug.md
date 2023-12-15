@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2023-12-21-cybersec-bug
-title: 'CyberSecurity: Grab bug bounty programme in 2023'
+title: "CyberSecurity: Grab's bug bounty programme in 2023"
 date: 2023-12-14 00:00:10
 authors: [prithvinder-singh, peishan-yap, tarun-modi]
 categories: [Engineering, Security]
