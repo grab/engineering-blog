@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2023-12-21-cybersec-bug
+id: 2023-12-19-cybersec-bug
 title: "CyberSecurity: Grab's bug bounty programme in 2023"
-date: 2023-12-14 00:00:10
+date: 2023-12-19 00:00:10
 authors: [prithvinder-singh, peishan-yap, tarun-modi]
 categories: [Engineering, Security]
 tags: [Security, Bug bounty, HackerOne]
@@ -11,15 +11,11 @@ cover_photo: /img/cybersec-bug/cover.png
 excerpt: "Since its launch in 2015, Grab’s Bug Bounty programme has made strides in giving back to the global security community and aiding research. Read this article to find out more about our quarterly campaigns in collaboration with HackerOne and other achievements we’ve had in 2023."
 ---
 
-Since its launch in 2015, [Grab's Security bug bounty programme](https://hackerone.com/grab?type%3Dteam) has seen great success, marked by significant accomplishments and partnerships within a vibrant bounty community. Marking its eighth year in 2023, this initiative has achieved new milestones and continues to set the stage for an even more successful ninth year.
-
-Grab consistently hosts quarterly campaigns with HackerOne. In 2023, this included a special campaign in Threatcon Nepal, aimed at increasing our bounty engagements. A key development was the enrichment of monetary incentives to honor our hacker community’s remarkable contributions to our programme's success.
-
-Grab has always been dedicated to security and giving back to the global security community to further research. Since 2015, Grab has paid over $700,000 in cumulative payments to committed security researchers, aiding in their research.
+Launched in 2015, [Grab's Security bug bounty programme](https://hackerone.com/grab?type%3Dteam) has achieved remarkable success and forged strong partnerships within a thriving bounty community. By holding quarterly campaigns with HackerOne, Grab has been dedicated to security and giving back to the global security community to research further. Over the years, Grab has paid over $700,000 in cumulative payments to committed security researchers, aiding their research.
 
 Our journey doesn't stop there – we've also expanded our internal bug bounty team, ensuring that we have the necessary resources to stay at the forefront of security challenges. As we continue to innovate and evolve, it's critical that our team remains at the cutting edge of security developments.
 
-Our commitment to providing a safe and secure platform for our users is unwavering. In addition, we firmly believe that the foundation of a successful security bug bounty programme lies in the partnership with talented and dedicated security researchers.
+Marking its eighth year in 2023, this initiative has achieved new milestones and continues to set the stage for an even more successful ninth year. In 2023, this included a special campaign in Threatcon Nepal, aimed at increasing our bounty engagements. A key development was the enrichment of monetary incentives to honour our hacker community’s remarkable contributions to our programme's success.
 
 Let’s look at the key takeaways we gained from the bug bounty programme in 2023.
 
@@ -54,11 +50,7 @@ With these improvements, we can drive continuous improvement efforts to provide 
 
 ## A word of thanks
 
-2023 has been an exhilarating year for our team. We're gearing up for another exciting year ahead in our programme, and looking forward to interesting submissions from our participants.
-
-As we head into our ninth year, we know there are new opportunities and challenges that await us. We strive to remain dedicated to the values of collaboration and continuous improvement, working hand in hand with the security community to enhance our superapp’s security and deliver an even safer experience for our users.
-
-We're grateful for the continued support from all the security researchers who've actively participated in our programme and we look forward to achieving even greater milestones with you in the future.
+2023 has been an exhilarating year for our team. We're grateful for the continued support from all the security researchers who've actively participated in our programme.
 
 Here are the top three researchers in 2023:
 
@@ -66,7 +58,9 @@ Here are the top three researchers in 2023:
 2.  [Happy_csr](https://hackerone.com/happy_csr) 
 3.  [mclaren650sspider](https://hackerone.com/mclaren650sspider) 
 
-We extend an open invitation to all researchers to submit reports to our bug bounty programme. Your contributions hold immense value and have a significant impact on the safety and security of our products, our users, and the broader security community. For comprehensive information about the programme scope, rules, and rewards, [visit our website](https://hackerone.com/grab?type%3Dteam).
+As we head into our ninth year, we know there are new opportunities and challenges that await us. We strive to remain dedicated to the values of collaboration and continuous improvement, working hand in hand with the security community to enhance our superapp’s security and deliver an even safer experience for our users.
+
+We're gearing up for another exciting year ahead in our programme, and looking forward to interesting submissions from our participants. We extend an open invitation to all researchers to submit reports to our bug bounty programme. Your contributions hold immense value and have a significant impact on the safety and security of our products, our users, and the broader security community. For comprehensive information about the programme scope, rules, and rewards, [visit our website](https://hackerone.com/grab?type%3Dteam).
 
 Until next year, keep up the great work, and happy hacking!
 
