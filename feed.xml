@@ -2,16 +2,338 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Grab Tech</title>
-    <description>Grab's Engineering team solves critical transportation challenges and makes transport freedom a reality for 620 million people in Southeast Asia.
+    <description>Grab&apos;s Engineering team solves critical transportation challenges and makes transport freedom a reality for 620 million people in Southeast Asia.
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 25 Dec 2023 20:01:36 +0000</pubDate>
-    <lastBuildDate>Mon, 25 Dec 2023 20:01:36 +0000</lastBuildDate>
+    <pubDate>Tue, 26 Dec 2023 08:21:34 +0000</pubDate>
+    <lastBuildDate>Tue, 26 Dec 2023 08:21:34 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
     
       <item>
-        <title>Championing CyberSecurity: Grab's bug bounty programme in 2023</title>
+        <title>Kafka on Kubernetes: Reloaded for fault tolerance</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Coban - Grab’s real-time data streaming platform - has been operating &lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt; on &lt;a href=&quot;https://kubernetes.io/&quot;&gt;Kubernetes&lt;/a&gt; with &lt;a href=&quot;https://strimzi.io/&quot;&gt;Strimzi&lt;/a&gt; in 
+production for about two years. In a previous article (&lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Zero trust with Kafka&lt;/a&gt;), we explained how we leveraged Strimzi to enhance the security of our data streaming offering.&lt;/p&gt;
+
+&lt;p&gt;In this article, we are going to describe how we improved the fault tolerance of our initial design, to the point where we no longer need to intervene if a Kafka broker is unexpectedly terminated.&lt;/p&gt;
+
+&lt;h2 id=&quot;problem-statement&quot;&gt;Problem statement&lt;/h2&gt;
+
+&lt;p&gt;We operate Kafka in the AWS Cloud. For the Kafka on Kubernetes design described in this article, we rely on &lt;a href=&quot;https://aws.amazon.com/eks/&quot;&gt;Amazon Elastic Kubernetes Service&lt;/a&gt; (EKS), the managed Kubernetes offering by AWS, with the worker nodes deployed as &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/worker.html&quot;&gt;self-managed nodes&lt;/a&gt; on &lt;a href=&quot;https://aws.amazon.com/ec2/&quot;&gt;Amazon Elastic Compute Cloud&lt;/a&gt; (EC2).&lt;/p&gt;
+
+&lt;p&gt;To make our operations easier and limit the blast radius of any incidents, we deploy exactly one Kafka cluster for each EKS cluster. We also give a full worker node to each Kafka broker. In terms of storage, we initially relied on EC2 instances with &lt;a href=&quot;https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ssd-instance-store.html&quot;&gt;non-volatile memory express (NVMe) instance store volumes&lt;/a&gt; for 
+maximal I/O performance. Also, each Kafka cluster is accessible beyond its own &lt;a href=&quot;https://aws.amazon.com/vpc/&quot;&gt;Virtual Private Cloud&lt;/a&gt; (VPC) via a &lt;a href=&quot;https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html&quot;&gt;VPC Endpoint Service&lt;/a&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/kafka-on-kubernetes/image5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 1 Initial design of a 3-node Kafka cluster running on Kubernetes.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 1 shows a logical view of our initial design of a 3-node Kafka on Kubernetes cluster, as typically run by Coban. The Zookeeper and Cruise-Control components are not shown for clarity.&lt;/p&gt;
+
+&lt;p&gt;There are four Kubernetes services (1): one for the initial connection - referred to as “bootstrap” - that redirects incoming traffic to any Kafka pods, plus one for each Kafka pod, for the clients to target each Kafka broker individually (a requirement to produce or consume from/to a partition that resides on any particular Kafka broker). Four different listeners on the Network Load Balancer (NLB) listening on four different TCP ports, enable the Kafka clients to target either the bootstrap 
+service or any particular Kafka broker they need to reach. This is very similar to what we previously described in &lt;a href=&quot;/exposing-kafka-cluster&quot;&gt;Exposing a Kafka Cluster via a VPC Endpoint Service&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Each worker node hosts a single Kafka pod (2). The NVMe instance store volume is used to create a Kubernetes Persistent Volume (PV), attached to a pod via a Kubernetes Persistent Volume Claim (PVC).&lt;/p&gt;
+
+&lt;p&gt;Lastly, the worker nodes belong to &lt;a href=&quot;https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-groups.html&quot;&gt;Auto-Scaling Groups&lt;/a&gt; (ASG) (3), one by &lt;a href=&quot;https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-availability-zones&quot;&gt;Availability Zone&lt;/a&gt; (AZ). Strimzi adds in node affinity to make sure that the brokers are evenly distributed across AZs. In this initial design, ASGs are not for auto-scaling though, because we want to keep the size of the cluster under control. We only use ASGs - with a fixed size - to facilitate manual scaling operation and to automatically replace the terminated worker nodes.&lt;/p&gt;
+
+&lt;p&gt;With this initial design, let us see what happens in case of such a worker node termination.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/kafka-on-kubernetes/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 2 Representation of a worker node termination. Node C is terminated and replaced by node D. However the Kafka broker 3 pod is unable to restart on node D.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 2 shows the worker node C being terminated along with its NVMe instance store volume C, and replaced (by the ASG) by a new worker node D and its new, empty NVMe instance store volume D. On start-up, the worker node D automatically joins the Kubernetes cluster. The Kafka broker 3 pod that was running on the faulty worker node C is scheduled to restart on the new worker node D.&lt;/p&gt;
+
+&lt;p&gt;Although the NVMe instance store volume C is terminated along with the worker node C, there is no data loss because all of our Kafka topics are configured with a minimum of three replicas. The data is poised to be copied over from the surviving Kafka brokers 1 and 2 back to Kafka broker 3, as soon as Kafka broker 3 is effectively restarted on the worker node D.&lt;/p&gt;
+
+&lt;p&gt;However, there are three fundamental issues with this initial design:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;The Kafka clients that were in the middle of producing or consuming to/from the partition leaders of Kafka broker 3 are suddenly facing connection errors, because the broker was not gracefully demoted beforehand.&lt;/li&gt;
+  &lt;li&gt;The target groups of the NLB for both the bootstrap connection and Kafka broker 3 still point to the worker node C. Therefore, the network communication from the NLB to Kafka broker 3 is broken. A manual reconfiguration of the target groups is required.&lt;/li&gt;
+  &lt;li&gt;The PVC associating the Kafka broker 3 pod with its instance store PV is unable to automatically switch to the new NVMe instance store volume of the worker node D. Indeed, static provisioning is an intrinsic characteristic of Kubernetes &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/volumes/#local&quot;&gt;local volumes&lt;/a&gt;. The PVC is still in &lt;em&gt;Bound&lt;/em&gt; state, so Kubernetes does not take any action. However, the actual storage beneath the PV does not exist anymore. Without any storage, the Kafka broker 3 pod is unable to start.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;At this stage, the Kafka cluster is running in a degraded state with only two out of three brokers, until a Coban engineer intervenes to reconfigure the target groups of the NLB and delete the zombie PVC (this, in turn, triggers its re-creation by Strimzi, this time using the new instance store PV).&lt;/p&gt;
+
+&lt;p&gt;In the next section, we will see how we have managed to address the three issues mentioned above to make this design fault-tolerant.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;h3 id=&quot;graceful-kafka-shutdown&quot;&gt;Graceful Kafka shutdown&lt;/h3&gt;
+
+&lt;p&gt;To minimise the disruption for the Kafka clients, we leveraged the &lt;a href=&quot;https://aws-quickstart.github.io/cdk-eks-blueprints/addons/aws-node-termination-handler/&quot;&gt;AWS Node Termination Handler&lt;/a&gt; (NTH). This component provided by AWS for Kubernetes environments is able to cordon and drain a worker node that is going to be terminated. This draining, in turn, triggers a graceful shutdown of the Kafka 
+process by sending a polite &lt;a href=&quot;https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html&quot;&gt;SIGTERM&lt;/a&gt; signal to all pods running on the worker node that is being drained (instead of the brutal &lt;a href=&quot;https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html&quot;&gt;SIGKILL&lt;/a&gt; of a normal termination).&lt;/p&gt;
+
+&lt;p&gt;The termination events of interest that are captured by the NTH are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Scale-in operations by an ASG.&lt;/li&gt;
+  &lt;li&gt;Manual termination of an instance.&lt;/li&gt;
+  &lt;li&gt;AWS maintenance events, typically EC2 instances scheduled for upcoming retirement.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This suffices for most of the disruptions our clusters can face in normal times and our common maintenance operations, such as terminating a worker node to refresh it. Only sudden hardware failures (AWS issue events) would fall through the cracks and still trigger errors on the Kafka client side.&lt;/p&gt;
+
+&lt;p&gt;The NTH comes in two modes: &lt;a href=&quot;https://github.com/aws/aws-node-termination-handler#major-features&quot;&gt;Instance Metadata Service (IMDS) and Queue Processor&lt;/a&gt;. We chose to go with the latter as it is able to capture a broader range of events, widening the fault tolerance capability.&lt;/p&gt;
+
+&lt;h4 id=&quot;scale-in-operations-by-an-asg&quot;&gt;Scale-in operations by an ASG&lt;/h4&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/kafka-on-kubernetes/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 3 Architecture of the NTH with the Queue Processor.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 3 shows the NTH with the Queue Processor in action, and how it reacts to a scale-in operation (typically triggered manually, during a maintenance operation):&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;As soon as the scale-in operation is triggered, an &lt;a href=&quot;https://docs.aws.amazon.com/autoscaling/ec2/userguide/lifecycle-hooks.html&quot;&gt;Auto Scaling lifecycle hook&lt;/a&gt; is invoked to pause the termination of the instance.&lt;/li&gt;
+  &lt;li&gt;Simultaneously, an Auto Scaling lifecycle hook event is issued to an &lt;a href=&quot;https://aws.amazon.com/sqs/&quot;&gt;Amazon Simple Queue Service&lt;/a&gt; (SQS) queue. In Fig. 3, we have also materialised EC2 events (e.g. manual termination of an instance, AWS maintenance events, etc.) that transit via &lt;a href=&quot;https://aws.amazon.com/eventbridge/&quot;&gt;Amazon EventBridge&lt;/a&gt; to eventually end up in the same SQS queue. We will discuss EC2 events in the next two sections.&lt;/li&gt;
+  &lt;li&gt;The NTH, a pod running in the Kubernetes cluster itself, constantly polls that SQS queue.&lt;/li&gt;
+  &lt;li&gt;When a scale-in event pertaining to a worker node of the Kubernetes cluster is read from the SQS queue, the NTH sends to the Kubernetes API the instruction to &lt;a href=&quot;https://kubernetes.io/docs/concepts/architecture/nodes/#manual-node-administration&quot;&gt;cordon&lt;/a&gt; and &lt;a href=&quot;https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/&quot;&gt;drain&lt;/a&gt; the impacted worker node.&lt;/li&gt;
+  &lt;li&gt;On draining, Kubernetes sends a SIGTERM signal to the Kafka pod residing on the worker node.&lt;/li&gt;
+  &lt;li&gt;Upon receiving the SIGTERM signal, the Kafka pod gracefully migrates the leadership of its leader partitions to other brokers of the cluster before shutting down, in a transparent manner for the clients. This behaviour is ensured by the &lt;a href=&quot;https://kafka.apache.org/documentation/#basic_ops_restarting&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;controlled.shutdown.enable&lt;/code&gt;&lt;/a&gt; parameter of Kafka, which is enabled by default.&lt;/li&gt;
+  &lt;li&gt;Once the impacted worker node has been drained, the NTH eventually resumes the termination of the instance.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Strimzi also comes with a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;terminationGracePeriodSeconds&lt;/code&gt; parameter, which we have set to 180 seconds to give the Kafka pods enough time to migrate all of their partition leaders gracefully on termination. We have verified that this is enough to migrate all partition leaders on our Kafka clusters (about 60 seconds for 600 partition leaders).&lt;/p&gt;
+
+&lt;h4 id=&quot;manual-termination-of-an-instance&quot;&gt;Manual termination of an instance&lt;/h4&gt;
+
+&lt;p&gt;The Auto Scaling lifecycle hook that pauses the termination of an instance (Fig. 3, step 1) as well as the corresponding resuming by the NTH (Fig. 3, step 7) are invoked only for ASG scaling events.&lt;/p&gt;
+
+&lt;p&gt;In case of a manual termination of an EC2 instance, the termination is captured as an EC2 event that also reaches the NTH. Upon receiving that event, the NTH cordons and drains the impacted worker node. However, the instance is immediately terminated, most likely before the leadership of all of its Kafka partition leaders has had the time to get migrated to other brokers.&lt;/p&gt;
+
+&lt;p&gt;To work around this and let a manual termination of an EC2 instance also benefit from the ASG lifecycle hook, the instance must be terminated using the &lt;a href=&quot;https://docs.aws.amazon.com/cli/latest/reference/autoscaling/terminate-instance-in-auto-scaling-group.html&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;terminate-instance-in-auto-scaling-group&lt;/code&gt;&lt;/a&gt; AWS CLI command.&lt;/p&gt;
+
+&lt;h4 id=&quot;aws-maintenance-events&quot;&gt;AWS maintenance events&lt;/h4&gt;
+
+&lt;p&gt;For AWS maintenance events such as instances scheduled for upcoming retirement, the NTH acts immediately when the event is first received (typically adequately in advance). It cordons and drains the soon-to-be-retired worker node, which in turn triggers the SIGTERM signal and the graceful termination of Kafka as described above. At this stage, the impacted instance is not terminated, so the Kafka partition leaders have plenty of time to complete their migration to other brokers.&lt;/p&gt;
+
+&lt;p&gt;However, the evicted Kafka pod has nowhere to go. There is a need for spinning up a new worker node for it to be able to eventually restart somewhere.&lt;/p&gt;
+
+&lt;p&gt;To make this happen seamlessly, we doubled the maximum size of each of our ASGs and installed the &lt;a href=&quot;https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/README.md&quot;&gt;Kubernetes Cluster Autoscaler&lt;/a&gt;. With that, when such a maintenance event is received:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The worker node scheduled for retirement is cordoned and drained by the NTH. The state of the impacted Kafka pod becomes &lt;em&gt;Pending&lt;/em&gt;.&lt;/li&gt;
+  &lt;li&gt;The Kubernetes Cluster Autoscaler comes into play and triggers the corresponding ASG to spin up a new EC2 instance that joins the Kubernetes cluster as a new worker node.&lt;/li&gt;
+  &lt;li&gt;The impacted Kafka pod restarts on the new worker node.&lt;/li&gt;
+  &lt;li&gt;The Kubernetes Cluster Autoscaler detects that the previous worker node is now under-utilised and terminates it.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In this scenario, the impacted Kafka pod only remains in &lt;em&gt;Pending&lt;/em&gt; state for about four minutes in total.&lt;/p&gt;
+
+&lt;p&gt;In case of multiple simultaneous AWS maintenance events, the Kubernetes scheduler would honour our &lt;a href=&quot;https://kubernetes.io/docs/tasks/run-application/configure-pdb/&quot;&gt;PodDisruptionBudget&lt;/a&gt; and not evict more than one Kafka pod at a time.&lt;/p&gt;
+
+&lt;h3 id=&quot;dynamic-nlb-configuration&quot;&gt;Dynamic NLB configuration&lt;/h3&gt;
+
+&lt;p&gt;To automatically map the NLB’s target groups with a newly spun up EC2 instance, we leveraged the &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html&quot;&gt;AWS Load Balancer Controller&lt;/a&gt; (LBC).&lt;/p&gt;
+
+&lt;p&gt;Let us see how it works.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/kafka-on-kubernetes/image6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 4 Architecture of the LBC managing the NLB&apos;s target groups via TargetGroupBinding custom resources.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 4 shows how the LBC automates the reconfiguration of the NLB’s target groups:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;It first retrieves the desired state described in Kubernetes &lt;a href=&quot;https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/&quot;&gt;custom resources&lt;/a&gt; (CR) of type &lt;a href=&quot;https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.1/guide/targetgroupbinding/targetgroupbinding&quot;&gt;TargetGroupBinding&lt;/a&gt;. There is one such resource per target group to maintain. Each TargetGroupBinding CR associates its respective target group with a Kubernetes service.&lt;/li&gt;
+  &lt;li&gt;The LBC then watches over the changes of the Kubernetes services that are referenced in the TargetGroupBinding CRs’ definition, specifically the private IP addresses exposed by their respective &lt;a href=&quot;https://kubernetes.io/docs/concepts/services-networking/service/#endpoints&quot;&gt;Endpoints resources&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;When a change is detected, it dynamically updates the corresponding NLB’s target groups with those IP addresses as well as the TCP port of the target containers (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;containerPort&lt;/code&gt;).&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This automated design sets up the NLB’s target groups with IP addresses (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;targetType: ip&lt;/code&gt;) instead of EC2 instance IDs (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;targetType: instance&lt;/code&gt;). Although the LBC can handle both target types, the IP address approach is actually more straightforward in our case, since each pod has a routable private IP address in the AWS subnet, thanks to the &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html&quot;&gt;AWS Container Networking Interface&lt;/a&gt; (CNI) plug-in.&lt;/p&gt;
+
+&lt;p&gt;This dynamic NLB configuration design comes with a challenge. Whenever we need to update the Strimzi CR, the rollout of the change to each Kafka pod in a rolling update fashion is happening too fast for the NLB. This is because the NLB inherently takes some time to mark each target as healthy before enabling it. The Kafka brokers that have just been rolled out start advertising their broker-specific endpoints to the Kafka clients via the bootstrap service, but those 
+endpoints are actually not immediately available because the NLB is still checking their health. To mitigate this, we have reduced the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;HealthCheckIntervalSeconds&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;HealthyThresholdCount&lt;/code&gt; parameters of each target group to their minimum values of 5 and 2 respectively. This reduces the maximum delay for the NLB to detect that a target has become healthy to 10 seconds. In addition, we have configured the LBC with a &lt;a href=&quot;https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.1/deploy/pod_readiness_gate/&quot;&gt;Pod Readiness Gate&lt;/a&gt;. This feature makes the Strimzi rolling deployment wait for the health check of the NLB to pass, before marking the current pod as &lt;em&gt;Ready&lt;/em&gt; and proceeding with the next pod.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/kafka-on-kubernetes/image7.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 5 Steps for a Strimzi rolling deployment with a Pod Readiness Gate. Only one Kafka broker and one NLB listener and target group are shown for simplicity.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 5 shows how the Pod Readiness Gate works during a Strimzi rolling deployment:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;The old Kafka pod is terminated.&lt;/li&gt;
+  &lt;li&gt;The new Kafka pod starts up and joins the Kafka cluster. Its individual endpoint for direct access via the NLB is immediately advertised by the Kafka cluster. However, at this stage, it is not reachable, as the target group of the NLB still points to the IP address of the old Kafka pod.&lt;/li&gt;
+  &lt;li&gt;The LBC updates the target group of the NLB with the IP address of the new Kafka pod, but the NLB health check has not yet passed, so the traffic is not forwarded to the new Kafka pod just yet.&lt;/li&gt;
+  &lt;li&gt;The LBC then waits for the NLB health check to pass, which takes 10 seconds. Once the NLB health check has passed, the NLB resumes forwarding the traffic to the Kafka pod.&lt;/li&gt;
+  &lt;li&gt;Finally, the LBC updates the pod readiness gate of the new Kafka pod. This informs Strimzi that it can proceed with the next pod of the rolling deployment.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;data-persistence-with-ebs&quot;&gt;Data persistence with EBS&lt;/h3&gt;
+
+&lt;p&gt;To address the challenge of the residual PV and PVC of the old worker node preventing Kubernetes from mounting the local storage of the new worker node after a node rotation, we adopted &lt;a href=&quot;https://aws.amazon.com/ebs/&quot;&gt;Elastic Block Store&lt;/a&gt; (EBS) volumes instead of NVMe instance store volumes. Contrary to the latter, EBS volumes can conveniently be attached and detached. The trade-off is that their performance is significantly lower.&lt;/p&gt;
+
+&lt;p&gt;However, relying on EBS comes with additional benefits:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The cost per GB is lower, compared to NVMe instance store volumes.&lt;/li&gt;
+  &lt;li&gt;Using EBS decouples the size of an instance in terms of CPU and memory from its storage capacity, leading to further cost savings by independently right-sizing the instance type and its storage. Such a separation of concerns also opens the door to new use cases requiring disproportionate amounts of storage.&lt;/li&gt;
+  &lt;li&gt;After a worker node rotation, the time needed for the new node to get back in sync is faster, as it only needs to catch up the data that was produced during the downtime. This leads to shorter maintenance operations and higher iteration speed. Incidentally, the associated inter-AZ traffic cost is also lower, since there is less data to transfer among brokers during this time.&lt;/li&gt;
+  &lt;li&gt;Increasing the storage capacity is an online operation.&lt;/li&gt;
+  &lt;li&gt;Data backup is supported by taking snapshots of EBS volumes.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We have verified with our historical monitoring data that the performance of &lt;a href=&quot;https://aws.amazon.com/ebs/general-purpose/&quot;&gt;EBS General Purpose 3&lt;/a&gt; (gp3) volumes is significantly above our maximum historical values for both throughput and I/O per second (IOPS), and we have successfully benchmarked a test EBS-based Kafka cluster. We have also set up new monitors to be alerted in case we need to 
+provision either additional throughput or IOPS, beyond the baseline of EBS gp3 volumes.&lt;/p&gt;
+
+&lt;p&gt;With that, we updated our instance types from storage optimised instances to either general purpose or memory optimised instances. We added the &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html&quot;&gt;Amazon EBS Container Storage Interface (CSI) driver&lt;/a&gt; to the Kubernetes cluster and created a new Kubernetes &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/storage-classes/&quot;&gt;storage class&lt;/a&gt; to let the cluster dynamically provision EBS gp3 volumes.&lt;/p&gt;
+
+&lt;p&gt;We configured Strimzi to use that storage class to create any new PVCs. This makes Strimzi able to automatically create the EBS volumes it needs, typically when the cluster is first set up, but also to attach/detach the volumes to/from the EC2 instances whenever a Kafka pod is relocated to a different worker node.&lt;/p&gt;
+
+&lt;p&gt;Note that the EBS volumes are not part of any ASG &lt;a href=&quot;https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-templates.html&quot;&gt;Launch Template&lt;/a&gt;, nor do they scale automatically with the ASGs.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/kafka-on-kubernetes/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 6 Steps for the Strimzi Operator to create an EBS volume and attach it to a new Kafka pod.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 6 illustrates how this works when Strimzi sets up a new Kafka broker, for example the first broker of the cluster in the initial setup:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;The &lt;a href=&quot;https://strimzi.io/docs/operators/latest/overview#overview-components-cluster-operator-str&quot;&gt;Strimzi Cluster Operator&lt;/a&gt; first creates a new PVC, specifying a volume size and EBS gp3 as its storage class. The storage class is configured with the EBS CSI Driver as the volume provisioner, so that volumes are dynamically provisioned &lt;a href=&quot;#1&quot;&gt;[1]&lt;/a&gt;. However, because it is also set up with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;volumeBindingMode: WaitForFirstConsumer&lt;/code&gt;, the volume is not yet provisioned until a pod actually claims the PVC.&lt;/li&gt;
+  &lt;li&gt;The Strimzi Cluster Operator then creates the Kafka pod, with a reference to the newly created PVC. The pod is scheduled to start, which in turn claims the PVC.&lt;/li&gt;
+  &lt;li&gt;This triggers the EBS CSI Controller. As the volume provisioner, it dynamically creates a new EBS volume in the AWS VPC, in the AZ of the worker node where the pod has been scheduled to start.&lt;/li&gt;
+  &lt;li&gt;It then attaches the newly created EBS volume to the corresponding EC2 instance.&lt;/li&gt;
+  &lt;li&gt;After that, it creates a Kubernetes PV with &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/persistent-volumes/#node-affinity&quot;&gt;nodeAffinity&lt;/a&gt; and &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reserving-a-persistentvolume&quot;&gt;claimRef&lt;/a&gt; specifications, making sure that the PV is reserved for the Kafka broker 1 pod.&lt;/li&gt;
+  &lt;li&gt;Lastly, it updates the PVC with the reference of the newly created PV. The PVC is now in &lt;em&gt;Bound&lt;/em&gt; state and the Kafka pod can start.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;One important point to take note of is that EBS volumes can only be attached to EC2 instances residing in their own AZ. Therefore, when rotating a worker node, the EBS volume can only be re-attached to the new instance if both old and new instances reside in the same AZ. A simple way to guarantee this is to set up one ASG per AZ, instead of a single ASG spanning across 3 AZs.&lt;/p&gt;
+
+&lt;p&gt;Also, when such a rotation occurs, the new broker only needs to synchronise the recent data produced during the brief downtime, which is typically an order of magnitude faster than replicating the entire volume (depending on the overall retention period of the hosted Kafka topics).&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+&lt;caption style=&quot;text-align:center&quot;&gt;Table 1 Comparison of the resynchronization of the Kafka data after a broker rotation between the initial design and the new design with EBS volumes.&lt;/caption&gt;
+&lt;thead&gt;
+  &lt;tr&gt;
+    &lt;th&gt;&lt;/th&gt;
+    &lt;th&gt;Initial design (NVMe instance store volumes)&lt;/th&gt;
+    &lt;th&gt;New design (EBS volumes)&lt;/th&gt;
+  &lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+    &lt;td&gt;Data to synchronise&lt;/td&gt;
+    &lt;td&gt;All of the data&lt;/td&gt;
+    &lt;td&gt;Recent data produced during the brief downtime&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;Function of (primarily)&lt;/td&gt;
+    &lt;td&gt;Retention period&lt;/td&gt;
+    &lt;td&gt;Downtime&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;Typical duration&lt;/td&gt;
+    &lt;td&gt;Hours&lt;/td&gt;
+    &lt;td&gt;Minutes&lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;outcome&quot;&gt;Outcome&lt;/h2&gt;
+
+&lt;p&gt;With all that, let us revisit the initial scenario, where a malfunctioning worker node is being replaced by a fresh new node.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/kafka-on-kubernetes/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 7 Representation of a worker node termination after implementing the solution. Node C is terminated and replaced by node D. This time, the Kafka broker 3 pod is able to start and serve traffic.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Fig. 7 shows the worker node C being terminated and replaced (by the ASG) by a new worker node D, similar to what we have described in the initial problem statement. The worker node D automatically joins the Kubernetes cluster on start-up.&lt;/p&gt;
+
+&lt;p&gt;However, this time, a seamless failover takes place:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;The Kafka clients that were in the middle of producing or consuming to/from the partition leaders of Kafka broker 3 are gracefully redirected to Kafka brokers 1 and 2, where Kafka has migrated the leadership of its leader partitions.&lt;/li&gt;
+  &lt;li&gt;The target groups of the NLB for both the bootstrap connection and Kafka broker 3 are automatically updated by the LBC. The connectivity between the NLB and Kafka broker 3 is immediately restored.&lt;/li&gt;
+  &lt;li&gt;Triggered by the creation of the Kafka broker 3 pod, the Amazon EBS CSI driver running on the worker node D re-attaches the EBS volume 3 that was previously attached to the worker node C, to the worker node D instead. This enables Kubernetes to automatically re-bind the corresponding PV and PVC to Kafka broker 3 pod. With its storage dependency resolved, Kafka broker 3 is able to start successfully and re-join the Kafka cluster. From there, it only needs to catch up with the new data that was produced 
+during its short downtime, by replicating it from Kafka brokers 1 and 2.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;With this fault-tolerant design, when an EC2 instance is being retired by AWS, no particular action is required from our end.&lt;/p&gt;
+
+&lt;p&gt;Similarly, our EKS version upgrades, as well as any operations that require rotating all worker nodes of the cluster in general, are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Simpler and less error-prone&lt;/strong&gt;: We only need to rotate each instance in sequence, with no need for manually reconfiguring the target groups of the NLB and deleting the zombie PVCs anymore.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Faster&lt;/strong&gt;: The time between each instance rotation is limited to the short amount of time it takes for the restarted Kafka broker to catch up with the new data.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;More cost-efficient&lt;/strong&gt;: There is less data to transfer across AZs (which is charged by AWS).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;It is worth noting that we have chosen to omit Zookeeper and Cruise Control in this article, for the sake of clarity and simplicity. In reality, all pods in the Kubernetes cluster - including Zookeeper and Cruise Control - now benefit from the same graceful stop, triggered by the AWS termination events and the NTH. Similarly, the EBS CSI driver improves the fault tolerance of any pods that use EBS volumes for persistent storage, which includes the Zookeeper pods.&lt;/p&gt;
+
+&lt;h2 id=&quot;challenges-faced&quot;&gt;Challenges faced&lt;/h2&gt;
+
+&lt;p&gt;One challenge that we are facing with this design lies in the EBS volumes’ management.&lt;/p&gt;
+
+&lt;p&gt;On the one hand, the size of EBS volumes cannot be increased consecutively before the end of a cooldown period (minimum of 6 hours and can exceed 24 hours in some cases &lt;a href=&quot;#2&quot;&gt;[2]&lt;/a&gt;). Therefore, when we need to urgently extend some EBS volumes because the size of a Kafka topic is suddenly growing, we need to be relatively generous when sizing the new required capacity and add a comfortable security margin, to make sure that we are not running out of storage in the short run.&lt;/p&gt;
+
+&lt;p&gt;On the other hand, shrinking a Kubernetes PV is not a supported operation. This can affect the cost efficiency of our design if we overprovision the storage capacity by too much, or in case the workload of a particular cluster organically diminishes.&lt;/p&gt;
+
+&lt;p&gt;One way to mitigate this challenge is to tactically scale the cluster horizontally (ie. adding new brokers) when there is a need for more storage and the existing EBS volumes are stuck in a cooldown period, or when the new storage need is only temporary.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;In the future, we can improve the NTH’s capability by utilising webhooks. Upon receiving events from SQS, the NTH can also forward the events to the specified webhook URLs.&lt;/p&gt;
+
+&lt;p&gt;This can potentially benefit us in a few ways, e.g.:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Proactively spinning up a new instance without waiting for the old one to be terminated, whenever a termination event is received. This would shorten the rotation time even further.&lt;/li&gt;
+  &lt;li&gt;Sending Slack notifications to Coban engineers to keep them informed of any actions taken by the NTH.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We would need to develop and maintain an application that receives webhook events from the NTH and performs the necessary actions.&lt;/p&gt;
+
+&lt;p&gt;In addition, we are also rolling out &lt;a href=&quot;https://karpenter.sh/&quot;&gt;Karpenter&lt;/a&gt; to replace the Kubernetes Cluster Autoscaler, as it is able to spin up new instances slightly faster, helping reduce the four minutes delay a Kafka pod remains in &lt;em&gt;Pending&lt;/em&gt; state during a node rotation. Incidentally, Karpenter also removes the need for setting up one ASG by AZ, as it is able to deterministically provision instances in a specific AZ, for example where a particular EBS volume resides.&lt;/p&gt;
+
+&lt;p&gt;Lastly, to ensure that the performance of our EBS gp3 volumes is both sufficient and cost-efficient, we want to explore autoscaling their throughput and IOPS beyond the baseline, based on the usage metrics collected by our monitoring stack.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;p&gt;&lt;a name=&quot;1&quot; href=&quot;#1&quot;&gt;[1]&lt;/a&gt; &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/&quot;&gt;Dynamic Volume Provisioning | Kubernetes&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a name=&quot;2&quot; href=&quot;#2&quot;&gt;[2]&lt;/a&gt; &lt;a href=&quot;https://repost.aws/knowledge-center/ebs-volume-stuck-optimizing-on-modification&quot;&gt;Troubleshoot EBS volume stuck in Optimizing state during modification | AWS re:Post&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;We would like to thank our team members and Grab Kubernetes gurus that helped review and improve this blog before publication: Will Ho, Gable Heng, Dewin Goh, Vinnson Lee, Siddharth Pandey, Shi Kai Ng, Quang Minh Tran, Yong Liang Oh, Leon Tay, Tuan Anh Vu. &lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 26 Dec 2023 00:10:10 +0000</pubDate>
+        <link>https://engineering.grab.com/kafka-on-kubernetes</link>
+        <guid isPermaLink="true">https://engineering.grab.com/kafka-on-kubernetes</guid>
+        
+        <category>Kafka</category>
+        
+        <category>Kubernetes</category>
+        
+        <category>AWS</category>
+        
+        <category>Data Streaming</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
+    
+      <item>
+        <title>Championing CyberSecurity: Grab&apos;s bug bounty programme in 2023</title>
         <description>&lt;p&gt;Launched in 2015, &lt;a href=&quot;https://hackerone.com/grab?type%3Dteam&quot;&gt;Grab’s Security bug bounty programme&lt;/a&gt; has achieved remarkable success and forged strong partnerships within a thriving bounty community. By holding quarterly campaigns with HackerOne, Grab has been dedicated to security and giving back to the global security community to research further. Over the years, Grab has paid over $700,000 in cumulative payments to committed security researchers, aiding their research.&lt;/p&gt;
 
 &lt;p&gt;Our journey doesn’t stop there – we’ve also expanded our internal bug bounty team, ensuring that we have the necessary resources to stay at the forefront of security challenges. As we continue to innovate and evolve, it’s critical that our team remains at the cutting edge of security developments.&lt;/p&gt;
@@ -451,7 +773,7 @@ While this was a meaningful first step towards self-service and platformisation 
 &lt;p&gt;To make this happen, Heimdall not only retains the metadata of all of the resources that it creates, but also regularly ingests additional information from a variety of upstream systems and platforms, to enrich and make this metadata comprehensive.&lt;/p&gt;
 
 &lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/elegant-platform/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 6 Diagram showing some of Heimdall's upstreams (on the left) and downstreams (on the right) for metadata collection, enrichment, and serving. The arrows show the data flow. The network connection (client -&amp;gt; server) is actually the other way around.&lt;/figcaption&gt;
+  &lt;img src=&quot;/img/elegant-platform/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 6 Diagram showing some of Heimdall&apos;s upstreams (on the left) and downstreams (on the right) for metadata collection, enrichment, and serving. The arrows show the data flow. The network connection (client -&amp;gt; server) is actually the other way around.&lt;/figcaption&gt;
   &lt;/figure&gt;
 &lt;/div&gt;
 
@@ -1555,198 +1877,6 @@ Example response
         <category>Data Science</category>
         
         <category>Product</category>
-        
-      </item>
-    
-      <item>
-        <title>Streamlining Grab's Segmentation Platform with faster creation and lower latency</title>
-        <description>&lt;p&gt;Launched in 2019, Segmentation Platform has been Grab’s one-stop platform for user segmentation and audience creation across all business verticals. User segmentation is the process of dividing passengers, driver-partners, or merchant-partners (users) into sub-groups (segments) based on certain attributes. Segmentation Platform empowers Grab’s teams to create segments using attributes available within our data ecosystem and provides APIs for downstream teams to retrieve them.&lt;/p&gt;
-
-&lt;p&gt;Checking whether a user belongs to a segment (Membership Check) influences many critical flows on the Grab app:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;When a passenger launches the Grab app, our in-house experimentation platform will tailor the app experience based on the segments the passenger belongs to.&lt;/li&gt;
-  &lt;li&gt;When a driver-partner goes online on the Grab app, the Drivers service calls Segmentation Platform to ensure that the driver-partner is not blacklisted.&lt;/li&gt;
-  &lt;li&gt;When launching marketing campaigns, Grab’s communications platform relies on Segmentation Platform to determine which passengers, driver-partners, or merchant-partners to send communication to.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;This article peeks into the current design of Segmentation Platform and how the team optimised the way segments are stored to reduce read latency thus unlocking new segmentation use cases.&lt;/p&gt;
-
-&lt;h2 id=&quot;architecture&quot;&gt;Architecture&lt;/h2&gt;
-
-&lt;p&gt;Segmentation Platform comprises two major subsystems:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Segment creation&lt;/li&gt;
-  &lt;li&gt;Segment serving&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image1.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 1. Segmentation Platform architecture
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;segment-creation&quot;&gt;Segment creation&lt;/h3&gt;
-
-&lt;p&gt;Segment creation is powered by Spark jobs. When a Grab team creates a segment, a Spark job is started to retrieve data from our data lake. After the data is retrieved, cleaned, and validated, the Spark job calls the serving sub-system to populate the segment with users.&lt;/p&gt;
-
-&lt;h3 id=&quot;segment-serving&quot;&gt;Segment serving&lt;/h3&gt;
-
-&lt;p&gt;Segment serving is powered by a set of Go services. For persistence and serving, we use ScyllaDB as our primary storage layer. We chose to use ScyllaDB as our NoSQL store due to its ability to scale horizontally and meet our &amp;lt;80ms p99 SLA. Users in a segment are stored as rows indexed by the user ID. The table is partitioned by the user ID ensuring that segment data is evenly distributed across the ScyllaDB clusters.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-&lt;thead&gt;
-  &lt;tr&gt;
-    &lt;th&gt;User ID&lt;/th&gt;
-    &lt;th&gt;Segment Name&lt;/th&gt;
-    &lt;th&gt;Other metadata columns&lt;/th&gt;
-  &lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-  &lt;tr&gt;
-    &lt;td&gt;1221&lt;/td&gt;
-    &lt;td&gt;Segment_A&lt;/td&gt;
-    &lt;td&gt;…&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;3421&lt;/td&gt;
-    &lt;td&gt;Segment_A&lt;/td&gt;
-    &lt;td&gt;…&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;5632&lt;/td&gt;
-    &lt;td&gt;Segment_B&lt;/td&gt;
-    &lt;td&gt;…&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;7889&lt;/td&gt;
-    &lt;td&gt;Segment_B&lt;/td&gt;
-    &lt;td&gt;…&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;With this design, Segmentation Platform handles up to 12K read and 36K write QPS, with a p99 latency of 40ms.&lt;/p&gt;
-
-&lt;h2 id=&quot;problems&quot;&gt;Problems&lt;/h2&gt;
-
-&lt;p&gt;The existing system has supported Grab, empowering internal teams to create rich and personalised experiences. However, with the increased adoption and use, certain challenges began to emerge:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;As more and larger segments are being created, the write QPS became a bottleneck leading to longer wait times for segment creation.&lt;/li&gt;
-  &lt;li&gt;Grab services requested even lower latency for membership checks.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;long-segment-creation-times&quot;&gt;Long segment creation times&lt;/h3&gt;
-
-&lt;p&gt;As more segments were created by different teams within Grab, the write QPS was no longer able to keep up with the teams’ demands. Teams would have to wait for hours for their segments to be created, reducing their operational velocity.&lt;/p&gt;
-
-&lt;h3 id=&quot;read-latency&quot;&gt;Read latency&lt;/h3&gt;
-
-&lt;p&gt;Further, while the platform already offers sub-40ms p99 latency for reads, this was still too slow for certain services and their use cases. For example, Grab’s communications platform needed to check whether a user belongs to a set of segments before sending out communication and incurring increased latency for every communication request was not acceptable. Another use case was for Experimentation Platform, where checks must have low latency to not impact the user experience. 
-Thus, the team explored alternative ways of storing the segment data with the goals of:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Reducing segment creation time&lt;/li&gt;
-  &lt;li&gt;Reducing segment read latency&lt;/li&gt;
-  &lt;li&gt;Maintaining or reducing cost&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;h3 id=&quot;segments-as-bitmaps&quot;&gt;Segments as bitmaps&lt;/h3&gt;
-
-&lt;p&gt;One of the main engineering challenges was scaling the write throughput of the system to keep pace with the number of segments being created. As a segment is stored across multiple rows in ScyllaDB, creating a large segment incurs a huge number of writes to the database. What we needed was a better way to store a large set of user IDs. Since user IDs are represented as integers in our system, a natural solution to storing a set of integers was a bitmap.&lt;/p&gt;
-
-&lt;p&gt;For example, a segment containing the following user IDs: 1, 6, 25, 26, 89 could be represented with a bitmap as follows:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 2. Bitmap representation of a segment
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;To perform a membership check, a bitwise operation can be used to check if the bit at the user ID’s index is 0 or 1. As a bitmap, the segment can also be stored as a single Blob in object storage instead of inside ScyllaDB.&lt;/p&gt;
-
-&lt;p&gt;However, as the number of user IDs in the system is large, a small and sparse segment would lead to prohibitively large bitmaps. For example, if a segment contains 2 user IDs 100 and 200,000,000, it will require a bitmap containing 200 million bits (25MB) where all but 2 of the bits are just 0. Thus, the team needed an encoding to handle sparse segments more efficiently.&lt;/p&gt;
-
-&lt;h4 id=&quot;roaring-bitmaps&quot;&gt;Roaring Bitmaps&lt;/h4&gt;
-
-&lt;p&gt;After some research, we landed on Roaring Bitmaps, which are compressed uint32 bitmaps. With roaring bitmaps, we are able to store a segment with 1 million members in a Blob smaller than 1 megabyte, compared to 4 megabytes required by a naive encoding.&lt;/p&gt;
-
-&lt;p&gt;Roaring Bitmaps achieve good compression ratios by splitting the set into fixed-size (216) integer chunks and using three different data structures (containers) based on the data distribution within the chunk. The most significant 16 bits of the integer are used as the index of the chunk, and the least significant 16 bits are stored in the containers.&lt;/p&gt;
-
-&lt;h5 id=&quot;array-containers&quot;&gt;Array containers&lt;/h5&gt;
-
-&lt;p&gt;Array containers are used when data is sparse (&amp;lt;= 4096 values). An array container is a sorted array of 16-bit integers. It is memory-efficient for sparse data and provides logarithmic-time access.&lt;/p&gt;
-
-&lt;h5 id=&quot;bitmap-containers&quot;&gt;Bitmap containers&lt;/h5&gt;
-
-&lt;p&gt;Bitmap containers are used when data is dense. A bitmap container is a 216 bit container where each bit represents the presence or absence of a value. It is memory-efficient for dense data and provides constant-time access.&lt;/p&gt;
-
-&lt;h5 id=&quot;run-containers&quot;&gt;Run containers&lt;/h5&gt;
-
-&lt;p&gt;Finally, run containers are used when a chunk has long consecutive values. Run containers use run-length encoding (RLE) to reduce the storage required for dense bitmaps. Run containers store a pair of values representing the start and the length of the run. It provides good memory efficiency and fast lookups.&lt;/p&gt;
-
-&lt;p&gt;The diagram below shows how a dense bitmap container that would have required 91 bits can be compressed into a run container by storing only the start (0) and the length (90). It should be noted that run containers are used only if it reduces the number of bytes required compared to a bitmap.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 3. A dense bitmap container compressed into a run container
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;By using different containers, Roaring Bitmaps are able to achieve good compression across various data distributions, while maintaining excellent lookup performance. Additionally, as segments are represented as Roaring Bitmaps, service teams are able to perform set operations (union, interaction, and difference, etc) on the segments on the fly, which previously required re-materialising the combined segment into the database.&lt;/p&gt;
-
-&lt;h3 id=&quot;caching-with-an-sdk&quot;&gt;Caching with an SDK&lt;/h3&gt;
-
-&lt;p&gt;Even though the segments are now compressed, retrieving a segment from the Blob store for each membership check would incur an unacceptable latency penalty. To mitigate the overhead of retrieving a segment, we developed an SDK that handles the retrieval and caching of segments.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/streamlining-grabs-segmentation-platform/image2.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 4. How the SDK caches segments
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The SDK takes care of the retrieval, decoding, caching, and watching of segments. Users of the  SDK are only required to specify the maximum size of the cache to prevent exhausting the service’s memory. The SDK provides a cache with a least-recently-used eviction policy to ensure that hot segments are kept in the cache. They are also able to watch for updates on a segment and the SDK will automatically refresh the cached segment when it is updated.&lt;/p&gt;
-
-&lt;h2 id=&quot;hero-teams&quot;&gt;Hero teams&lt;/h2&gt;
-
-&lt;h3 id=&quot;communications-platform&quot;&gt;Communications Platform&lt;/h3&gt;
-
-&lt;p&gt;Communications Platform has adopted the SDK to implement a new feature to control the communication frequency based on which segments a user belongs to. Using the SDK, the team is able to perform membership checks on multiple multi-million member segments, achieving peak QPS 15K/s with a p99 latency of &amp;lt;1ms. With the new feature, they have been able to increase communication engagement and reduce the communication unsubscribe rate.&lt;/p&gt;
-
-&lt;h3 id=&quot;experimentation-platform&quot;&gt;Experimentation Platform&lt;/h3&gt;
-
-&lt;p&gt;Experimentation Platform powers experimentation across all Grab services. Segments are used heavily in experiments to determine a user’s experience. Prior to using the SDK, Experimentation Platform limited the maximum size of the segments that could be used to prevent exhausting a service’s memory.&lt;/p&gt;
-
-&lt;p&gt;After migrating to the new SDK, they were able to lift this restriction due to the compression efficiency of Roaring Bitmaps. Users are now able to use any segments as part of their experiment without worrying that it would require too much memory.&lt;/p&gt;
-
-&lt;h2 id=&quot;closing&quot;&gt;Closing&lt;/h2&gt;
-
-&lt;p&gt;This blog post discussed the challenges that Segmentation Platform faced when scaling and how the team explored alternative storage and encoding techniques to improve segment creation time, while also achieving low latency reads. The SDK allows our teams to easily make use of segments without having to handle the details of caching, eviction, and updating of segments.&lt;/p&gt;
-
-&lt;p&gt;Moving forward, there are still existing use cases that are not able to use the Roaring Bitmap segments and thus continue to rely on segments from ScyllaDB. Therefore, the team is also taking steps to optimise and improve the scalability of our service and database.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Special thanks to Axel, the wider Segmentation Platform team, and Data Technology team for reviewing the post. &lt;/small&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 15 Aug 2023 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/streamlining-grabs-segmentation-platform</link>
-        <guid isPermaLink="true">https://engineering.grab.com/streamlining-grabs-segmentation-platform</guid>
-        
-        <category>Back End</category>
-        
-        <category>Performance</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     

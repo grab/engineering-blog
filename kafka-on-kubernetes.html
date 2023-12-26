@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Kafka on Kubernetes: Reloaded for fault tolerance</title>
+    <meta name="description" content="Dive into this insightful post to explore how Coban, Grab's real-time data streaming platform, has drastically enhanced the fault tolerance on its Kafka on Kubernetes design, to ensure seamless operation even amid unexpected disruptions.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/kafka-on-kubernetes">
+    <meta property="og:title" content="Kafka on Kubernetes: Reloaded for fault tolerance">
+    <meta property="og:description" content="Dive into this insightful post to explore how Coban, Grab's real-time data streaming platform, has drastically enhanced the fault tolerance on its Kafka on Kubernetes design, to ensure seamless operation even amid unexpected disruptions.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/kafka-on-kubernetes/cover.jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/kafka-on-kubernetes">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/kafka-on-kubernetes/cover.jpeg" class="post-cover-photo" alt="Kafka on Kubernetes: Reloaded for fault tolerance cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+        
+          &middot;
+        
+          <a class="post-category" href="/categories/data-science/">Data Science </a>
+      
+
+      <h1 class="post-title">Kafka on Kubernetes: Reloaded for fault tolerance</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/fabrice-harbulot.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/thang-le.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#fabrice-harbulot">Fabrice Harbulot</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#thang-le">Thang Le</a>
+                  
+                
+              </span>
+              <span class="post-date-large">26 Dec 2023 | 20 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>Coban - Grab’s real-time data streaming platform - has been operating <a href="https://kafka.apache.org/">Kafka</a> on <a href="https://kubernetes.io/">Kubernetes</a> with <a href="https://strimzi.io/">Strimzi</a> in 
+production for about two years. In a previous article (<a href="/zero-trust-with-kafka">Zero trust with Kafka</a>), we explained how we leveraged Strimzi to enhance the security of our data streaming offering.</p>
+
+<p>In this article, we are going to describe how we improved the fault tolerance of our initial design, to the point where we no longer need to intervene if a Kafka broker is unexpectedly terminated.</p>
+
+<h2 id="problem-statement">Problem statement</h2>
+
+<p>We operate Kafka in the AWS Cloud. For the Kafka on Kubernetes design described in this article, we rely on <a href="https://aws.amazon.com/eks/">Amazon Elastic Kubernetes Service</a> (EKS), the managed Kubernetes offering by AWS, with the worker nodes deployed as <a href="https://docs.aws.amazon.com/eks/latest/userguide/worker.html">self-managed nodes</a> on <a href="https://aws.amazon.com/ec2/">Amazon Elastic Compute Cloud</a> (EC2).</p>
+
+<p>To make our operations easier and limit the blast radius of any incidents, we deploy exactly one Kafka cluster for each EKS cluster. We also give a full worker node to each Kafka broker. In terms of storage, we initially relied on EC2 instances with <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ssd-instance-store.html">non-volatile memory express (NVMe) instance store volumes</a> for 
+maximal I/O performance. Also, each Kafka cluster is accessible beyond its own <a href="https://aws.amazon.com/vpc/">Virtual Private Cloud</a> (VPC) via a <a href="https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html">VPC Endpoint Service</a>.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/kafka-on-kubernetes/image5.png" alt="" style="width:80%" /><figcaption align="middle">Fig. 1 Initial design of a 3-node Kafka cluster running on Kubernetes.</figcaption>
+  </figure>
+</div>
+
+<p>Fig. 1 shows a logical view of our initial design of a 3-node Kafka on Kubernetes cluster, as typically run by Coban. The Zookeeper and Cruise-Control components are not shown for clarity.</p>
+
+<p>There are four Kubernetes services (1): one for the initial connection - referred to as “bootstrap” - that redirects incoming traffic to any Kafka pods, plus one for each Kafka pod, for the clients to target each Kafka broker individually (a requirement to produce or consume from/to a partition that resides on any particular Kafka broker). Four different listeners on the Network Load Balancer (NLB) listening on four different TCP ports, enable the Kafka clients to target either the bootstrap 
+service or any particular Kafka broker they need to reach. This is very similar to what we previously described in <a href="/exposing-kafka-cluster">Exposing a Kafka Cluster via a VPC Endpoint Service</a>.</p>
+
+<p>Each worker node hosts a single Kafka pod (2). The NVMe instance store volume is used to create a Kubernetes Persistent Volume (PV), attached to a pod via a Kubernetes Persistent Volume Claim (PVC).</p>
+
+<p>Lastly, the worker nodes belong to <a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-groups.html">Auto-Scaling Groups</a> (ASG) (3), one by <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-availability-zones">Availability Zone</a> (AZ). Strimzi adds in node affinity to make sure that the brokers are evenly distributed across AZs. In this initial design, ASGs are not for auto-scaling though, because we want to keep the size of the cluster under control. We only use ASGs - with a fixed size - to facilitate manual scaling operation and to automatically replace the terminated worker nodes.</p>
+
+<p>With this initial design, let us see what happens in case of such a worker node termination.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/kafka-on-kubernetes/image4.png" alt="" style="width:80%" /><figcaption align="middle">Fig. 2 Representation of a worker node termination. Node C is terminated and replaced by node D. However the Kafka broker 3 pod is unable to restart on node D.</figcaption>
+  </figure>
+</div>
+
+<p>Fig. 2 shows the worker node C being terminated along with its NVMe instance store volume C, and replaced (by the ASG) by a new worker node D and its new, empty NVMe instance store volume D. On start-up, the worker node D automatically joins the Kubernetes cluster. The Kafka broker 3 pod that was running on the faulty worker node C is scheduled to restart on the new worker node D.</p>
+
+<p>Although the NVMe instance store volume C is terminated along with the worker node C, there is no data loss because all of our Kafka topics are configured with a minimum of three replicas. The data is poised to be copied over from the surviving Kafka brokers 1 and 2 back to Kafka broker 3, as soon as Kafka broker 3 is effectively restarted on the worker node D.</p>
+
+<p>However, there are three fundamental issues with this initial design:</p>
+
+<ol>
+  <li>The Kafka clients that were in the middle of producing or consuming to/from the partition leaders of Kafka broker 3 are suddenly facing connection errors, because the broker was not gracefully demoted beforehand.</li>
+  <li>The target groups of the NLB for both the bootstrap connection and Kafka broker 3 still point to the worker node C. Therefore, the network communication from the NLB to Kafka broker 3 is broken. A manual reconfiguration of the target groups is required.</li>
+  <li>The PVC associating the Kafka broker 3 pod with its instance store PV is unable to automatically switch to the new NVMe instance store volume of the worker node D. Indeed, static provisioning is an intrinsic characteristic of Kubernetes <a href="https://kubernetes.io/docs/concepts/storage/volumes/#local">local volumes</a>. The PVC is still in <em>Bound</em> state, so Kubernetes does not take any action. However, the actual storage beneath the PV does not exist anymore. Without any storage, the Kafka broker 3 pod is unable to start.</li>
+</ol>
+
+<p>At this stage, the Kafka cluster is running in a degraded state with only two out of three brokers, until a Coban engineer intervenes to reconfigure the target groups of the NLB and delete the zombie PVC (this, in turn, triggers its re-creation by Strimzi, this time using the new instance store PV).</p>
+
+<p>In the next section, we will see how we have managed to address the three issues mentioned above to make this design fault-tolerant.</p>
+
+<h2 id="solution">Solution</h2>
+
+<h3 id="graceful-kafka-shutdown">Graceful Kafka shutdown</h3>
+
+<p>To minimise the disruption for the Kafka clients, we leveraged the <a href="https://aws-quickstart.github.io/cdk-eks-blueprints/addons/aws-node-termination-handler/">AWS Node Termination Handler</a> (NTH). This component provided by AWS for Kubernetes environments is able to cordon and drain a worker node that is going to be terminated. This draining, in turn, triggers a graceful shutdown of the Kafka 
+process by sending a polite <a href="https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html">SIGTERM</a> signal to all pods running on the worker node that is being drained (instead of the brutal <a href="https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html">SIGKILL</a> of a normal termination).</p>
+
+<p>The termination events of interest that are captured by the NTH are:</p>
+
+<ul>
+  <li>Scale-in operations by an ASG.</li>
+  <li>Manual termination of an instance.</li>
+  <li>AWS maintenance events, typically EC2 instances scheduled for upcoming retirement.</li>
+</ul>
+
+<p>This suffices for most of the disruptions our clusters can face in normal times and our common maintenance operations, such as terminating a worker node to refresh it. Only sudden hardware failures (AWS issue events) would fall through the cracks and still trigger errors on the Kafka client side.</p>
+
+<p>The NTH comes in two modes: <a href="https://github.com/aws/aws-node-termination-handler#major-features">Instance Metadata Service (IMDS) and Queue Processor</a>. We chose to go with the latter as it is able to capture a broader range of events, widening the fault tolerance capability.</p>
+
+<h4 id="scale-in-operations-by-an-asg">Scale-in operations by an ASG</h4>
+
+<div class="post-image-section"><figure>
+  <img src="/img/kafka-on-kubernetes/image2.png" alt="" style="width:80%" /><figcaption align="middle">Fig. 3 Architecture of the NTH with the Queue Processor.</figcaption>
+  </figure>
+</div>
+
+<p>Fig. 3 shows the NTH with the Queue Processor in action, and how it reacts to a scale-in operation (typically triggered manually, during a maintenance operation):</p>
+
+<ol>
+  <li>As soon as the scale-in operation is triggered, an <a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/lifecycle-hooks.html">Auto Scaling lifecycle hook</a> is invoked to pause the termination of the instance.</li>
+  <li>Simultaneously, an Auto Scaling lifecycle hook event is issued to an <a href="https://aws.amazon.com/sqs/">Amazon Simple Queue Service</a> (SQS) queue. In Fig. 3, we have also materialised EC2 events (e.g. manual termination of an instance, AWS maintenance events, etc.) that transit via <a href="https://aws.amazon.com/eventbridge/">Amazon EventBridge</a> to eventually end up in the same SQS queue. We will discuss EC2 events in the next two sections.</li>
+  <li>The NTH, a pod running in the Kubernetes cluster itself, constantly polls that SQS queue.</li>
+  <li>When a scale-in event pertaining to a worker node of the Kubernetes cluster is read from the SQS queue, the NTH sends to the Kubernetes API the instruction to <a href="https://kubernetes.io/docs/concepts/architecture/nodes/#manual-node-administration">cordon</a> and <a href="https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/">drain</a> the impacted worker node.</li>
+  <li>On draining, Kubernetes sends a SIGTERM signal to the Kafka pod residing on the worker node.</li>
+  <li>Upon receiving the SIGTERM signal, the Kafka pod gracefully migrates the leadership of its leader partitions to other brokers of the cluster before shutting down, in a transparent manner for the clients. This behaviour is ensured by the <a href="https://kafka.apache.org/documentation/#basic_ops_restarting"><code class="language-plaintext highlighter-rouge">controlled.shutdown.enable</code></a> parameter of Kafka, which is enabled by default.</li>
+  <li>Once the impacted worker node has been drained, the NTH eventually resumes the termination of the instance.</li>
+</ol>
+
+<p>Strimzi also comes with a <code class="language-plaintext highlighter-rouge">terminationGracePeriodSeconds</code> parameter, which we have set to 180 seconds to give the Kafka pods enough time to migrate all of their partition leaders gracefully on termination. We have verified that this is enough to migrate all partition leaders on our Kafka clusters (about 60 seconds for 600 partition leaders).</p>
+
+<h4 id="manual-termination-of-an-instance">Manual termination of an instance</h4>
+
+<p>The Auto Scaling lifecycle hook that pauses the termination of an instance (Fig. 3, step 1) as well as the corresponding resuming by the NTH (Fig. 3, step 7) are invoked only for ASG scaling events.</p>
+
+<p>In case of a manual termination of an EC2 instance, the termination is captured as an EC2 event that also reaches the NTH. Upon receiving that event, the NTH cordons and drains the impacted worker node. However, the instance is immediately terminated, most likely before the leadership of all of its Kafka partition leaders has had the time to get migrated to other brokers.</p>
+
+<p>To work around this and let a manual termination of an EC2 instance also benefit from the ASG lifecycle hook, the instance must be terminated using the <a href="https://docs.aws.amazon.com/cli/latest/reference/autoscaling/terminate-instance-in-auto-scaling-group.html"><code class="language-plaintext highlighter-rouge">terminate-instance-in-auto-scaling-group</code></a> AWS CLI command.</p>
+
+<h4 id="aws-maintenance-events">AWS maintenance events</h4>
+
+<p>For AWS maintenance events such as instances scheduled for upcoming retirement, the NTH acts immediately when the event is first received (typically adequately in advance). It cordons and drains the soon-to-be-retired worker node, which in turn triggers the SIGTERM signal and the graceful termination of Kafka as described above. At this stage, the impacted instance is not terminated, so the Kafka partition leaders have plenty of time to complete their migration to other brokers.</p>
+
+<p>However, the evicted Kafka pod has nowhere to go. There is a need for spinning up a new worker node for it to be able to eventually restart somewhere.</p>
+
+<p>To make this happen seamlessly, we doubled the maximum size of each of our ASGs and installed the <a href="https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/README.md">Kubernetes Cluster Autoscaler</a>. With that, when such a maintenance event is received:</p>
+
+<ul>
+  <li>The worker node scheduled for retirement is cordoned and drained by the NTH. The state of the impacted Kafka pod becomes <em>Pending</em>.</li>
+  <li>The Kubernetes Cluster Autoscaler comes into play and triggers the corresponding ASG to spin up a new EC2 instance that joins the Kubernetes cluster as a new worker node.</li>
+  <li>The impacted Kafka pod restarts on the new worker node.</li>
+  <li>The Kubernetes Cluster Autoscaler detects that the previous worker node is now under-utilised and terminates it.</li>
+</ul>
+
+<p>In this scenario, the impacted Kafka pod only remains in <em>Pending</em> state for about four minutes in total.</p>
+
+<p>In case of multiple simultaneous AWS maintenance events, the Kubernetes scheduler would honour our <a href="https://kubernetes.io/docs/tasks/run-application/configure-pdb/">PodDisruptionBudget</a> and not evict more than one Kafka pod at a time.</p>
+
+<h3 id="dynamic-nlb-configuration">Dynamic NLB configuration</h3>
+
+<p>To automatically map the NLB’s target groups with a newly spun up EC2 instance, we leveraged the <a href="https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html">AWS Load Balancer Controller</a> (LBC).</p>
+
+<p>Let us see how it works.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/kafka-on-kubernetes/image6.png" alt="" style="width:80%" /><figcaption align="middle">Fig. 4 Architecture of the LBC managing the NLB's target groups via TargetGroupBinding custom resources.</figcaption>
+  </figure>
+</div>
+
+<p>Fig. 4 shows how the LBC automates the reconfiguration of the NLB’s target groups:</p>
+
+<ol>
+  <li>It first retrieves the desired state described in Kubernetes <a href="https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/">custom resources</a> (CR) of type <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.1/guide/targetgroupbinding/targetgroupbinding">TargetGroupBinding</a>. There is one such resource per target group to maintain. Each TargetGroupBinding CR associates its respective target group with a Kubernetes service.</li>
+  <li>The LBC then watches over the changes of the Kubernetes services that are referenced in the TargetGroupBinding CRs’ definition, specifically the private IP addresses exposed by their respective <a href="https://kubernetes.io/docs/concepts/services-networking/service/#endpoints">Endpoints resources</a>.</li>
+  <li>When a change is detected, it dynamically updates the corresponding NLB’s target groups with those IP addresses as well as the TCP port of the target containers (<code class="language-plaintext highlighter-rouge">containerPort</code>).</li>
+</ol>
+
+<p>This automated design sets up the NLB’s target groups with IP addresses (<code class="language-plaintext highlighter-rouge">targetType: ip</code>) instead of EC2 instance IDs (<code class="language-plaintext highlighter-rouge">targetType: instance</code>). Although the LBC can handle both target types, the IP address approach is actually more straightforward in our case, since each pod has a routable private IP address in the AWS subnet, thanks to the <a href="https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html">AWS Container Networking Interface</a> (CNI) plug-in.</p>
+
+<p>This dynamic NLB configuration design comes with a challenge. Whenever we need to update the Strimzi CR, the rollout of the change to each Kafka pod in a rolling update fashion is happening too fast for the NLB. This is because the NLB inherently takes some time to mark each target as healthy before enabling it. The Kafka brokers that have just been rolled out start advertising their broker-specific endpoints to the Kafka clients via the bootstrap service, but those 
+endpoints are actually not immediately available because the NLB is still checking their health. To mitigate this, we have reduced the <code class="language-plaintext highlighter-rouge">HealthCheckIntervalSeconds</code> and <code class="language-plaintext highlighter-rouge">HealthyThresholdCount</code> parameters of each target group to their minimum values of 5 and 2 respectively. This reduces the maximum delay for the NLB to detect that a target has become healthy to 10 seconds. In addition, we have configured the LBC with a <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.1/deploy/pod_readiness_gate/">Pod Readiness Gate</a>. This feature makes the Strimzi rolling deployment wait for the health check of the NLB to pass, before marking the current pod as <em>Ready</em> and proceeding with the next pod.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/kafka-on-kubernetes/image7.png" alt="" style="width:80%" /><figcaption align="middle">Fig. 5 Steps for a Strimzi rolling deployment with a Pod Readiness Gate. Only one Kafka broker and one NLB listener and target group are shown for simplicity.</figcaption>
+  </figure>
+</div>
+
+<p>Fig. 5 shows how the Pod Readiness Gate works during a Strimzi rolling deployment:</p>
+
+<ol>
+  <li>The old Kafka pod is terminated.</li>
+  <li>The new Kafka pod starts up and joins the Kafka cluster. Its individual endpoint for direct access via the NLB is immediately advertised by the Kafka cluster. However, at this stage, it is not reachable, as the target group of the NLB still points to the IP address of the old Kafka pod.</li>
+  <li>The LBC updates the target group of the NLB with the IP address of the new Kafka pod, but the NLB health check has not yet passed, so the traffic is not forwarded to the new Kafka pod just yet.</li>
+  <li>The LBC then waits for the NLB health check to pass, which takes 10 seconds. Once the NLB health check has passed, the NLB resumes forwarding the traffic to the Kafka pod.</li>
+  <li>Finally, the LBC updates the pod readiness gate of the new Kafka pod. This informs Strimzi that it can proceed with the next pod of the rolling deployment.</li>
+</ol>
+
+<h3 id="data-persistence-with-ebs">Data persistence with EBS</h3>
+
+<p>To address the challenge of the residual PV and PVC of the old worker node preventing Kubernetes from mounting the local storage of the new worker node after a node rotation, we adopted <a href="https://aws.amazon.com/ebs/">Elastic Block Store</a> (EBS) volumes instead of NVMe instance store volumes. Contrary to the latter, EBS volumes can conveniently be attached and detached. The trade-off is that their performance is significantly lower.</p>
+
+<p>However, relying on EBS comes with additional benefits:</p>
+
+<ul>
+  <li>The cost per GB is lower, compared to NVMe instance store volumes.</li>
+  <li>Using EBS decouples the size of an instance in terms of CPU and memory from its storage capacity, leading to further cost savings by independently right-sizing the instance type and its storage. Such a separation of concerns also opens the door to new use cases requiring disproportionate amounts of storage.</li>
+  <li>After a worker node rotation, the time needed for the new node to get back in sync is faster, as it only needs to catch up the data that was produced during the downtime. This leads to shorter maintenance operations and higher iteration speed. Incidentally, the associated inter-AZ traffic cost is also lower, since there is less data to transfer among brokers during this time.</li>
+  <li>Increasing the storage capacity is an online operation.</li>
+  <li>Data backup is supported by taking snapshots of EBS volumes.</li>
+</ul>
+
+<p>We have verified with our historical monitoring data that the performance of <a href="https://aws.amazon.com/ebs/general-purpose/">EBS General Purpose 3</a> (gp3) volumes is significantly above our maximum historical values for both throughput and I/O per second (IOPS), and we have successfully benchmarked a test EBS-based Kafka cluster. We have also set up new monitors to be alerted in case we need to 
+provision either additional throughput or IOPS, beyond the baseline of EBS gp3 volumes.</p>
+
+<p>With that, we updated our instance types from storage optimised instances to either general purpose or memory optimised instances. We added the <a href="https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html">Amazon EBS Container Storage Interface (CSI) driver</a> to the Kubernetes cluster and created a new Kubernetes <a href="https://kubernetes.io/docs/concepts/storage/storage-classes/">storage class</a> to let the cluster dynamically provision EBS gp3 volumes.</p>
+
+<p>We configured Strimzi to use that storage class to create any new PVCs. This makes Strimzi able to automatically create the EBS volumes it needs, typically when the cluster is first set up, but also to attach/detach the volumes to/from the EC2 instances whenever a Kafka pod is relocated to a different worker node.</p>
+
+<p>Note that the EBS volumes are not part of any ASG <a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-templates.html">Launch Template</a>, nor do they scale automatically with the ASGs.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/kafka-on-kubernetes/image3.png" alt="" style="width:80%" /><figcaption align="middle">Fig. 6 Steps for the Strimzi Operator to create an EBS volume and attach it to a new Kafka pod.</figcaption>
+  </figure>
+</div>
+
+<p>Fig. 6 illustrates how this works when Strimzi sets up a new Kafka broker, for example the first broker of the cluster in the initial setup:</p>
+
+<ol>
+  <li>The <a href="https://strimzi.io/docs/operators/latest/overview#overview-components-cluster-operator-str">Strimzi Cluster Operator</a> first creates a new PVC, specifying a volume size and EBS gp3 as its storage class. The storage class is configured with the EBS CSI Driver as the volume provisioner, so that volumes are dynamically provisioned <a href="#1">[1]</a>. However, because it is also set up with <code class="language-plaintext highlighter-rouge">volumeBindingMode: WaitForFirstConsumer</code>, the volume is not yet provisioned until a pod actually claims the PVC.</li>
+  <li>The Strimzi Cluster Operator then creates the Kafka pod, with a reference to the newly created PVC. The pod is scheduled to start, which in turn claims the PVC.</li>
+  <li>This triggers the EBS CSI Controller. As the volume provisioner, it dynamically creates a new EBS volume in the AWS VPC, in the AZ of the worker node where the pod has been scheduled to start.</li>
+  <li>It then attaches the newly created EBS volume to the corresponding EC2 instance.</li>
+  <li>After that, it creates a Kubernetes PV with <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes/#node-affinity">nodeAffinity</a> and <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reserving-a-persistentvolume">claimRef</a> specifications, making sure that the PV is reserved for the Kafka broker 1 pod.</li>
+  <li>Lastly, it updates the PVC with the reference of the newly created PV. The PVC is now in <em>Bound</em> state and the Kafka pod can start.</li>
+</ol>
+
+<p>One important point to take note of is that EBS volumes can only be attached to EC2 instances residing in their own AZ. Therefore, when rotating a worker node, the EBS volume can only be re-attached to the new instance if both old and new instances reside in the same AZ. A simple way to guarantee this is to set up one ASG per AZ, instead of a single ASG spanning across 3 AZs.</p>
+
+<p>Also, when such a rotation occurs, the new broker only needs to synchronise the recent data produced during the brief downtime, which is typically an order of magnitude faster than replicating the entire volume (depending on the overall retention period of the hosted Kafka topics).</p>
+
+<table class="table">
+<caption style="text-align:center">Table 1 Comparison of the resynchronization of the Kafka data after a broker rotation between the initial design and the new design with EBS volumes.</caption>
+<thead>
+  <tr>
+    <th></th>
+    <th>Initial design (NVMe instance store volumes)</th>
+    <th>New design (EBS volumes)</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td>Data to synchronise</td>
+    <td>All of the data</td>
+    <td>Recent data produced during the brief downtime</td>
+  </tr>
+  <tr>
+    <td>Function of (primarily)</td>
+    <td>Retention period</td>
+    <td>Downtime</td>
+  </tr>
+  <tr>
+    <td>Typical duration</td>
+    <td>Hours</td>
+    <td>Minutes</td>
+  </tr>
+</tbody>
+</table>
+
+<h2 id="outcome">Outcome</h2>
+
+<p>With all that, let us revisit the initial scenario, where a malfunctioning worker node is being replaced by a fresh new node.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/kafka-on-kubernetes/image1.png" alt="" style="width:80%" /><figcaption align="middle">Fig. 7 Representation of a worker node termination after implementing the solution. Node C is terminated and replaced by node D. This time, the Kafka broker 3 pod is able to start and serve traffic.</figcaption>
+  </figure>
+</div>
+
+<p>Fig. 7 shows the worker node C being terminated and replaced (by the ASG) by a new worker node D, similar to what we have described in the initial problem statement. The worker node D automatically joins the Kubernetes cluster on start-up.</p>
+
+<p>However, this time, a seamless failover takes place:</p>
+
+<ol>
+  <li>The Kafka clients that were in the middle of producing or consuming to/from the partition leaders of Kafka broker 3 are gracefully redirected to Kafka brokers 1 and 2, where Kafka has migrated the leadership of its leader partitions.</li>
+  <li>The target groups of the NLB for both the bootstrap connection and Kafka broker 3 are automatically updated by the LBC. The connectivity between the NLB and Kafka broker 3 is immediately restored.</li>
+  <li>Triggered by the creation of the Kafka broker 3 pod, the Amazon EBS CSI driver running on the worker node D re-attaches the EBS volume 3 that was previously attached to the worker node C, to the worker node D instead. This enables Kubernetes to automatically re-bind the corresponding PV and PVC to Kafka broker 3 pod. With its storage dependency resolved, Kafka broker 3 is able to start successfully and re-join the Kafka cluster. From there, it only needs to catch up with the new data that was produced 
+during its short downtime, by replicating it from Kafka brokers 1 and 2.</li>
+</ol>
+
+<p>With this fault-tolerant design, when an EC2 instance is being retired by AWS, no particular action is required from our end.</p>
+
+<p>Similarly, our EKS version upgrades, as well as any operations that require rotating all worker nodes of the cluster in general, are:</p>
+
+<ul>
+  <li><strong>Simpler and less error-prone</strong>: We only need to rotate each instance in sequence, with no need for manually reconfiguring the target groups of the NLB and deleting the zombie PVCs anymore.</li>
+  <li><strong>Faster</strong>: The time between each instance rotation is limited to the short amount of time it takes for the restarted Kafka broker to catch up with the new data.</li>
+  <li><strong>More cost-efficient</strong>: There is less data to transfer across AZs (which is charged by AWS).</li>
+</ul>
+
+<p>It is worth noting that we have chosen to omit Zookeeper and Cruise Control in this article, for the sake of clarity and simplicity. In reality, all pods in the Kubernetes cluster - including Zookeeper and Cruise Control - now benefit from the same graceful stop, triggered by the AWS termination events and the NTH. Similarly, the EBS CSI driver improves the fault tolerance of any pods that use EBS volumes for persistent storage, which includes the Zookeeper pods.</p>
+
+<h2 id="challenges-faced">Challenges faced</h2>
+
+<p>One challenge that we are facing with this design lies in the EBS volumes’ management.</p>
+
+<p>On the one hand, the size of EBS volumes cannot be increased consecutively before the end of a cooldown period (minimum of 6 hours and can exceed 24 hours in some cases <a href="#2">[2]</a>). Therefore, when we need to urgently extend some EBS volumes because the size of a Kafka topic is suddenly growing, we need to be relatively generous when sizing the new required capacity and add a comfortable security margin, to make sure that we are not running out of storage in the short run.</p>
+
+<p>On the other hand, shrinking a Kubernetes PV is not a supported operation. This can affect the cost efficiency of our design if we overprovision the storage capacity by too much, or in case the workload of a particular cluster organically diminishes.</p>
+
+<p>One way to mitigate this challenge is to tactically scale the cluster horizontally (ie. adding new brokers) when there is a need for more storage and the existing EBS volumes are stuck in a cooldown period, or when the new storage need is only temporary.</p>
+
+<h2 id="whats-next">What’s next?</h2>
+
+<p>In the future, we can improve the NTH’s capability by utilising webhooks. Upon receiving events from SQS, the NTH can also forward the events to the specified webhook URLs.</p>
+
+<p>This can potentially benefit us in a few ways, e.g.:</p>
+
+<ul>
+  <li>Proactively spinning up a new instance without waiting for the old one to be terminated, whenever a termination event is received. This would shorten the rotation time even further.</li>
+  <li>Sending Slack notifications to Coban engineers to keep them informed of any actions taken by the NTH.</li>
+</ul>
+
+<p>We would need to develop and maintain an application that receives webhook events from the NTH and performs the necessary actions.</p>
+
+<p>In addition, we are also rolling out <a href="https://karpenter.sh/">Karpenter</a> to replace the Kubernetes Cluster Autoscaler, as it is able to spin up new instances slightly faster, helping reduce the four minutes delay a Kafka pod remains in <em>Pending</em> state during a node rotation. Incidentally, Karpenter also removes the need for setting up one ASG by AZ, as it is able to deterministically provision instances in a specific AZ, for example where a particular EBS volume resides.</p>
+
+<p>Lastly, to ensure that the performance of our EBS gp3 volumes is both sufficient and cost-efficient, we want to explore autoscaling their throughput and IOPS beyond the baseline, based on the usage metrics collected by our monitoring stack.</p>
+
+<h2 id="references">References</h2>
+
+<p><a name="1" href="#1">[1]</a> <a href="https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/">Dynamic Volume Provisioning | Kubernetes</a></p>
+
+<p><a name="2" href="#2">[2]</a> <a href="https://repost.aws/knowledge-center/ebs-volume-stuck-optimizing-on-modification">Troubleshoot EBS volume stuck in Optimizing state during modification | AWS re:Post</a></p>
+
+<p><small class="credits">We would like to thank our team members and Grab Kubernetes gurus that helped review and improve this blog before publication: Will Ho, Gable Heng, Dewin Goh, Vinnson Lee, Siddharth Pandey, Shi Kai Ng, Quang Minh Tran, Yong Liang Oh, Leon Tay, Tuan Anh Vu. </small></p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#aws" class="label tags-label">AWS</a>
+  
+    <a href="/tags#data-streaming" class="label tags-label">Data Streaming</a>
+  
+    <a href="/tags#kafka" class="label tags-label">Kafka</a>
+  
+    <a href="/tags#kubernetes" class="label tags-label">Kubernetes</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Kafka on Kubernetes: Reloaded for fault tolerance&url=https://engineering.grab.com/kafka-on-kubernetes&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/kafka-on-kubernetes" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/kafka-on-kubernetes&title=Kafka on Kubernetes: Reloaded for fault tolerance
+&summary=Dive into this insightful post to explore how Coban, Grab's real-time data streaming platform, has drastically enhanced the fault tolerance on its Kafka on Kubernetes design, to ensure seamless operation even amid unexpected disruptions.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/kafka-on-kubernetes';
+    this.page.identifier = '/kafka-on-kubernetes';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
