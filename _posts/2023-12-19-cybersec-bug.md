@@ -3,7 +3,7 @@ layout: post
 id: 2023-12-19-cybersec-bug
 title: "Championing CyberSecurity: Grab's bug bounty programme in 2023"
 date: 2023-12-19 00:00:10
-authors: [prithvinder-singh, peishan-yap, tarun-modi]
+authors: [prithvinder-singh, nathaniel-callens, peishan-yap, tarun-modi]
 categories: [Engineering, Security]
 tags: [Security, Bug bounty, HackerOne]
 comments: true
