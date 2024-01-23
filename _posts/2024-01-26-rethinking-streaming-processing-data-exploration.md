@@ -109,7 +109,7 @@ Our next step is to rethink further how our stream processing pipelines are defi
 We will also explore handling schema discovery in a more controlled manner by utilising a Hive catalogue to store our Kafka table definitions. This removes the need for users to retrieve and run the table DDL statement for every session, making the data exploration experience even more seamless.
 
 ## References
-<a name="1" href="#1">[1]</a> [Apache Zeppelin \| Web-based notebook that enables data-driven, interactive data analytics and collaborative documents with SQL, Scala, Python, R and more.](https://zeppelin.apache.org/)
+[1] [Apache Zeppelin \| Web-based notebook that enables data-driven, interactive data analytics and collaborative documents with SQL, Scala, Python, R and more.](https://zeppelin.apache.org/)
 
 <a name="2" href="#2">[2]</a> [An elegant platform \| Grab engineering blog.](https://engineering.grab.com/an-elegant-platform)
 
