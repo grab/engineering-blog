@@ -106,7 +106,7 @@ More importantly, the tools in place for data exploration on Online Data form th
 
 Our next step would be to rethink further how our stream processing pipelines are defined and start to provision SQL as the unified streaming language of our pipelines. This would facilitate better discussion between upstream data producers, data engineers and Data End Users, since SQL is the common language that these stakeholders are expected to commonly understand. 
 
-We would also probably explore handling schema discovery in a more controlled manner by utilising a Hive catalogue to store our Kafka table definitions, removing the need for users to retrieve and run the table DDL statement for every session. This would make the data exploration experience an even more seamless one.
+We will also explore handling schema discovery in a more controlled manner by utilising a Hive catalogue to store our Kafka table definitions. This removes the need for users to retrieve and run the table DDL statement for every session, making the data exploration experience even more seamless.
 
 ## References
 <a name="1" href="#1">[1]</a> [Apache Zeppelin \| Web-based notebook that enables data-driven, interactive data analytics and collaborative documents with SQL, Scala, Python, R and more.](https://zeppelin.apache.org/)
