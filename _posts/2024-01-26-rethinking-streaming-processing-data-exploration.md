@@ -94,7 +94,7 @@ To enable data access authorisation, we have utilised Strimzi, the operator of r
 
 With these tools in place, each user’s request to explore Online Data would be properly logged, and each data access can be controlled by an OPA policy managed by a central team.
 
-If you are interested, you may check out our previous post [Zero trust with Kafka](https://engineering.grab.com/zero-trust-with-kafka){:target="_blank"} where we discussed in more details about our effort to continue strengthening the security of our data-streaming platform.
+If you are interested, you may check out our previous post [Zero trust with Kafka](/zero-trust-with-kafka){:target="_blank"} where we discussed our efforts to continue strengthening the security of our data-streaming platform.
 
 ## Impact
 
