@@ -74,7 +74,7 @@ As discussed in this section, data exploration on streaming data at the Kafka st
   </figure>
 </div>
 
-Besides query features, Zeppelin notebook provides simple visualisation and analytics of the  off-the-shelf data as presented above in Figure 5. Furthermore, users are now able to perform interactive ad hoc queries on Online Data. These queries will eventually become much more advanced and/or effective SQL queries to be deployed as a streaming pipeline later on in the data journey. This reduces the inertia in setting up a separate development environment or learning other programming languages like Java/ Scala during the development of streaming pipelines. With Zeppelin's notebook environment, our Data End Users are now more empowered to quickly derive value from our wealth of Online Data.
+Besides query features, Zeppelin notebook provides simple visualisation and analytics of the off-the-shelf data as presented above in Figure 5. Furthermore, users are now able to perform interactive ad hoc queries on Online Data. These queries will eventually become much more advanced and/or effective SQL queries to be deployed as a streaming pipeline later on in the data journey. This reduces the inertia in setting up a separate development environment or learning other programming languages like Java or Scala during the development of streaming pipelines. With Zeppelin's notebook environment, our Data End Users are more empowered to quickly derive value from Online Data.
 
 ## Need for a more dynamic table schema derivation process <a id="need-for-dynamic-table-schema"></a>
 
