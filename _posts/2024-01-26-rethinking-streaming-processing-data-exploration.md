@@ -2,7 +2,7 @@
 layout: post
 id: 2024-01-26-rethinking-streaming-processing-data-exploration
 title: 'Rethinking Stream Processing: Data Exploration'
-date: 2023-01-26 00:10:10
+date: 2024-01-26 00:10:10
 authors: [shikai-ng, calvin-tran, nhat-nguyen]
 categories: [Engineering]
 tags: [Kafka, Kubernetes, Data Streaming, Deployments, Streaming applications]
