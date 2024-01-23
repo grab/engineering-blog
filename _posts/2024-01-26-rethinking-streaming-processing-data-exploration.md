@@ -61,7 +61,7 @@ The query results would then be piped back to the notebook session, to be displa
 ## Data Query and Visualisation
 
 <div class="post-image-section"><figure>
-  <img src="/img/rethinking-streaming-processing-data-exploration/figure-4-example-query-on-kafka-data.png" alt="" style="width:100%"><figcaption align="middle">Figure 4. Example of simple select query of data on Kafka. <br>Note: All variable names, schema, values and other details used in this article are only created for use as examples.</figcaption>
+  <img src="/img/rethinking-streaming-processing-data-exploration/figure-4-example-query-on-kafka-data.png" alt="" style="width:100%"><figcaption align="middle">Figure 4. Example of simple select query of data on Kafka. <br>Note: All variable names, schema, values, and other details used in this article are only created for use as examples.</figcaption>
   </figure>
 </div>
 
