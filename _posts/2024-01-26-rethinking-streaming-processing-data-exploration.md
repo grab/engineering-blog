@@ -45,7 +45,7 @@ To address the difficulty in performing data exploration on Online Data, we have
   </figure>
 </div>
 
-As seen from Figure 2 above, after successful creation of the Zeppelin cluster, users can log in with their generated credentials delivered to them via integrated instant messenger, and start using the notebook environment.
+As seen from Figure 2 above, after successful creation of the Zeppelin cluster, users can log in with their generated credentials delivered to them via the integrated instant messenger, and start using the notebook environment.
 
 <div class="post-image-section"><figure>
   <img src="/img/rethinking-streaming-processing-data-exploration/figure-3-process-data-exploration-online-data.png" alt="" style="width:100%"><figcaption align="middle">Figure 3. Zeppelin programme flow in the notebook environment.</figcaption>
