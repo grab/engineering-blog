@@ -58,7 +58,7 @@ The queries are passed to the Flink interpreter within the cluster to generate t
 When the Flink session cluster job manager receives the job, it would spin up the corresponding Flink task managers (workers) to run the application and retrieve the results.
 The query results would then be piped back to the notebook session, to be displayed back to the user on the notebook session.
 
-## Data Query and Visualisation
+## Data query and visualisation
 
 <div class="post-image-section"><figure>
   <img src="/img/rethinking-streaming-processing-data-exploration/figure-4-example-query-on-kafka-data.png" alt="" style="width:100%"><figcaption align="middle">Figure 4. Example of simple select query of data on Kafka. <br>Note: All variable names, schema, values, and other details used in this article are only created for use as examples.</figcaption>
