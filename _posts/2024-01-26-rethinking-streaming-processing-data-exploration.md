@@ -52,7 +52,7 @@ As seen from Figure 2 above, after successful creation of the Zeppelin cluster, 
   </figure>
 </div>
 
-After successful creation of the Zeppelin cluster, users can start interacting with it. Figure 3 above explains the Zeppelin notebook programme flow as follows:
+Figure 3 above explains the Zeppelin notebook programme flow as follows:
 The users enter their queries into the notebook session and run querying statements interactively with the established web-based notebook session.
 The queries are passed to the Flink interpreter within the cluster to generate the Flink job as a Jar file, to be then submitted to a Flink session cluster.
 When the Flink session cluster job manager receives the job, it would spin up the corresponding Flink task managers (workers) to run the application and retrieve the results.
