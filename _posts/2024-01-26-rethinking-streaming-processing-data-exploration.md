@@ -53,10 +53,10 @@ As seen from Figure 2 above, after successful creation of the Zeppelin cluster, 
 </div>
 
 Figure 3 above explains the Zeppelin notebook programme flow as follows:
-The users enter their queries into the notebook session and run querying statements interactively with the established web-based notebook session.
-The queries are passed to the Flink interpreter within the cluster to generate the Flink job as a Jar file, to be then submitted to a Flink session cluster.
-When the Flink session cluster job manager receives the job, it would spin up the corresponding Flink task managers (workers) to run the application and retrieve the results.
-The query results would then be piped back to the notebook session, to be displayed back to the user on the notebook session.
+- The users enter their queries into the notebook session and run querying statements interactively with the established web-based notebook session.
+- The queries are passed to the Flink interpreter within the cluster to generate the Flink job as a Jar file, to be then submitted to a Flink session cluster.
+- When the Flink session cluster job manager receives the job, it would spin up the corresponding Flink task managers (workers) to run the application and retrieve the results.
+- The query results would then be piped back to the notebook session, to be displayed back to the user on the notebook session.
 
 ## Data query and visualisation
 
@@ -78,7 +78,7 @@ Besides query features, Zeppelin notebook provides simple visualisation and anal
 
 ## Need for a more dynamic table schema derivation process <a id="need-for-dynamic-table-schema"></a>
 
-For the Data End Users performing data exploration on Online Data, we see a need for these users to derive the associated Data Definition Language (“DDL”) associated with a Kafka stream in an earlier stage of the data journey. Within Grab, even though the Kafka streams are all transmitted in [Protobuf](https://protobuf.dev/){:target="_blank"} format and are thus structured, both the schema and the corresponding DDL changes over time as new fields are added. Typically, the data producer (service owners) and the data engineers responsible for the data ingestion pipeline coordinate to perform such updates. Since the data analysts/scientists as Data End Users are not involved in such schema update processes nor do they directly interact with the data producers, many of them find discovery of changes to current schema of Kafka streams an issue. Granted that this is an issue our metadata platform is actively solving using [Datahub](https://datahubproject.io/){:target="_blank"}, we have hope to also solve the challenge by being able to derive the DDL more dynamically within the tooling, for data exploration on Online Data to reduce friction.
+For the Data End Users performing data exploration on Online Data, we see a need for these users to derive the Data Definition Language (“DDL”) associated with a Kafka stream at an earlier stage of the data journey. Within Grab, even though Kafka streams are transmitted in [Protobuf](https://protobuf.dev/){:target="_blank"} format and are thus structured, both the schema and the corresponding DDL changes are added over time as new fields. Typically, the data producer (service owners) and the data engineers responsible for the data ingestion pipeline coordinate to perform such updates. Since the  Data End Users are not involved in such schema update processes nor do they directly interact with the data producers, many of them find the discovery of changes in the current Kafka stream schema an issue. Granted that this is an issue our metadata platform is actively solving using [Datahub](https://datahubproject.io/){:target="_blank"}, we hope to also solve the challenge by being able to derive the DDL more dynamically within the tooling, for data exploration on Online Data to reduce friction.
 
 <div class="post-image-section"><figure>
   <img src="/img/rethinking-streaming-processing-data-exploration/figure-6-derive-schema-kafka-data.png" alt="" style="width:100%"><figcaption align="middle">Figure 6. Common functions to derive DDL of a Kafka Stream in SQL. <br>Note: All variable names, schema, values, and other details used in this article are only created for use as examples.</figcaption>
@@ -109,29 +109,29 @@ Our next step is to rethink further how our stream processing pipelines are defi
 We will also explore handling schema discovery in a more controlled manner by utilising a Hive catalogue to store our Kafka table definitions. This removes the need for users to retrieve and run the table DDL statement for every session, making the data exploration experience even more seamless.
 
 ## References
-[1] [Apache Zeppelin \| Web-based notebook that enables data-driven, interactive data analytics and collaborative documents with SQL, Scala, Python, R and more.](https://zeppelin.apache.org/)
+[\[1\] Apache Zeppelin \| Web-based notebook that enables data-driven, interactive data analytics and collaborative documents with SQL, Scala, Python, R and more.](https://zeppelin.apache.org/)
 
-<a name="2" href="#2">[2]</a> [An elegant platform \| Grab engineering blog.](https://engineering.grab.com/an-elegant-platform)
+[\[2\] An elegant platform \| Grab engineering blog.](https://engineering.grab.com/an-elegant-platform)
 
-<a name="2" href="#3">[3]</a> [Apache Flink \| Roadmap on Unified SQL Platform.](https://flink.apache.org/what-is-flink/roadmap/#unified-sql-platform)
+[\[3\] Apache Flink \| Roadmap on Unified SQL Platform.](https://flink.apache.org/what-is-flink/roadmap/#unified-sql-platform)
 
-<a name="2" href="#4">[4]</a> [ISO \| ISO 3166 Country Codes.](https://www.iso.org/iso-3166-country-codes.html#:~:text=The%20country%20codes%20can%20be,to%20avoid%20using%20Latin%20script)
+[\[4\] ISO \| ISO 3166 Country Codes.](https://www.iso.org/iso-3166-country-codes.html#:~:text=The%20country%20codes%20can%20be,to%20avoid%20using%20Latin%20script)
 
-<a name="2" href="#5">[5]</a> [Protobuf (Protocol Buffers)\| Language-neutral, platform-neutral extensible mechanisms for serializing structured data.](https://protobuf.dev/)
+[\[5\] Protobuf (Protocol Buffers)\| Language-neutral, platform-neutral extensible mechanisms for serializing structured data.](https://protobuf.dev/)
 
-<a name="2" href="#6">[6]</a> [Datahub \| Extensible metadata platform that enables data discovery, data observability and federated governance to help tame the complexity of your data ecosystem.](https://datahubproject.io/)
+[\[6\] Datahub \| Extensible metadata platform that enables data discovery, data observability and federated governance to help tame the complexity of your data ecosystem.](https://datahubproject.io/)
 
-<a name="2" href="#7">[7]</a> [Protoc \| Protocol buffer compiler installation.](https://grpc.io/docs/protoc-installation/)
+[\[7\] Protoc \| Protocol buffer compiler installation.](https://grpc.io/docs/protoc-installation/)
 
-<a name="2" href="#8">[8]</a> [PII masking for privacy-grade machine learning \| Grab engineering blog.](https://engineering.grab.com/pii-masking)
+[\[8\] PII masking for privacy-grade machine learning \| Grab engineering blog.](https://engineering.grab.com/pii-masking)
 
-<a name="2" href="#9">[9]</a> [Zero trust with Kafka \| Grab engineering blog.](https://engineering.grab.com/zero-trust-with-kafka)
+[\[9\] Zero trust with Kafka \| Grab engineering blog.](https://engineering.grab.com/zero-trust-with-kafka)
 
-<a name="2" href="#10">[10]</a> [Open Policy Agent (OPA) \| Policy-based control for cloud native environments.](https://www.openpolicyagent.org/)
+[\[10\] Open Policy Agent (OPA) \| Policy-based control for cloud native environments.](https://www.openpolicyagent.org/)
 
-<a name="2" href="#11">[11]</a> [Strimzi \| Using Open Policy Agent with Strimzi and Apache Kafka.](https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/)
+[\[11\] Strimzi \| Using Open Policy Agent with Strimzi and Apache Kafka.](https://strimzi.io/blog/2020/08/05/using-open-policy-agent-with-strimzi-and-apache-kafka/)
 
-<a name="2" href="#12">[12]</a> [Confluent Documentation \| Configure mTLS authentication and RBAC for kafka brokers.](https://docs.confluent.io/platform/current/kafka/configure-mds/mutual-tls-auth-rbac.html#principal-mapping-rules-for-ssl-listeners-extract-a-principal-from-a-certificate)
+[\[12\] Confluent Documentation \| Configure mTLS authentication and RBAC for kafka brokers.](https://docs.confluent.io/platform/current/kafka/configure-mds/mutual-tls-auth-rbac.html#principal-mapping-rules-for-ssl-listeners-extract-a-principal-from-a-certificate)
 
 # Join us
 
