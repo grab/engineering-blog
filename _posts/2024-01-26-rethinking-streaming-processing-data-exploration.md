@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Kafka, Kubernetes, Data Streaming, Deployments, Streaming applications]
 comments: true
 cover_photo: /img/rethinking-streaming-processing-data-exploration/cover.jpg
-excerpt: "As Grab matures along the digitalisation journey, it is collecting and streaming event data generated from the end users of its superapp on a larger magnitude than before. Coban, Grab’s data-streaming platform team, is looking to help unlock the value of streaming data at an earlier stage of the data journey before this data is typically stored in a central location (“Data Lake”).  This allows Grab to serve its Superapp users more efficiently."
+excerpt: "As Grab matures along the digitalisation journey, it is collecting and streaming event data generated from the end users of its superapp on a larger magnitude than before. Coban, Grab’s data-streaming platform team, is looking to help unlock the value of streaming data at an earlier stage of the data journey before this data is typically stored in a central location (“Data Lake”).  This allows Grab to serve its superapp users more efficiently."
 ---
 
 ## Introduction
