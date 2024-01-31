@@ -26,7 +26,7 @@ As seen in Figure 1 above, the **Time to Value (“TTV”)** of Online Data is s
 
 ## Problem statement
 
-Online Data is underutilised within Grab mainly because of, among other reasons, difficulty in performing data exploration on data that is not yet properly stored in the Data Lakes.
+Online Data is underutilised within Grab mainly because of, among other reasons, difficulty in performing data exploration on data that is not yet properly stored in the Data Lake.
 
 For the purpose of this blog post, we will focus only on the problem of exploration of Online Data because this problem is the precursor to allowing us to fully democratise such data.
 
