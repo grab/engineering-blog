@@ -13,7 +13,7 @@ excerpt: "Understand how Grab employs a combination of automated and manual cont
 
 In the fast-paced world of on-demand delivery, maintaining safe marketplaces is a complex undertaking. Grab, a leading superapp in Southeast Asia, operates GrabFood and GrabMart, two popular marketplaces that connect consumers with a wide range of food and daily necessities. With more than 100k listings for different items updated daily by our merchants across eight different countries, Grab is rising to the challenge of ensuring that its marketplaces remain compliant with its own policies, government regulations as well as platform policies.
 
-This article provides an overview of how Grab employs a combination of automated and manual content moderation to manage its dynamic marketplace content efficiently, while also collaborating with Google to ensure marketplace safety. Stay tuned for future articles that will delve deeper into the technology and solutions used for content moderation.
+This article explores how Grab employs a combination of automated and manual content moderation to manage its dynamic marketplace content efficiently, while also collaborating with Google to ensure marketplace safety.
 
 ## Dynamic Marketplace Landscape
 
@@ -33,16 +33,19 @@ Recognising the nuanced nature of content moderation, Grab employs a team of hum
 
 In its commitment to ensuring marketplace safety, Grab has also established a strong collaboration with Google. Grab works hand in hand with Google to collectively ensure adherence to Play Store policies and guidelines.
 
-Grab
+----
+#### Grab
 
 *   Programme Management: Poonam Gambhire, Shuyang Sun
 *   Product: Chris Collard
 *   Engineering: Shuya Ding, Kirubakaran Duraisamy, Xu Chen
 
-Google
+#### Google
 
 *   Play Policy: Siddhartha Paul Tiwari
 *   Business Development: Mika Igarashi
+
+----
 
 # Join us
 
