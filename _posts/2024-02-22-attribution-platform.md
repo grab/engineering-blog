@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2024-02-22-attribution platform
+id: 2024-02-22-attribution-platform
 title: "The journey of building a comprehensive attribution platform"
 date: 2024-02-19 00:22:10
 authors: [kang-huang, suvi-murugan, sharathbabu-s]
@@ -13,19 +13,19 @@ excerpt: "The Grab superapp offers a comprehensive array of services from ride-h
 
 The Grab superapp offers a comprehensive array of services from ride-hailing and food delivery to financial services. This creates multifaceted user journeys, traversing homepages, product pages, checkouts, and interactions with diverse content, including advertisements and promo codes.
 
-### Background: Why ads and attribution matter in our superapp
+## Background: Why ads and attribution matter in our superapp
 
-Ads are pivotal for Grab in driving user engagement and supporting our ecosystem by seamlessly connecting users with our services. In the ever-evolving world of advertising, the ability to gauge the impact of marketing investments takes on pivotal significance. Advertisers dedicate substantial resources to promote their businesses, necessitating a clear understanding of the return on AdSpend (ROAS) for each campaign. In this context, attribution plays a central role, serving as the guiding compass for advertisers and marketers, elucidating the effectiveness of touchpoints within campaigns.
+Ads are crucial for Grab in driving user engagement and supporting our ecosystem by seamlessly connecting users with our services. In the ever-evolving world of advertising, the ability to gauge the impact of marketing investments takes on pivotal significance. Advertisers dedicate substantial resources to promote their businesses, necessitating a clear understanding of the return on AdSpend (ROAS) for each campaign. In this context, attribution plays a central role, serving as the guiding compass for advertisers and marketers, elucidating the effectiveness of touchpoints within campaigns.
 
-For instance, a merchant-partner seeks to enhance its reach by advertising on the Grab food delivery homepage. With the assistance of our attribution system, the merchant-partner can now precisely gauge the impact of their homepage ads on Grab. This involves tracking user engagement and monitoring the resulting orders that stem from these interactions. This level of granularity not only highlights the value of attribution but also demonstrates its capability in providing detailed insights into the effectiveness of advertising campaigns and allowing merchant-partners to optimise their campaigns with more precision.
+For instance, a merchant-partner seeks to enhance its reach by advertising on the Grab food delivery homepage. With the assistance of our attribution system, the merchant-partner can now precisely gauge the impact of their homepage ads on Grab. This involves tracking user engagement and monitoring the resulting orders that stem from these interactions. This level of granularity not only highlights the value of attribution but also demonstrates its capability in providing detailed insights into the effectiveness of advertising campaigns and enabling merchant-partners to optimise their campaigns with more precision.
 
 In this blog, we delve into the technical intricacies, software architecture, challenges, and solutions involved in crafting a state-of-the-art engineering solution for the attribution platform.
 
-### Genesis: Pre-project landscape
+## Genesis: Pre-project landscape
 
 When our journey began in 2020, Grab’s marketing efforts had limited attribution capabilities and data analytics was predominantly reliant on ad hoc queries conducted by business and data analysts. Before the introduction of  a standardised approach, we had to manage discrepant results and a time-consuming manual process of data preparation, cleansing, and storage across teams. When issues arose in the analytical pipeline, resolution efforts took relatively longer and were reoccurring. We needed a comprehensive engineering solution that would address the identified gaps, significantly enhancing metrics related to ROI, attribution accuracy, and data-handling efficiency.
 
-### Inception: The pure ads attribution engine (Kappa architecture)
+## Inception: The pure ads attribution engine (Kappa architecture)
 
 We chose Kappa architecture because of the imperative for near real-time attribution, especially in support of our new pricing model, cost per order (CPO). With this solution, we aimed to drastically reduce data latency from 2-3 days to just a few minutes. Traditional ETL (Extract, Transform, and Load) based batch processing methods were evaluated but quickly found to be inadequate for our purposes, mainly due to their speed.
 
@@ -53,7 +53,7 @@ In this solution, we used the following tools in our tech stack:
   </figure>
 </div>
 
-### Evolution: Merging marketing levers - Ads and promos
+## Evolution: Merging marketing levers - Ads and promos
 
 We began to envision a world where we could merge various marketing levers into a unified Attribution Engine, starting with ads and promos. This evolved vision also aimed to prevent order double counting (when a user interacts with both ads and promos in the same checkout), which would provide a more holistic attribution solution.
 
@@ -71,15 +71,15 @@ The unified attribution engine used mostly the same tech stack, except for analy
   </figure>
 </div>
 
-### Introspection: Identifying shortcomings and the path to improvement
+## Introspection: Identifying shortcomings and the path to improvement
 
 While the unified attribution engine was a step in the right direction, it wasn't without its challenges. There were challenges related to real-time data processing costs, scalability for longer attribution windows, latency and lag issues, out-of-order events leading to misattribution, and the complexity of implementing multi-touch attribution models. To truly empower advertisers and enhance the attribution process, we knew we needed to evolve further.
 
-### Rebirth: The birth of a full-fledged attribution platform ([Lambda architecture](https://www.databricks.com/glossary/lambda-architecture))
+## Rebirth: The birth of a full-fledged attribution platform ([Lambda architecture](https://www.databricks.com/glossary/lambda-architecture))
 
 This journey eventually led us to build a full-fledged attribution platform using Lambda architecture, that blended both batch and real-time stream processing methods. With this change, our platform could rapidly and accurately process data and attribute the impact of ads and promos on user behaviour.
 
-#### Why Lambda architecture?
+### Why Lambda architecture?
 
 This choice was a strategic one – real-time processing is vital for tracking events as they occur, but it offers only a current snapshot of user behavior. This meant we would not be able to analyse historical data, which is a crucial aspect of accurate attribution and exploring multiple attribution models. Historical data allows us to identify trends, patterns, and correlations not evident in real-time data alone.
 
@@ -95,7 +95,7 @@ In this system’s tech stack, the key components are:
 *   Amazon S3 as the data warehouse
 *   An offline layer that is capable of providing historical context, handling large data volumes, performing complex analytics, and so on.
 
-#### Key benefits of the offline layer
+### Key benefits of the offline layer
 
 *   Provides historical context: The offline layer enriches the attribution process by providing a historical perspective on user interactions, essential for precise attribution analysis spanning extended time periods.
 *   Handling enormous data volumes: This layer efficiently manages and processes extensive data generated by advertising campaigns, ensuring that attribution seamlessly accommodates large-scale data sets.
@@ -108,7 +108,7 @@ In this system’s tech stack, the key components are:
   </figure>
 </div>
 
-#### Challenges with Lambda and mitigation
+### Challenges with Lambda and mitigation
 
 Lambda architecture allows us to have the accuracy and robustness of batch processing along with real-time stream processing. However, we noticed some drawbacks that may lead to complexity due to maintaining both batch and stream processing:
 
@@ -122,7 +122,7 @@ To mitigate these complications, we’re establishing an optimisation strategy f
 
 Hence, redefining the way we utilise Lambda Architecture, striking an efficient balance between real-time responsiveness and sturdy accuracy with the below proposal.
 
-### Vanguard: Enhancements in the future
+## Vanguard: Enhancements in the future
 
 In the coming months, we will be implementing the optimisation strategy and improving our attribution platform solution. This strategy can be broken down into the following sections.
 
@@ -132,7 +132,7 @@ In the coming months, we will be implementing the optimisation strategy and impr
 
 This approach will simplify our Lambda architecture, as the batch and real-time pipelines will have clear separation of duties. It may also reduce the chance of discrepancies between the real-time and batch-processing datasets and lower the operational load of our real-time system.
 
-### Conclusion: A holistic attribution picture
+## Conclusion: A holistic attribution picture
 
 Through our journey of building a comprehensive attribution platform, we can now deliver a holistic and dependable view of user behaviour and empower merchant-partners to use insights from advertisements and promotions. This journey has been a long one, but we were able to improve our attribution solution in several ways:
 
