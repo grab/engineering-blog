@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2024-02-22-attribution-platform
+id: 2024-02-20-attribution-platform
 title: "The journey of building a comprehensive attribution platform"
-date: 2024-02-19 00:22:10
+date: 2024-02-20 00:22:10
 authors: [kang-huang, suvi-murugan, sharathbabu-s]
 categories: [Engineering, Product, Design]
 tags: [Attribution platform, User journeys, Advertising]
@@ -57,17 +57,17 @@ In this solution, we used the following tools in our tech stack:
 
 We began to envision a world where we could merge various marketing levers into a unified Attribution Engine, starting with ads and promos. This evolved vision also aimed to prevent order double counting (when a user interacts with both ads and promos in the same checkout), which would provide a more holistic attribution solution.
 
-With the Unified Attribution Engine, we would also enable more sophisticated personalisation through machine learning models and drive higher conversions.
+With the unified Attribution Engine, we would also enable more sophisticated personalisation through machine learning models and drive higher conversions.
 
 <div class="post-image-section"><figure>
-  <img src="/img/attribution-platform/image1.png" alt="" style="width:70%"><figcaption align="middle">Unified Attribution Engine workflow, which included Promo touch points</figcaption>
+  <img src="/img/attribution-platform/image1.png" alt="" style="width:70%"><figcaption align="middle">The unified Attribution Engine workflow, which included Promo touch points</figcaption>
   </figure>
 </div>
 
 The unified attribution engine used mostly the same tech stack, except for analytics where Druid was used instead of RDS.
 
 <div class="post-image-section"><figure>
-  <img src="/img/attribution-platform/image5.png" alt="" style="width:70%"><figcaption align="middle">Architecture of the Unified Attribution Engine</figcaption>
+  <img src="/img/attribution-platform/image5.png" alt="" style="width:70%"><figcaption align="middle">Architecture of the unified Attribution Engine</figcaption>
   </figure>
 </div>
 
@@ -114,13 +114,12 @@ Lambda architecture allows us to have the accuracy and robustness of batch proc
 
 *   Operating two parallel systems for batch and stream processing can lead to increased complexity in production environments.
 *   Lambda architecture requires two sets of business logic - one for the batch layer and another for the stream layer.
-
 *   Synchronisation across both layers can make system alterations more challenging.
 *   This dual implementation could also allude to inconsistencies and introduce potential bugs into the system.
 
 To mitigate these complications, we’re establishing an optimisation strategy for our current system. By distinctly separating the responsibilities of our real-time pipelines from those of our offline jobs, we intend to harness the full potential of each approach, while simultaneously curbing the added complexity.
 
-Hence, redefining the way we utilise Lambda Architecture, striking an efficient balance between real-time responsiveness and sturdy accuracy with the below proposal.
+Hence, redefining the way we utilise Lambda architecture, striking an efficient balance between real-time responsiveness and sturdy accuracy with the below proposal.
 
 ## Vanguard: Enhancements in the future
 
