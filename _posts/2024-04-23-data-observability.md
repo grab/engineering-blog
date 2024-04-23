@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2024-04-25-data-observability
+id: 2024-04-23-data-observability
 title: "Ensuring data reliability and observability in risk systems"
-date: 2024-04-22 00:15:10
+date: 2024-04-23 00:15:10
 authors: [yini-ong, kamesh-chandran, jialong-loh]
 categories: [Data Science, Engineering, Security]
 tags: [Data Science, Security, Risk, Data observability, Data reliability]
