@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Ensuring data reliability and observability in risk systems</title>
+    <meta name="description" content="As the amount of data Grab handles grows, there is an increased need for quick detections for data anomalies (incompleteness or inaccuracy), while keeping it secure. Read this to learn how the Risk Data team utilised Flink and Datadog to enhance data observability within Grab’s services.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/data-observability">
+    <meta property="og:title" content="Ensuring data reliability and observability in risk systems">
+    <meta property="og:description" content="As the amount of data Grab handles grows, there is an increased need for quick detections for data anomalies (incompleteness or inaccuracy), while keeping it secure. Read this to learn how the Risk Data team utilised Flink and Datadog to enhance data observability within Grab’s services.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/data-observability/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/data-observability">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/data-observability/cover.png" class="post-cover-photo" alt="Ensuring data reliability and observability in risk systems cover photo">
+      
+        
+          <a class="post-category" href="/categories/data-science/">Data Science </a>
+      
+        
+          &middot;
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+        
+          &middot;
+        
+          <a class="post-category" href="/categories/security/">Security </a>
+      
+
+      <h1 class="post-title">Ensuring data reliability and observability in risk systems</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/yini-ong.jpg">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/kamesh-chandran.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/jialong-loh.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#yini-ong">Yi Ni Ong</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#kamesh-chandran">Kamesh Chandran</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#jialong-loh">Jia Long Loh</a>
+                  
+                
+              </span>
+              <span class="post-date-large">23 Apr 2024 | 6 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p>Grab has an in-house Risk Management platform called <a href="https://www.grab.com/sg/business/defence/">GrabDefence</a> which relies on ingesting large amounts of data gathered from upstream services to power our heuristic risk rules and data science models in real time.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/data-observability/image4.png" alt="" style="width:80%" /><figcaption align="middle">Fig 1. GrabDefence aggregates data from different upstream services</figcaption>
+  </figure>
+</div>
+
+<p>As Grab’s business grows, so does the amount of data. It becomes imperative that the data which fuels our risk systems is of reliable quality as any data discrepancy or missing data could impact fraud detection and prevention capabilities.</p>
+
+<p>We need to quickly detect any data anomalies, which is where data observability comes in.</p>
+
+<h2 id="data-observability-as-a-solution">Data observability as a solution</h2>
+
+<p>Data observability is a type of data operation (DataOps; similar to DevOps) where teams build visibility over the health and quality of their data pipelines. This enables teams to be notified of data quality issues, and allows teams to investigate and resolve these issues faster.</p>
+
+<p>We needed a solution that addresses the following issues:</p>
+
+<ol>
+  <li>Alerts for any data quality issues as soon as possible - so this means the observability tool had to work in real time.</li>
+  <li>With hundreds of data points to observe, we needed a neat and scalable solution which allows users to quickly pinpoint which data points were having issues.</li>
+  <li>A consistent way to compare, analyse, and compute data that might have different formats.</li>
+</ol>
+
+<p>Hence, we decided to use Flink to standardise data transformations, compute, and observe data trends quickly (in real time) and scalably.</p>
+
+<h2 id="utilising-flink-for-real-time-computations-at-scale">Utilising Flink for real-time computations at scale</h2>
+
+<h3 id="what-is-flink">What is Flink?</h3>
+
+<p>Flink SQL is a powerful, flexible tool for performing real-time analytics on streaming data. It allows users to query continuous data streams using standard SQL syntax, enabling complex event processing and data transformation within the Apache Flink ecosystem, which is particularly useful for scenarios requiring low-latency insights and decisions.</p>
+
+<h3 id="how-we-used-flink-to-compute-data-output">How we used Flink to compute data output</h3>
+
+<p>In Grab, data comes from multiple sources and while most of the data is in JSON format, the actual JSON structure differs between services. Because of JSON’s nested and dynamic data structure, it is difficult to consistently analyse the data – posing a significant challenge for real-time analysis.</p>
+
+<p>To help address this issue, Apache Flink SQL has the capability to manage such intricacies with ease. It offers specialised functions tailored for parsing and querying JSON data, ensuring efficient processing.</p>
+
+<p>Another standout feature of Flink SQL is the use of custom table functions, such as JSONEXPLOAD, which serves to deconstruct and flatten nested JSON structures into tabular rows. This transformation is crucial as it enables subsequent aggregation operations. By implementing a 5-minute tumbling window, Flink SQL can easily aggregate these now-flattened data streams. This technique is pivotal for monitoring, observing, and analysing data patterns and metrics in near real-time.</p>
+
+<p>Now that data is aggregated by Flink for easy analysis, we still needed a way to incorporate comprehensive monitoring so that teams could be notified of any data anomalies or discrepancies in real time.</p>
+
+<h3 id="how-we-interfaced-the-output-with-datadog">How we interfaced the output with Datadog </h3>
+
+<p>Datadog is the observability tool of choice in Grab, with many teams using Datadog for their service reliability observations and alerts. By aggregating data from Apache Flink and integrating it with Datadog, we can harness the synergy of real-time analytics and comprehensive monitoring. Flink excels in processing and aggregating data streams, which, when pushed to Datadog, can be further analysed and visualised. Datadog also provides seamless integration with collaboration tools like Slack, which enables teams to receive instant notifications and alerts.</p>
+
+<p>With Datadog’s out-of-the-box features such as anomaly detection, teams can identify and be alerted to unusual patterns or outliers in their data streams. Taking a proactive approach to monitoring is crucial in maintaining system health and performance as teams can be alerted, then collaborate quickly to diagnose and address anomalies.</p>
+
+<p>This integrated pipeline—from Flink’s real-time data aggregation to Datadog’s monitoring and Slack’s communication capabilities—creates a robust framework for real-time data operations. It ensures that any potential issues are quickly traced and brought to the team’s attention, facilitating a rapid response. Such an ecosystem empowers organisations to maintain high levels of system reliability and performance, ultimately enhancing the overall user experience.</p>
+
+<h2 id="organising-monitors-and-alerts-using-out-of-the-box-solutions-from-datadog">Organising monitors and alerts using out-of-the-box solutions from Datadog</h2>
+
+<p>Once we integrated Flink data into Datadog, we realised that it could become unwieldy to try to identify the data point with issues from hundreds of other counters.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/data-observability/image3.png" alt="" style="width:80%" /><figcaption align="middle">Fig 2. Hundreds of data points on a graph make it hard to decipher which ones have issues</figcaption>
+  </figure>
+</div>
+
+<p>We decided to organise the counters according to the service stream it was coming from, and create individual monitors for each service stream. We used Datadog’s Monitor Summary tool to help visualise the total number of service streams we are reading from and the number of underlying data points within each stream.  </p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/data-observability/image2.png" alt="" style="width:80%" /><figcaption align="middle">Fig 3. Data is grouped according to their source stream</figcaption>
+  </figure>
+</div>
+
+<p>Within each individual stream, we used Datadog’s <a href="https://docs.datadoghq.com/monitors/types/anomaly/">Anomaly Detection</a> feature to create an alert whenever a data point from the stream exceeds a predefined threshold. This can be configured by the service teams on Datadog.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/data-observability/image1.png" alt="" style="width:80%" /><figcaption align="middle">Fig 4. Datadog’s built-in Anomaly Detection function triggers alerts whenever a data point exceeds a threshold</figcaption>
+  </figure>
+</div>
+
+<p>These alerts are then sent to a Slack channel where the Data team is informed when a data point of interest starts throwing anomalous values.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/data-observability/image5.png" alt="" style="width:80%" /><figcaption align="middle">Fig 5. Datadog integration with Slack to help alert users</figcaption>
+  </figure>
+</div>
+
+<h2 id="impact">Impact</h2>
+
+<p>Since the deployment of this data observability tool, we have seen significant improvement in the detection of anomalous values. If there are any anomalies or issues, we now get alerts within the same day (or hour) instead of days to weeks later.</p>
+
+<p>Organising the alerts according to source streams have also helped simplify the monitoring load and allows users to quickly narrow down and identify which pipeline has failed.</p>
+
+<h2 id="whats-next">What’s next?</h2>
+
+<p>At the moment, this data observability tool is only implemented on selected checkpoints in GrabDefence. We plan to expand the observability tool’s coverage to include more checkpoints, and continue to refine the workflows to detect and resolve these data issues.</p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#data-observability" class="label tags-label">Data observability</a>
+  
+    <a href="/tags#data-reliability" class="label tags-label">Data reliability</a>
+  
+    <a href="/tags#data-science" class="label tags-label">Data Science</a>
+  
+    <a href="/tags#risk" class="label tags-label">Risk</a>
+  
+    <a href="/tags#security" class="label tags-label">Security</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Ensuring data reliability and observability in risk systems&url=https://engineering.grab.com/data-observability&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/data-observability" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/data-observability&title=Ensuring data reliability and observability in risk systems
+&summary=As the amount of data Grab handles grows, there is an increased need for quick detections for data anomalies (incompleteness or inaccuracy), while keeping it secure. Read this to learn how the Risk Data team utilised Flink and Datadog to enhance data observability within Grab’s services.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/data-observability';
+    this.page.identifier = '/data-observability';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
