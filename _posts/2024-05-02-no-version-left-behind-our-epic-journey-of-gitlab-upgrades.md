@@ -106,7 +106,7 @@ However, these challenges served as an opportunity for our team to innovate and 
 
 **NFS Deprecation**: We migrated all required data to S3 buckets and deprecated Network File System (NFS) to become more resilient and Availability Zone (AZ) independent.
 
-**Handling Unexpected CI Operations**: A sudden surge in Continuous Integration (CI) operations sometimes resulted in rate limiting and interrupted more essential git operations for developers. Because gitlab uses different RPC calls and their concurrency for SSH and HTTP operations. We encouraged using HTTPS links for GitLab CI and automation script and SSH links for regular git operations.
+**Handling Unexpected CI Operations**: A sudden surge in Continuous Integration (CI) operations sometimes resulted in rate limiting and interrupted more essential git operations for developers. Because GitLab uses different RPC calls and their concurrency for SSH and HTTP operations. We encouraged using HTTPS links for GitLab CI and automation script and SSH links for regular git operations.
 
 **Right-sizing Resources**: We countered resource limitations by right-sizing our infrastructure, ensuring each component had optimal resources to function efficiently.
 
