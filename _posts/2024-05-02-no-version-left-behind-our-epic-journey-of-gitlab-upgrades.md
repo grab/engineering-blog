@@ -28,7 +28,7 @@ The following image illustrates the version discrepancy between our self-hosted 
 
 ## Addressing fears and concerns
 
-We were concerned about potential downtime, data integrity, and the threat of encountering unforeseen issues. GitLab is critical for the daily activities of Grab engineers. It serves a critical user base of thousands of engineers actively using it, hosting multiple mono repositories with code bases ranging in size from 1GB to a sizable **15GB**. The overall imprint of a monorepo, when taking into account all its artefacts, can extend to an impressive **39TB**.
+We were concerned about potential downtime, data integrity, and the threat of encountering unforeseen issues. GitLab is critical for the daily activities of Grab engineers. It serves a critical user base of thousands of engineers actively using it, hosting multiple mono repositories with code bases ranging in size from 1GB to a sizable **15GB**. When taking into account all its artefacts, the overall imprint of a monorepo can extend to an impressive **39TB**.
 
 Our self-hosted GitLab firmly intertwines with multiple critical components. We've aligned our systems with GitLab's official [reference architecture for 5,000 users](https://docs.gitlab.com/ee/administration/reference_architectures/5k_users.html). We use Terraform to configure complete infrastructure with immutable Amazon Machine Images ([AMIs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html)) built using Packer and Ansible. Our efficient GitLab setup is designed for reliable performance to serve our wide user base. However, any fault leading to outages can disrupt our engineers, resulting in a loss of productivity for hundreds of teams.
 
@@ -49,44 +49,50 @@ The above is the top level architecture diagram of our GitLab infrastructure. He
 
 Recognising the complexity of our task, we prioritised careful planning for a successful upgrade. We studied GitLab’s documentation, shared insights within the team, and planned to prevent data losses.
 
-To minimise disruption from major upgrades or database migrations, we scheduled these during weekends. We also developed a checklist and a systematic approach for each upgrade.
+To minimise disruptions from major upgrades or database migrations, we scheduled these during weekends. We also developed a checklist and a systematic approach for each upgrade, which include the following:
 
 *   Diligently go through the release notes for each version of GitLab that falls within the scope of our upgrade.
-*   Read through all dependencies like RDS, Redis, and Elasticsearch, to ensure version compatibility.
+*   Read through all dependencies like RDS, Redis, and Elasticsearch to ensure version compatibility.
 *   Create documentation outlining new features, any deprecated elements, and changes that could potentially impact our operations.
-*   Generate immutable Amazon Machine Images (AMIs) for various components reflecting the new version of GitLab.
-*   Revisit all the backup plans and validate those.
+*   Generate immutable AMIs for various components reflecting the new version of GitLab.
+*   Revisit and validate all the backup plans.
 *   Refresh staging environment with production data for accurate, realistic testing and performance checks, and validation of migration scripts under conditions similar to the actual setup.
 *   Upgrade the staging environment.
 *   Conduct extensive testing, incorporating both automated and manual functional testing, as well as load testing.
 *   Conduct rollback tests on the staging environment to the previous version to confirm the rollback procedure’s reliability.
 *   Inform all impacted stakeholders, and provide a defined timeline for upcoming upgrades.
 
-We systematically follow GitLab's official documentation for each [upgrade](https://docs.gitlab.com/ee/update/index.html%23upgrade-paths), ensuring compatibility across software versions and reviewing [specific instructions](https://docs.gitlab.com/ee/update/index.html%23version-specific-upgrading-instructions) and changes, including any [deprecations or removals](https://docs.gitlab.com/ee/update/deprecations.html).
+We systematically follow GitLab's official documentation for each [upgrade](https://docs.gitlab.com/ee/update/index.html#upgrade-paths), ensuring compatibility across software versions and reviewing [specific instructions](https://docs.gitlab.com/ee/update/index.html#version-specific-upgrading-instructions) and changes, including any [deprecations or removals](https://docs.gitlab.com/ee/update/deprecations.html).
 
 ## The first upgrade
 
-Equipped with knowledge, backup plans, and a robust support system, we embarked on our first GitLab upgrade two years ago. We carefully followed our checklist, handling each important part systematically. GitLab comprises both stateful (Gitaly) and stateless (Praefect, Sidekiq, and App Server) components, all managed through auto-scaling groups. We use a **'create before destroy'** strategy for deploying stateless components and an **'in-place node rotation'** method via Terraform for stateful ones. We deployed key parts like Gitaly, Praefect, Sidekiq, App Servers, NFS server, and Elasticsearch in a specific sequence. Starting with Gitaly, followed by Praefect, then Sidekiq and App Servers, and finally NFS and Elasticsearch. Our thorough testing showed this order to be the most dependable and safe.
+Equipped with knowledge, backup plans, and a robust support system, we embarked on our first GitLab upgrade two years ago. We carefully followed our checklist, handling each important part systematically. GitLab comprises both stateful (Gitaly) and stateless (Praefect, Sidekiq, and App Server) components, all managed through auto-scaling groups. We use a **'create before destroy'** strategy for deploying stateless components and an **'in-place node rotation'** method via Terraform for stateful ones. 
+
+We deployed key parts like Gitaly, Praefect, Sidekiq, App Servers, NFS server, and Elasticsearch in a specific sequence. Starting with Gitaly, followed by Praefect, then Sidekiq and App Servers, and finally NFS and Elasticsearch. Our thorough testing showed this order to be the most dependable and safe.
 
 However, the journey was full of challenges. For instance, we encountered issues such as the Gitaly cluster falling out of sync for monorepo and the Praefect server failing to distribute the load effectively. Praefect assigns a primary Gitaly node for each repository to host it. All write operations are sent to the repository's primary node, while read requests are spread across all synced nodes in the Gitaly cluster. If the Gitaly nodes aren't synced, Praefect will redirect all write and read operations to the repository's primary node.
 
 Gitaly is a stateful application, we upgraded each Gitaly node with the latest AMI using an **in-place node rotation** strategy. In older versions of GitLab (up to v14.0), if a Gitaly node is unhealthy, Praefect would immediately update the primary node for the repository to any healthy Gitaly node. After the rolling upgrade for a 3-node Gitaly cluster, repositories were mainly concentrated on only one Gitaly node.
 
-In our situation, a very busy monorepo was assigned to a Gitaly node that was also the main node for many other repositories. When real traffic began after deployment, the Gitaly node had trouble syncing the monorepo with the other nodes in the cluster. Because the Gitaly node was out of sync, Praefect started sending all changes and access requests for monorepo to this struggling Gitaly node. This increased the load on the Gitaly server, causing it to fail. We found this to be the main issue and decided to manually move our monorepo to a Gitaly node that was less crowded. We also added a step to validate primary node distribution to our deployment checklist.
+In our situation, a very busy monorepo was assigned to a Gitaly node that was also the main node for many other repositories. When real traffic began after deployment, the Gitaly node had trouble syncing the monorepo with the other nodes in the cluster. 
 
-This immediate failover behaviour changed in [GitLab version 14.1](=https://gitlab.com/gitlab-org/gitaly/-/issues/3207). Now, a primary is only elected lazily when a write request arrives for any repository. However, since we enable maintenance mode before the Gitaly deployment, we don't receive any write requests. As a result, we don't see a shift in the primary node of the monorepo with new GitLab versions.
+Because the Gitaly node was out of sync, Praefect started sending all changes and access requests for monorepo to this struggling Gitaly node. This increased the load on the Gitaly server, causing it to fail. We found this to be the main issue and decided to manually move our monorepo to a Gitaly node that was less crowded. We also added a step to validate primary node distribution to our deployment checklist.
+
+This immediate failover behaviour changed in [GitLab version 14.1](=https://gitlab.com/gitlab-org/gitaly/-/issues/3207). Now, a primary is only elected lazily when a write request arrives for any repository. However, since we enabled maintenance mode before the Gitaly deployment, we didn't receive any write requests. As a result, we did not see a shift in the primary node of the monorepo with new GitLab versions.
 
 ## Regular upgrades: Our new normal
 
 Embracing the practice of consistent upgrades dramatically transformed the way we operate. We initiated frequent upgrades and implemented measures to reduce the actual deployment time.  
 
-*   Perform all major testing in one day advance before deployment.
+*   Perform all major testing in one day before deployment.
 *   Prepare a detailed checklist to follow during the deployment activity.
 *   Reduce the minimum number of App Server and Sidekiq Servers required just after we start the deployment.
 *   Upgrade components like App Server and Sidekiq in parallel.
 *   Automate smoke testing to examine all major workflows after deployment.
 
-Leveraging the lessons learned and the experience gained with each upgrade, we successfully cut the time spent on the entire operation by 50%. The image-3 shows how we reduced our deployment time for major upgrades from 6 hours to 3 hours and our deployment time for minor upgrades from 4 to 1.5 hours. Each upgrade enriched our comprehensive knowledge base, equipping us with insights into the possible behaviours of each component under varying circumstances. Our growing experience and enhanced knowledge helped us achieve successful upgrades with less downtime with each deployment.
+Leveraging the lessons learned and the experience gained with each upgrade, we successfully cut the time spent on the entire operation by 50%. The image-3 shows how we reduced our deployment time for major upgrades from 6 hours to 3 hours and our deployment time for minor upgrades from 4 to 1.5 hours. 
+
+Each upgrade enriched our comprehensive knowledge base, equipping us with insights into the possible behaviours of each component under varying circumstances. Our growing experience and enhanced knowledge helped us achieve successful upgrades with less downtime with each deployment.
 
 Rather than moving up one minor version at a time, we learned about the feasibility of skipping versions. We began using the [GitLab Upgrade Path](https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/). This method allowed us to skip several versions, closing the distance to the latest version with fewer deployments. This approach enabled us to catch up on 24 months' worth of upgrades in just 11 months, even though we started 14 months behind. 
 
@@ -102,25 +108,25 @@ Our journey was not without hurdles. We faced challenges in maintaining system s
 
 However, these challenges served as an opportunity for our team to innovate and create robust workarounds. Here are a few highlights:
 
-**Unexpected Project Distribution**: During upgrades and Gitaly server restarts we observe unexpected migration of monorepo to a crowded Gitaly server resulting in higher rate limiting. We manually updated primary nodes for monorepo and made this validation as a part of our deployment checklist.
+**Unexpected project distribution**: During upgrades and Gitaly server restarts, we observed unexpected migration of the monorepo to a crowded Gitaly server, resulting in higher rate limiting. We manually updated primary nodes for the monorepo and made this validation as a part of our deployment checklist.
 
-**NFS Deprecation**: We migrated all required data to S3 buckets and deprecated Network File System (NFS) to become more resilient and Availability Zone (AZ) independent.
+**Network File System (NFS) deprecation**: We migrated all required data to S3 buckets and deprecated NFS to become more resilient and independent of Availability Zone (AZ).
 
-**Handling Unexpected CI Operations**: A sudden surge in Continuous Integration (CI) operations sometimes resulted in rate limiting and interrupted more essential git operations for developers. Because GitLab uses different RPC calls and their concurrency for SSH and HTTP operations. We encouraged using HTTPS links for GitLab CI and automation script and SSH links for regular git operations.
+**Handling unexpected Continuous Integration (CI) operations**: A sudden surge in CI operations sometimes resulted in rate limiting and interrupted more essential Git operations for developers. This is because GitLab uses different RPC calls and their concurrency for SSH and HTTP operations. We encouraged using HTTPS links for GitLab CI and automation script and SSH links for regular Git operations.
 
-**Right-sizing Resources**: We countered resource limitations by right-sizing our infrastructure, ensuring each component had optimal resources to function efficiently.
+**Right-sizing resources**: We countered resource limitations by right-sizing our infrastructure, ensuring each component had optimal resources to function efficiently.
 
-**Performance Testing**: We do performance testing of our GitLab using the [GitLab Performance Tool (GPT)](https://handbook.gitlab.com/handbook/support/workflows/gpt_quick_start). In addition, we have our custom scripts as well to load test Grab specific use cases and mono repositories.
+**Performance testing**: We conducted performance testing of our GitLab using the [GitLab Performance Tool (GPT)](https://handbook.gitlab.com/handbook/support/workflows/gpt_quick_start). In addition, we used our custom scripts to load test Grab specific use cases and mono repositories.
 
-**Limiting Maintenance Window**: Each deployment required a maintenance window or downtime. To minimise this, we structured our deployment processes more efficiently, reducing potential downtime and ensuring uninterrupted service for users.
+**Limiting maintenance window**: Each deployment required a maintenance window or downtime. To minimise this, we structured our deployment processes more efficiently, reducing potential downtime and ensuring uninterrupted service for users.
 
-**Dependency on GitLab.com Image Registry**: To remove dependency on the GitLab.com image registry, we introduced measures to host necessary images internally. This step increased our resilience and allowed us to cut ties with external dependencies.
+**Dependency on GitLab.com image registry**: We introduced measures to host necessary images internally, which increased our resilience and allowed us to cut ties with external dependencies.
 
 ## The results
 
 Through careful planning, we've improved our upgrade process, ensuring system stability and timely updates. We've also reduced the delay in aligning with official GitLab releases. The image below displays how the time delay between release date and deployment has been reduced with each upgrade. It sharply brought down from **396 days (around 14 months)** to **35 days**. 
 
-At this time we're now just two minor versions behind the latest GitLab release, with a strong focus on security and resilience. We are seeing a reduced number of reported issues after each upgrade.
+At the time of this article, we're just two minor versions behind the latest GitLab release, with a strong focus on security and resilience. We are also seeing a reduced number of reported issues after each upgrade.
 
 Our refined process has allowed us to perform regular updates without any service disruptions. We aim to leverage these learnings to automate our upgrade deployments, painting a positive picture for our future updates, marked by efficiency and stability.
 
@@ -131,12 +137,12 @@ Our refined process has allowed us to perform regular updates without any servic
 
 ## Looking ahead
 
-Our dedication extends beyond merely staying current with the most recent GitLab versions. With stabilised deployment, we are now focusing on:  
+Our dedication extends beyond staying current with the most recent GitLab versions. With stabilised deployment, we are now focusing on:  
 
-*   **Automated Upgrades**: Our efforts extend towards bringing in more automation to enhance efficiency. We're already employing **zero-downtime** automated upgrades for patch versions involving no database migrations, utilising GitLab pipelines. Looking forward, we plan to automate minor version deployments as well ensuring minimal human intervention during the upgrade process.
-*   **Automated Runner onboarding for Service Teams**: We've developed a **'Runner as a Service'** solution for our service teams. Service teams can create their dedicated runners by providing minimal details, while our team manages these runners. This setup allows the service team to stay focused on development, ensuring smooth operations.
-*   **Improved Communication and Data Safety**: We're efficiently communicating new features and potential issues to our service teams. We also ensure targeted solutions for any disruptions. Additionally, we're focusing on developing automated data validation via our data restore process. 
-*   **Focus on Development**: With stabilised updates, we create an environment where our development teams can focus more on crafting new features and supporting ongoing work, rather than handling upgrade issues.
+*   **Automated upgrades**: Our efforts extend towards bringing in more automation to enhance efficiency. We're already employing **zero-downtime** automated upgrades for patch versions involving no database migrations, utilising GitLab pipelines. Looking forward, we plan to automate minor version deployments as well, ensuring minimal human intervention during the upgrade process.
+*   **Automated runner onboarding for service teams**: We've developed a **'Runner as a Service'** solution for our service teams. Service teams can create their dedicated runners by providing minimal details, while we manage these runners centrally. This setup allows the service team to stay focused on development, ensuring smooth operations.
+*   **Improved communication and data safety**: We're regularly communicating new features and potential issues to our service teams. We also ensure targeted solutions for any disruptions. Additionally, we're focusing on developing automated data validation via our data restoration process. 
+*   **Focus on development**: With stabilised updates, we've created an environment where our development teams can focus more on crafting new features and supporting ongoing work, rather than handling upgrade issues.
 
 ## Key takeaways
 
@@ -144,19 +150,19 @@ The upgrade process taught us the importance of adaptability, thorough preparati
 
 Below are the key areas in which we improved:
 
-**Enhanced Testing Procedures**: We've fine-tuned our testing strategies, using both automated and manual testing for GitLab, and regularly conducting performance tests before upgrades.
+**Enhanced testing p**: We've fine-tuned our testing strategies, using both automated and manual testing for GitLab, and regularly conducting performance tests before upgrades.
 
-**Approvals**: We ensure to obtain necessary clearances or approvals before each upgrade, further ensuring the smooth execution of our processes.
+**Approvals**: We've designed approval workflows that allow us to obtain necessary clearances or approvals before each upgrade efficiently, further ensuring the smooth execution of our processes.
 
-**Improved Communication**: We've improved stakeholder communication, regularly sharing updates and detailed documents about new features, deprecated items, and significant changes with each upgrade.
+**Improved communication**: We've improved stakeholder communication, regularly sharing updates and detailed documents about new features, deprecated items, and significant changes with each upgrade.
 
-**Streamlined Planning**: We've improved our upgrade planning, strictly following our checklist and rotating the role of Upgrade Ownership among team members.
+**Streamlined planning**: We've improved our upgrade planning, strictly following our checklist and rotating the role of Upgrade Ownership among team members.
 
-**Optimised Activity Time**: We've significantly reduced the time for production upgrade activity through advanced planning, automation, and eliminating unnecessary steps.
+**Optimised activity time**: We've significantly reduced the time for production upgrade activity through advanced planning, automation, and eliminating unnecessary steps.
 
-**Efficient Issue Management**: We've improved our ability to handle potential GitLab upgrade issues, with minimal to no issues occurring. We're prepared to handle any incidents that could cause an outage.
+**Efficient issue management**: We've improved our ability to handle potential GitLab upgrade issues, with minimal to no issues occurring. We're prepared to handle any incidents that could cause an outage.
 
-**Knowledge Base Creation and Automation**: We've created a rich GitLab knowledge base, which is invaluable for training new team members and for reference during unexpected situations. We've also automated routine tasks to improve efficiency and reduce manual errors.
+**Knowledge base creation and automation**: We've created a GitLab knowledge base and continuously enhanced it with rich content, making it even more invaluable for training new team members and for reference during unexpected situations. We've also automated routine tasks to improve efficiency and reduce manual errors.
 
 # Join us
 
