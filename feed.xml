@@ -6,9 +6,189 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 23 Apr 2024 03:25:47 +0000</pubDate>
-    <lastBuildDate>Tue, 23 Apr 2024 03:25:47 +0000</lastBuildDate>
+    <pubDate>Fri, 03 May 2024 10:10:00 +0000</pubDate>
+    <lastBuildDate>Fri, 03 May 2024 10:10:00 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>No version left behind: Our epic journey of GitLab upgrades</title>
+        <description>&lt;p&gt;In a tech-driven field, staying updated isn’t an option—it’s essential. At Grab, we’re committed to providing top-notch technology services. However, keeping pace can be demanding. At one point in time, our GitLab instance was trailing by roughly 14 months of releases. This blog post recounts our experience updating and formulating a consistent upgrade routine.&lt;/p&gt;
+
+&lt;h2 id=&quot;recognising-the-need-to-upgrade&quot;&gt;Recognising the need to upgrade&lt;/h2&gt;
+
+&lt;p&gt;Our team, while skilled, was still learning GitLab’s complexities. Regular stability issues left us little time for necessary upgrades. Understanding the importance of upgrades for our operations to get latest patches for important security fixes and vulnerabilities, we started preparing for GitLab updates while managing system stability. This meant a quick learning and careful approach to updates.&lt;/p&gt;
+
+&lt;p&gt;The following image illustrates the version discrepancy between our self-hosted GitLab instance and the official most recent release of GitLab as of July 2022. GitLab follows a set &lt;a href=&quot;https://about.gitlab.com/releases&quot;&gt;release schedule&lt;/a&gt;, issuing one minor update monthly and rolling out a major upgrade annually.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/no-version-left-behind-our-epic-journey-of-gitlab-upgrades/version-diff.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 1. The difference between our hosted version and the latest available GitLab version by 22 July 2022&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;addressingfears-and-concerns&quot;&gt;Addressing fears and concerns&lt;/h2&gt;
+
+&lt;p&gt;We were concerned about potential downtime, data integrity, and the threat of encountering unforeseen issues. GitLab is critical for the daily activities of Grab engineers. It serves a critical user base of thousands of engineers actively using it, hosting multiple mono repositories with code bases ranging in size from 1GB to a sizable &lt;strong&gt;15GB&lt;/strong&gt;. When taking into account all its artefacts, the overall imprint of a monorepo can extend to an impressive &lt;strong&gt;39TB&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;Our self-hosted GitLab firmly intertwines with multiple critical components. We’ve aligned our systems with GitLab’s official &lt;a href=&quot;https://docs.gitlab.com/ee/administration/reference_architectures/5k_users.html&quot;&gt;reference architecture for 5,000 users&lt;/a&gt;. We use Terraform to configure complete infrastructure with immutable Amazon Machine Images (&lt;a href=&quot;https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html&quot;&gt;AMIs&lt;/a&gt;) built using Packer and Ansible. Our efficient GitLab setup is designed for reliable performance to serve our wide user base. However, any fault leading to outages can disrupt our engineers, resulting in a loss of productivity for hundreds of teams.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/no-version-left-behind-our-epic-journey-of-gitlab-upgrades/architecture.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;High-level GitLab Architecture Diagram&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The above is the top level architecture diagram of our GitLab infrastructure. Here are the major components of the GitLab architecture and their functions: &lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Gitaly&lt;/strong&gt;: Handles low-level Git operations for GitLab, such as interacting directly with the code repository present on disk. It’s important to mention that these code repositories are also stored on the same Gitaly nodes, using the attached Amazon Elastic Block Store (Amazon EBS) disks.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Praefect&lt;/strong&gt;: Praefect in GitLab acts as a manager, coordinating Gitaly nodes to maintain data consistency and high availability.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Sidekiq&lt;/strong&gt;: The background processing framework for GitLab written in Ruby. It handles asynchronous tasks in GitLab, ensuring smooth operation without blocking the main application.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;App Server&lt;/strong&gt;: The core web application server that serves the GitLab user interface and interacts with other components.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;the-importance-of-preparation&quot;&gt;The importance of preparation&lt;/h2&gt;
+
+&lt;p&gt;Recognising the complexity of our task, we prioritised careful planning for a successful upgrade. We studied GitLab’s documentation, shared insights within the team, and planned to prevent data losses.&lt;/p&gt;
+
+&lt;p&gt;To minimise disruptions from major upgrades or database migrations, we scheduled these during weekends. We also developed a checklist and a systematic approach for each upgrade, which include the following:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Diligently go through the release notes for each version of GitLab that falls within the scope of our upgrade.&lt;/li&gt;
+  &lt;li&gt;Read through all dependencies like RDS, Redis, and Elasticsearch to ensure version compatibility.&lt;/li&gt;
+  &lt;li&gt;Create documentation outlining new features, any deprecated elements, and changes that could potentially impact our operations.&lt;/li&gt;
+  &lt;li&gt;Generate immutable AMIs for various components reflecting the new version of GitLab.&lt;/li&gt;
+  &lt;li&gt;Revisit and validate all the backup plans.&lt;/li&gt;
+  &lt;li&gt;Refresh staging environment with production data for accurate, realistic testing and performance checks, and validation of migration scripts under conditions similar to the actual setup.&lt;/li&gt;
+  &lt;li&gt;Upgrade the staging environment.&lt;/li&gt;
+  &lt;li&gt;Conduct extensive testing, incorporating both automated and manual functional testing, as well as load testing.&lt;/li&gt;
+  &lt;li&gt;Conduct rollback tests on the staging environment to the previous version to confirm the rollback procedure’s reliability.&lt;/li&gt;
+  &lt;li&gt;Inform all impacted stakeholders, and provide a defined timeline for upcoming upgrades.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We systematically follow GitLab’s official documentation for each &lt;a href=&quot;https://docs.gitlab.com/ee/update/index.html#upgrade-paths&quot;&gt;upgrade&lt;/a&gt;, ensuring compatibility across software versions and reviewing &lt;a href=&quot;https://docs.gitlab.com/ee/update/index.html#version-specific-upgrading-instructions&quot;&gt;specific instructions&lt;/a&gt; and changes, including any &lt;a href=&quot;https://docs.gitlab.com/ee/update/deprecations.html&quot;&gt;deprecations or removals&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-first-upgrade&quot;&gt;The first upgrade&lt;/h2&gt;
+
+&lt;p&gt;Equipped with knowledge, backup plans, and a robust support system, we embarked on our first GitLab upgrade two years ago. We carefully followed our checklist, handling each important part systematically. GitLab comprises both stateful (Gitaly) and stateless (Praefect, Sidekiq, and App Server) components, all managed through auto-scaling groups. We use a &lt;strong&gt;‘create before destroy’&lt;/strong&gt; strategy for deploying stateless components and an &lt;strong&gt;‘in-place node rotation’&lt;/strong&gt; method via Terraform for stateful ones.&lt;/p&gt;
+
+&lt;p&gt;We deployed key parts like Gitaly, Praefect, Sidekiq, App Servers, Network File System (NFS) server, and Elasticsearch in a specific sequence. Starting with Gitaly, followed by Praefect, then Sidekiq and App Servers, and finally NFS and Elasticsearch. Our thorough testing showed this order to be the most dependable and safe.&lt;/p&gt;
+
+&lt;p&gt;However, the journey was full of challenges. For instance, we encountered issues such as the Gitaly cluster falling out of sync for monorepo and the Praefect server failing to distribute the load effectively. Praefect assigns a primary Gitaly node for each repository to host it. All write operations are sent to the repository’s primary node, while read requests are spread across all synced nodes in the Gitaly cluster. If the Gitaly nodes aren’t synced, Praefect will redirect all write and read operations to the repository’s primary node.&lt;/p&gt;
+
+&lt;p&gt;Gitaly is a stateful application, we upgraded each Gitaly node with the latest AMI using an &lt;strong&gt;in-place node rotation&lt;/strong&gt; strategy. In older versions of GitLab (up to v14.0), if a Gitaly node is unhealthy, Praefect would immediately update the primary node for the repository to any healthy Gitaly node. After the rolling upgrade for a 3-node Gitaly cluster, repositories were mainly concentrated on only one Gitaly node.&lt;/p&gt;
+
+&lt;p&gt;In our situation, a very busy monorepo was assigned to a Gitaly node that was also the main node for many other repositories. When real traffic began after deployment, the Gitaly node had trouble syncing the monorepo with the other nodes in the cluster.&lt;/p&gt;
+
+&lt;p&gt;Because the Gitaly node was out of sync, Praefect started sending all changes and access requests for monorepo to this struggling Gitaly node. This increased the load on the Gitaly server, causing it to fail. We found this to be the main issue and decided to manually move our monorepo to a Gitaly node that was less crowded. We also added a step to validate primary node distribution to our deployment checklist.&lt;/p&gt;
+
+&lt;p&gt;This immediate failover behaviour changed in &lt;a href=&quot;=https://gitlab.com/gitlab-org/gitaly/-/issues/3207&quot;&gt;GitLab version 14.1&lt;/a&gt;. Now, a primary is only elected lazily when a write request arrives for any repository. However, since we enabled maintenance mode before the Gitaly deployment, we didn’t receive any write requests. As a result, we did not see a shift in the primary node of the monorepo with new GitLab versions.&lt;/p&gt;
+
+&lt;h2 id=&quot;regular-upgrades-our-new-normal&quot;&gt;Regular upgrades: Our new normal&lt;/h2&gt;
+
+&lt;p&gt;Embracing the practice of consistent upgrades dramatically transformed the way we operate. We initiated frequent upgrades and implemented measures to reduce the actual deployment time.  &lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Perform all major testing in one day before deployment.&lt;/li&gt;
+  &lt;li&gt;Prepare a detailed checklist to follow during the deployment activity.&lt;/li&gt;
+  &lt;li&gt;Reduce the minimum number of App Server and Sidekiq Servers required just after we start the deployment.&lt;/li&gt;
+  &lt;li&gt;Upgrade components like App Server and Sidekiq in parallel.&lt;/li&gt;
+  &lt;li&gt;Automate smoke testing to examine all major workflows after deployment.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Leveraging the lessons learned and the experience gained with each upgrade, we successfully cut the time spent on the entire operation by 50%. The image-3 shows how we reduced our deployment time for major upgrades from 6 hours to 3 hours and our deployment time for minor upgrades from 4 to 1.5 hours.&lt;/p&gt;
+
+&lt;p&gt;Each upgrade enriched our comprehensive knowledge base, equipping us with insights into the possible behaviours of each component under varying circumstances. Our growing experience and enhanced knowledge helped us achieve successful upgrades with less downtime with each deployment.&lt;/p&gt;
+
+&lt;p&gt;Rather than moving up one minor version at a time, we learned about the feasibility of skipping versions. We began using the &lt;a href=&quot;https://gitlab-com.gitlab.io/support/toolbox/upgrade-path/&quot;&gt;GitLab Upgrade Path&lt;/a&gt;. This method allowed us to skip several versions, closing the distance to the latest version with fewer deployments. This approach enabled us to catch up on 24 months’ worth of upgrades in just 11 months, even though we started 14 months behind. &lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/no-version-left-behind-our-epic-journey-of-gitlab-upgrades/upgrade-hours.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Time taken in hrs for each upgrade. The blue line depicts major and the red line is for minor upgrades&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;overcoming-challenges&quot;&gt;Overcoming challenges&lt;/h2&gt;
+
+&lt;p&gt;Our journey was not without hurdles. We faced challenges in maintaining system stability during upgrades, navigating unexpected changes in functionality post upgrades, and ensuring data integrity.&lt;/p&gt;
+
+&lt;p&gt;However, these challenges served as an opportunity for our team to innovate and create robust workarounds. Here are a few highlights:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Unexpected project distribution&lt;/strong&gt;: During upgrades and Gitaly server restarts, we observed unexpected migration of the monorepo to a crowded Gitaly server, resulting in higher rate limiting. We manually updated primary nodes for the monorepo and made this validation as a part of our deployment checklist.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;NFS deprecation&lt;/strong&gt;: We migrated all required data to S3 buckets and deprecated NFS to become more resilient and independent of Availability Zone (AZ).&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Handling unexpected Continuous Integration (CI) operations&lt;/strong&gt;: A sudden surge in CI operations sometimes resulted in rate limiting and interrupted more essential Git operations for developers. This is because GitLab uses different RPC calls and their concurrency for SSH and HTTP operations. We encouraged using HTTPS links for GitLab CI and automation script and SSH links for regular Git operations.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Right-sizing resources&lt;/strong&gt;: We countered resource limitations by right-sizing our infrastructure, ensuring each component had optimal resources to function efficiently.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Performance testing&lt;/strong&gt;: We conducted performance testing of our GitLab using the &lt;a href=&quot;https://handbook.gitlab.com/handbook/support/workflows/gpt_quick_start&quot;&gt;GitLab Performance Tool (GPT)&lt;/a&gt;. In addition, we used our custom scripts to load test Grab specific use cases and mono repositories.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Limiting maintenance windows&lt;/strong&gt;: Each deployment required a maintenance window or downtime. To minimise this, we structured our deployment processes more efficiently, reducing potential downtime and ensuring uninterrupted service for users.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Dependency on GitLab.com image registry&lt;/strong&gt;: We introduced measures to host necessary images internally, which increased our resilience and allowed us to cut ties with external dependencies.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-results&quot;&gt;The results&lt;/h2&gt;
+
+&lt;p&gt;Through careful planning, we’ve improved our upgrade process, ensuring system stability and timely updates. We’ve also reduced the delay in aligning with official GitLab releases. The image below displays how the time delay between release date and deployment has been reduced with each upgrade. It sharply brought down from &lt;strong&gt;396 days (around 14 months)&lt;/strong&gt; to &lt;strong&gt;35 days&lt;/strong&gt;. &lt;/p&gt;
+
+&lt;p&gt;At the time of this article, we’re just two minor versions behind the latest GitLab release, with a strong focus on security and resilience. We are also seeing a reduced number of reported issues after each upgrade.&lt;/p&gt;
+
+&lt;p&gt;Our refined process has allowed us to perform regular updates without any service disruptions. We aim to leverage these learnings to automate our upgrade deployments, painting a positive picture for our future updates, marked by efficiency and stability.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/no-version-left-behind-our-epic-journey-of-gitlab-upgrades/days-since-deployed.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Time delay between official release date and date of deployment&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;looking-ahead&quot;&gt;Looking ahead&lt;/h2&gt;
+
+&lt;p&gt;Our dedication extends beyond staying current with the most recent GitLab versions. With stabilised deployment, we are now focusing on:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Automated upgrades&lt;/strong&gt;: Our efforts extend towards bringing in more automation to enhance efficiency. We’re already employing &lt;strong&gt;zero-downtime&lt;/strong&gt; automated upgrades for patch versions involving no database migrations, utilising GitLab pipelines. Looking forward, we plan to automate minor version deployments as well, ensuring minimal human intervention during the upgrade process.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Automated runner onboarding for service teams&lt;/strong&gt;: We’ve developed a &lt;strong&gt;‘Runner as a Service’&lt;/strong&gt; solution for our service teams. Service teams can create their dedicated runners by providing minimal details, while we manage these runners centrally. This setup allows the service team to stay focused on development, ensuring smooth operations.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Improved communication and data safety&lt;/strong&gt;: We’re regularly communicating new features and potential issues to our service teams. We also ensure targeted solutions for any disruptions. Additionally, we’re focusing on developing automated data validation via our data restoration process. &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Focus on development&lt;/strong&gt;: With stabilised updates, we’ve created an environment where our development teams can focus more on crafting new features and supporting ongoing work, rather than handling upgrade issues.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;key-takeaways&quot;&gt;Key takeaways&lt;/h2&gt;
+
+&lt;p&gt;The upgrade process taught us the importance of adaptability, thorough preparation, effective communication, and continuous learning. Our ‘No Version Left Behind’ motto underscores the critical role of regular tech updates in boosting productivity, refining processes, and strengthening security. These insights will guide us as we navigate ongoing technological advancements.&lt;/p&gt;
+
+&lt;p&gt;Below are the key areas in which we improved:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Enhanced testing procedures&lt;/strong&gt;: We’ve fine-tuned our testing strategies, using both automated and manual testing for GitLab, and regularly conducting performance tests before upgrades.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Approvals&lt;/strong&gt;: We’ve designed approval workflows that allow us to obtain necessary clearances or approvals before each upgrade efficiently, further ensuring the smooth execution of our processes.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Improved communication&lt;/strong&gt;: We’ve improved stakeholder communication, regularly sharing updates and detailed documents about new features, deprecated items, and significant changes with each upgrade.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Streamlined planning&lt;/strong&gt;: We’ve improved our upgrade planning, strictly following our checklist and rotating the role of Upgrade Ownership among team members.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Optimised activity time&lt;/strong&gt;: We’ve significantly reduced the time for production upgrade activity through advanced planning, automation, and eliminating unnecessary steps.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Efficient issue management&lt;/strong&gt;: We’ve improved our ability to handle potential GitLab upgrade issues, with minimal to no issues occurring. We’re prepared to handle any incidents that could cause an outage.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Knowledge base creation and automation&lt;/strong&gt;: We’ve created a GitLab knowledge base and continuously enhanced it with rich content, making it even more invaluable for training new team members and for reference during unexpected situations. We’ve also automated routine tasks to improve efficiency and reduce manual errors.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 03 May 2024 00:10:10 +0000</pubDate>
+        <link>https://engineering.grab.com/no-version-left-behind-our-epic-journey-of-gitlab-upgrades</link>
+        <guid isPermaLink="true">https://engineering.grab.com/no-version-left-behind-our-epic-journey-of-gitlab-upgrades</guid>
+        
+        <category>stability</category>
+        
+        <category>automation</category>
+        
+        <category>optimisation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Ensuring data reliability and observability in risk systems</title>
@@ -2099,90 +2279,6 @@ during its short downtime, by replicating it from Kafka brokers 1 and 2.&lt;/li&
         <category>Engineering</category>
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>Championing CyberSecurity: Grab&apos;s bug bounty programme in 2023</title>
-        <description>&lt;p&gt;Launched in 2015, &lt;a href=&quot;https://hackerone.com/grab?type%3Dteam&quot;&gt;Grab’s Security bug bounty programme&lt;/a&gt; has achieved remarkable success and forged strong partnerships within a thriving bounty community. By holding quarterly campaigns with HackerOne, Grab has been dedicated to security and giving back to the global security community to research further. Over the years, Grab has paid over $700,000 in cumulative payments to committed security researchers, aiding their research.&lt;/p&gt;
-
-&lt;p&gt;Our journey doesn’t stop there – we’ve also expanded our internal bug bounty team, ensuring that we have the necessary resources to stay at the forefront of security challenges. As we continue to innovate and evolve, it’s critical that our team remains at the cutting edge of security developments.&lt;/p&gt;
-
-&lt;p&gt;Marking its eighth year in 2023, this initiative has achieved new milestones and continues to set the stage for an even more successful ninth year. In 2023, this included a special campaign in Threatcon Nepal, aimed at increasing our bounty engagements. A key development was the enrichment of monetary incentives to honour our hacker community’s remarkable contributions to our programme’s success.&lt;/p&gt;
-
-&lt;p&gt;Let’s look at the key takeaways we gained from the bug bounty programme in 2023.&lt;/p&gt;
-
-&lt;h2 id=&quot;highlights-from-2023&quot;&gt;Highlights from 2023&lt;/h2&gt;
-
-&lt;p&gt;This year, we had some of the highest participation and engagement rates we’ve seen since the programme launched.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;We’ve processed ~1000 submissions through our HackerOne bug bounty programme.&lt;/li&gt;
-  &lt;li&gt;Impressive record of 400 submissions in the Q1 2023 campaign.&lt;/li&gt;
-  &lt;li&gt;We’ve maintained a consistent schedule of campaigns and innovative efforts to enhance hacker engagement.&lt;/li&gt;
-  &lt;li&gt;Released a comprehensive report of our seven-year bug bounty journey – check out some key highlights in the image below.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/cybersec-bug/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;As Grab expands and transforms its product and service portfolio, we are dedicated to ensuring that our bug bounty programme reflects this growth. In our rigorous pursuit of boosting security, we regularly introduce new areas of focus to our scope. In 2024, expect the inclusion of new scopes, enhanced response times, heightened engagement from the hacker community, and more competitive rewards.&lt;/p&gt;
-
-&lt;p&gt;In the past year, we have incorporated Joint Ventures and Acquisitions into the scope of our bug bounty programme. By doing so, we proactively address emerging security challenges, while fortifying the safety and integrity of our expanding ecosystem. We remain fully dedicated to embracing change and growth as integral parts of our journey to provide a secure and seamless experience for our users.&lt;/p&gt;
-
-&lt;p&gt;On top of that, we continue to improve our methods of motivating researchers through the bug bounty programme. One recent change is to diversify our reward methods by incorporating both financial rewards and recognition. This allows us to cater to different researcher motivations, cultivate stronger relationships, and acknowledge researchers’ contributions.&lt;/p&gt;
-
-&lt;p&gt;That said, we recognise that there’s always room for improvement and the bug bounty programme is uniquely poised for substantial expansion. In the near future, we will be:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Introducing more elements to the scope of our bug bounty programme&lt;/li&gt;
-  &lt;li&gt;Enhancing feedback loops on the HackerOne platform&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;With these improvements, we can drive continuous improvement efforts to provide a secure experience for our users while strengthening our connection with the security research community.&lt;/p&gt;
-
-&lt;h2 id=&quot;a-word-of-thanks&quot;&gt;A word of thanks&lt;/h2&gt;
-
-&lt;p&gt;2023 has been an exhilarating year for our team. We’re grateful for the continued support from all the security researchers who’ve actively participated in our programme.&lt;/p&gt;
-
-&lt;p&gt;Here are the top three researchers in 2023:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/damian89&quot;&gt;Damian89&lt;/a&gt; &lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/happy_csr&quot;&gt;Happy_csr&lt;/a&gt; &lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://hackerone.com/mclaren650sspider&quot;&gt;mclaren650sspider&lt;/a&gt; &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;As we head into our ninth year, we know there are new opportunities and challenges that await us. We strive to remain dedicated to the values of collaboration and continuous improvement, working hand in hand with the security community to enhance our superapp’s security and deliver an even safer experience for our users.&lt;/p&gt;
-
-&lt;p&gt;We’re gearing up for another exciting year ahead in our programme, and looking forward to interesting submissions from our participants. We extend an open invitation to all researchers to submit reports to our bug bounty programme. Your contributions hold immense value and have a significant impact on the safety and security of our products, our users, and the broader security community. For comprehensive information about the programme scope, rules, and rewards, &lt;a href=&quot;https://hackerone.com/grab?type%3Dteam&quot;&gt;visit our website&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Until next year, keep up the great work, and happy hacking!&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 19 Dec 2023 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/cybersec-bug</link>
-        <guid isPermaLink="true">https://engineering.grab.com/cybersec-bug</guid>
-        
-        <category>Security</category>
-        
-        <category>Bug bounty</category>
-        
-        <category>HackerOne</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Security</category>
         
       </item>
     
