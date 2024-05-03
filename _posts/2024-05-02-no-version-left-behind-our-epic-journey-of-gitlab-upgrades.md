@@ -2,7 +2,7 @@
 layout: post
 id: 2024-05-02-no-version-left-behind-our-epic-journey-of-gitlab-upgrades
 title: "No version left behind: Our epic journey of GitLab upgrades"
-date: 2024-04-23 00:15:10
+date: 2024-05-02 00:10:10
 authors: [saurabh-vajpayee, ramkumar-manickam, nagendra-gangwar, dan-low, akshay-misra]
 categories: [Engineering]
 tags: [stability, automation, optimisation]
@@ -68,7 +68,7 @@ We systematically follow GitLab's official documentation for each [upgrade](http
 
 Equipped with knowledge, backup plans, and a robust support system, we embarked on our first GitLab upgrade two years ago. We carefully followed our checklist, handling each important part systematically. GitLab comprises both stateful (Gitaly) and stateless (Praefect, Sidekiq, and App Server) components, all managed through auto-scaling groups. We use a **'create before destroy'** strategy for deploying stateless components and an **'in-place node rotation'** method via Terraform for stateful ones. 
 
-We deployed key parts like Gitaly, Praefect, Sidekiq, App Servers, NFS server, and Elasticsearch in a specific sequence. Starting with Gitaly, followed by Praefect, then Sidekiq and App Servers, and finally NFS and Elasticsearch. Our thorough testing showed this order to be the most dependable and safe.
+We deployed key parts like Gitaly, Praefect, Sidekiq, App Servers, Network File System (NFS) server, and Elasticsearch in a specific sequence. Starting with Gitaly, followed by Praefect, then Sidekiq and App Servers, and finally NFS and Elasticsearch. Our thorough testing showed this order to be the most dependable and safe.
 
 However, the journey was full of challenges. For instance, we encountered issues such as the Gitaly cluster falling out of sync for monorepo and the Praefect server failing to distribute the load effectively. Praefect assigns a primary Gitaly node for each repository to host it. All write operations are sent to the repository's primary node, while read requests are spread across all synced nodes in the Gitaly cluster. If the Gitaly nodes aren't synced, Praefect will redirect all write and read operations to the repository's primary node.
 
@@ -110,7 +110,7 @@ However, these challenges served as an opportunity for our team to innovate and 
 
 **Unexpected project distribution**: During upgrades and Gitaly server restarts, we observed unexpected migration of the monorepo to a crowded Gitaly server, resulting in higher rate limiting. We manually updated primary nodes for the monorepo and made this validation as a part of our deployment checklist.
 
-**Network File System (NFS) deprecation**: We migrated all required data to S3 buckets and deprecated NFS to become more resilient and independent of Availability Zone (AZ).
+**NFS deprecation**: We migrated all required data to S3 buckets and deprecated NFS to become more resilient and independent of Availability Zone (AZ).
 
 **Handling unexpected Continuous Integration (CI) operations**: A sudden surge in CI operations sometimes resulted in rate limiting and interrupted more essential Git operations for developers. This is because GitLab uses different RPC calls and their concurrency for SSH and HTTP operations. We encouraged using HTTPS links for GitLab CI and automation script and SSH links for regular Git operations.
 
@@ -118,7 +118,7 @@ However, these challenges served as an opportunity for our team to innovate and 
 
 **Performance testing**: We conducted performance testing of our GitLab using the [GitLab Performance Tool (GPT)](https://handbook.gitlab.com/handbook/support/workflows/gpt_quick_start). In addition, we used our custom scripts to load test Grab specific use cases and mono repositories.
 
-**Limiting maintenance window**: Each deployment required a maintenance window or downtime. To minimise this, we structured our deployment processes more efficiently, reducing potential downtime and ensuring uninterrupted service for users.
+**Limiting maintenance windows**: Each deployment required a maintenance window or downtime. To minimise this, we structured our deployment processes more efficiently, reducing potential downtime and ensuring uninterrupted service for users.
 
 **Dependency on GitLab.com image registry**: We introduced measures to host necessary images internally, which increased our resilience and allowed us to cut ties with external dependencies.
 
@@ -150,7 +150,7 @@ The upgrade process taught us the importance of adaptability, thorough preparati
 
 Below are the key areas in which we improved:
 
-**Enhanced testing p**: We've fine-tuned our testing strategies, using both automated and manual testing for GitLab, and regularly conducting performance tests before upgrades.
+**Enhanced testing procedures**: We've fine-tuned our testing strategies, using both automated and manual testing for GitLab, and regularly conducting performance tests before upgrades.
 
 **Approvals**: We've designed approval workflows that allow us to obtain necessary clearances or approvals before each upgrade efficiently, further ensuring the smooth execution of our processes.
 
