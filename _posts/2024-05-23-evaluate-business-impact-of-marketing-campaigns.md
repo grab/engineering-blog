@@ -2,7 +2,7 @@
 layout: post
 id: 2024-05-23-evaluate-business-impact-of-marketing-campaigns
 title: "How we evaluated the business impact of marketing campaigns"
-date: 2024-05-23 00:10:10
+date: 2024-05-19 00:10:10
 authors: [jie-zhang, zen-nguyen]
 categories: [Engineering]
 tags: [stability, automation, optimisation]
@@ -26,12 +26,11 @@ Thus, we recognised the need for a centralised solution allowing campaign manage
 
 The marketing analyst team designed a Marketing attribution model (MAM) for estimating the business impact of any campaign that sends messages to users. It quantifies business impact in terms of generated gross merchandise value (GMV), revenue, etc.
 
-Unlike traditional models that only credit the last touchpoint (i.e. the last message user reads before making a transaction), MAM offers a more nuanced view. It recognises that users are exposed to various marketing messages (emails, pushes, feeds, etc.) throughout their decision-making process. MAM assigns credit to each touchpoint that influences a conversion (e.g., Grab usage) based on two key factors:
+Unlike traditional models that only credit the last touchpoint (i.e. the last message user reads before making a transaction), MAM offers a more nuanced view. It recognises that users are exposed to various marketing messages (emails, pushes, feeds, etc.) throughout their decision-making process. As shown in Fig 1, MAM assigns credit to each touchpoint that influences a conversion (e.g., Grab usage) based on two key factors:
 
 - **Relevance**: Content directly related to the conversion receives a higher weightage. Imagine a user opening a GrabFood push notification before placing a food order. This push would be considered highly relevant and receive significant credit.
 - **Recency**: Touchpoints closer in time to the conversion hold more weight. For instance, a brand awareness email sent weeks before the purchase would be less impactful than a targeted GrabFood promotion right before the order.
 By factoring in both relevance and recency, MAM avoids crediting the same touchpoint twice and provides a more accurate picture of which marketing campaigns are driving higher conversions.
-
 
 <div class="post-image-section"><figure>
   <img src="img/evaluate-business-impact-of-marketing-campaigns/mam-business-attribution.png" alt="" style="width:80%"><figcaption align="middle">Fig 1. How MAM does business attribution</figcaption>
@@ -93,7 +92,7 @@ Assuming the business metrics we are comparing is food GMV, the base numbers can
 
 To calculate the probability, we then use a formula derived from the central limit theorem (CLT). The mathematical derivation of the formula is beyond the scope of this post. Programmatically, we use the popular jStat library for the calculation.
 
-We show the calculation result of statistical significance as a special notice to the campaign owners, as shown in Fig 5.
+The calculation result of statistical significance as a special notice to the campaign owners is shown in Fig 5.
 
 <div class="post-image-section"><figure>
   <img src="img/evaluate-business-impact-of-marketing-campaigns/business-impact-analysis.png" alt="" style="width:80%"><figcaption align="middle">Fig 5. Display of business impact analysis with statistical significance</figcaption>
