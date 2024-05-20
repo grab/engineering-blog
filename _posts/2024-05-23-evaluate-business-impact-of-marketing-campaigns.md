@@ -11,7 +11,7 @@ cover_photo: /img/evaluate-business-impact-of-marketing-campaigns/cover.png
 excerpt: "Discover how Grab assesses marketing effectiveness using advanced attribution models and strategic testing to improve campaign precision and impact."
 ---
 
-In a previous [post](https://engineering.grab.com/supporting-large-campaigns-at-scale), we introduced our systems for running marketing campaigns. Although we sent millions of messages daily, we had little insight into their effectiveness. Did they engage our users with our promotions? Did they encourage more transactions and bookings?
+In a previous [post](/supporting-large-campaigns-at-scale), we introduced our systems for running marketing campaigns. Although we sent millions of messages daily, we had little insight into their effectiveness. Did they engage our users with our promotions? Did they encourage more transactions and bookings?
 
 As Grab's business expanded and the number of marketing campaigns increased, understanding the impact of these campaigns became crucial. This knowledge enables campaign managers to design more effective campaigns and avoid wasteful ones that degrade user experience.
 
@@ -22,7 +22,7 @@ Initially, campaign managers had to consult marketing analysts to gauge the impa
 
 Thus, we recognised the need for a centralised solution allowing campaign managers to view their campaign impact analyses.
 
-## Marketing Attribution Model
+## Marketing attribution model
 
 The marketing analyst team designed a Marketing attribution model (MAM) for estimating the business impact of any campaign that sends messages to users. It quantifies business impact in terms of generated gross merchandise value (GMV), revenue, etc.
 
@@ -75,7 +75,7 @@ Statistical significance is a common, yet important technique for evaluating the
 
 ### Statistical significance
 
-When we do an A/B testing, we cannot simply conclude that A is better than B when A’s result is better than B. The difference could be due to other random factors. If you did an A/A test, you will still see differences in the results even without doing anything different on the two groups.
+When we do an A/B testing, we cannot simply conclude that A is better than B when A’s result is better than B. The difference could be due to other random factors. If you did an A/A test, you will still see differences in the results even without doing anything different to the two groups.
 
 Statistical significance is a method to calculate the probability that the difference between two groups is really due to randomness. The lower the probability, the more confidently we can say our action is truly making some impact.
 
@@ -91,7 +91,7 @@ Assuming the business metrics we are comparing is food GMV, the base numbers can
   </figure>
 </div>
 
-Then in order to calculate the probability, we will use a formula derived from the central limit theorem (CLT). The mathematical derivation of the formula is beyond the scope of this post. Programmatically, we use the popular jStat library for the calculation.
+To calculate the probability, we then use a formula derived from the central limit theorem (CLT). The mathematical derivation of the formula is beyond the scope of this post. Programmatically, we use the popular jStat library for the calculation.
 
 We show the calculation result of statistical significance as a special notice to the campaign owners, as shown in Fig 5.
 
@@ -104,7 +104,7 @@ We show the calculation result of statistical significance as a special notice t
 
 Evaluating the true business impact remains challenging. We continue to refine our methodology and address potential biases, such as the assumption that both groups are of the same distribution, which might not hold true, especially in smaller group sizes. Furthermore, consistently reserving a 10% hold-out in each campaign is impractical for some campaigns, as sometimes campaign owners require messages to reach all targeted users.
 
-We are committed to advancing our business impact evaluation solutions and look forward to sharing more insights in future blogs.
+We are committed to advancing our business impact evaluation solutions and will continue improving our existing solutions. We look forward to sharing more insights in future blogs.
 
 # Join us
 
