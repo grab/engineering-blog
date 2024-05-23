@@ -6,9 +6,138 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 16 May 2024 19:23:42 +0000</pubDate>
-    <lastBuildDate>Thu, 16 May 2024 19:23:42 +0000</lastBuildDate>
+    <pubDate>Thu, 23 May 2024 01:03:26 +0000</pubDate>
+    <lastBuildDate>Thu, 23 May 2024 01:03:26 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>How we evaluated the business impact of marketing campaigns</title>
+        <description>&lt;p&gt;In a previous &lt;a href=&quot;/supporting-large-campaigns-at-scale&quot;&gt;post&lt;/a&gt;, we introduced our systems for running marketing campaigns. Although we sent millions of messages daily, we had little insight into their effectiveness. Did they engage our users with our promotions? Did they encourage more transactions and bookings?&lt;/p&gt;
+
+&lt;p&gt;As Grab’s business expanded and the number of marketing campaigns increased, understanding the impact of these campaigns became crucial. This knowledge enables campaign managers to design more effective campaigns and avoid wasteful ones that degrade user experience.&lt;/p&gt;
+
+&lt;p&gt;Initially, campaign managers had to consult marketing analysts to gauge the impact of campaigns. However, this approach soon proved unsustainable:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Manual analysis doesn’t scale with an increasing number of campaigns.&lt;/li&gt;
+  &lt;li&gt;Different analysts might assess the business impact in slightly different ways, leading to inconsistent results over time.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Thus, we recognised the need for a centralised solution allowing campaign managers to view their campaign impact analyses.&lt;/p&gt;
+
+&lt;h2 id=&quot;marketing-attribution-model&quot;&gt;Marketing attribution model&lt;/h2&gt;
+
+&lt;p&gt;The marketing analyst team designed a Marketing attribution model (MAM) for estimating the business impact of any campaign that sends messages to users. It quantifies business impact in terms of generated gross merchandise value (GMV), revenue, etc.&lt;/p&gt;
+
+&lt;p&gt;Unlike traditional models that only credit the last touchpoint (i.e. the last message user reads before making a transaction), MAM offers a more nuanced view. It recognises that users are exposed to various marketing messages (emails, pushes, feeds, etc.) throughout their decision-making process. As shown in Fig 1, MAM assigns credit to each touchpoint that influences a conversion (e.g., Grab usage) based on two key factors:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Relevance&lt;/strong&gt;: Content directly related to the conversion receives a higher weightage. Imagine a user opening a GrabFood push notification before placing a food order. This push would be considered highly relevant and receive significant credit.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Recency&lt;/strong&gt;: Touchpoints closer in time to the conversion hold more weight. For instance, a brand awareness email sent weeks before the purchase would be less impactful than a targeted GrabFood promotion right before the order.
+By factoring in both relevance and recency, MAM avoids crediting the same touchpoint twice and provides a more accurate picture of which marketing campaigns are driving higher conversions.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/evaluate-business-impact-of-marketing-campaigns/mam-business-attribution.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 1. How MAM does business attribution&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;While MAM is effective for comparing the impacts of different campaigns, it struggles with the assessment of a single campaign because it does not account for negative impacts. For example, consider a message stating, “Hey, don’t use Grab.” Clearly, not all messages positively impact business.&lt;/p&gt;
+
+&lt;h2 id=&quot;hold-out-group&quot;&gt;Hold-out group&lt;/h2&gt;
+
+&lt;p&gt;To better evaluate the impact of a single campaign, we divide targeted users into two groups:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Hold-out (control): do not send any message&lt;/li&gt;
+  &lt;li&gt;Treatment: send the message&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/evaluate-business-impact-of-marketing-campaigns/campaign-hold-out-group.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 2. Campaign setup with hold-out group&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We then compare the business performance of sending versus not sending messages. For the treatment group, we ideally count only the user transactions potentially linked to the message (i.e., transactions occurring within X days of message receipt). However, since the hold-out group receives no messages, there are no equivalent metrics for comparison.&lt;/p&gt;
+
+&lt;p&gt;The only business metrics available for the hold-out group are the aggregated totals of GMV, revenue, etc., over a given time, divided by the number of users. We must calculate the same for the treatment group to ensure a fair comparison.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/evaluate-business-impact-of-marketing-campaigns/metrics-calculation.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 3. Metrics calculation for both hold-out and treatment group&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The comparison might seem unreliable due to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The metrics are raw aggregations, lacking attribution logic.&lt;/li&gt;
+  &lt;li&gt;The aggregated GMV and revenue might be skewed by other simultaneous campaigns involving the same users.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Here, we have to admit that figuring out true business impact is difficult. All we can do is try our best to get as close to the truth as possible. To make the comparison more precise, we employed the following strategies:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Stratify the two groups, so that both groups contain roughly the same distribution of users.&lt;/li&gt;
+  &lt;li&gt;Calculate statistical significance to rule out the difference caused by random factors.&lt;/li&gt;
+  &lt;li&gt;Allow users to narrow down the business metrics to compare according to campaign set-up. For example, we don’t compare ride bookings if the campaign is promoting food.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Statistical significance is a common, yet important technique for evaluating the result of controlled experiments. Let’s see how it’s used in our case.&lt;/p&gt;
+
+&lt;h3 id=&quot;statistical-significance&quot;&gt;Statistical significance&lt;/h3&gt;
+
+&lt;p&gt;When we do an A/B testing, we cannot simply conclude that A is better than B when A’s result is better than B. The difference could be due to other random factors. If you did an A/A test, you will still see differences in the results even without doing anything different to the two groups.&lt;/p&gt;
+
+&lt;p&gt;Statistical significance is a method to calculate the probability that the difference between two groups is really due to randomness. The lower the probability, the more confidently we can say our action is truly making some impact.&lt;/p&gt;
+
+&lt;p&gt;In our case, to derive statistical significance, we assume:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Our hold-out and treatment group are two sets of samples drawn from two populations, A and B.&lt;/li&gt;
+  &lt;li&gt;A and B are the same except that B received our message. We can’t 100% prove this, but can reasonably guess this is close to true, since we split with stratification.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Assuming the business metrics we are comparing is food GMV, the base numbers can be formulated as shown in Fig 4.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/evaluate-business-impact-of-marketing-campaigns/calculate-statistical-significance.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 4. Formulation for calculating statistical significance&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;To calculate the probability, we then use a formula derived from the central limit theorem (CLT). The mathematical derivation of the formula is beyond the scope of this post. Programmatically, we use the popular jStat library for the calculation.&lt;/p&gt;
+
+&lt;p&gt;The calculation result of statistical significance as a special notice to the campaign owners is shown in Fig 5.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/evaluate-business-impact-of-marketing-campaigns/business-impact-analysis.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig 5. Display of business impact analysis with statistical significance&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;Evaluating the true business impact remains challenging. We continue to refine our methodology and address potential biases, such as the assumption that both groups are of the same distribution, which might not hold true, especially in smaller group sizes. Furthermore, consistently reserving a 10% hold-out in each campaign is impractical for some campaigns, as sometimes campaign owners require messages to reach all targeted users.&lt;/p&gt;
+
+&lt;p&gt;We are committed to advancing our business impact evaluation solutions and will continue improving our existing solutions. We look forward to sharing more insights in future blogs.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Sun, 19 May 2024 00:10:10 +0000</pubDate>
+        <link>https://engineering.grab.com/evaluate-business-impact-of-marketing-campaigns</link>
+        <guid isPermaLink="true">https://engineering.grab.com/evaluate-business-impact-of-marketing-campaigns</guid>
+        
+        <category>stability</category>
+        
+        <category>automation</category>
+        
+        <category>optimisation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>No version left behind: Our epic journey of GitLab upgrades</title>
@@ -1957,328 +2086,6 @@ the Avro schema and associated data changes are already captured within the KC s
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Kafka on Kubernetes: Reloaded for fault tolerance</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Coban - Grab’s real-time data streaming platform - has been operating &lt;a href=&quot;https://kafka.apache.org/&quot;&gt;Kafka&lt;/a&gt; on &lt;a href=&quot;https://kubernetes.io/&quot;&gt;Kubernetes&lt;/a&gt; with &lt;a href=&quot;https://strimzi.io/&quot;&gt;Strimzi&lt;/a&gt; in 
-production for about two years. In a previous article (&lt;a href=&quot;/zero-trust-with-kafka&quot;&gt;Zero trust with Kafka&lt;/a&gt;), we explained how we leveraged Strimzi to enhance the security of our data streaming offering.&lt;/p&gt;
-
-&lt;p&gt;In this article, we are going to describe how we improved the fault tolerance of our initial design, to the point where we no longer need to intervene if a Kafka broker is unexpectedly terminated.&lt;/p&gt;
-
-&lt;h2 id=&quot;problem-statement&quot;&gt;Problem statement&lt;/h2&gt;
-
-&lt;p&gt;We operate Kafka in the AWS Cloud. For the Kafka on Kubernetes design described in this article, we rely on &lt;a href=&quot;https://aws.amazon.com/eks/&quot;&gt;Amazon Elastic Kubernetes Service&lt;/a&gt; (EKS), the managed Kubernetes offering by AWS, with the worker nodes deployed as &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/worker.html&quot;&gt;self-managed nodes&lt;/a&gt; on &lt;a href=&quot;https://aws.amazon.com/ec2/&quot;&gt;Amazon Elastic Compute Cloud&lt;/a&gt; (EC2).&lt;/p&gt;
-
-&lt;p&gt;To make our operations easier and limit the blast radius of any incidents, we deploy exactly one Kafka cluster for each EKS cluster. We also give a full worker node to each Kafka broker. In terms of storage, we initially relied on EC2 instances with &lt;a href=&quot;https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ssd-instance-store.html&quot;&gt;non-volatile memory express (NVMe) instance store volumes&lt;/a&gt; for 
-maximal I/O performance. Also, each Kafka cluster is accessible beyond its own &lt;a href=&quot;https://aws.amazon.com/vpc/&quot;&gt;Virtual Private Cloud&lt;/a&gt; (VPC) via a &lt;a href=&quot;https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-share-your-services.html&quot;&gt;VPC Endpoint Service&lt;/a&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-on-kubernetes/image5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 1 Initial design of a 3-node Kafka cluster running on Kubernetes.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Fig. 1 shows a logical view of our initial design of a 3-node Kafka on Kubernetes cluster, as typically run by Coban. The Zookeeper and Cruise-Control components are not shown for clarity.&lt;/p&gt;
-
-&lt;p&gt;There are four Kubernetes services (1): one for the initial connection - referred to as “bootstrap” - that redirects incoming traffic to any Kafka pods, plus one for each Kafka pod, for the clients to target each Kafka broker individually (a requirement to produce or consume from/to a partition that resides on any particular Kafka broker). Four different listeners on the Network Load Balancer (NLB) listening on four different TCP ports, enable the Kafka clients to target either the bootstrap 
-service or any particular Kafka broker they need to reach. This is very similar to what we previously described in &lt;a href=&quot;/exposing-kafka-cluster&quot;&gt;Exposing a Kafka Cluster via a VPC Endpoint Service&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Each worker node hosts a single Kafka pod (2). The NVMe instance store volume is used to create a Kubernetes Persistent Volume (PV), attached to a pod via a Kubernetes Persistent Volume Claim (PVC).&lt;/p&gt;
-
-&lt;p&gt;Lastly, the worker nodes belong to &lt;a href=&quot;https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-groups.html&quot;&gt;Auto-Scaling Groups&lt;/a&gt; (ASG) (3), one by &lt;a href=&quot;https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-availability-zones&quot;&gt;Availability Zone&lt;/a&gt; (AZ). Strimzi adds in node affinity to make sure that the brokers are evenly distributed across AZs. In this initial design, ASGs are not for auto-scaling though, because we want to keep the size of the cluster under control. We only use ASGs - with a fixed size - to facilitate manual scaling operation and to automatically replace the terminated worker nodes.&lt;/p&gt;
-
-&lt;p&gt;With this initial design, let us see what happens in case of such a worker node termination.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-on-kubernetes/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 2 Representation of a worker node termination. Node C is terminated and replaced by node D. However the Kafka broker 3 pod is unable to restart on node D.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Fig. 2 shows the worker node C being terminated along with its NVMe instance store volume C, and replaced (by the ASG) by a new worker node D and its new, empty NVMe instance store volume D. On start-up, the worker node D automatically joins the Kubernetes cluster. The Kafka broker 3 pod that was running on the faulty worker node C is scheduled to restart on the new worker node D.&lt;/p&gt;
-
-&lt;p&gt;Although the NVMe instance store volume C is terminated along with the worker node C, there is no data loss because all of our Kafka topics are configured with a minimum of three replicas. The data is poised to be copied over from the surviving Kafka brokers 1 and 2 back to Kafka broker 3, as soon as Kafka broker 3 is effectively restarted on the worker node D.&lt;/p&gt;
-
-&lt;p&gt;However, there are three fundamental issues with this initial design:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The Kafka clients that were in the middle of producing or consuming to/from the partition leaders of Kafka broker 3 are suddenly facing connection errors, because the broker was not gracefully demoted beforehand.&lt;/li&gt;
-  &lt;li&gt;The target groups of the NLB for both the bootstrap connection and Kafka broker 3 still point to the worker node C. Therefore, the network communication from the NLB to Kafka broker 3 is broken. A manual reconfiguration of the target groups is required.&lt;/li&gt;
-  &lt;li&gt;The PVC associating the Kafka broker 3 pod with its instance store PV is unable to automatically switch to the new NVMe instance store volume of the worker node D. Indeed, static provisioning is an intrinsic characteristic of Kubernetes &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/volumes/#local&quot;&gt;local volumes&lt;/a&gt;. The PVC is still in &lt;em&gt;Bound&lt;/em&gt; state, so Kubernetes does not take any action. However, the actual storage beneath the PV does not exist anymore. Without any storage, the Kafka broker 3 pod is unable to start.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;At this stage, the Kafka cluster is running in a degraded state with only two out of three brokers, until a Coban engineer intervenes to reconfigure the target groups of the NLB and delete the zombie PVC (this, in turn, triggers its re-creation by Strimzi, this time using the new instance store PV).&lt;/p&gt;
-
-&lt;p&gt;In the next section, we will see how we have managed to address the three issues mentioned above to make this design fault-tolerant.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;h3 id=&quot;graceful-kafka-shutdown&quot;&gt;Graceful Kafka shutdown&lt;/h3&gt;
-
-&lt;p&gt;To minimise the disruption for the Kafka clients, we leveraged the &lt;a href=&quot;https://aws-quickstart.github.io/cdk-eks-blueprints/addons/aws-node-termination-handler/&quot;&gt;AWS Node Termination Handler&lt;/a&gt; (NTH). This component provided by AWS for Kubernetes environments is able to cordon and drain a worker node that is going to be terminated. This draining, in turn, triggers a graceful shutdown of the Kafka 
-process by sending a polite &lt;a href=&quot;https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html&quot;&gt;SIGTERM&lt;/a&gt; signal to all pods running on the worker node that is being drained (instead of the brutal &lt;a href=&quot;https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html&quot;&gt;SIGKILL&lt;/a&gt; of a normal termination).&lt;/p&gt;
-
-&lt;p&gt;The termination events of interest that are captured by the NTH are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Scale-in operations by an ASG.&lt;/li&gt;
-  &lt;li&gt;Manual termination of an instance.&lt;/li&gt;
-  &lt;li&gt;AWS maintenance events, typically EC2 instances scheduled for upcoming retirement.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;This suffices for most of the disruptions our clusters can face in normal times and our common maintenance operations, such as terminating a worker node to refresh it. Only sudden hardware failures (AWS issue events) would fall through the cracks and still trigger errors on the Kafka client side.&lt;/p&gt;
-
-&lt;p&gt;The NTH comes in two modes: &lt;a href=&quot;https://github.com/aws/aws-node-termination-handler#major-features&quot;&gt;Instance Metadata Service (IMDS) and Queue Processor&lt;/a&gt;. We chose to go with the latter as it is able to capture a broader range of events, widening the fault tolerance capability.&lt;/p&gt;
-
-&lt;h4 id=&quot;scale-in-operations-by-an-asg&quot;&gt;Scale-in operations by an ASG&lt;/h4&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-on-kubernetes/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 3 Architecture of the NTH with the Queue Processor.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Fig. 3 shows the NTH with the Queue Processor in action, and how it reacts to a scale-in operation (typically triggered manually, during a maintenance operation):&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;As soon as the scale-in operation is triggered, an &lt;a href=&quot;https://docs.aws.amazon.com/autoscaling/ec2/userguide/lifecycle-hooks.html&quot;&gt;Auto Scaling lifecycle hook&lt;/a&gt; is invoked to pause the termination of the instance.&lt;/li&gt;
-  &lt;li&gt;Simultaneously, an Auto Scaling lifecycle hook event is issued to an &lt;a href=&quot;https://aws.amazon.com/sqs/&quot;&gt;Amazon Simple Queue Service&lt;/a&gt; (SQS) queue. In Fig. 3, we have also materialised EC2 events (e.g. manual termination of an instance, AWS maintenance events, etc.) that transit via &lt;a href=&quot;https://aws.amazon.com/eventbridge/&quot;&gt;Amazon EventBridge&lt;/a&gt; to eventually end up in the same SQS queue. We will discuss EC2 events in the next two sections.&lt;/li&gt;
-  &lt;li&gt;The NTH, a pod running in the Kubernetes cluster itself, constantly polls that SQS queue.&lt;/li&gt;
-  &lt;li&gt;When a scale-in event pertaining to a worker node of the Kubernetes cluster is read from the SQS queue, the NTH sends to the Kubernetes API the instruction to &lt;a href=&quot;https://kubernetes.io/docs/concepts/architecture/nodes/#manual-node-administration&quot;&gt;cordon&lt;/a&gt; and &lt;a href=&quot;https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/&quot;&gt;drain&lt;/a&gt; the impacted worker node.&lt;/li&gt;
-  &lt;li&gt;On draining, Kubernetes sends a SIGTERM signal to the Kafka pod residing on the worker node.&lt;/li&gt;
-  &lt;li&gt;Upon receiving the SIGTERM signal, the Kafka pod gracefully migrates the leadership of its leader partitions to other brokers of the cluster before shutting down, in a transparent manner for the clients. This behaviour is ensured by the &lt;a href=&quot;https://kafka.apache.org/documentation/#basic_ops_restarting&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;controlled.shutdown.enable&lt;/code&gt;&lt;/a&gt; parameter of Kafka, which is enabled by default.&lt;/li&gt;
-  &lt;li&gt;Once the impacted worker node has been drained, the NTH eventually resumes the termination of the instance.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Strimzi also comes with a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;terminationGracePeriodSeconds&lt;/code&gt; parameter, which we have set to 180 seconds to give the Kafka pods enough time to migrate all of their partition leaders gracefully on termination. We have verified that this is enough to migrate all partition leaders on our Kafka clusters (about 60 seconds for 600 partition leaders).&lt;/p&gt;
-
-&lt;h4 id=&quot;manual-termination-of-an-instance&quot;&gt;Manual termination of an instance&lt;/h4&gt;
-
-&lt;p&gt;The Auto Scaling lifecycle hook that pauses the termination of an instance (Fig. 3, step 1) as well as the corresponding resuming by the NTH (Fig. 3, step 7) are invoked only for ASG scaling events.&lt;/p&gt;
-
-&lt;p&gt;In case of a manual termination of an EC2 instance, the termination is captured as an EC2 event that also reaches the NTH. Upon receiving that event, the NTH cordons and drains the impacted worker node. However, the instance is immediately terminated, most likely before the leadership of all of its Kafka partition leaders has had the time to get migrated to other brokers.&lt;/p&gt;
-
-&lt;p&gt;To work around this and let a manual termination of an EC2 instance also benefit from the ASG lifecycle hook, the instance must be terminated using the &lt;a href=&quot;https://docs.aws.amazon.com/cli/latest/reference/autoscaling/terminate-instance-in-auto-scaling-group.html&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;terminate-instance-in-auto-scaling-group&lt;/code&gt;&lt;/a&gt; AWS CLI command.&lt;/p&gt;
-
-&lt;h4 id=&quot;aws-maintenance-events&quot;&gt;AWS maintenance events&lt;/h4&gt;
-
-&lt;p&gt;For AWS maintenance events such as instances scheduled for upcoming retirement, the NTH acts immediately when the event is first received (typically adequately in advance). It cordons and drains the soon-to-be-retired worker node, which in turn triggers the SIGTERM signal and the graceful termination of Kafka as described above. At this stage, the impacted instance is not terminated, so the Kafka partition leaders have plenty of time to complete their migration to other brokers.&lt;/p&gt;
-
-&lt;p&gt;However, the evicted Kafka pod has nowhere to go. There is a need for spinning up a new worker node for it to be able to eventually restart somewhere.&lt;/p&gt;
-
-&lt;p&gt;To make this happen seamlessly, we doubled the maximum size of each of our ASGs and installed the &lt;a href=&quot;https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/README.md&quot;&gt;Kubernetes Cluster Autoscaler&lt;/a&gt;. With that, when such a maintenance event is received:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The worker node scheduled for retirement is cordoned and drained by the NTH. The state of the impacted Kafka pod becomes &lt;em&gt;Pending&lt;/em&gt;.&lt;/li&gt;
-  &lt;li&gt;The Kubernetes Cluster Autoscaler comes into play and triggers the corresponding ASG to spin up a new EC2 instance that joins the Kubernetes cluster as a new worker node.&lt;/li&gt;
-  &lt;li&gt;The impacted Kafka pod restarts on the new worker node.&lt;/li&gt;
-  &lt;li&gt;The Kubernetes Cluster Autoscaler detects that the previous worker node is now under-utilised and terminates it.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In this scenario, the impacted Kafka pod only remains in &lt;em&gt;Pending&lt;/em&gt; state for about four minutes in total.&lt;/p&gt;
-
-&lt;p&gt;In case of multiple simultaneous AWS maintenance events, the Kubernetes scheduler would honour our &lt;a href=&quot;https://kubernetes.io/docs/tasks/run-application/configure-pdb/&quot;&gt;PodDisruptionBudget&lt;/a&gt; and not evict more than one Kafka pod at a time.&lt;/p&gt;
-
-&lt;h3 id=&quot;dynamic-nlb-configuration&quot;&gt;Dynamic NLB configuration&lt;/h3&gt;
-
-&lt;p&gt;To automatically map the NLB’s target groups with a newly spun up EC2 instance, we leveraged the &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html&quot;&gt;AWS Load Balancer Controller&lt;/a&gt; (LBC).&lt;/p&gt;
-
-&lt;p&gt;Let us see how it works.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-on-kubernetes/image6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 4 Architecture of the LBC managing the NLB&apos;s target groups via TargetGroupBinding custom resources.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Fig. 4 shows how the LBC automates the reconfiguration of the NLB’s target groups:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;It first retrieves the desired state described in Kubernetes &lt;a href=&quot;https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/&quot;&gt;custom resources&lt;/a&gt; (CR) of type &lt;a href=&quot;https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.1/guide/targetgroupbinding/targetgroupbinding&quot;&gt;TargetGroupBinding&lt;/a&gt;. There is one such resource per target group to maintain. Each TargetGroupBinding CR associates its respective target group with a Kubernetes service.&lt;/li&gt;
-  &lt;li&gt;The LBC then watches over the changes of the Kubernetes services that are referenced in the TargetGroupBinding CRs’ definition, specifically the private IP addresses exposed by their respective &lt;a href=&quot;https://kubernetes.io/docs/concepts/services-networking/service/#endpoints&quot;&gt;Endpoints resources&lt;/a&gt;.&lt;/li&gt;
-  &lt;li&gt;When a change is detected, it dynamically updates the corresponding NLB’s target groups with those IP addresses as well as the TCP port of the target containers (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;containerPort&lt;/code&gt;).&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;This automated design sets up the NLB’s target groups with IP addresses (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;targetType: ip&lt;/code&gt;) instead of EC2 instance IDs (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;targetType: instance&lt;/code&gt;). Although the LBC can handle both target types, the IP address approach is actually more straightforward in our case, since each pod has a routable private IP address in the AWS subnet, thanks to the &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html&quot;&gt;AWS Container Networking Interface&lt;/a&gt; (CNI) plug-in.&lt;/p&gt;
-
-&lt;p&gt;This dynamic NLB configuration design comes with a challenge. Whenever we need to update the Strimzi CR, the rollout of the change to each Kafka pod in a rolling update fashion is happening too fast for the NLB. This is because the NLB inherently takes some time to mark each target as healthy before enabling it. The Kafka brokers that have just been rolled out start advertising their broker-specific endpoints to the Kafka clients via the bootstrap service, but those 
-endpoints are actually not immediately available because the NLB is still checking their health. To mitigate this, we have reduced the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;HealthCheckIntervalSeconds&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;HealthyThresholdCount&lt;/code&gt; parameters of each target group to their minimum values of 5 and 2 respectively. This reduces the maximum delay for the NLB to detect that a target has become healthy to 10 seconds. In addition, we have configured the LBC with a &lt;a href=&quot;https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.1/deploy/pod_readiness_gate/&quot;&gt;Pod Readiness Gate&lt;/a&gt;. This feature makes the Strimzi rolling deployment wait for the health check of the NLB to pass, before marking the current pod as &lt;em&gt;Ready&lt;/em&gt; and proceeding with the next pod.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-on-kubernetes/image7.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 5 Steps for a Strimzi rolling deployment with a Pod Readiness Gate. Only one Kafka broker and one NLB listener and target group are shown for simplicity.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Fig. 5 shows how the Pod Readiness Gate works during a Strimzi rolling deployment:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The old Kafka pod is terminated.&lt;/li&gt;
-  &lt;li&gt;The new Kafka pod starts up and joins the Kafka cluster. Its individual endpoint for direct access via the NLB is immediately advertised by the Kafka cluster. However, at this stage, it is not reachable, as the target group of the NLB still points to the IP address of the old Kafka pod.&lt;/li&gt;
-  &lt;li&gt;The LBC updates the target group of the NLB with the IP address of the new Kafka pod, but the NLB health check has not yet passed, so the traffic is not forwarded to the new Kafka pod just yet.&lt;/li&gt;
-  &lt;li&gt;The LBC then waits for the NLB health check to pass, which takes 10 seconds. Once the NLB health check has passed, the NLB resumes forwarding the traffic to the Kafka pod.&lt;/li&gt;
-  &lt;li&gt;Finally, the LBC updates the pod readiness gate of the new Kafka pod. This informs Strimzi that it can proceed with the next pod of the rolling deployment.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;data-persistence-with-ebs&quot;&gt;Data persistence with EBS&lt;/h3&gt;
-
-&lt;p&gt;To address the challenge of the residual PV and PVC of the old worker node preventing Kubernetes from mounting the local storage of the new worker node after a node rotation, we adopted &lt;a href=&quot;https://aws.amazon.com/ebs/&quot;&gt;Elastic Block Store&lt;/a&gt; (EBS) volumes instead of NVMe instance store volumes. Contrary to the latter, EBS volumes can conveniently be attached and detached. The trade-off is that their performance is significantly lower.&lt;/p&gt;
-
-&lt;p&gt;However, relying on EBS comes with additional benefits:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The cost per GB is lower, compared to NVMe instance store volumes.&lt;/li&gt;
-  &lt;li&gt;Using EBS decouples the size of an instance in terms of CPU and memory from its storage capacity, leading to further cost savings by independently right-sizing the instance type and its storage. Such a separation of concerns also opens the door to new use cases requiring disproportionate amounts of storage.&lt;/li&gt;
-  &lt;li&gt;After a worker node rotation, the time needed for the new node to get back in sync is faster, as it only needs to catch up the data that was produced during the downtime. This leads to shorter maintenance operations and higher iteration speed. Incidentally, the associated inter-AZ traffic cost is also lower, since there is less data to transfer among brokers during this time.&lt;/li&gt;
-  &lt;li&gt;Increasing the storage capacity is an online operation.&lt;/li&gt;
-  &lt;li&gt;Data backup is supported by taking snapshots of EBS volumes.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We have verified with our historical monitoring data that the performance of &lt;a href=&quot;https://aws.amazon.com/ebs/general-purpose/&quot;&gt;EBS General Purpose 3&lt;/a&gt; (gp3) volumes is significantly above our maximum historical values for both throughput and I/O per second (IOPS), and we have successfully benchmarked a test EBS-based Kafka cluster. We have also set up new monitors to be alerted in case we need to 
-provision either additional throughput or IOPS, beyond the baseline of EBS gp3 volumes.&lt;/p&gt;
-
-&lt;p&gt;With that, we updated our instance types from storage optimised instances to either general purpose or memory optimised instances. We added the &lt;a href=&quot;https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html&quot;&gt;Amazon EBS Container Storage Interface (CSI) driver&lt;/a&gt; to the Kubernetes cluster and created a new Kubernetes &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/storage-classes/&quot;&gt;storage class&lt;/a&gt; to let the cluster dynamically provision EBS gp3 volumes.&lt;/p&gt;
-
-&lt;p&gt;We configured Strimzi to use that storage class to create any new PVCs. This makes Strimzi able to automatically create the EBS volumes it needs, typically when the cluster is first set up, but also to attach/detach the volumes to/from the EC2 instances whenever a Kafka pod is relocated to a different worker node.&lt;/p&gt;
-
-&lt;p&gt;Note that the EBS volumes are not part of any ASG &lt;a href=&quot;https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-templates.html&quot;&gt;Launch Template&lt;/a&gt;, nor do they scale automatically with the ASGs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-on-kubernetes/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 6 Steps for the Strimzi Operator to create an EBS volume and attach it to a new Kafka pod.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Fig. 6 illustrates how this works when Strimzi sets up a new Kafka broker, for example the first broker of the cluster in the initial setup:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The &lt;a href=&quot;https://strimzi.io/docs/operators/latest/overview#overview-components-cluster-operator-str&quot;&gt;Strimzi Cluster Operator&lt;/a&gt; first creates a new PVC, specifying a volume size and EBS gp3 as its storage class. The storage class is configured with the EBS CSI Driver as the volume provisioner, so that volumes are dynamically provisioned &lt;a href=&quot;#1&quot;&gt;[1]&lt;/a&gt;. However, because it is also set up with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;volumeBindingMode: WaitForFirstConsumer&lt;/code&gt;, the volume is not yet provisioned until a pod actually claims the PVC.&lt;/li&gt;
-  &lt;li&gt;The Strimzi Cluster Operator then creates the Kafka pod, with a reference to the newly created PVC. The pod is scheduled to start, which in turn claims the PVC.&lt;/li&gt;
-  &lt;li&gt;This triggers the EBS CSI Controller. As the volume provisioner, it dynamically creates a new EBS volume in the AWS VPC, in the AZ of the worker node where the pod has been scheduled to start.&lt;/li&gt;
-  &lt;li&gt;It then attaches the newly created EBS volume to the corresponding EC2 instance.&lt;/li&gt;
-  &lt;li&gt;After that, it creates a Kubernetes PV with &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/persistent-volumes/#node-affinity&quot;&gt;nodeAffinity&lt;/a&gt; and &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reserving-a-persistentvolume&quot;&gt;claimRef&lt;/a&gt; specifications, making sure that the PV is reserved for the Kafka broker 1 pod.&lt;/li&gt;
-  &lt;li&gt;Lastly, it updates the PVC with the reference of the newly created PV. The PVC is now in &lt;em&gt;Bound&lt;/em&gt; state and the Kafka pod can start.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;One important point to take note of is that EBS volumes can only be attached to EC2 instances residing in their own AZ. Therefore, when rotating a worker node, the EBS volume can only be re-attached to the new instance if both old and new instances reside in the same AZ. A simple way to guarantee this is to set up one ASG per AZ, instead of a single ASG spanning across 3 AZs.&lt;/p&gt;
-
-&lt;p&gt;Also, when such a rotation occurs, the new broker only needs to synchronise the recent data produced during the brief downtime, which is typically an order of magnitude faster than replicating the entire volume (depending on the overall retention period of the hosted Kafka topics).&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-&lt;caption style=&quot;text-align:center&quot;&gt;Table 1 Comparison of the resynchronization of the Kafka data after a broker rotation between the initial design and the new design with EBS volumes.&lt;/caption&gt;
-&lt;thead&gt;
-  &lt;tr&gt;
-    &lt;th&gt;&lt;/th&gt;
-    &lt;th&gt;Initial design (NVMe instance store volumes)&lt;/th&gt;
-    &lt;th&gt;New design (EBS volumes)&lt;/th&gt;
-  &lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Data to synchronise&lt;/td&gt;
-    &lt;td&gt;All of the data&lt;/td&gt;
-    &lt;td&gt;Recent data produced during the brief downtime&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Function of (primarily)&lt;/td&gt;
-    &lt;td&gt;Retention period&lt;/td&gt;
-    &lt;td&gt;Downtime&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Typical duration&lt;/td&gt;
-    &lt;td&gt;Hours&lt;/td&gt;
-    &lt;td&gt;Minutes&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h2 id=&quot;outcome&quot;&gt;Outcome&lt;/h2&gt;
-
-&lt;p&gt;With all that, let us revisit the initial scenario, where a malfunctioning worker node is being replaced by a fresh new node.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kafka-on-kubernetes/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Fig. 7 Representation of a worker node termination after implementing the solution. Node C is terminated and replaced by node D. This time, the Kafka broker 3 pod is able to start and serve traffic.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Fig. 7 shows the worker node C being terminated and replaced (by the ASG) by a new worker node D, similar to what we have described in the initial problem statement. The worker node D automatically joins the Kubernetes cluster on start-up.&lt;/p&gt;
-
-&lt;p&gt;However, this time, a seamless failover takes place:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The Kafka clients that were in the middle of producing or consuming to/from the partition leaders of Kafka broker 3 are gracefully redirected to Kafka brokers 1 and 2, where Kafka has migrated the leadership of its leader partitions.&lt;/li&gt;
-  &lt;li&gt;The target groups of the NLB for both the bootstrap connection and Kafka broker 3 are automatically updated by the LBC. The connectivity between the NLB and Kafka broker 3 is immediately restored.&lt;/li&gt;
-  &lt;li&gt;Triggered by the creation of the Kafka broker 3 pod, the Amazon EBS CSI driver running on the worker node D re-attaches the EBS volume 3 that was previously attached to the worker node C, to the worker node D instead. This enables Kubernetes to automatically re-bind the corresponding PV and PVC to Kafka broker 3 pod. With its storage dependency resolved, Kafka broker 3 is able to start successfully and re-join the Kafka cluster. From there, it only needs to catch up with the new data that was produced 
-during its short downtime, by replicating it from Kafka brokers 1 and 2.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;With this fault-tolerant design, when an EC2 instance is being retired by AWS, no particular action is required from our end.&lt;/p&gt;
-
-&lt;p&gt;Similarly, our EKS version upgrades, as well as any operations that require rotating all worker nodes of the cluster in general, are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Simpler and less error-prone&lt;/strong&gt;: We only need to rotate each instance in sequence, with no need for manually reconfiguring the target groups of the NLB and deleting the zombie PVCs anymore.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Faster&lt;/strong&gt;: The time between each instance rotation is limited to the short amount of time it takes for the restarted Kafka broker to catch up with the new data.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;More cost-efficient&lt;/strong&gt;: There is less data to transfer across AZs (which is charged by AWS).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;It is worth noting that we have chosen to omit Zookeeper and Cruise Control in this article, for the sake of clarity and simplicity. In reality, all pods in the Kubernetes cluster - including Zookeeper and Cruise Control - now benefit from the same graceful stop, triggered by the AWS termination events and the NTH. Similarly, the EBS CSI driver improves the fault tolerance of any pods that use EBS volumes for persistent storage, which includes the Zookeeper pods.&lt;/p&gt;
-
-&lt;h2 id=&quot;challenges-faced&quot;&gt;Challenges faced&lt;/h2&gt;
-
-&lt;p&gt;One challenge that we are facing with this design lies in the EBS volumes’ management.&lt;/p&gt;
-
-&lt;p&gt;On the one hand, the size of EBS volumes cannot be increased consecutively before the end of a cooldown period (minimum of 6 hours and can exceed 24 hours in some cases &lt;a href=&quot;#2&quot;&gt;[2]&lt;/a&gt;). Therefore, when we need to urgently extend some EBS volumes because the size of a Kafka topic is suddenly growing, we need to be relatively generous when sizing the new required capacity and add a comfortable security margin, to make sure that we are not running out of storage in the short run.&lt;/p&gt;
-
-&lt;p&gt;On the other hand, shrinking a Kubernetes PV is not a supported operation. This can affect the cost efficiency of our design if we overprovision the storage capacity by too much, or in case the workload of a particular cluster organically diminishes.&lt;/p&gt;
-
-&lt;p&gt;One way to mitigate this challenge is to tactically scale the cluster horizontally (ie. adding new brokers) when there is a need for more storage and the existing EBS volumes are stuck in a cooldown period, or when the new storage need is only temporary.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
-
-&lt;p&gt;In the future, we can improve the NTH’s capability by utilising webhooks. Upon receiving events from SQS, the NTH can also forward the events to the specified webhook URLs.&lt;/p&gt;
-
-&lt;p&gt;This can potentially benefit us in a few ways, e.g.:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Proactively spinning up a new instance without waiting for the old one to be terminated, whenever a termination event is received. This would shorten the rotation time even further.&lt;/li&gt;
-  &lt;li&gt;Sending Slack notifications to Coban engineers to keep them informed of any actions taken by the NTH.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We would need to develop and maintain an application that receives webhook events from the NTH and performs the necessary actions.&lt;/p&gt;
-
-&lt;p&gt;In addition, we are also rolling out &lt;a href=&quot;https://karpenter.sh/&quot;&gt;Karpenter&lt;/a&gt; to replace the Kubernetes Cluster Autoscaler, as it is able to spin up new instances slightly faster, helping reduce the four minutes delay a Kafka pod remains in &lt;em&gt;Pending&lt;/em&gt; state during a node rotation. Incidentally, Karpenter also removes the need for setting up one ASG by AZ, as it is able to deterministically provision instances in a specific AZ, for example where a particular EBS volume resides.&lt;/p&gt;
-
-&lt;p&gt;Lastly, to ensure that the performance of our EBS gp3 volumes is both sufficient and cost-efficient, we want to explore autoscaling their throughput and IOPS beyond the baseline, based on the usage metrics collected by our monitoring stack.&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;p&gt;&lt;a name=&quot;1&quot; href=&quot;#1&quot;&gt;[1]&lt;/a&gt; &lt;a href=&quot;https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/&quot;&gt;Dynamic Volume Provisioning | Kubernetes&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a name=&quot;2&quot; href=&quot;#2&quot;&gt;[2]&lt;/a&gt; &lt;a href=&quot;https://repost.aws/knowledge-center/ebs-volume-stuck-optimizing-on-modification&quot;&gt;Troubleshoot EBS volume stuck in Optimizing state during modification | AWS re:Post&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;We would like to thank our team members and Grab Kubernetes gurus that helped review and improve this blog before publication: Will Ho, Gable Heng, Dewin Goh, Vinnson Lee, Siddharth Pandey, Shi Kai Ng, Quang Minh Tran, Yong Liang Oh, Leon Tay, Tuan Anh Vu. &lt;/small&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 26 Dec 2023 00:10:10 +0000</pubDate>
-        <link>https://engineering.grab.com/kafka-on-kubernetes</link>
-        <guid isPermaLink="true">https://engineering.grab.com/kafka-on-kubernetes</guid>
-        
-        <category>Kafka</category>
-        
-        <category>Kubernetes</category>
-        
-        <category>AWS</category>
-        
-        <category>Data Streaming</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
         
       </item>
     
