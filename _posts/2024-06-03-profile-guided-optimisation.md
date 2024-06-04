@@ -1,8 +1,8 @@
 ---
 layout: post
 id: 2024-06-03-profile-guided-optimisation
-title: "Enable Profile Guided Optimisation (PGO) on Grab services"
-date: 2024-05-20 00:10:10
+title: "Profile Guided Optimisation (PGO) on Grab services"
+date: 2024-06-05 00:10:10
 authors: [yonghao-hu]
 categories: [Engineering]
 tags: [Go, optimisation, experiments, performance]
@@ -20,13 +20,13 @@ excerpt: "Profile-guided optimisation (PGO) is a method that tracks CPU profile 
 
 PGO is a [widely used technique](https://docs.oracle.com/en/graalvm/jdk/22/docs/reference-manual/native-image/optimizations-and-performance/PGO/) that can be implemented with many programming languages. When it was released in May 2023, PGO was introduced as a preview in Go 1.20.
 
-## Enabling PGO on service
+## Enabling PGO on a service
 
 ### Profile the service to get pprof file
 
 First, make sure that your service is built using Golang version v1.20 or higher, as only these versions support PGO.
 
-Next, [enable PProf](https://pkg.go.dev/net/http/pprof) in your service.
+Next, [enable pprof](https://pkg.go.dev/net/http/pprof) in your service.
 
 If it's already enabled, you can use the following command to capture a 6-minute profile and save it to `/tmp/pprof`.
 
@@ -80,9 +80,9 @@ EXPOSE 8027
 ENTRYPOINT ["/root/entrypoint.sh"]
 ```
 
-### Result on Enabling PGO on one GrabX service
+### Result on enabling PGO on one GrabX service
 
-It's important to mention that the pprof utilized for PGO was not captured during peak hours and was limited to a duration of 360 seconds.
+It's important to mention that the pprof utilised for PGO was not captured during peak hours and was limited to a duration of 360 seconds.
 
 Service [TalariaDB](/big-data-real-time-presto-talariadb) has three clusters and the time we enabled PGO for these clusters are:
 
@@ -92,7 +92,7 @@ Service [TalariaDB](/big-data-real-time-presto-talariadb) has three clusters an
 
 The size of the instances, their quantity, and all other dependencies remained unchanged.
 
-#### CPU Metrics on Cluster
+#### CPU metrics on cluster
 
 <div class="post-image-section"><figure>
   <img src="/img/profile-guided-optimisation/image10.png" alt="" style="width:80%"><figcaption align="middle">Cluster CPU usage before enabling PGO</figcaption>
@@ -106,7 +106,7 @@ The size of the instances, their quantity, and all other dependencies remained u
 
 It's evident that enabling PGO resulted in at least a 10% reduction in CPU usage.
 
-#### Mem Metrics on Cluster
+#### Memory metrics on cluster
 
 <div class="post-image-section"><figure>
   <img src="/img/profile-guided-optimisation/image3.png" alt="" style="width:80%"><figcaption align="middle">Memory usage of the cluster before enabling PGO</figcaption>
@@ -120,7 +120,7 @@ It's evident that enabling PGO resulted in at least a 10% reduction in CPU usag
 
 It's clear that enabling PGO led to a reduction of at least 10GB (30%) in memory usage.
 
-#### Volume Metrics on Cluster
+#### Volume metrics on cluster
 
 <div class="post-image-section"><figure>
   <img src="/img/profile-guided-optimisation/image6.png" alt="" style="width:80%"><figcaption align="middle">Persistent volume usage on cluster before enabling PGO</figcaption>
@@ -132,9 +132,9 @@ It's clear that enabling PGO led to a reduction of at least 10GB (30%) in memor
   </figure>
 </div>
 
-Enabling PGO resulted in a reduction of at least 7GB (38%) in volume usage. This volume is utilized for storing events that are queued for ingestion.
+Enabling PGO resulted in a reduction of at least 7GB (38%) in volume usage. This volume is utilised for storing events that are queued for ingestion.
 
-#### Ingested event count / CPU Metrics on cluster
+#### Ingested event count/CPU metrics on cluster
 
 To gauge the enhancements, I employed the metric of ingested event count per CPU unit (event count / CPU). This approach was adopted to account for the variable influx of events, which complicates direct observation of performance gains.
 
@@ -151,7 +151,7 @@ We also experimented with enabling PGO on certain orchestrators in a Catwalk ser
 
 ### Enabling PGO on the `test-golang-orch-tfs` orchestrator
 
-*Attempt 1*: Take pprof for 59 seconds
+***Attempt 1***: Take pprof for 59 seconds
 
 *   Just 1 pod running with a constant throughput of 420 QPS.
 *   Load test started with a non-PGO image at 5:39 PM SGT.
@@ -163,7 +163,7 @@ Observation: **CPU usage increased** after enabling PGO with pprof for 59 secon
 We suspected that taking pprof for just 59 seconds may not be sufficient to collect accurate metrics. Hence, we extended the duration to 6 minutes in our second attempt.
 
 <br>
-*Attempt 2*: Take pprof for 6 minutes
+***Attempt 2***: Take pprof for 6 minutes
 
 *   Just 1 pod running with a constant throughput of 420 QPS.
 *   Deployed non PGO image with custom pprof server at 6:13 PM SGT.
@@ -190,7 +190,7 @@ Additionally, the Catwalk team would require a workaround to pass the pprof dump
 
 From the information provided above, enabling PGO for a service requires the following support mechanisms:
 
-*   A PProf service, which is [currently facilitated through Jenkins](https://jenkins-deploy.myteksi.net/job/prd-pprof/).
+*   A pprof service, which is [currently facilitated through Jenkins](https://jenkins-deploy.myteksi.net/job/prd-pprof/).
 *   A build process that supports PGO arguments and can attach or retrieve the pprof file.
 
 For services that are hosted outside the monorepo and are self-managed, the effort required to experiment is minimal. However, for those within the monorepo, we will require support from the build process, which is currently unable to support this.
@@ -234,7 +234,7 @@ Moving forward, further improvements to `go-build` and the introduction of PGO s
   </figure>
 </div>
 
-​​After enabling PGO, the metric ingested event count / CPU  increased from 1.7M to 2.8M
+​​After enabling PGO, the metric ingested event count/CPU  increased from 1.7M to 2.8M.
 
 We have more events ingested in this service because the Drop events were decreased on producer.
 
