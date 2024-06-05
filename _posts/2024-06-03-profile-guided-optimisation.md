@@ -14,7 +14,7 @@ excerpt: "Profile-guided optimisation (PGO) is a method that tracks CPU profile 
 [Profile-guided optimisation (PGO)](https://go.dev/doc/pgo) is a technique where CPU profile data for an application is collected and fed back into the next compiler build of Go application. The compiler then uses this CPU profile data to optimise the performance of that build by around [2-14%](https://tip.golang.org/doc/pgo#overview) currently (future releases could likely improve this figure further).
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image1.png" alt="" style="width:80%"><figcaption align="middle">High level view of how PGO works</figcaption>
+  <img src="/img/profile-guided-optimisation/high-level-pgo.png" alt="" style="width:80%"><figcaption align="middle">High level view of how PGO works</figcaption>
   </figure>
 </div>
 
@@ -95,12 +95,12 @@ The size of the instances, their quantity, and all other dependencies remained u
 #### CPU metrics on cluster
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image10.png" alt="" style="width:80%"><figcaption align="middle">Cluster CPU usage before enabling PGO</figcaption>
+  <img src="/img/profile-guided-optimisation/cpu-before-pgo.png" alt="" style="width:80%"><figcaption align="middle">Cluster CPU usage before enabling PGO</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image2.png" alt="" style="width:80%"><figcaption align="middle">Cluster CPU usage after enabling PGO</figcaption>
+  <img src="/img/profile-guided-optimisation/cpu-after-pgo.png" alt="" style="width:80%"><figcaption align="middle">Cluster CPU usage after enabling PGO</figcaption>
   </figure>
 </div>
 
@@ -109,12 +109,12 @@ It's evident that enabling PGO resulted in at least a 10% reduction in CPU usag
 #### Memory metrics on cluster
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image3.png" alt="" style="width:80%"><figcaption align="middle">Memory usage of the cluster before enabling PGO</figcaption>
+  <img src="/img/profile-guided-optimisation/mem-before-pgo.png" alt="" style="width:80%"><figcaption align="middle">Memory usage of the cluster before enabling PGO</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image12.png" alt="" style="width:80%"><figcaption align="middle">Percentage of free memory after enabling PGO</figcaption>
+  <img src="/img/profile-guided-optimisation/percentage-free-mem-after-pgo.png" alt="" style="width:80%"><figcaption align="middle">Percentage of free memory after enabling PGO</figcaption>
   </figure>
 </div>
 
@@ -123,12 +123,12 @@ It's clear that enabling PGO led to a reduction of at least 10GB (30%) in memor
 #### Volume metrics on cluster
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image6.png" alt="" style="width:80%"><figcaption align="middle">Persistent volume usage on cluster before enabling PGO</figcaption>
+  <img src="/img/profile-guided-optimisation/persistent-volume-usage-before-pgo.png" alt="" style="width:80%"><figcaption align="middle">Persistent volume usage on cluster before enabling PGO</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image5.png" alt="" style="width:80%"><figcaption align="middle">Volume usage after enabling PGO</figcaption>
+  <img src="/img/profile-guided-optimisation/volume-usage-after-pgo.png" alt="" style="width:80%"><figcaption align="middle">Volume usage after enabling PGO</figcaption>
   </figure>
 </div>
 
@@ -139,7 +139,7 @@ Enabling PGO resulted in a reduction of at least 7GB (38%) in volume usage. Thi
 To gauge the enhancements, I employed the metric of ingested event count per CPU unit (event count / CPU). This approach was adopted to account for the variable influx of events, which complicates direct observation of performance gains.
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image11.png" alt="" style="width:80%"><figcaption align="middle">Count of ingested events on cluster after enabling PGO</figcaption>
+  <img src="/img/profile-guided-optimisation/count-ingested-event-after-pgo.png" alt="" style="width:80%"><figcaption align="middle">Count of ingested events on cluster after enabling PGO</figcaption>
   </figure>
 </div>
 
@@ -172,12 +172,12 @@ We suspected that taking pprof for just 59 seconds may not be sufficient to coll
 Observation: **CPU usage decreased** after enabling PGO with pprof for 6 minutes.
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image13.png" alt="" style="width:80%"><figcaption align="middle">CPU usage after enabling PGO on Catwalk</figcaption>
+  <img src="/img/profile-guided-optimisation/cpu-usage-after-pgo.png" alt="" style="width:80%"><figcaption align="middle">CPU usage after enabling PGO on Catwalk</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image8.png" alt="" style="width:80%"><figcaption align="middle">Container memory utilisation after enabling PGO on Catwalk</figcaption>
+  <img src="/img/profile-guided-optimisation/container-mem-after-pgo.png" alt="" style="width:80%"><figcaption align="middle">Container memory utilisation after enabling PGO on Catwalk</figcaption>
   </figure>
 </div>
 
