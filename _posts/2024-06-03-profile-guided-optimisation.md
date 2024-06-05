@@ -3,7 +3,7 @@ layout: post
 id: 2024-06-03-profile-guided-optimisation
 title: "Profile Guided Optimisation (PGO) on Grab services"
 date: 2024-06-05 00:10:10
-authors: [yonghao-hu]
+authors: [yonghao-hu, vishal-sharma]
 categories: [Engineering]
 tags: [Go, optimisation, experiments, performance]
 comments: true
@@ -11,7 +11,7 @@ cover_photo: /img/profile-guided-optimisation/cover.png
 excerpt: "Profile-guided optimisation (PGO) is a method that tracks CPU profile data and uses that data to optimise your application builds. The AI platform team enabled this on several Grab services to discover the full benefits and caveats of using PGO. Read this article to find out more."
 ---
 
-[Profile-guided optimisation (PGO)](https://go.dev/doc/pgo) is a technique where CPU profile data for an application is collected and fed back into the next compiler build of Go application. The compiler then uses this CPU profile data to optimise the performance of that build by around [2-7%](https://tip.golang.org/doc/pgo#overview) currently (future releases could likely improve this figure further).
+[Profile-guided optimisation (PGO)](https://go.dev/doc/pgo) is a technique where CPU profile data for an application is collected and fed back into the next compiler build of Go application. The compiler then uses this CPU profile data to optimise the performance of that build by around [2-14%](https://tip.golang.org/doc/pgo#overview) currently (future releases could likely improve this figure further).
 
 <div class="post-image-section"><figure>
   <img src="/img/profile-guided-optimisation/image1.png" alt="" style="width:80%"><figcaption align="middle">High level view of how PGO works</figcaption>
@@ -162,8 +162,7 @@ Observation: **CPU usage increased** after enabling PGO with pprof for 59 secon
 
 We suspected that taking pprof for just 59 seconds may not be sufficient to collect accurate metrics. Hence, we extended the duration to 6 minutes in our second attempt.
 
-<br>
-***Attempt 2***: Take pprof for 6 minutes
+***Attempt 2*** : Take pprof for 6 minutes
 
 *   Just 1 pod running with a constant throughput of 420 QPS.
 *   Deployed non PGO image with custom pprof server at 6:13 PM SGT.
@@ -190,7 +189,7 @@ Additionally, the Catwalk team would require a workaround to pass the pprof dump
 
 From the information provided above, enabling PGO for a service requires the following support mechanisms:
 
-*   A pprof service, which is [currently facilitated through Jenkins](https://jenkins-deploy.myteksi.net/job/prd-pprof/).
+*   A pprof service, which is currently facilitated through Jenkins.
 *   A build process that supports PGO arguments and can attach or retrieve the pprof file.
 
 For services that are hosted outside the monorepo and are self-managed, the effort required to experiment is minimal. However, for those within the monorepo, we will require support from the build process, which is currently unable to support this.
@@ -206,42 +205,6 @@ Experiments with the Catwalk service have however shown that the effort involved
 On the whole, it is evident that the applicability and benefits of enabling PGO can ***vary across different services***. Factors such as application characteristics, current architecture, and available support mechanisms can influence when and where PGO optimisation is feasible and beneficial.
 
 Moving forward, further improvements to `go-build` and the introduction of PGO support for monorepo services may drive greater adoption of PGO. In turn, this has the potential to deliver powerful system-wide gains that translate to faster response times, lower resource consumption, and improved user experiences. As always, the relevance and impact of adopting new technologies or techniques should be considered on a case-by-case basis against operational realities and strategic objectives.
-
-## Appendix
-
-### Appendix 1: GrabX experiment result details
-
-#### For cluster 0
-
-*   We used `go1.21` and deployed service on 2 Sep.
-*   We enabled PGO on cluster 0 and deployed on 4 Sep 11.16PM.
-
-<div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image7.png" alt="" style="width:80%"><figcaption align="middle">Ingestion count per CPU after enabling PGO on GrabX cluster 0</figcaption>
-  </figure>
-</div>
-
-
-<div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image14.png" alt="" style="width:80%"><figcaption align="middle">Cluster CPU usage after enabling PGO on GrabX cluster 0</figcaption>
-  </figure>
-</div>
-
-#### For cluster 2
-
-<div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image4.png" alt="" style="width:80%"><figcaption align="middle">Ingestion count after enabling PGO on GrabX cluster 2</figcaption>
-  </figure>
-</div>
-
-​​After enabling PGO, the metric ingested event count/CPU  increased from 1.7M to 2.8M.
-
-We have more events ingested in this service because the Drop events were decreased on producer.
-
-<div class="post-image-section"><figure>
-  <img src="/img/profile-guided-optimisation/image9.png" alt="" style="width:80%"><figcaption align="middle">Increase in ingestion count after enabling PGO</figcaption>
-  </figure>
-</div>
 
 # Join us
 
