@@ -11,9 +11,9 @@ cover_photo: /img/llm-powered-data-classification/cover.png
 excerpt: "With the advent of the Large Language Model (LLM), new possibilities dawned for metadata generation and sensitive data identification at Grab. This prompted the inception of our project aimed to integrate LLM classification into our existing data management service. Read to find out how we transformed what used to be a tedious and painstaking process to a highly efficient system and how it has empowered the teams across the organisation."
 ---
 
-## Introduction
-
 <small class="credits"> Editor’s note: This post was originally published in October 2023 and has been updated to reflect Grab’s partnership with the Infocomm Media Development Authority as part of its Privacy Enhancing Technology Sandbox that concluded in March 2024.</small>
+
+## Introduction
 
 At Grab, we deal with PetaByte-level data and manage countless data entities ranging from database tables to Kafka message schemas. Understanding the data inside is crucial for us, as it not only streamlines the data access management to safeguard the data of our users, drivers and merchant-partners, but also improves the data discovery process for data analysts and scientists to easily find what they need.
 
