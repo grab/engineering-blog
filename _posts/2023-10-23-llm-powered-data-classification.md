@@ -205,7 +205,7 @@ We are also planning to scale out this solution to more data platforms to stream
 
 ## Acknowledgements
 
-Grab recently participated in the Singapore government’s regulatory sandbox, where we successfully demonstrated how LLMs can efficiently and effectively perform data classification, allowing Grab to compound the value of its data for innovative use cases while safeguarding sensitive information such as PII.
+Grab recently participated in the Singapore government’s regulatory [sandbox](https://www.imda.gov.sg/how-we-can-help/data-innovation/privacy-enhancing-technology-sandboxes), where we successfully demonstrated how LLMs can efficiently and effectively perform data classification, allowing Grab to compound the value of its data for innovative use cases while safeguarding sensitive information such as PII.
 
 # Join us
 
