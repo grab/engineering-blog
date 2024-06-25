@@ -13,6 +13,8 @@ excerpt: "With the advent of the Large Language Model (LLM), new possibilities d
 
 ## Introduction
 
+<small class="credits"> Editor’s note: This post was originally published in October 2023 and has been updated to reflect Grab’s partnership with the Infocomm Media Development Authority as part of its Privacy Enhancing Technology Sandbox that concluded in March 2024.</small>
+
 At Grab, we deal with PetaByte-level data and manage countless data entities ranging from database tables to Kafka message schemas. Understanding the data inside is crucial for us, as it not only streamlines the data access management to safeguard the data of our users, drivers and merchant-partners, but also improves the data discovery process for data analysts and scientists to easily find what they need.
 
 The Caspian team (Data Engineering team) collaborated closely with the Data Governance team on automating governance-related metadata generation. We started with Personal Identifiable Information (PII) detection and built an orchestration service using a third-party classification service. With the advent of the Large Language Model (LLM), new possibilities dawned for metadata generation and sensitive data identification at Grab. This prompted the inception of the project, which aimed to integrate LLM classification into our existing service. In this blog, we share insights into the transformation from what used to be a tedious and painstaking process to a highly efficient system, and how it has empowered the teams across the organisation.
@@ -177,7 +179,6 @@ The predictions are published to the Kafka queue to downstream data platforms. 
   </figure>
 </div>
 
-
 ### Impact
 
 Since the new system was rolled out, we have successfully integrated this with Grab’s metadata management platform and production database management platform. Within a month since its rollout, we have scanned more than 20,000 data entities, averaging around 300-400 entities per day.
@@ -202,6 +203,9 @@ To track the performance of the prompt given, we are building analytical pipelin
 
 We are also planning to scale out this solution to more data platforms to streamline governance-related metadata generation to more teams. The development of downstream applications using our metadata is also on the way. These exciting applications are from various domains such as security, data discovery, etc.
 
+## Acknowledgements
+
+Grab recently participated in the Singapore government’s regulatory sandbox, where we successfully demonstrated how LLMs can efficiently and effectively perform data classification, allowing Grab to compound the value of its data for innovative use cases while safeguarding sensitive information such as PII.
 
 # Join us
 
