@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2023-10-23-llm-powered-data-classification
+id: 2024-07-15-llm-powered-data-classification
 title: 'LLM-powered data classification for data entities at scale'
-date: 2023-10-23 00:00:10
+date: 2024-07-15 00:00:10
 authors: [hualin-liu,stefan-jaro,harvey-li,jerome-tong,andrew-lam,chamal-sapumohotti,feng-cheng,aaqib-kufran]
 categories: [Engineering, Data Science]
 tags: [Data, Machine Learning, Generative AI]
@@ -10,6 +10,8 @@ comments: true
 cover_photo: /img/llm-powered-data-classification/cover.png
 excerpt: "With the advent of the Large Language Model (LLM), new possibilities dawned for metadata generation and sensitive data identification at Grab. This prompted the inception of our project aimed to integrate LLM classification into our existing data management service. Read to find out how we transformed what used to be a tedious and painstaking process to a highly efficient system and how it has empowered the teams across the organisation."
 ---
+
+<small class="credits"> Editor’s note: This post was originally published in October 2023 and has been updated to reflect Grab’s partnership with the Infocomm Media Development Authority as part of its Privacy Enhancing Technology Sandbox that concluded in March 2024.</small>
 
 ## Introduction
 
@@ -177,7 +179,6 @@ The predictions are published to the Kafka queue to downstream data platforms. 
   </figure>
 </div>
 
-
 ### Impact
 
 Since the new system was rolled out, we have successfully integrated this with Grab’s metadata management platform and production database management platform. Within a month since its rollout, we have scanned more than 20,000 data entities, averaging around 300-400 entities per day.
@@ -202,6 +203,9 @@ To track the performance of the prompt given, we are building analytical pipelin
 
 We are also planning to scale out this solution to more data platforms to streamline governance-related metadata generation to more teams. The development of downstream applications using our metadata is also on the way. These exciting applications are from various domains such as security, data discovery, etc.
 
+## Acknowledgements
+
+Grab recently participated in the Singapore government’s regulatory [sandbox](https://www.imda.gov.sg/how-we-can-help/data-innovation/privacy-enhancing-technology-sandboxes), where we successfully demonstrated how LLMs can efficiently and effectively perform data classification, allowing Grab to compound the value of its data for innovative use cases while safeguarding sensitive information such as PII.
 
 # Join us
 
