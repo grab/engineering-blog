@@ -2,7 +2,7 @@
 layout: post
 id: 2024-08-05-improved-translation-experience-with-cost-efficiency
 title: 'How we improved translation experience with cost efficiency'
-date: 2024-07-31 00:00:10
+date: 2024-08-05 00:00:10
 authors: [jie-zhang, yuxin-goh, christian-coffrant, wira-ikbal, tra-tran, pengxuan-xu]
 categories: [Engineering, Design]
 tags: [Chat, Chat support, Engineering, GrabChat, Messaging, Translation, Generative AI, LLM]
