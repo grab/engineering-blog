@@ -105,7 +105,10 @@ From a theoretical perspective there are two ways that one can measure the perfo
 
 Both methods have their relative strengths and weaknesses. The advantage of a subjective method is that it corresponds better with what we want, a high quality translation experience for our users. The disadvantage of this method is that it is quite laborious. The opposite is true for the computed translation quality scores, that is to say that they correspond less well to a human's subjective experience of our translation quality, but that they are easier and faster to compute.
 
-To overcome the inherent limitations of each method, we decided to do the following. Set a benchmark score for the translation quality of various translation services using a CHRF++ score, train our model until its CHRF++ score is significantly better than the benchmark score, and finally, we perform a manual A/B test between the newly trained model and the existing translation service.
+To overcome the inherent limitations of each method, we decided to do the following:
+1. Set a benchmark score for the translation quality of various translation services using a CHRF++ score.
+2. Train our model until its CHRF++ score is significantly better than the benchmark score.
+3. Perform a manual A/B test between the newly trained model and the existing translation service.
 
 #### Synthetic data generation
 
