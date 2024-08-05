@@ -6,9 +6,200 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 01 Aug 2024 23:33:29 +0000</pubDate>
-    <lastBuildDate>Thu, 01 Aug 2024 23:33:29 +0000</lastBuildDate>
+    <pubDate>Mon, 05 Aug 2024 02:13:11 +0000</pubDate>
+    <lastBuildDate>Mon, 05 Aug 2024 02:13:11 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>How we improved translation experience with cost efficiency</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;As COVID restrictions were fully lifted in 2023, the number of tourists grew dramatically. People began to explore the world again, frequently using the Grab app to make bookings outside of their home country. However, we noticed that communication posed a challenge for some users. Despite our efforts to integrate an auto-translation feature in the booking chat, we received feedback about occasional missed or inaccurate translations. You can refer to this &lt;a href=&quot;https://engineering.grab.com/message-center&quot;&gt;blog&lt;/a&gt; for a better understanding of Grab’s chat system.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/improved-translation-experience-with-cost-efficiency/translation-example.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;An example of a bad translation. The correct translation is: &apos;ok sir&apos;.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In an effort to enhance the user experience for travellers using the Grab app, we formed an engineering squad to tackle this problem. The objectives are as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Ensure translation is provided when it’s needed.&lt;/li&gt;
+  &lt;li&gt;Improve the quality of translation.&lt;/li&gt;
+  &lt;li&gt;Maintain the cost of this service within a reasonable range.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;ensure-translation-is-provided-when-its-needed&quot;&gt;Ensure translation is provided when it’s needed&lt;/h2&gt;
+
+&lt;p&gt;Originally, we relied on users’ device language settings to determine if translation is needed. For example, if both the passenger and driver’s language setting is set to English, translation is not needed. Interestingly, it turned out that the device language setting did not reliably indicate the language in which a user would send their messages. There were numerous cases where despite having their device language set to English, drivers sent messages in another language.&lt;/p&gt;
+
+&lt;p&gt;Therefore, we needed to detect the language of user messages on the fly to make sure we trigger translation when it’s needed.&lt;/p&gt;
+
+&lt;h3 id=&quot;language-detection&quot;&gt;Language detection&lt;/h3&gt;
+
+&lt;p&gt;Simple as it may seem, language detection is not that straightforward a task. We were unable to find an open-source language detector library that covered all Southeast Asian languages. We looked for Golang libraries as our service was written in Golang. The closest we could find were the following:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Whatlang: unable to detect Malay&lt;/li&gt;
+  &lt;li&gt;Lingua: unable to detect Burmese and Khmer&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We decided to choose Lingua over Whatlang as the base detector due to the following factors:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Overall higher accuracy.&lt;/li&gt;
+  &lt;li&gt;Capability to provide detection confidence level.&lt;/li&gt;
+  &lt;li&gt;We have more users using Malay than those using Burmese or Khmer.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When a translation request comes in, our first step is to use Lingua for language detection. If the detection confidence level falls below a predefined threshold, we fall back to call the third-party translation service as it can detect all Southeast Asian languages.&lt;/p&gt;
+
+&lt;p&gt;You may ask, why don’t we simply use the third-party service in the first place. It’s because:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The third-party service only has a translate API that also does language detection, but it does not provide a standalone language detection API.&lt;/li&gt;
+  &lt;li&gt;Using the translate API is costly, so we need to avoid calling it when it’s unnecessary. We will cover more on this in a later section.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Another challenge we’ve encountered is the difficulty of distinguishing between Malay and Indonesian languages due to their strong similarities and shared vocabulary. The identical text might convey different meanings in these two languages, which the third-party translation service struggles to accurately detect and translate.&lt;/p&gt;
+
+&lt;p&gt;Differentiating Malay and Indonesian is a tough problem in general. However, in our case, the detection has a very specific context, and we can make use of the context to enhance our detection accuracy.&lt;/p&gt;
+
+&lt;h3 id=&quot;making-use-of-translation-context&quot;&gt;Making use of translation context&lt;/h3&gt;
+
+&lt;p&gt;All our translations are for the messages sent in the context of a booking or order, predominantly between passenger and driver. There are two simple facts that can aid in our language detection:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Booking/order happens in one single country.&lt;/li&gt;
+  &lt;li&gt;Drivers are almost always local to that country.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;So, for a booking that happens in an Indonesian city, if the driver’s message is detected as Malay, it’s highly likely that the message is actually in Bahasa Indonesia.&lt;/p&gt;
+
+&lt;h2 id=&quot;improve-quality-of-translation&quot;&gt;Improve quality of translation&lt;/h2&gt;
+
+&lt;p&gt;Initially, we were entirely dependent on a third-party service for translating our chat messages. While overall powerful, the third-party service is not perfect, and it does generate weird translations from time to time.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/improved-translation-experience-with-cost-efficiency/weird-translation.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;An example of a weird translation from a third-party service recorded on 19 Dec 2023.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Then, it came to us that we might be able to build an in-house translation model that could translate chat messages better than the third-party service. The reasons being:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The scope of our chat content is highly specific. All the chats are related to bookings or orders. There would not be conversations about life or work in the chat. Maybe a small Machine Learning (ML) model would suffice to do the job.&lt;/li&gt;
+  &lt;li&gt;The third-party service is a general translation service. It doesn’t know the context of our messages. We, however, know the whole context. Having the right context gives us a great edge on generating the right translation.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;training-steps&quot;&gt;Training steps&lt;/h3&gt;
+
+&lt;p&gt;To create our own translation model, we took the following steps:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Perform topic modelling on Grab chat conversations.&lt;/li&gt;
+  &lt;li&gt;Worked with the localisation team to create a benchmark set of translations.&lt;/li&gt;
+  &lt;li&gt;Measured existing translation solutions against benchmarks.&lt;/li&gt;
+  &lt;li&gt;Used an open source Large Language Model (LLM) to produce synthetic training data.&lt;/li&gt;
+  &lt;li&gt;Used synthetic data to train our lightweight translation model.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;topic-modelling&quot;&gt;Topic modelling&lt;/h4&gt;
+
+&lt;p&gt;In this step, our aim was to generate a dataset which is both representative of the chat messages sent by our users and diverse enough to capture all of the nuances of the conversations. To achieve this, we took a stratified sampling approach. This involved a random sample of past chat conversation messages stratified by various topics to ensure a comprehensive and balanced representation.&lt;/p&gt;
+
+&lt;h4 id=&quot;developing-a-benchmark&quot;&gt;Developing a benchmark&lt;/h4&gt;
+
+&lt;p&gt;For this step we engaged Grab’s localisation team to create a benchmark for translations. The intention behind this step wasn’t to create enough translation examples to fully train or even finetune a model, but rather, it was to act as a benchmark for translation quality, and also as a set of few-shot learning examples for when we generate our synthetic data.&lt;/p&gt;
+
+&lt;p&gt;This second point was critical! Although LLMs can generate good quality translations, LLMs are highly susceptible to their training examples. Thus, by using a set of handcrafted translation examples, we hoped to produce a set of examples that would teach the model the exact style, level of formality, and correct tone for the context in which we plan to deploy the final model.&lt;/p&gt;
+
+&lt;h4 id=&quot;benchmarking&quot;&gt;Benchmarking&lt;/h4&gt;
+
+&lt;p&gt;From a theoretical perspective there are two ways that one can measure the performance of a machine translation system. The first is through the computation of some sort of translation quality score such as a BLEU or CHRF++ score. The second method is via subjective evaluation. For example, you could give each translation a score from 1 to 5 or pit two translations against each other and ask someone to assess which they prefer.&lt;/p&gt;
+
+&lt;p&gt;Both methods have their relative strengths and weaknesses. The advantage of a subjective method is that it corresponds better with what we want, a high quality translation experience for our users. The disadvantage of this method is that it is quite laborious. The opposite is true for the computed translation quality scores, that is to say that they correspond less well to a human’s subjective experience of our translation quality, but that they are easier and faster to compute.&lt;/p&gt;
+
+&lt;p&gt;To overcome the inherent limitations of each method, we decided to do the following:&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Set a benchmark score for the translation quality of various translation services using a CHRF++ score.&lt;/li&gt;
+  &lt;li&gt;Train our model until its CHRF++ score is significantly better than the benchmark score.&lt;/li&gt;
+  &lt;li&gt;Perform a manual A/B test between the newly trained model and the existing translation service.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;synthetic-data-generation&quot;&gt;Synthetic data generation&lt;/h4&gt;
+
+&lt;p&gt;To generate the training data needed to create our model, we had to rely on an open source LLM to generate the synthetic translation data. For this task, we spent considerable effort looking for a model which had both a large enough parameter count to ensure high quality outputs, but also a model which had the correct tokenizer to handle the diverse sets of languages which Grab’s customers speak. This is particularly important for languages which use non-standard character sets such as Vietnamese and Thai. We settled on using a public model from &lt;a href=&quot;https://huggingface.co/&quot;&gt;Hugging Face&lt;/a&gt; for this task.&lt;/p&gt;
+
+&lt;p&gt;We then used a subset of the previously mentioned benchmark translations to input as few-shot learning examples to our prompt. After many rounds of iteration, we were able to generate translations which were superior to the benchmark CHRF++ scores which we had attained in the previous section.&lt;/p&gt;
+
+&lt;h4 id=&quot;model-fine-tuning&quot;&gt;Model fine tuning&lt;/h4&gt;
+&lt;p&gt;We now had one last step before we had something that was production ready! Although we had successfully engineered a prompt capable of generating high quality translations from the public Hugging Face model, there was no way we’d be able to deploy such a model. The model was far too big for us to deploy it in a cost efficient manner and within an acceptable latency. Our solution to this was to fine-tune a smaller bespoke model using the synthetic training data which was derived from the larger model.&lt;/p&gt;
+
+&lt;p&gt;These models were language specific (e.g. English to Indonesian) and built solely for the purpose of language translation. They are 99% smaller than the public model. With approximately 10 Million synthetic training examples, we were able to achieve performance which was 98% as effective as our larger model.&lt;/p&gt;
+
+&lt;p&gt;We deployed our model and ran several A/B tests with it. Our model performed pretty well overall, but we noticed a critical problem: sometimes, numbers got mutated in the translation. These numbers can be part of an address, phone number, price etc. Showing the wrong number in a translation can cause great confusion to the users. Unfortunately, an ML model’s output can never be fully controlled; therefore, we added an additional layer of programmatic check to mitigate this issue.&lt;/p&gt;
+
+&lt;h3 id=&quot;post-translation-quality-check&quot;&gt;Post-translation quality check&lt;/h3&gt;
+&lt;p&gt;Our goal is to ensure non-translatable content such as numbers, special symbols, and emojis  in the original message doesn’t get mutated in the translation produced by our in-house model. We extract all the non-translatable content from the original message, count the occurrences of each, and then try to match the same in the translation. If it fails to match, we discard the in-house translation and fall back to using the third-party translation service.&lt;/p&gt;
+
+&lt;h2 id=&quot;keep-cost-low&quot;&gt;Keep cost low&lt;/h2&gt;
+
+&lt;p&gt;At Grab, we try to be as cost efficient as possible in all aspects. In the case of translation, we tried to minimise cost by avoiding unnecessary on-the-fly translations.&lt;/p&gt;
+
+&lt;p&gt;As you would have guessed, the first thing we did was to implement caching. A cache layer is placed before both the in-house translation model and the third-party translation. We try to serve translation from the cache first before hitting the underlying translation service. However, given that translation requests are in free text and can be quite dynamic, the impact of caching is limited. There’s more we need to do.&lt;/p&gt;
+
+&lt;p&gt;For context, in a booking chat, other than the users, Grab’s internal services can also send messages to the chat room. These messages are called system messages. For example,our food service always sends a message with information on the food order when an order is confirmed.&lt;/p&gt;
+
+&lt;p&gt;System messages are all fairly static in nature, however, we saw a very high amount of translation cost attributed to system messages. Taking a deeper look, we noticed the following:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Many system messages were not sent in the recipient’s language, thus requiring on-the-fly translation.&lt;/li&gt;
+  &lt;li&gt;Many system messages, though having the same static structure, contain quite a few variants such as passenger’s name and  food order item name. This makes it challenging to utilise our translation cache effectively as each message is different.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Since all system messages are manually prepared, we should be able to get them all manually translated into all the required languages, and avoid on-the-fly translations altogether.&lt;/p&gt;
+
+&lt;p&gt;Therefore, we launched an internal campaign, mandating all internal services that send system messages to chat rooms to get manual translations prepared, and pass in the translated contents. This alone helped us save roughly US$255K a year!&lt;/p&gt;
+
+&lt;h2 id=&quot;next-steps&quot;&gt;Next steps&lt;/h2&gt;
+
+&lt;p&gt;At Grab, we firmly believe that our proprietary in-house translation models are not only more cost-effective but cater more accurately to our unique use cases compared to third-party services. We will focus on expanding these models to more languages and countries across our operating regions.&lt;/p&gt;
+
+&lt;p&gt;Additionally, we are exploring opportunities to apply learnings of our chat translations to other Grab content. This strategy aims to guarantee a seamless language experience for our rapidly expanding user base, especially travellers. We are enthusiastically looking forward to the opportunities this journey brings!&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 05 Aug 2024 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/improved-translation-experience-with-cost-efficiency</link>
+        <guid isPermaLink="true">https://engineering.grab.com/improved-translation-experience-with-cost-efficiency</guid>
+        
+        <category>Chat</category>
+        
+        <category>Chat support</category>
+        
+        <category>Engineering</category>
+        
+        <category>GrabChat</category>
+        
+        <category>Messaging</category>
+        
+        <category>Translation</category>
+        
+        <category>Generative AI</category>
+        
+        <category>LLM</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Design</category>
+        
+      </item>
     
       <item>
         <title>LLM-powered data classification for data entities at scale</title>
@@ -2162,173 +2353,6 @@ the Avro schema and associated data changes are already captured within the KC s
         <category>Engineering</category>
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>The journey of building a comprehensive attribution platform</title>
-        <description>&lt;p&gt;The Grab superapp offers a comprehensive array of services from ride-hailing and food delivery to financial services. This creates multifaceted user journeys, traversing homepages, product pages, checkouts, and interactions with diverse content, including advertisements and promo codes.&lt;/p&gt;
-
-&lt;h2 id=&quot;background-why-ads-and-attribution-matter-in-our-superapp&quot;&gt;Background: Why ads and attribution matter in our superapp&lt;/h2&gt;
-
-&lt;p&gt;Ads are crucial for Grab in driving user engagement and supporting our ecosystem by seamlessly connecting users with our services. In the ever-evolving world of advertising, the ability to gauge the impact of marketing investments takes on pivotal significance. Advertisers dedicate substantial resources to promote their businesses, necessitating a clear understanding of the return on AdSpend (ROAS) for each campaign. In this context, attribution plays a central role, serving as the guiding compass for advertisers and marketers, elucidating the effectiveness of touchpoints within campaigns.&lt;/p&gt;
-
-&lt;p&gt;For instance, a merchant-partner seeks to enhance its reach by advertising on the Grab food delivery homepage. With the assistance of our attribution system, the merchant-partner can now precisely gauge the impact of their homepage ads on Grab. This involves tracking user engagement and monitoring the resulting orders that stem from these interactions. This level of granularity not only highlights the value of attribution but also demonstrates its capability in providing detailed insights into the effectiveness of advertising campaigns and enabling merchant-partners to optimise their campaigns with more precision.&lt;/p&gt;
-
-&lt;p&gt;In this blog, we delve into the technical intricacies, software architecture, challenges, and solutions involved in crafting a state-of-the-art engineering solution for the attribution platform.&lt;/p&gt;
-
-&lt;h2 id=&quot;genesis-pre-project-landscape&quot;&gt;Genesis: Pre-project landscape&lt;/h2&gt;
-
-&lt;p&gt;When our journey began in 2020, Grab’s marketing efforts had limited attribution capabilities and data analytics was predominantly reliant on ad hoc queries conducted by business and data analysts. Before the introduction of a standardised approach, we had to manage discrepant results and a time-consuming manual process of data preparation, cleansing, and storage across teams. When issues arose in the analytical pipeline, resolution efforts took relatively longer and were reoccurring. We needed a comprehensive engineering solution that would address the identified gaps, and significantly enhance metrics related to ROI, attribution accuracy, and data-handling efficiency.&lt;/p&gt;
-
-&lt;h2 id=&quot;inception-the-pure-ads-attribution-engine-kappa-architecture&quot;&gt;Inception: The pure ads attribution engine (Kappa architecture)&lt;/h2&gt;
-
-&lt;p&gt;We chose Kappa architecture due to its imperative role in achieving near real-time attribution, especially in support of our new pricing model, cost per order (CPO). With this solution, we aimed to drastically reduce data latency from 2-3 days to just a few minutes. Traditional ETL (Extract, Transform, and Load) based batch processing methods were evaluated but quickly found to be inadequate for our purposes, mainly due to their speed.&lt;/p&gt;
-
-&lt;p&gt;In the advertising industry, rapid decision-making is critical. Traditional batch processing solutions would introduce significant latency, hampering our ability to make real-time, data-driven decisions. With its architecture’s inherent capability for real-time stream processing, Kappa emerged as the logical choice. Additionally, Kappa offers the agility required to empower our ad-serving team for real-time decision support, and better ad ranking and selection, enabling dynamic and effective targeting decisions without delay.&lt;/p&gt;
-
-&lt;p&gt;The first step on this journey was to create a pure and near real-time stream processing Ads Attribution Engine. This engine was based on the Kappa architecture to provide advertisers with quick insights into their ROAS offering real-time attribution, enabling advertisers to optimise their campaigns efficiently.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/attribution-platform/image6.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;High-level workflow of the Ads Attribution Engine&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In this solution, we used the following tools in our tech stack:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Kafka for event streams&lt;/li&gt;
-  &lt;li&gt;DDB for events storage&lt;/li&gt;
-  &lt;li&gt;Amazon S3 as the data lake&lt;/li&gt;
-  &lt;li&gt;An in-house stream processing framework similar to Keystone&lt;/li&gt;
-  &lt;li&gt;Redis for caching events&lt;/li&gt;
-  &lt;li&gt;ScyllaDB for storing ad metadata&lt;/li&gt;
-  &lt;li&gt;Amazon relational database service (RDS) for analytics&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/attribution-platform/image3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Architecture of the near real-time stream processing Ads Attribution Engine&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;evolution-merging-marketing-levers---ads-and-promos&quot;&gt;Evolution: Merging marketing levers - Ads and promos&lt;/h2&gt;
-
-&lt;p&gt;We began to envision a world where we could merge various marketing levers into a unified Attribution Engine, starting with ads and promos. This evolved vision also aimed to prevent order double counting (when a user interacts with both ads and promos in the same checkout), which would provide a more holistic attribution solution.&lt;/p&gt;
-
-&lt;p&gt;With the unified Attribution Engine, we would also enable more sophisticated personalisation through machine learning models and drive higher conversions.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/attribution-platform/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;The unified Attribution Engine workflow, which included Promo touch points&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The unified attribution engine used mostly the same tech stack, except for analytics where Druid was used instead of RDS.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/attribution-platform/image5.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Architecture of the unified Attribution Engine&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;introspection-identifying-shortcomings-and-the-path-to-improvement&quot;&gt;Introspection: Identifying shortcomings and the path to improvement&lt;/h2&gt;
-
-&lt;p&gt;While the unified attribution engine was a step in the right direction, it wasn’t without its challenges. There were challenges related to real-time data processing costs, scalability for longer attribution windows, latency and lag issues, out-of-order events leading to misattribution, and the complexity of implementing multi-touch attribution models. To truly empower advertisers and enhance the attribution process, we knew we needed to evolve further.&lt;/p&gt;
-
-&lt;h2 id=&quot;rebirth-the-birth-of-a-full-fledged-attribution-platform-lambda-architecture&quot;&gt;Rebirth: The birth of a full-fledged attribution platform (&lt;a href=&quot;https://www.databricks.com/glossary/lambda-architecture&quot;&gt;Lambda architecture&lt;/a&gt;)&lt;/h2&gt;
-
-&lt;p&gt;This journey eventually led us to build a full-fledged attribution platform using Lambda architecture, which blended both batch and real-time stream processing methods. With this change, our platform could rapidly and accurately process data and attribute the impact of ads and promos on user behaviour.&lt;/p&gt;
-
-&lt;h3 id=&quot;why-lambdaarchitecture&quot;&gt;Why Lambda architecture?&lt;/h3&gt;
-
-&lt;p&gt;This choice was a strategic one – real-time processing is vital for tracking events as they occur, but it offers only a current snapshot of user behaviour. This means we would not be able to analyse historical data, which is a crucial aspect of accurate attribution and exploring multiple attribution models. Historical data allows us to identify trends, patterns, and correlations not evident in real-time data alone.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/attribution-platform/image2.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;High level workflow for the full-fledged attribution platform with Lambda architecture&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In this system’s tech stack, the key components are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Coban, an in-house stream processing framework used for real-time data processing&lt;/li&gt;
-  &lt;li&gt;Spark-based ETL jobs for batch processing&lt;/li&gt;
-  &lt;li&gt;Amazon S3 as the data warehouse&lt;/li&gt;
-  &lt;li&gt;An offline layer that is capable of providing historical context, handling large data volumes, performing complex analytics, and so on.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;key-benefits-of-the-offline-layer&quot;&gt;Key benefits of the offline layer&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Provides historical context: The offline layer enriches the attribution process by providing a historical perspective on user interactions, essential for precise attribution analysis spanning extended time periods.&lt;/li&gt;
-  &lt;li&gt;Handles enormous data volumes: This layer efficiently manages and processes extensive data generated by advertising campaigns, ensuring that attribution seamlessly accommodates large-scale data sets.&lt;/li&gt;
-  &lt;li&gt;Performs complex analytics: Enables more intricate computations and data analysis than real-time processing alone, the offline layer is instrumental in fine-tuning attribution models and enhancing their accuracy.&lt;/li&gt;
-  &lt;li&gt;Ensures reliability in the face of challenges: By providing fault tolerance and resilience against system failures, the offline layer ensures the continuous and dependable operation of the attribution system, even during unexpected events.&lt;/li&gt;
-  &lt;li&gt;Optimises data storage and serving: Relying on Amazon S3, the storage layer for raw data optimises storage by building interactive reporting APIs.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/attribution-platform/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Architecture of our comprehensive offline attribution platform&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;challenges-with-lambda-and-mitigation&quot;&gt;Challenges with Lambda and mitigation&lt;/h3&gt;
-
-&lt;p&gt;Lambda architecture allows us to have the accuracy and robustness of batch processing along with real-time stream processing. However, we noticed some drawbacks that may lead to complexity due to maintaining both batch and stream processing:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Operating two parallel systems for batch and stream processing can lead to increased complexity in production environments.&lt;/li&gt;
-  &lt;li&gt;Lambda architecture requires two sets of business logic - one for the batch layer and another for the stream layer.&lt;/li&gt;
-  &lt;li&gt;Synchronisation across both layers can make system alterations more challenging.&lt;/li&gt;
-  &lt;li&gt;This dual implementation could also allude to inconsistencies and introduce potential bugs into the system.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To mitigate these complications, we’re establishing an optimisation strategy for our current system. By distinctly separating the responsibilities of our real-time pipelines from those of our offline jobs, we intend to harness the full potential of each approach, while simultaneously curbing the added complexity.&lt;/p&gt;
-
-&lt;p&gt;Hence, redefining the way we utilise Lambda architecture, striking an efficient balance between real-time responsiveness and sturdy accuracy with the below proposal.&lt;/p&gt;
-
-&lt;h2 id=&quot;vanguard-enhancements-in-the-future&quot;&gt;Vanguard: Enhancements in the future&lt;/h2&gt;
-
-&lt;p&gt;In the coming months, we will be implementing the optimisation strategy and improving our attribution platform solution. This strategy can be broken down into the following sections.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Real-time pipeline handling time-sensitive data&lt;/strong&gt;: Real-time pipelines can process and deliver time-sensitive metrics like CPO-related data in near real-time, allowing for budget capping and immediate adjustments to marketing spend. This can provide us with actionable insights that can help with areas like real-time bidding, real-time marketing, or dynamic pricing. By limiting the volume of data through the real-time path, we can ensure it’s more manageable and focused on immediate actionable data.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Batch jobs handling all other reporting data&lt;/strong&gt;: Batch processing is best suited for computations that are not time-bound and where completeness is more important. By dedicating more time to the processing phase, batch processing can handle larger volumes and more complex computations, providing more comprehensive and accurate reporting.&lt;/p&gt;
-
-&lt;p&gt;This approach will simplify our Lambda architecture, as the batch and real-time pipelines will have clear separation of duties. It may also reduce the chance of discrepancies between the real-time and batch-processing datasets and lower the operational load of our real-time system.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion-a-holistic-attribution-picture&quot;&gt;Conclusion: A holistic attribution picture&lt;/h2&gt;
-
-&lt;p&gt;Through our journey of building a comprehensive attribution platform, we can now deliver a holistic and dependable view of user behaviour and empower merchant-partners to use insights from advertisements and promotions. This journey has been a long one, but we were able to improve our attribution solution in several ways:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Attribution latency: Successfully reduced attribution latency from 2-3 days to just a few minutes, ensuring that advertisers can access real-time insights and feedback.&lt;/li&gt;
-  &lt;li&gt;Data accuracy: Through improved data collection and processing, we achieved data discrepancies of less than 1%, enhancing the accuracy and reliability of attribution data.&lt;/li&gt;
-  &lt;li&gt;Conversion rate: Advertisers witnessed a significant increase in conversion rates, a direct result of our real-time attribution capabilities.&lt;/li&gt;
-  &lt;li&gt;Cost efficiency: Embracing the Lambda architecture led to a ~25% reduction in real-time data processing costs, allowing for more efficient campaign optimisations.&lt;/li&gt;
-  &lt;li&gt;Operational resilience: Building an offline layer provided fault tolerance and resilience against system failures, ensuring that our attribution system continued to operate seamlessly, even during unexpected events.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 20 Feb 2024 00:22:10 +0000</pubDate>
-        <link>https://engineering.grab.com/attribution-platform</link>
-        <guid isPermaLink="true">https://engineering.grab.com/attribution-platform</guid>
-        
-        <category>Attribution platform</category>
-        
-        <category>User journeys</category>
-        
-        <category>Advertising</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Product</category>
-        
-        <category>Design</category>
         
       </item>
     
