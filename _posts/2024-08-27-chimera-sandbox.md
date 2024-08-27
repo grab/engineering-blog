@@ -51,7 +51,7 @@ Chimera Sandbox offers a wide variety of CPU and GPU choices to cater to specifi
 
 ## Deep integration with Spark
 
-The platform is deeply integrated with internal Spark engines, enabling users to experiment building  extract, transform, and load (ETL) jobs with data from Grab’s data lake. Integrated helpers such as SparkConnect Kernel and %%spark_sql magic cell,provide a faster developer experience, which can execute Spark SQL queries without needing to write additional code to start a Spark session and query.
+The platform is deeply integrated with internal Spark engines, enabling users to experiment building  extract, transform, and load (ETL) jobs with data from Grab’s data lake. Integrated helpers such as SparkConnect Kernel and %%spark_sql magic cell, provide a faster developer experience, which can execute Spark SQL queries without needing to write additional code to start a Spark session and query.
 
 <div class="post-image-section"><figure>
   <img src="/img/chimera-sandbox/magic-cell.gif" alt="" style="width:80%"><figcaption align="middle">Figure 4. %%spark_sql magic cell enables users to quickly explore data with Spark.</figcaption>
