@@ -8,7 +8,7 @@ categories: [Engineering, Design]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
 comments: true
 cover_photo: /img/chimera-sandbox/cover.png
-excerpt: "Unleash the potential of machine learning with Grab's Chimera Sandbox. This scalable platform facilitates rapid development and experimentation of ML solutions, offering deep integration with Large Language Models and a variety of compute instances. Discover how it's driving AI innovation at Grab."
+excerpt: "Unleashing the potential of machine learning (ML) with Grab's Chimera Sandbox. This scalable platform facilitates rapid development and experimentation of ML solutions, offering deep integration with Large Language Models and a variety of compute instances. Discover how it's driving AI innovation at Grab."
 ---
 
 Key to innovation and improvement in machine learning (ML) models is the ability for rapid iteration. Our team, Chimera, part of the Artificial Intelligence (AI) Platform team, provides the essential compute infrastructure, ML pipeline components, and backend services. This support enables our ML engineers, data scientists, and data analysts to efficiently experiment and develop ML solutions at scale.
@@ -51,7 +51,7 @@ Chimera Sandbox offers a wide variety of CPU and GPU choices to cater to specifi
 
 ## Deep integration with Spark
 
-The platform is deeply integrated with internal Spark engines, enabling users to experiment building  extract, transform, and load (ETL) jobs with data from Grab’s data lake. Integrated helpers provide a faster developer experience, such as %%spark_sql magic cell to execute spark SQL queries without needing to write additional code to start a Spark session.
+The platform is deeply integrated with internal Spark engines, enabling users to experiment building  extract, transform, and load (ETL) jobs with data from Grab’s data lake. Integrated helpers such as SparkConnect Kernel and %%spark_sql magic cell,provide a faster developer experience, which can execute Spark SQL queries without needing to write additional code to start a Spark session and query.
 
 <div class="post-image-section"><figure>
   <img src="/img/chimera-sandbox/magic-cell.gif" alt="" style="width:80%"><figcaption align="middle">Figure 4. %%spark_sql magic cell enables users to quickly explore data with Spark.</figcaption>
