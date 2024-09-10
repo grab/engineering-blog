@@ -6,9 +6,387 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 27 Aug 2024 11:08:24 +0000</pubDate>
-    <lastBuildDate>Tue, 27 Aug 2024 11:08:24 +0000</lastBuildDate>
+    <pubDate>Tue, 10 Sep 2024 07:45:44 +0000</pubDate>
+    <lastBuildDate>Tue, 10 Sep 2024 07:45:44 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Unveiling the process: The creation of our powerful campaign builder</title>
+        <description>&lt;p&gt;In a previous &lt;a href=&quot;https://engineering.grab.com/trident-real-time-event-processing-at-scale&quot;&gt;blog&lt;/a&gt;, we introduced Trident, Grab’s internal marketing campaign platform. Trident empowers our marketing team to configure If This, Then That (IFTTT) logic and processes real-time events based on that.&lt;/p&gt;
+
+&lt;p&gt;While we mainly covered how we scaled up the system to handle large volumes of real-time events, we did not explain the implementation of the event processing mechanism. This blog will fill up this missing piece. We will walk you through the various processing mechanisms supported in Trident and how they were built.&lt;/p&gt;
+
+&lt;h2 id=&quot;base-building-block-treatment&quot;&gt;Base building block: Treatment&lt;/h2&gt;
+
+&lt;p&gt;In our system, we use the term “treatment” to refer to the core unit of a full IFTTT data structure. A treatment is an amalgamation of three key elements - an event, conditions (which are optional), and actions. For example, consider a promotional campaign that offers “100 GrabPoints for completing a ride paid with GrabPay Credit”. This campaign can be transformed into a treatment in which the event is “ride completion”, the condition is “payment made using GrabPay Credit”, and the action is “awarding 100 GrabPoints”.&lt;/p&gt;
+
+&lt;p&gt;Data generated across various Kafka streams by multiple services within Grab forms the crux of events and conditions for a treatment. Trident processes these Kafka streams, treating each data object as an event for the treatments. It evaluates the set conditions against the data received from these events. If all conditions are met, Trident then executes the actions.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/processing-treatments.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Trident processes Kafka streams as events for treatments.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;When the Trident user interface (UI) was first established, campaign creators had to grasp the treatment concept and configure the treatments accordingly. As we improved the UI, it became more user-friendly.&lt;/p&gt;
+
+&lt;h2 id=&quot;building-on-top-of-treatment&quot;&gt;Building on top of treatment&lt;/h2&gt;
+
+&lt;p&gt;Campaigns can be more complex than the example we provided earlier. In such scenarios, a single campaign may need transformation into several treatments. All these individual treatments are categorised under what we refer to as a “treatment group”. In this section, we discuss features that we have developed to manage such intricate campaigns.&lt;/p&gt;
+
+&lt;h3 id=&quot;counter&quot;&gt;Counter&lt;/h3&gt;
+
+&lt;p&gt;Let’s say we have a marketing campaign that “rewards users after they complete 4 rides”. For this requirement, it’s necessary for us to keep track of the number of rides each user has completed. To make this possible, we developed a capability known as &lt;strong&gt;counter&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;On the backend, a single counter setup translates into two treatments.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Treatment 1&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Event: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Condition: N/A&lt;/li&gt;
+  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;incrementUserStats&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Treatment 2&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Event:  &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Condition: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Ride Count == 4&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In this feature, we introduce a new event, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt;. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;incrementUserStats&lt;/code&gt; action in &lt;strong&gt;Treatment 1&lt;/strong&gt; triggers the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt; event following the update of the user counter. This allows &lt;strong&gt;Treatment 2&lt;/strong&gt; to consume the event and perform subsequent evaluations.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/end-to-end-evaluation-process.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. The end-to-end evaluation process when using the Counter feature.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;When the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt; event is consumed, &lt;strong&gt;Treatment 1&lt;/strong&gt; is evaluated which then executes the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;incrementUserStat&lt;/code&gt; action. This action increments the user’s ride counter in the database, gets the latest counter value, and publishes an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt; event to Kafka.&lt;/p&gt;
+
+&lt;p&gt;There are also other consumers that listen to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt; events. When this event is consumed, &lt;strong&gt;Treatment 2&lt;/strong&gt; is evaluated. This process involves verifying whether the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Ride Count&lt;/code&gt; equals to 4. If the condition is satisfied, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt; action is triggered.&lt;/p&gt;
+
+&lt;p&gt;This feature is not limited to counting the number of event occurrences only. It’s also capable of tallying the total amount of transactions, among other things.&lt;/p&gt;
+
+&lt;h3 id=&quot;delay&quot;&gt;Delay&lt;/h3&gt;
+
+&lt;p&gt;Another feature available on Trident is a delay function. This feature is particularly beneficial in situations where we want to time our actions based on user behaviour. For example, we might want to give a ride voucher to a user three hours after they’ve ordered a ride to a theme park. The intention for this is to offer them a voucher they can use for their return trip.&lt;/p&gt;
+
+&lt;p&gt;On the backend, a delay setup translates into two treatments. Given the above scenario, the treatments are as follows:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Treatment 1&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Event: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Condition: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Dropoff Location == Universal Studio&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;scheduleDelayedEvent&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Treatment 2&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Event:  &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onDelayedEvent&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Condition: N/A&lt;/li&gt;
+  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We introduce a new event, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onDelayedEvent&lt;/code&gt;, which &lt;strong&gt;Treatment 1&lt;/strong&gt; triggers during the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;scheduleDelayedEvent&lt;/code&gt; action. This is made possible by using Simple Queue Service (SQS), given its built-in capability to publish an event with a delay.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/end-to-end-evaluation-process-delay-feature.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. The end-to-end evaluation process when using the Delay feature.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The maximum delay that SQS supports is 15 minutes; meanwhile, our platform allows for a delay of up to x hours. To address this limitation, we publish the event multiple times upon receiving the message, extending the delay by another 15 minutes each time, until it reaches the desired delay of x hours.&lt;/p&gt;
+
+&lt;h3 id=&quot;limit&quot;&gt;Limit&lt;/h3&gt;
+
+&lt;p&gt;The &lt;strong&gt;Limit&lt;/strong&gt; feature is used to restrict the number of actions for a specific campaign or user within that campaign. This feature can be applied on a daily basis or for the full duration of the campaign.&lt;/p&gt;
+
+&lt;p&gt;For instance, we can use the &lt;strong&gt;Limit&lt;/strong&gt; feature to distribute 1000 vouchers to users who have completed a ride and restrict it to only one voucher for one user per day. This ensures a controlled distribution of rewards and prevents a user from excessively using the benefits of a campaign.&lt;/p&gt;
+
+&lt;p&gt;In the backend, a limit setup translates into conditions within a single treatment. Given the above scenario, the treatment would be as follows:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Event: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Condition: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;TotalUsageCount &amp;lt;= 1000 AND DailyUserUsageCount &amp;lt;= 1&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Similar to the &lt;strong&gt;Counter&lt;/strong&gt; feature, it’s necessary for us to keep track of the number of completed rides for each user in the database.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/end-to-end-evaluation-process-limit-feature.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. The end-to-end evaluation process when using the Limit feature.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;a-better-campaign-builder&quot;&gt;A better campaign builder&lt;/h2&gt;
+
+&lt;p&gt;As our campaigns grew more and more complex, the treatment creation quickly became overwhelming. A complex logic flow often required the creation of many treatments, which was cumbersome and error-prone. The need for a more visual and simpler campaign builder UI became evident.&lt;/p&gt;
+
+&lt;p&gt;Our design team came up with a flow-chart-like UI. Figure 5, 6, and 7 show examples of how certain imaginary campaign setup would look like in the new UI.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. When users complete a food order, if they are a gold user, award them with A. However, if they are a silver user, award them with  B.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. When users complete a food or mart order, increment a counter. When the counter reaches 5, send them a message. Once the counter reaches 10, award them with points.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. When a user confirms a ride booking, wait for 1 minute, and then conduct A/B testing by sending a message 50% of the time.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The campaign setup in the new UI can be naturally stored as a node tree structure. The following is how the example in figure 5 would look like in JSON format. We assign each node a unique number ID, and store a map of the ID to node content.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{
+  &quot;1&quot;: {
+    &quot;type&quot;: &quot;scenario&quot;,
+    &quot;data&quot;: { &quot;eventType&quot;: &quot;foodOrderComplete&quot;  },
+    &quot;children&quot;: [&quot;2&quot;, &quot;3&quot;]
+  },
+  &quot;2&quot;: {
+    &quot;type&quot;: &quot;condition&quot;,
+    &quot;data&quot;: { &quot;lhs&quot;: &quot;var.user.tier&quot;, &quot;operator&quot;: &quot;eq&quot;, &quot;rhs&quot;: &quot;gold&quot; },
+    &quot;children&quot;: [&quot;4&quot;]
+  },
+  &quot;3&quot;: {
+    &quot;type&quot;: &quot;condition&quot;,
+    &quot;data&quot;: { &quot;lhs&quot;: &quot;var.user.tier&quot;, &quot;operator&quot;: &quot;eq&quot;, &quot;rhs&quot;: &quot;silver&quot; },
+    &quot;children&quot;: [&quot;5&quot;]
+  },
+  &quot;4&quot;: {
+    &quot;type&quot;: &quot;action&quot;,
+    &quot;data&quot;: {
+      &quot;type&quot;: &quot;awardReward&quot;,
+      &quot;payload&quot;: { &quot;rewardID&quot;: &quot;ID-of-A&quot;  }
+    }
+  },
+  &quot;5&quot;: {
+    &quot;type&quot;: &quot;action&quot;,
+    &quot;data&quot;: {
+      &quot;type&quot;: &quot;awardReward&quot;,
+      &quot;payload&quot;: { &quot;rewardID&quot;: &quot;ID-of-B&quot;  }
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;conversion-to-treatments&quot;&gt;Conversion to treatments&lt;/h3&gt;
+
+&lt;p&gt;The question then arises, how do we execute this node tree as treatments? This requires a conversion process. We then developed the following algorithm for converting the node tree into equivalent treatments:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;// convertToTreatments is the main function
+func convertToTreatments(rootNode) -&amp;gt; []Treatment:
+  output = []
+
+  for each scenario in rootNode.scenarios:
+    // traverse down each branch
+    context = createConversionContext(scenario)
+    for child in rootNode.children:
+      treatments = convertHelper(context, child)
+      output.append(treatments)
+
+  return output
+
+// convertHelper is a recursive helper function
+func convertHelper(context, node) -&amp;gt; []Treatment:
+  output = []
+  f = getNodeConverterFunc(node.type)
+  treatments, updatedContext = f(context, node)
+
+  output.append(treatments)
+
+  for child in rootNode.children:
+    treatments = convertHelper(updatedContext, child)
+    output.append(treatments)
+
+  return output
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;getNodeConverterFunc&lt;/code&gt; will return different handler functions according to the node type. Each handler function will either update the conversion context, create treatments, or both.&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;caption style=&quot;caption-side:bottom&quot;&gt;Table 1. The handler logic mapping for each node type.&lt;/caption&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;width:20%&quot;&gt;Node type&lt;/th&gt;
+      &lt;th&gt;Logic&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;condition&lt;/td&gt;
+      &lt;td&gt;Add conditions into the context and return the updated context.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;action&lt;/td&gt;
+      &lt;td&gt;Return a treatment with the event type, condition from the context, and the action itself.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;delay&lt;/td&gt;
+      &lt;td&gt;Return a treatment with the event type, condition from the context, and a scheduleDelayedEvent action.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;count&lt;/td&gt;
+      &lt;td&gt;Return a treatment with the event type, condition from the context, and an incrementUserStats action.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;count condition&lt;/td&gt;
+      &lt;td&gt;Form a condition with the count key from the context, and return an updated context with the condition.&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;It is important to note that treatments cannot always be reverted to their original node tree structure. This is because different node trees might be converted into the same set of treatments.&lt;/p&gt;
+
+&lt;p&gt;The following is an example where two different node trees setups correspond to the same set of treatments:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Food order complete -&amp;gt; if gold user -&amp;gt; then award A&lt;/li&gt;
+  &lt;li&gt;Food order complete -&amp;gt; if silver user -&amp;gt; then award B&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/two-node-tree-setup.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8. An example of two node tree setups corresponding to the the same set of treatments.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Therefore, we need to store both the campaign node tree JSON and treatments, along with the mapping between the nodes and the treatments. Campaigns are executed using treatments, but displayed using the node tree JSON.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/storing-campaigns.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 9. For each campaign, we store both the node tree JSON and treatments, along with their mapping.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;how-we-handle-campaign-updates&quot;&gt;How we handle campaign updates&lt;/h3&gt;
+
+&lt;p&gt;There are instances where a marketing user updates a campaign after its creation. For such cases we need to identify:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Which existing treatments should be removed.&lt;/li&gt;
+  &lt;li&gt;Which existing treatments should be updated.&lt;/li&gt;
+  &lt;li&gt;What new treatments should be added.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We can do this by using the node-treatment mapping information we stored. The following is the pseudocode for this process:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;func howToUpdateTreatments(oldTreatments []Treatment, newTreatments []Treatment):
+  treatmentsUpdate = map[int]Treatment // treatment ID -&amp;gt; updated treatment
+  treatmentsRemove = []int // list of treatment IDs
+  treatmentsAdd = []Treatment // list of new treatments to be created
+
+  matchedOldTreamentIDs = set()
+
+  for newTreatment in newTreatments:
+    matched = false
+
+    // see whether the nodes match any old treatment
+    for oldTreatment in oldTreatments:
+      // two treatments are considered matched if their linked node IDs are identical
+      if isSame(oldTreatment.nodeIDs, newTreatment.nodeIDs):
+        matched = true
+        treatmentsUpdate[oldTreament.ID] = newTreatment
+        matchedOldTreamentIDs.Add(oldTreatment.ID)
+        break
+
+    // if no match, that means it is a new treatment we need to create
+    if not matched:
+      treatmentsAdd.Append(newTreatment)
+
+  // all the non-matched old treatments should be deleted
+  for oldTreatment in oldTreatments:
+    if not matchedOldTreamentIDs.contains(oldTreatment.ID):
+      treatmentsRemove.Append(oldTreatment.ID)
+
+  return treatmentsAdd, treatmentsUpdate, treatmentsRemove
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;For a visual illustration, let’s consider a campaign that initially resembles the one shown in figure 10. The node IDs are highlighted in red.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/campaign-node-tree-structure.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 10. A campaign in node tree structure.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;This campaign will generate two treatments.&lt;/p&gt;
+
+&lt;table style=&quot;width: 70%&quot; class=&quot;table&quot;&gt;
+  &lt;caption style=&quot;caption-side:bottom&quot;&gt;Table 2. The campaign shown in the figure 10 will generated two treatments.&lt;/caption&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;width:10%&quot;&gt;ID&lt;/th&gt;
+      &lt;th style=&quot;width:50%&quot;&gt;Treatment&lt;/th&gt;
+      &lt;th&gt;Linked node IDs&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;1&lt;/td&gt;
+      &lt;td&gt;Event: food order complete &lt;br /&gt; Condition: gold user &lt;br /&gt; Action: award A&lt;/td&gt;
+      &lt;td&gt;1, 2, 3&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;2&lt;/td&gt;
+      &lt;td&gt;Event: food order complete &lt;br /&gt; Condition: silver user &lt;br /&gt; Action: award B&lt;/td&gt;
+      &lt;td&gt;1, 4, 5&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;After creation, the campaign creator updates the upper condition branch, deletes the lower branch, and creates a new branch. Note that after node deletion, the deleted node ID will not be reused.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/updated-campaign-node-tree-structure.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 11. An updated campaign in node tree structure.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;According to our logic in figure 11, the following update will be performed:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Update action for treatment 1 to “award C”.&lt;/li&gt;
+  &lt;li&gt;Delete treatment 2&lt;/li&gt;
+  &lt;li&gt;Create a new treatment: food -&amp;gt; is promo used -&amp;gt; send push&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;This article reveals the workings of Trident, our bespoke marketing campaign platform. By exploring the core concept of a “treatment” and additional features like Counter, Delay and Limit, we illustrated the flexibility and sophistication of our system.&lt;/p&gt;
+
+&lt;p&gt;We’ve explained changes to the Trident UI that have made campaign creation more intuitive. Transforming campaign setups into executable treatments while preserving the visual representation ensures seamless campaign execution and adaptation.&lt;/p&gt;
+
+&lt;p&gt;Our devotion to improving Trident aims to empower our marketing team to design engaging and dynamic campaigns, ultimately providing excellent experiences to our users.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 10 Sep 2024 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/the-creation-of-our-powerful-campaign-builder</link>
+        <guid isPermaLink="true">https://engineering.grab.com/the-creation-of-our-powerful-campaign-builder</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Generative AI</category>
+        
+        <category>LLM</category>
+        
+        <category>Experiment</category>
+        
+        <category>Machine learning</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Design</category>
+        
+      </item>
     
       <item>
         <title>Chimera Sandbox: A scalable experimentation and development platform for Notebook services</title>
@@ -2080,270 +2458,6 @@ Stage 3 duration =&amp;gt; 49 (49 ms)
         <category>Engineering</category>
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>Android App Size at Scale with Project Bonsai</title>
-        <description>&lt;p&gt;Grab is Southeast Asia’s leading superapp, providing a suite of services that brings essential needs to users throughout the region. Its offerings include ride-hailing, food delivery, parcel delivery, mobile payments, and more. With safety, efficiency, and user-centered design at heart, Grab remains dedicated to solving everyday issues and improving the lives of millions.&lt;/p&gt;
-
-&lt;p&gt;As the app continues to expand with more features, Grab identified the need for a consistent, high-quality experience for new users who may have limited storage space or restricted internet bandwidth. Read to find out more about Project Bonsai and how it reduced app download size and app disk size.&lt;/p&gt;
-
-&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In 2020, Google conducted research that highlighted the &lt;a href=&quot;https://medium.com/googleplaydev/shrinking-apks-growing-installs-5d3fcba23ce2&quot;&gt;negative impact of app sizes on conversion rates&lt;/a&gt;, revealing a 1% decrease for every 6MB expansion of the app APK size. This finding prompted Grab to ensure new and existing users had a consistently excellent &lt;a href=&quot;https://play.google.com/store/apps/details?id=com.grabtaxi.passenger&quot;&gt;Grab superapp&lt;/a&gt; experience, given the prevalence of low-end devices and disparate internet infrastructure in Southeast Asian regions. As a result, Grab initiated &lt;strong&gt;Project Bonsai&lt;/strong&gt; in Q3 2021, with the goal of reducing and optimising the app size while enhancing user experience, reducing installation barriers, and boosting user acquisition.&lt;/p&gt;
-
-&lt;h3 id=&quot;understanding-the-problem&quot;&gt;Understanding the problem&lt;/h3&gt;
-
-&lt;p&gt;The &lt;a href=&quot;https://play.google.com/store/apps/details?id=com.grabtaxi.passenger&quot;&gt;Grab superapp&lt;/a&gt;, with over 4 million lines of code and integration with hundreds of third-party libraries, had a significant app size. Given the prevalence of low-end devices and disparate internet infrastructure in our target region, it is crucial for us to proactively and constantly ensure we are delivering excellence in app-based user experience.&lt;/p&gt;
-
-&lt;h3 id=&quot;objectives-of-the-bonsai-project&quot;&gt;Objectives of the Bonsai project&lt;/h3&gt;
-
-&lt;p&gt;The Bonsai project focused on these two key metrics:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;App Download Size&lt;/strong&gt;: This represents the total size of the compressed APK file that users need to download from Google Play when performing a fresh installation.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;App Disk Size&lt;/strong&gt;: This encompasses the total storage space occupied by the app on user devices, including both the binary and data generated by the app.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In this article, we will share the strategy and solutions that resulted in a successful &lt;strong&gt;26% reduction in App Download Size&lt;/strong&gt;, while also reducing the App Disk Size.&lt;/p&gt;
-
-&lt;h3 id=&quot;status-quo&quot;&gt;Status quo&lt;/h3&gt;
-
-&lt;p&gt;Prior to the Bonsai project, the Grab app project had implemented various measures to achieve optimal app size. Here are some notable highlights:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Leveraging App Bundle&lt;/strong&gt;: Since 2019, Grab has been using the app bundle approach to optimise app delivery. This approach generates smaller APKs tailored to specific device configurations, ensuring users receive optimised APKs. This helps reduce the overall app size and improve installation efficiency.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Monitoring&lt;/strong&gt;: With a team of over 100 Android engineers and multiple collaborative teams, the Grab app undergoes a weekly release process involving hundreds of commits for each release. Closely monitoring app size changes with every commit is essential for our team. The team established debug build (APK file size) monitoring for &lt;strong&gt;every commit merged to the master branch&lt;/strong&gt;. Regular weekly reviews are conducted to stay updated on the app size and identify commits that might lead to changes in app size. However, occasional mismatches may occur due to discrepancies between the debug and release builds.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Monitoring the changes in APK size&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;R8 Integration&lt;/strong&gt;: R8/Proguard, known as the code shrinker, obfuscator, and optimiser, has been enabled since the beginning. This powerful tool helps reduce the app’s bytecode and resources, leading to further size optimisation and improved app performance.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Resource Optimisation&lt;/strong&gt;: The team diligently pursued resource optimisation strategies, including:&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;Images: Engineers were encouraged to use vector images whenever possible, as they usually have smaller file sizes than raster images. In exceptional cases where raster images were necessary, Grab adopted the webp format instead of png, utilising better image compression to minimise app size.&lt;/li&gt;
-      &lt;li&gt;Language ResourceConfig: Grab enabled resourceConfig to support only the languages actively used by the Grab app, reducing unnecessary resource overhead and enhancing app efficiency.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Third-Party Libraries Review&lt;/strong&gt;: The team established a review process for third-party libraries, assessing their size impact on the app. This practice ensured that only essential libraries were included, preventing unnecessary bloating of the app size.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Despite the application of these measures and solutions aimed at managing the app size, there was still the potential of significant expansion in magnitude.&lt;/p&gt;
-
-&lt;h2 id=&quot;strategy&quot;&gt;Strategy&lt;/h2&gt;
-
-&lt;p&gt;The Bonsai project revolves around strategic pillars, namely Measurement, Reduction, and Containment.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image7.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Project Bonsai&apos;s three strategic pillars for continuous app size reduction&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In the &lt;strong&gt;Measurement&lt;/strong&gt; phase, the focus is on providing accurate information on the app’s binary composition and how individual features, modules, libraries impact the overall app size. This allows teams to make informed decisions and gain insights into their components’ influence on the app’s size.&lt;/p&gt;
-
-&lt;p&gt;The insights from the Measure phase provided us with a list of actionable items for our backlog. In the &lt;strong&gt;Reduction&lt;/strong&gt; phase, we employ strategic action to tackle this backlog to constantly achieve optimal app size.&lt;/p&gt;
-
-&lt;p&gt;Optimising the app size is not a one-time endeavour, especially as more features are added over time, potentially increasing the project’s size. While there may be limited solutions to manage app size, it’s important to find a balance between size and functionality. Else, the effort and trade-offs required may become overwhelming. Therefore, in the &lt;strong&gt;Containment&lt;/strong&gt; phase, we intend to introduce effective long-term strategies and solutions designed to manage the app’s size.&lt;/p&gt;
-
-&lt;p&gt;In the remainder of this blog post, we explore the strategic pillars and actions taken to contain the download size.&lt;/p&gt;
-
-&lt;h3 id=&quot;measure&quot;&gt;Measure&lt;/h3&gt;
-
-&lt;p&gt;The Grab Passenger App Core team actively engages in optimisation projects and recognised the importance of measurement as the foundation for improvement. For example, enhancing the app startup time, pipeline time, build time, and more.&lt;/p&gt;
-
-&lt;p&gt;In every optimisation endeavour, we adhere to a crucial principle: “MEASURE” - the first and most critical step for any improvement project. As the famous quote goes, “If you can’t measure it, you can’t improve it.” This emphasises the significance of accurate and comprehensive measurement as the foundation for driving successful optimisation efforts.&lt;/p&gt;
-
-&lt;p&gt;In the third quarter of 2021, our team initiated an investigation into existing tools provided by both Google and the broader community. The intention was to employ tools such as &lt;a href=&quot;https://developer.android.com/tools/apkanalyzer&quot;&gt;APK Analyzer&lt;/a&gt; or Android Studio to conduct a thorough analysis of the app binary. However, it soon became evident that these tools were not well-suited to accommodate the extensive scope of our project.&lt;/p&gt;
-
-&lt;p&gt;In order to accommodate our discovery, we developed a custom analytics tool called App Sizer. This tool is specifically designed to analyse app binaries from bundle files. Our primary goal was to construct a solution that adheres effectively to our unique needs.&lt;/p&gt;
-
-&lt;p&gt;The tool was seamlessly integrated into Grab’s CI system and sends data to a &lt;a href=&quot;https://grafana.com/&quot;&gt;Grafana&lt;/a&gt; instance. As a result, the tool collates and transmits daily analytics data from the release candidate branch. It offers the following key functionalities and monitors important aspects such as:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Device-specific App Download Size&lt;/strong&gt;: Precise information about the app download size for specific devices, focusing on optimising the App Download Size.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image3.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Trends for app download size by device type&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Comprehensive Size Breakdown&lt;/strong&gt;: A breakdown of the app’s size, including the proportion attributed to the codebase Kotlin/Java, Kotlin/Java-based libraries, native libraries, resources, and other relevant factors.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image6.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Comprehensive breakdown of app download size by component&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Size Contribution by Teams&lt;/strong&gt;: Insights into the size contributed by each individual team within the project’s scope.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image5.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Breakdown of Grab&apos;s codebase by TF&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Module-wise Size Contribution&lt;/strong&gt;: Insights into the size impacted by each module, categorised by team.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image8.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Breakdown of the codebase by TF modules&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Size Contribution by Third-Party Libraries&lt;/strong&gt;: Information about the size attributed to each third-party library incorporated within the app.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image2.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;App download size contribution by external libraries and SDK breakdown&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;List of Large Files&lt;/strong&gt;: A categorised list of large files (file size exceeding X value), organised by each respective team.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/project-bonsai/image4.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Large file categories broken down by TF&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;It’s important to note that all the size values presented within these dashboards specifically pertain to the download size, representing the contribution of each item to the overall app download size.&lt;/p&gt;
-
-&lt;p&gt;As part of our commitment to the developer community, we plan to open-source this tool in the near future, allowing others to benefit from its capabilities as well.&lt;/p&gt;
-
-&lt;h3 id=&quot;reduce&quot;&gt;Reduce&lt;/h3&gt;
-
-&lt;p&gt;To optimise the app based on the analysis data obtained from the measuring step, we focused on applying common solutions from Google and the suggestions from the community. There were no fancy solutions that we invented. Our concentration centered on optimising the &lt;a href=&quot;https://source.android.com/docs/core/runtime/dex-format&quot;&gt;dex file&lt;/a&gt; size, refining resources, and eliminating duplication and redundancy.&lt;/p&gt;
-
-&lt;h4 id=&quot;dex-file-optimisation-javakotlin&quot;&gt;dex file optimisation (Java/Kotlin)&lt;/h4&gt;
-
-&lt;p&gt;In our initial findings, it became evident that Java/Kotlin code was the major contributor of app size. Recognising this, we made it our top priority for optimisation.&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;
-&lt;strong&gt;R classes&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;During our investigation, we discovered that a proportion of the overall app size was attributable to R classes. Further research unveiled two primary reasons behind this phenomenon:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.mobileit.cz/Blog/Pages/r-class.aspx&quot;&gt;Transitive R classes&lt;/a&gt;: R classes contained ID references not only to their own resources but also to resources from their transitive dependencies. This meant that if Module A depended on Module B, and Module B in turn, depended on Module C (Module A -&amp;gt; Module B -&amp;gt; Module C), then Module A’s R class included IDs references to resources from Modules B and C, even if Module A didn’t directly utilise these resources. This explained why R classes in a modularised project could accumulate millions of lines of code.&lt;/li&gt;
-  &lt;li&gt;A spread of Modules and Third-Party Libraries: Our Grab project comprised over 1,500 modules and integrates hundreds of third-party libraries, leading to the generation of significantly large R classes within the project. Furthermore, this discovery also explained instances where our app size monitor exhibited spikes during certain commits despite no significant additions of resources, libraries, or code within those commits. These fluctuations were linked to changes in the dependency graph, further emphasising the impact of Transitive R classes.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;It is worth noting that the team had long been cognisant of the challenges posed by Transitive R classes, especially in terms of optimising build times. Consequently, we had already undertaken various initiatives to address this specific challenge related to build times.&lt;/p&gt;
-
-&lt;p&gt;However, it wasn’t long before we started wondering why R8 wasn’t removing unused fields from the R classes, which would have resulted in a size reduction for these classes. It turned out that back in mid-2021, we were using Android Gradle Plugin 4.0 along with the default R8 rules. One of these rules was preserving all fields in the R classes:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;-keepclassmembers class **.R$* {
-
-   public static &amp;lt;fields&amp;gt;;
-
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This rule was the root cause of why unused fields in the R classes were persisting. Google removed this &lt;a href=&quot;https://issuetracker.google.com/issues/142449264&quot;&gt;rule in AGP 4.1&lt;/a&gt;, and the solution was straightforward: updating AGP to version 4.1.1 (or newer) helped us resolve the issue.&lt;/p&gt;
-
-&lt;p&gt;However, due to the project’s unusual size, there was a risk of inadvertently removing non-used R class fields if there were any instances of code accessing R classes through reflection within the codebase or third-party libraries. Since our automation testing did not yet support R8, conducting a full test of the entire project was possible, but would have demanded significant effort from the team. To avoid this substantial effort, we developed a script to search the entire codebase and identify instances where reflections were used, allowing us to assess their usage. For third-party libraries, we decompiled the libraries and applied the same script to the decompiled code.&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;
-&lt;strong&gt;Fix &amp;amp; Optimise R8 Rules&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Subsequently, we conducted a revision of the R8 configuration rules. This involved assessing the compiled R8 configuration file and paying specific attention to any ‘keep’ rules that contained package wildcards. It is crucial to decipher the purpose behind each rule and its reason for existence. Any rules identified as redundant were recommended for removal. Post the thorough scrutiny of the R8 rules, we initiated request tickets urging the respective teams to work on the elimination and optimisation of these rules.&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;
-&lt;strong&gt;Enable more aggressive optimisations&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;In 2019, Google began recommending the utilisation of the &lt;a href=&quot;https://android.googlesource.com/platform/sdk/%2B/master/files/proguard-android-optimize.txt&quot;&gt;proguard-android-optimise.txt&lt;/a&gt; configuration with code optimisation enabled. However, our project’s origins predate the introduction of Google’s R8, a time when Proguard was the primary tool for code obfuscation and size reduction. Prior to the release of Android Gradle Plugin 3.4.0, there were no explicit recommendations for enabling code optimisations during the minification process. As a result, our project has persisted in using the &lt;a href=&quot;https://android.googlesource.com/platform/sdk/%2B/master/files/proguard-android.txt&quot;&gt;proguard-android.txt&lt;/a&gt; configuration without activating the code optimisation feature.&lt;/p&gt;
-
-&lt;p&gt;Our team has considered adopting a more aggressive approach towards optimisation. This approach spans from exploring the &lt;a href=&quot;https://android.googlesource.com/platform/sdk/%2B/master/files/proguard-android-optimize.txt&quot;&gt;optimisation mode&lt;/a&gt; to incorporating the &lt;a href=&quot;https://developer.android.com/build/shrink-code&quot;&gt;R8 full mode&lt;/a&gt;. This includes substantial effort required for testing and addressing issues arising from the introduction of these new modes. We encountered a particular challenge wherein the R8 optimisation exhibits instability, an issue that has been &lt;a href=&quot;https://issuetracker.google.com/u/1/issues/240077160&quot;&gt;reported to Google&lt;/a&gt;. A definitive solution remains a work-in-progress.&lt;/p&gt;
-
-&lt;p&gt;At present, we have decided to postpone the implementation of a more aggressive R8 mode. However, this remains a high-priority item on our agenda, and we intend to address it in the near future.&lt;/p&gt;
-
-&lt;h4 id=&quot;resources-optimisation&quot;&gt;Resources optimisation&lt;/h4&gt;
-
-&lt;p&gt;In addition to optimising the dex file, we also address resource optimisation.&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;
-&lt;strong&gt;Handling large resources&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;During the Measure phase, we use the List Of Large Files dashboard to identify large files categorised by teams. For each team, we create request tickets with straightforward guidance. These guidelines encourage the following actions:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Explore the possibility of removing unnecessary resources.&lt;/li&gt;
-  &lt;li&gt;Consider offloading the resource to the Internet (server) when feasible. Within Grab, we have the Asset Delivery Kit, which facilitates hosting and downloading resources on the client side.&lt;/li&gt;
-  &lt;li&gt;Optimise files by converting them to alternative formats or reducing their size. For instance, for images, we recommend utilising vector images and the Webp format, among other optimisations.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;br /&gt;
-&lt;strong&gt;Convert PNG to Webp&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;The Grab app project has a long history, and while the team has recently established guidelines and implemented CI processes to promote the use of vector and Webp images, there are still existing images that have not been optimised. The team has undertaken an initiative to address these images and has converted all PNG images to Webp format wherever a reduction in file size is achievable.&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;
-&lt;strong&gt;Fonts&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Fonts are another group of files that have a notable impact on the project’s size. We collaborate with the teams to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Remove fonts that are rarely used in the project.&lt;/li&gt;
-  &lt;li&gt;Eliminate duplicate fonts.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;While the project still contains numerous fonts, we have a project to unify all features and transition to using a single font. Our recommendation is to explore the use of one primary font style, with the flexibility to incorporate different &lt;a href=&quot;https://developer.android.com/reference/android/graphics/Typeface&quot;&gt;typeface variations&lt;/a&gt; in your programming to achieve various typefaces using the same font.&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;
-&lt;strong&gt;Remove stale features and replace large library&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Based on the data, it was discovered that a specific library, which was contributing approximately 8% to the overall app size, had an adverse impact. This library has since been removed from the project. Moreover, through analysing the Size Contribution by Third-Party Libraries dashboard, we identified duplicates in functions and have made efforts to eliminate these redundancies.&lt;/p&gt;
-
-&lt;p&gt;Moreover, in Grab, we are using the feature toggle to enable or disable a feature. The feature flags are controlled remotely. It’s very useful for running an experiment or turning off if a feature causes us any problems. So, many features in the project are controlled under a feature flag. In certain cases, even when some features are deactivated, the corresponding code remains included in the binary. We identify these cases and collaborate with teams to remove the redundant code.&lt;/p&gt;
-
-&lt;p&gt;After six months of working on the above initiatives, the Bonsai team managed to reduce the Grab app download size by &lt;strong&gt;26%&lt;/strong&gt;. This is particularly noteworthy, considering that prior to the commencement of the Bonsai Project, the average app size exhibited a monthly increase of approximately 1%.&lt;/p&gt;
-
-&lt;h3 id=&quot;containment&quot;&gt;Containment&lt;/h3&gt;
-
-&lt;p&gt;After dedicating over a semester to the Reduce phase, we started the transition to the Containment phase. The first step for this phase involved setting up an App Growth Rate dashboard that presents the growth rate of app download size per release. Our goal is to keep this rate as low as possible.&lt;/p&gt;
-
-&lt;p&gt;The team has been discovering a few solutions, such as introducing the common UI design components to prevent duplication, and experimenting with &lt;a href=&quot;https://developer.android.com/guide/playcore/feature-delivery&quot;&gt;Dynamic Delivery Feature&lt;/a&gt;. This phase of exploration is still ongoing and we are optimistic that it will help maintain a manageable app download size, or perhaps even contribute to further optimization.&lt;/p&gt;
-
-&lt;p&gt;Considering alternative initiatives, the team is contemplating recognising app size as a confined resource of our application. We believe it should be the responsibility of every team to maintain an optimal app size. Based on the measurements we have, which provide an insight into each team’s impact on the total app download size, it could be advantageous to allocate an ‘app size budget’ to each team. This would entail each team taking responsibility for managing and maintaining the size influenced by their work.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Grab’s Project Bonsai demonstrated the company’s commitment to optimising the app experience for users in Southeast Asia. By prioritising code optimisation, resource management, modularisation, and asset bundling, we achieved substantial optimisations in app size while enhancing user experience. These efforts not only addressed the challenges we outlined, but also contributed to increased user acquisition and improved user retention rates.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 01 Mar 2024 02:22:10 +0000</pubDate>
-        <link>https://engineering.grab.com/project-bonsai</link>
-        <guid isPermaLink="true">https://engineering.grab.com/project-bonsai</guid>
-        
-        <category>App size</category>
-        
-        <category>Optimisation</category>
-        
-        <category>Project Bonsai</category>
-        
-        <category>App download size</category>
-        
-        <category>App disk size</category>
-        
-        <category>Scalability</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
