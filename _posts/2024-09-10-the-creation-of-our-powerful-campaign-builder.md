@@ -11,7 +11,7 @@ cover_photo: /img/the-creation-of-our-powerful-campaign-builder/cover.png
 excerpt: "Dive into Trident, our real-time event-driven marketing tool at Grab. Explore the build of the core units powering our If This, Then That (IFTTT) logic. Learn how we deal with complex campaigns and discover the secret behind how we support various processing mechanisms"
 ---
 
-In a previous [blog](https://engineering.grab.com/trident-real-time-event-processing-at-scale), we introduced Trident, our internal marketing campaign platform. As part of the Core Experience team, we have created Trident to empower our marketing team to configure If This, Then That (IFTTT) logic and processes real-time events based on that.
+In a previous [blog](https://engineering.grab.com/trident-real-time-event-processing-at-scale), we introduced Trident, Grab's internal marketing campaign platform. Trident empowers our marketing team to configure If This, Then That (IFTTT) logic and processes real-time events based on that.
 
 While we mainly covered how we scaled up the system to handle large volumes of real-time events, we did not explain the implementation of the event processing mechanism. This blog will fill up this missing piece. We will walk you through the various processing mechanisms supported in Trident and how they were built.
 
