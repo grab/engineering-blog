@@ -11,7 +11,7 @@ cover_photo: /img/the-creation-of-our-powerful-campaign-builder/cover.png
 excerpt: "Dive into Trident, our real-time event-driven marketing tool at Grab. Explore the build of the core units powering our If This, Then That (IFTTT) logic. Learn how we deal with complex campaigns and discover the secret behind how we support various processing mechanisms"
 ---
 
-In a previous [blog](https://engineering.grab.com/trident-real-time-event-processing-at-scale), we introduced Trident, our internal marketing campaign platform. Trident empowers our marketing team to configure If This, Then That (IFTTT) logic and processes real-time events based on that.
+In a previous [blog](https://engineering.grab.com/trident-real-time-event-processing-at-scale), we introduced Trident, our internal marketing campaign platform. As part of the Core Experience team, we have created Trident to empower our marketing team to configure If This, Then That (IFTTT) logic and processes real-time events based on that.
 
 While we mainly covered how we scaled up the system to handle large volumes of real-time events, we did not explain the implementation of the event processing mechanism. This blog will fill up this missing piece. We will walk you through the various processing mechanisms supported in Trident and how they were built.
 
@@ -88,7 +88,7 @@ We introduce a new event, `onDelayedEvent`, which **Treatment 1** triggers durin
   </figure>
 </div>
 
-The maximum delay that SQS supports is 15 minutes; meanwhile, our platform allows for a delay of up to X hours. To address this limitation, we publish the event multiple times upon receiving the message, extending the delay by another 15 minutes each time, until it reaches the desired delay of X hours.
+The maximum delay that SQS supports is 15 minutes; meanwhile, our platform allows for a delay of up to x hours. To address this limitation, we publish the event multiple times upon receiving the message, extending the delay by another 15 minutes each time, until it reaches the desired delay of x hours.
 
 ### Limit
 
@@ -113,7 +113,7 @@ Similar to the **Counter** feature, it's necessary for us to keep track of the n
 
 As our campaigns grew more and more complex, the treatment creation quickly became overwhelming. A complex logic flow often required the creation of many treatments, which was cumbersome and error-prone. The need for a more visual and simpler campaign builder UI became evident.
 
-Our design team came up with a flow-chart-like UI. Figure 5, 6, and 7 shows examples of how certain imaginary campaign setup would look like in the new UI.
+Our design team came up with a flow-chart-like UI. Figure 5, 6, and 7 show examples of how certain imaginary campaign setup would look like in the new UI.
 
 <div class="post-image-section"><figure>
   <img src="/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. When users complete a food order, if they are a gold user, award them with A. However, if they are a silver user, award them with  B.</figcaption>
@@ -126,7 +126,7 @@ Our design team came up with a flow-chart-like UI. Figure 5, 6, and 7 shows exam
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-3.png" alt="" style="width:80%"><figcaption align="middle">Figure 7. When a user confirms a ride booking, wait for 1 minute, and then do an A/B testing by sending a message 50% of the time.</figcaption>
+  <img src="/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-3.png" alt="" style="width:80%"><figcaption align="middle">Figure 7. When a user confirms a ride booking, wait for 1 minute, and then conduct A/B testing by sending a message 50% of the time.</figcaption>
   </figure>
 </div>
 
@@ -233,7 +233,8 @@ The `getNodeConverterFunc` will return different handler functions according to 
   </tbody>
 </table>
 
-It is important to note that treatments may not be convertible back to the node trees. This is because different node trees might be converted into the same set of treatments.
+It is important to note that treatments cannot always be reverted to their original node tree structure. This is because different node trees might be converted into the same set of treatments.
+
 The following is an example where two different node trees setups correspond to the same set of treatments:
 
 - Food order complete -> if gold user -> then award A
@@ -293,7 +294,7 @@ func howToUpdateTreatments(oldTreatments []Treatment, newTreatments []Treatment)
   return treatmentsAdd, treatmentsUpdate, treatmentsRemove
 ```
 
-For a visual illustration, let’s say a campaign initially looks like the campaign in figure 10. The node IDs are highlighted in red.
+For a visual illustration, let’s consider a campaign that initially resembles the one shown in figure 10. The node IDs are highlighted in red.
 
 <div class="post-image-section"><figure>
   <img src="/img/the-creation-of-our-powerful-campaign-builder/campaign-node-tree-structure.png" alt="" style="width:60%"><figcaption align="middle">Figure 10. A campaign in node tree structure.</figcaption>
