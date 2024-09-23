@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2024-09-17-live-activity-2
-title: 'Bringing Grab’s Live Activity to Android: Enhancing User Experience Through Custom Notifications - test'
+title: 'Bringing Grab’s Live Activity to Android: Enhancing User Experience Through Custom Notifications'
 date: 2024-09-17 00:00:10
 authors: [jessica-sean]
 categories: [Engineering]
