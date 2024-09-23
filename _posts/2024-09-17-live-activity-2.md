@@ -1,8 +1,8 @@
 ---
 layout: post
 id: 2024-09-17-live-activity-2
-title: 'Chimera Sandbox: A scalable experimentation and development platform for Notebook services'
-date: 2024-09-17 00:00:10
+title: 'Bringing Grab’s Live Activity to Android: Enhancing User Experience Through Custom Notifications'
+date: 2024-09-24 00:00:10
 authors: [jessica-sean]
 categories: [Engineering]
 tags: [Engineering, Android, Exploration, ]
