@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Engineering, Android, Exploration]
 comments: true
 cover_photo: /img/live-activity/live-activity-banner.jpg
-excerpt: "Unleashing Live Activity feature for iOS. TLive Activity is a feature that enhances user experience by displaying a user interface (UI) outside of the app, delivering real-time updates and interactive content. Discover how its was solutionised at Grab."
+excerpt: "Unleashing Live Activity feature for iOS. Live Activity is a feature that enhances user experience by displaying a user interface (UI) outside of the app, delivering real-time updates and interactive content. Discover how its was solutionised at Grab."
 ---
 
 In May 2023, Grab unveiled the Live Activity feature for iOS, which received positive feedback from users. Live Activity is a feature that enhances user experience by displaying a user interface (UI) outside of the app, delivering real-time updates and interactive content. At Grab, we leverage this feature to keep users informed about their order updates without requiring them to manually open the app.
