@@ -6,9 +6,172 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 24 Sep 2024 04:27:43 +0000</pubDate>
-    <lastBuildDate>Tue, 24 Sep 2024 04:27:43 +0000</lastBuildDate>
+    <pubDate>Thu, 26 Sep 2024 09:41:56 +0000</pubDate>
+    <lastBuildDate>Thu, 26 Sep 2024 09:41:56 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Enabling conversational data discovery with LLMs at Grab</title>
+        <description>&lt;p&gt;Imagine a world where finding the right data is like searching for a needle in a haystack. In today’s data-driven landscape, companies are drowning in a sea of information, struggling to navigate through countless datasets to uncover valuable insights. At Grab, we faced a similar challenge. With over 200,000 tables in our data lake, along with numerous Kafka streams, production databases, and ML features, locating the most suitable dataset for our Grabber’s use cases promptly has historically been a significant hurdle.&lt;/p&gt;
+
+&lt;h2 id=&quot;problem-space&quot;&gt;Problem Space&lt;/h2&gt;
+
+&lt;p&gt;Our internal data discovery tool, Hubble, built on top of the popular open-source platform Datahub, was primarily used as a reference tool. While it excelled at providing metadata for known datasets, it struggled with true data discovery due to its reliance on Elasticsearch, which performs well for keyword searches but cannot accept and use user-provided context (i.e., it can’t perform semantic search, at least in its vanilla form). The Elasticsearch parameters provided by Datahub out of the box also had limitations: our monthly average click-through rate was only 82%, meaning that in 18% of sessions, users abandoned their searches without clicking on any dataset. This suggested that the search results were not meeting their needs.&lt;/p&gt;
+
+&lt;p&gt;Another indispensable requirement for efficient data discovery that was missing at Grab was documentation. Documentation coverage for our data lake tables was low, with only 20% of the most frequently queried tables (colloquially referred to as P80 tables) having existing documentation. This made it difficult for users to understand the purpose and contents of different tables, even when browsing through them on the Hubble UI.&lt;/p&gt;
+
+&lt;p&gt;Consequently, data consumers heavily relied on tribal knowledge, often turning to their colleagues via Slack to find the datasets they needed. A survey conducted last year revealed that 51% of data consumers at Grab took multiple days to find the dataset they required, highlighting the inefficiencies in our data discovery process.&lt;/p&gt;
+
+&lt;p&gt;To address these challenges and align with Grab’s ongoing journey towards a data mesh architecture, the Hubble team recognised the importance of improving data discovery. We embarked on a journey to revolutionise the way our employees find and access the data they need, leveraging the power of AI and Large Language Models (LLMs).&lt;/p&gt;
+
+&lt;h2 id=&quot;vision&quot;&gt;Vision&lt;/h2&gt;
+
+&lt;p&gt;Given the historical context, our vision was clear: to remove humans in the data discovery loop by automating the entire process using LLM-powered products. We aimed to reduce the time taken for data discovery from multiple days to mere seconds, eliminating the need for anyone to ask their colleagues data discovery questions ever again.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/hubble-data-discovery/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;goals&quot;&gt;Goals&lt;/h2&gt;
+
+&lt;p&gt;To achieve our vision, we set the following goals for ourselves for the first half of 2024:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Build HubbleIQ:&lt;/strong&gt; An LLM-based chatbot that could serve as the equivalent of a Lead Data Analyst for data discovery. Just as a lead is an expert in their domain and can guide data consumers to the right dataset, we wanted HubbleIQ to do the same across all domains at Grab. We also wanted HubbleIQ to be accessible where data consumers hang out the most: Slack.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Improve documentation coverage:&lt;/strong&gt; A new Lead Analyst joining the team would require extensive documentation coverage of very high quality. Without this, they wouldn’t know what data exists and where. Thus, it was important for us to improve documentation coverage.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Enhance Elasticsearch:&lt;/strong&gt; We aimed to tune our Elasticsearch implementation to better meet the requirements of Grab’s data consumers.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;a-systematic-path-to-success&quot;&gt;A Systematic Path to Success&lt;/h2&gt;
+
+&lt;h3 id=&quot;step-1-enhance-elasticsearch&quot;&gt;Step 1: Enhance Elasticsearch&lt;/h3&gt;
+
+&lt;p&gt;Through clickstream analysis and user interviews, the Hubble team identified four categories of data search queries that were seen either on the Hubble UI or in Slack channels:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Exact search:&lt;/strong&gt; Queries belonging to this category were a substring of an existing dataset’s name at Grab, with the query length being at least 40% of the dataset’s name.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Partial search:&lt;/strong&gt; The Levenshtein distance between a query in this category and any existing dataset’s name was greater than 80. This category usually comprised queries that closely resembled an existing dataset name but likely contained spelling mistakes or were shorter than the actual name.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Exact and partial searches accounted for 75% of searches on Hubble (and were non-existent on Slack: as a human, receiving a message that just had the name of a dataset would feel rather odd). Given the effectiveness of vanilla Elasticsearch for these categories, the click rank was close to 0.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/hubble-data-discovery/image8.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Inexact search:&lt;/strong&gt; This category comprised queries that were usually colloquial keywords or phrases that may be semantically related to a given table, column, or piece of documentation (e.g., “city” or “taxi type”). Inexact searches accounted for the remaining 25% of searches on Hubble. Vanilla Elasticsearch did not perform well in this category since it relied on pure keyword matching and did not consider any additional context.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/hubble-data-discovery/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Semantic search:&lt;/strong&gt; These were free text queries with abundant contextual information supplied by the user. Hubble did not see any such queries as users rightly expected that Hubble would not be able to fulfil their search needs. Instead, these queries were sent by data consumers to data producers via Slack. Such queries were numerous, but usually resulted in data hunting journeys that spanned multiple days - the root of frustration amongst data consumers.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The first two search types can be seen as “reference” queries, where the data consumer already knows what they are looking for. Inexact and contextual searches are considered “discovery” queries. The Hubble team noticed drop-offs in inexact searches because users learned that Hubble could not fulfil their discovery needs, forcing them to search for alternatives.&lt;/p&gt;
+
+&lt;p&gt;Through user interviews, the team discovered how Elasticsearch should be tuned to better fit the Grab context. They implemented the following optimisations:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Tagging and boosting P80 tables&lt;/li&gt;
+  &lt;li&gt;Boosting the most relevant schemas&lt;/li&gt;
+  &lt;li&gt;Hiding irrelevant datasets like PowerBI dataset tables&lt;/li&gt;
+  &lt;li&gt;Deboosting deprecated tables&lt;/li&gt;
+  &lt;li&gt;Improving the search UI by simplifying and reducing clutter&lt;/li&gt;
+  &lt;li&gt;Adding relevant tags&lt;/li&gt;
+  &lt;li&gt;Boosting certified tables&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;As a result of these enhancements, the click-through rate rose steadily over the course of the half to 94%, a 12 percentage point increase.&lt;/p&gt;
+
+&lt;p&gt;While this helped us make significant improvements to the first three search categories, we knew we had to build HubbleIQ to truly automate the last category - semantic search.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-2-build-a-context-store-for-hubbleiq&quot;&gt;Step 2: Build a Context Store for HubbleIQ&lt;/h3&gt;
+
+&lt;p&gt;To support HubbleIQ, we built a documentation generation engine that used GPT-4 to generate documentation based on table schemas and sample data. We refined the prompt through multiple iterations of feedback from data producers.&lt;/p&gt;
+
+&lt;p&gt;We added a “generate” button on the Hubble UI, allowing data producers to easily generate documentation for their tables. This feature also supported the ongoing Grab-wide initiative to certify tables.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/hubble-data-discovery/image7.png&quot; alt=&quot;&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In conjunction, we took the initiative to pre-populate docs for the most critical tables, while notifying data producers to review the generated documentation. Such docs were visible to data consumers with an “AI-generated” tag as a precaution. When data producers accepted or edited the documentation, the tag was removed.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/hubble-data-discovery/image3.png&quot; alt=&quot;&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;As a result, documentation coverage for P80 tables increased by 70 percentage points to ~90%. User feedback showed that ~95% of users found the generated docs useful.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-3-build-and-launch-hubbleiq&quot;&gt;Step 3: Build and Launch HubbleIQ&lt;/h3&gt;
+
+&lt;p&gt;With high documentation coverage in place, we were ready to harness the power of LLMs for data discovery. To speed up go-to-market, we decided to leverage &lt;a href=&quot;https://www.glean.com/&quot;&gt;Glean&lt;/a&gt;, an enterprise search tool used by Grab.&lt;/p&gt;
+
+&lt;p&gt;First, we integrated Hubble with Glean, making all data lake tables with documentation available on the Glean platform. Next, we used &lt;a href=&quot;https://www.glean.com/product/apps&quot;&gt;Glean Apps&lt;/a&gt; to create the HubbleIQ bot, which was essentially an LLM with a custom system prompt that could access all Hubble datasets that were catalogued on Glean. Finally, we integrated this bot into Hubble search, such that for any search that is likely to be a semantic search, HubbleIQ results are shown on top, followed by regular search results.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/hubble-data-discovery/image5.png&quot; alt=&quot;&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Recently, we integrated HubbleIQ with Slack, allowing data consumers to discover datasets without breaking their flow. Currently, we are working with analytics teams to add the bot to their “ask” channels (where data consumers come to ask contextual search queries for their domains). After integration, HubbleIQ will act as the first line of defence for answering questions in these channels, reducing the need for human intervention.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/hubble-data-discovery/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The impact of these improvements was significant. A follow-up survey revealed that 73% of respondents found it easy to discover datasets, marking a substantial 17 percentage point increase from the previous survey. Moreover, Hubble reached an all-time high in monthly active users, demonstrating the effectiveness of the enhancements made to the platform.&lt;/p&gt;
+
+&lt;h2 id=&quot;next-steps&quot;&gt;Next Steps&lt;/h2&gt;
+
+&lt;p&gt;We’ve made significant progress towards our vision, but there’s still work to be done. Looking ahead, we have several exciting initiatives planned to further enhance data discovery at Grab.&lt;/p&gt;
+
+&lt;p&gt;On the documentation generation front, we aim to enrich the generator with more context, enabling it to produce even more accurate and relevant documentation. We also plan to streamline the process by allowing analysts to auto-update data docs based on Slack threads directly from Slack. To ensure the highest quality of documentation, we will develop an evaluator model that leverages LLMs to assess the quality of both human and AI-written docs. Additionally, we will implement Reflexion, an agentic workflow that utilises the outputs from the doc evaluator to iteratively regenerate docs until a quality benchmark is met or a maximum try-limit is reached.&lt;/p&gt;
+
+&lt;p&gt;As for HubbleIQ, our focus will be on continuous improvement. We’ve already added support for metric datasets and are actively working on incorporating other types of datasets as well. To provide a more seamless user experience, we will enable users to ask follow-up questions to HubbleIQ directly on the HubbleUI, with the system intelligently pulling additional metadata when a user mentions a specific dataset.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;By harnessing the power of AI and LLMs, the Hubble team has made significant strides in improving documentation coverage, enhancing search capabilities, and drastically reducing the time taken for data discovery. While our efforts so far have been successful, there are still steps to be taken before we fully achieve our vision of completely replacing the reliance on data producers for data discovery. Nonetheless, with our upcoming initiatives and the groundwork we have laid, we are confident that we will continue to make substantial progress in the right direction over the next few production cycles.&lt;/p&gt;
+
+&lt;p&gt;As we forge ahead, we remain dedicated to refining and expanding our AI-powered data discovery tools, ensuring that Grabbers have every dataset they need to drive Grab’s success at their fingertips. The future of data discovery at Grab is brimming with possibilities, and the Hubble team is thrilled to be at the forefront of this exciting journey.&lt;/p&gt;
+
+&lt;p&gt;To our readers, we hope that our journey has inspired you to explore how you can leverage the power of AI to transform data discovery within your own organisations. The challenges you face may be unique, but the principles and strategies we have shared can serve as a foundation for your own data discovery revolution. By embracing innovation, focusing on user needs, and harnessing the potential of cutting-edge technologies, you too can unlock the full potential of your data and propel your organisation to new heights. The future of data-driven innovation is here, and we invite you to join us on this exhilarating journey.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 26 Sep 2024 00:00:40 +0000</pubDate>
+        <link>https://engineering.grab.com/hubble-data-discovery</link>
+        <guid isPermaLink="true">https://engineering.grab.com/hubble-data-discovery</guid>
+        
+        <category>Data Discovery</category>
+        
+        <category>AI</category>
+        
+        <category>LLM</category>
+        
+        <category>Documentation</category>
+        
+        <category>Elasticsearch</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Bringing Grab’s Live Activity to Android: Enhancing user experience through custom notifications</title>
@@ -1764,284 +1927,6 @@ By factoring in both relevance and recency, MAM avoids crediting the same touchp
         <category>Engineering</category>
         
         <category>Security</category>
-        
-      </item>
-    
-      <item>
-        <title>Grab Experiment Decision Engine - a Unified Toolkit for Experimentation</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;This article introduces the GrabX Decision Engine, an internal open-source package that offers a comprehensive framework for designing and analysing experiments conducted on online experiment platforms. The package encompasses a wide range of functionalities, including a pre-experiment advisor, a post-experiment analysis toolbox, and other advanced tools. In this article, we explore the motivation behind the development of these functionalities, their integration into the unique ecosystem of Grab’s multi-sided marketplace, and how these solutions strengthen the culture and calibre of experimentation at Grab.&lt;/p&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Today, &lt;a href=&quot;/building-grab-s-experimentation-platform&quot;&gt;Grab’s Experimentation (GrabX) platform&lt;/a&gt; orchestrates the testing of thousands of experimental variants each week. As the platform continues to expand and manage a growing volume of experiments, the need for dependable, scalable, and trustworthy experimentation tools becomes increasingly critical for data-driven and evidence-based 
-decision-making.&lt;/p&gt;
-
-&lt;p&gt;In our previous article, we presented the &lt;a href=&quot;https://engineering.grab.com/automated-experiment-analysis&quot;&gt;Automated Experiment Analysis&lt;/a&gt; application, a tool designed to automate data pipelines for analyses. However, during the development of this application for Grab’s experimenter community, we noticed a prevailing trend: experiments were predominantly analysed on a one-by-one, manual basis. While such a federated approach may be needed in a few cases, it presents numerous challenges at 
-the organisational level:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Lack of a contextual toolkit&lt;/strong&gt;: GrabX facilitates executing a diverse range of experimentation designs, catering to the varied needs and contexts of different tech teams across the organisation. However, experimenters may often rely on generic online tools for experiment configurations (e.g. sample size calculations), which were not specifically designed to cater to the nuances of GrabX experiments or the recommended evaluation method, given the design. This is exacerbated by the fact 
-that most online tutorials or courses on experimental design do not typically address the nuances of multi-sided marketplaces, and cannot consider the nature or constraints of specific experiments.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Lack of standards&lt;/strong&gt;: In this federated model, the absence of standardised and vetted practices can lead to reliability issues. In some cases, these can include poorly designed experiments, inappropriate evaluation methods, suboptimal testing choices, and unreliable inferences, all of which are difficult to monitor and rectify.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Lack of scalability and efficiency&lt;/strong&gt;: Experimenters, coming from varied backgrounds and possessing distinct skill sets, may adopt significantly different approaches to experimentation and inference. This diversity, while valuable, often impedes the transferability and sharing of methods, hindering a cohesive and scalable experimentation framework. Additionally, this variance in methods can extend the lifecycle of experiment analysis, as disagreements over approaches may give rise to 
-repeated requests for review or modification.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;To address these challenges, we developed the GrabX Decision Engine, a Python package open-sourced internally across all of Grab’s development platforms. Its central objective is to institutionalise best practices in experiment efficiency and analytics, thereby ensuring the derivation of precise and reliable conclusions from each experiment.&lt;/p&gt;
-
-&lt;p&gt;In particular, this unified toolkit significantly enhances our end-to-end experimentation processes by:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Ensuring compatibility with GrabX and Automated Experiment Analysis&lt;/strong&gt;: The package is fully integrated with the &lt;a href=&quot;https://engineering.grab.com/automated-experiment-analysis&quot;&gt;Automated Experiment Analysis&lt;/a&gt; app, and provides analytics and test results tailored to the designs supported by GrabX. The outcomes can be further used for other downstream jobs, e.g. market modelling, simulation-based calibrations, or auto-adaptive configuration tuning.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Standardising experiment analytics&lt;/strong&gt;: By providing a unified framework, the package ensures that the rationale behind experiment design and the interpretation of analysis results adhere to a company-wide standard, promoting consistency and ease of review across different teams.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Enhancing collaboration and quality&lt;/strong&gt;: As an open-source package, it not only fosters a collaborative culture but also upholds quality through peer reviews. It invites users to tap into a rich pool of features while encouraging contributions that refine and expand the toolkit’s capabilities.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The package is designed for everyone involved in the experimentation process, with data scientists and product analysts being the primary users. Referred to as experimenters in this article, these key stakeholders can not only leverage the existing capabilities of the package to support their projects, but can also contribute their own innovations. Eventually, the experiment results and insights generated from the package via the &lt;a href=&quot;https://engineering.grab.com/automated-experiment-analysis&quot;&gt;Automated Experiment Analysis&lt;/a&gt; app have an even wider reach to stakeholders across all functions.&lt;/p&gt;
-
-&lt;p&gt;In the following section, we go deeper into the key functionalities of the package.&lt;/p&gt;
-
-&lt;h2 id=&quot;feature-details&quot;&gt;Feature details&lt;/h2&gt;
-
-&lt;p&gt;The package comprises three key components:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;An experimentation trusted advisor&lt;/li&gt;
-  &lt;li&gt;A comprehensive post-experiment analysis toolbox&lt;/li&gt;
-  &lt;li&gt;Advanced tools&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These have been built taking into account the type of experiments we typically run at Grab. To understand their functionality, it’s useful to first discuss the key experimental designs supported by GrabX.&lt;/p&gt;
-
-&lt;h3 id=&quot;a-note-on-experimental-designs&quot;&gt;A note on experimental designs&lt;/h3&gt;
-
-&lt;p&gt;While there is a wide variety of specific experimental designs implemented, they can be bucketed into two main categories: a &lt;strong&gt;between-subject&lt;/strong&gt; design and a &lt;strong&gt;within-subject&lt;/strong&gt; design.&lt;/p&gt;
-
-&lt;p&gt;In a between-subject design, participants — like our app users, driver-partners, and merchant-partners — are split into experimental groups, and each group gets exposed to a distinct condition throughout the experiment. One challenge in this design is that each participant may provide multiple observations to our experimental analysis sample, causing a high within-subject correlation among observations and deviations between the randomisation and session unit. This can affect the accuracy of 
-pre-experiment power analysis, and post-experiment inference, since it necessitates adjustments, e.g. clustering of standard errors when conducting hypothesis testing.&lt;/p&gt;
-
-&lt;p&gt;Conversely, a within-subject design involves every participant experiencing all conditions. Marketplace-level switchback experiments are a common GrabX use case, where a timeslice becomes the experimental unit. This design not only faces the aforementioned challenges, but also creates other complications that need to be accounted for, such as spillover effects across timeslices.&lt;/p&gt;
-
-&lt;p&gt;Designing and analysing the results of both experimental approaches requires careful nuanced statistical tools. Ensuring proper duration, sample size, controlling for confounders, and addressing potential biases are important considerations to enhance the validity of the results.&lt;/p&gt;
-
-&lt;h3 id=&quot;trusted-advisor&quot;&gt;Trusted Advisor&lt;/h3&gt;
-
-&lt;p&gt;The first key component of the Decision Engine is the Trusted Advisor, which provides a recommendation to the experimenter on key experiment attributes to be considered when preparing the experiment. This is dependent on the design; at a minimum, the experimenter needs to define whether the experiment design is between- or within-subject.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The between-subject design&lt;/strong&gt;: We strongly recommend that experimenters utilise the “Trusted Advisor” feature in the Decision Engine for estimating their required sample size. This is designed to account for the multiple observations per user the experiment is expected to generate and adjusts for the presence of clustered errors (Moffatt, 2020; List, Sadoff, &amp;amp; Wagner, 2011). This feature allows users to input their data, either as a PySpark or Pandas dataframe. Alternatively, a function is 
-provided to extract summary statistics from their data, which can then be inputted into the Trusted Advisor. Obtaining the data beforehand is actually not mandatory; users have the option to directly query the recommended sample size based on common metrics derived from a regular data pipeline job. These functionalities are illustrated in the flowchart below.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grabx-decision-engine/image1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Trusted Advisor functionalities&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Furthermore, the Trusted Advisor feature can identify the underlying characteristics of the data, whether it’s passed directly, or queried from our common metrics database. This enables it to determine the appropriate power analysis for the experiment, without further guidance. For instance, it can detect if the target metric is a binary decision variable, and will adapt the power analysis to the correct context.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The within-subject design&lt;/strong&gt;: In this case, we instead provide a best practices guideline to follow. Through our experience supporting various Tech Families running switchback experiments, we have observed various challenges highly dependent on the use case. This makes it difficult to create a one-size-fits-all solution.&lt;/p&gt;
-
-&lt;p&gt;For instance, an important factor affecting the final sample size requirement is how frequently treatments switch, which is also tied to what data granularity is appropriate to use in the post-experiment analysis. These considerations are dependent on, among other factors, how quickly a given treatment is expected to cause an effect. Some treatments may take effect relatively quickly (near-instantly, e.g. if applied to price checks), while others may take significantly longer (e.g. 15-30 minutes because they may require a trip to be completed). This has further consequences, e.g. autocorrelation between observations within a treatment window, spillover effects between different treatment windows, requirements for cool-down windows when treatments switch, etc.&lt;/p&gt;
-
-&lt;p&gt;Another issue we have identified from analysing the history of experiments on our platform is that a significant portion is prone to issues related to sample ratio mismatch (SRM). We therefore also heavily emphasise the post-experiment analysis corrections and robustness checks that are needed in switchback experiments, and do not simply rely on pre-experiment guidance such as power analysis.&lt;/p&gt;
-
-&lt;h3 id=&quot;post-experiment-analysis&quot;&gt;Post-experiment analysis&lt;/h3&gt;
-
-&lt;p&gt;Upon completion of the experiment, a comprehensive toolbox for post-experiment analysis is available. This toolbox consists of a wide range of statistical tests, ranging from normality tests to non-parametric and parametric tests. Here is an overview of the different types of tests included in the toolbox for different experiment setups:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grabx-decision-engine/image2.png&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Tests supported by the post-experiment analysis component&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Though we make all the relevant tests available, the package sets a default list of output. With just two lines of code specifying the desired experiment design, experimenters can easily retrieve the recommended results, as summarised in the following table.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-&lt;thead&gt;
-  &lt;tr&gt;
-    &lt;th&gt;Types&lt;/th&gt;
-    &lt;th&gt;Details&lt;/th&gt;
-  &lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Basic statistics&lt;/td&gt;
-    &lt;td&gt;The mean, variance, and sample size of Treatment and Control &lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Uplift tests&lt;/td&gt;
-    &lt;td&gt;Welch&apos;s t-test;&lt;br /&gt;Non-parametric tests, such as Wilcoxon signed-rank test and Mann-Whitney U Test&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Misc tests&lt;/td&gt;
-    &lt;td&gt;Normality tests such as the Shapiro-Wilk test, Anderson-Darling test, and Kolmogorov-Smirnov test;&lt;br /&gt;Levene test which assesses the equality of variances between groups&lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Regression models&lt;/td&gt;
-    &lt;td&gt;A standard OLS/Logit model to estimate the treatment uplift;&lt;br /&gt;&lt;b&gt;Recommended regression models&lt;/b&gt; &lt;/td&gt;
-  &lt;/tr&gt;
-  &lt;tr&gt;
-    &lt;td&gt;Warning&lt;/td&gt;
-    &lt;td&gt;Provides a warning or notification related to the statistical analysis or results, for example:&lt;br /&gt;- Lack of variation in the variables&lt;br /&gt;- Sample size is too small&lt;br /&gt;- Too few randomisation units which will lead to under-estimated standard errors&lt;/td&gt;
-  &lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h3 id=&quot;recommended-regression-models&quot;&gt;Recommended regression models&lt;/h3&gt;
-
-&lt;p&gt;Besides reporting relevant statistical test results, we adopt regression models to leverage their flexibility in controlling for confounders, fixed effects and heteroskedasticity, as is commonly observed in our experiments. As mentioned in the section “A note on experimental design”, each approach has different implications on the achieved randomisation, and hence requires its own customised regression models.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Between-subject design&lt;/strong&gt;: the observations are not independent and identically distributed (i.i.d) but clustered due to repeated observations of the same experimental units. Therefore, we set the default clustering level at the participant level in our regression models, considering that most of our between-subject experiments only take a small portion of the population (Abadie et al., 2022).&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Within-subject design&lt;/strong&gt;: this has further challenges, including spillover effects and randomisation imbalances. As a result, they often require better control of confounding factors. We adopt panel data methods and impose time fixed effects, with no option to remove them. Though users have the flexibility to define these themselves, we use hourly fixed effects as our default as we have found that these match the typical seasonality we observe in marketplace metrics. Similar to between-subject 
-designs, we use standard error corrections for clustered errors, and small number of clusters, as the default. Our API is flexible for users to include further controls, as well as further fixed effects to adapt the estimator to geo-timeslice designs.&lt;/p&gt;
-
-&lt;h3 id=&quot;advanced-tools&quot;&gt;Advanced tools&lt;/h3&gt;
-
-&lt;p&gt;Apart from the pre-experiment Trusted Advisor and the post-experiment Analysis Toolbox, we have enriched this package by providing more advanced tools. Some of them are set as a default feature in the previous two components, while others are ad-hoc capabilities which the users can utilise via calling the functions directly.&lt;/p&gt;
-
-&lt;h4 id=&quot;variance-reduction&quot;&gt;Variance reduction&lt;/h4&gt;
-
-&lt;p&gt;We bring in multiple methods to reduce variance and improve the power and sensitivity of experiments:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Stratified sampling: recognised for reducing variance during assignment&lt;/li&gt;
-  &lt;li&gt;Post stratification: a post-assignment variance reduction technique&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://exp-platform.com/Documents/2013-02-CUPED-ImprovingSensitivityOfControlledExperiments.pdf&quot;&gt;CUPED&lt;/a&gt;: utilises ANCOVA to decrease variances&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://arxiv.org/pdf/2106.07263.pdf&quot;&gt;MLRATE&lt;/a&gt;: an extension of CUPED that allows for the use of non-linear / machine learning models&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These approaches offer valuable ways to mitigate variance and improve the overall effectiveness of experiments. The experimenters can directly access these ad hoc capabilities via the package.&lt;/p&gt;
-
-&lt;h4 id=&quot;multiple-comparisons-problem&quot;&gt;Multiple comparisons problem&lt;/h4&gt;
-
-&lt;p&gt;A multiple comparisons problem occurs when multiple hypotheses are simultaneously tested, leading to a higher likelihood of false positives. To address this, we implement various statistical correction techniques in this package, as illustrated below.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/grabx-decision-engine/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Statistical correction techniques&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Experimenters can specify if they have concerns about the dependency of the tests and whether the test results are expected to be negatively related. This capability will adopt the following procedures and choose the relevant tests to mitigate the risk of false positives accordingly:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;False Discovery Rate (FDR) procedures, which control the expected rate of false discoveries.&lt;/li&gt;
-  &lt;li&gt;Family-wise Error Rate (FWER) procedures, which control the probability of making at least one false discovery within a set of related tests referred to as a family.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;multiple-treatments-and-unequal-treatment-sizes&quot;&gt;Multiple treatments and unequal treatment sizes&lt;/h4&gt;
-
-&lt;p&gt;We developed a capability to deal with experiments where there are multiple treatments. This capability employs a conservative approach to ensure that the size reaches a minimum level where any pairwise comparison between the control and treatment groups has a sufficient sample size.&lt;/p&gt;
-
-&lt;h4 id=&quot;heterogeneous-treatment-effects&quot;&gt;Heterogeneous treatment effects&lt;/h4&gt;
-
-&lt;p&gt;Heterogeneous treatment effects refer to a situation where the treatment effect varies across different groups or subpopulations within a larger population. For instance, it may be of interest to examine treatment effects specifically on rainy days compared to non-rainy days. We have incorporated this functionality into the tests for both experiment designs. By enabling this feature, we facilitate a more nuanced analysis that accounts for potential variations in treatment effects based on different factors or contexts.&lt;/p&gt;
-
-&lt;h2 id=&quot;maintenance-and-support&quot;&gt;Maintenance and support&lt;/h2&gt;
-
-&lt;p&gt;The package is available across all internal DS/Machine Learning platforms and individual local development environments within Grab. Its source code is openly accessible to all developers within Grab and its release adheres to a semantic release standard.&lt;/p&gt;
-
-&lt;p&gt;In addition to the technical maintenance efforts, we have introduced a dedicated committee and a workspace to address issues that may extend beyond the scope of the package’s current capabilities.&lt;/p&gt;
-
-&lt;h3 id=&quot;experiment-council&quot;&gt;Experiment Council&lt;/h3&gt;
-
-&lt;p&gt;Within Grab, there is a dedicated committee known as the ‘Experiment Council’. This committee includes data scientists, analysts, and economists from various functions. One of their responsibilities is to collaborate to enhance and maintain the package, as well as guide users in effectively utilising its functionalities. The Experiment Council plays a crucial role in enhancing the overall operational excellence of conducting experiments and deriving meaningful insights from them.&lt;/p&gt;
-
-&lt;h3 id=&quot;grabcausal-methodology-bank&quot;&gt;GrabCausal Methodology Bank&lt;/h3&gt;
-
-&lt;p&gt;Experimenters frequently encounter challenges regarding the feasibility of conducting experiments for causal problems. To address this concern, we have introduced an alternative workspace called GrabCausal Methodology Bank. Similar to the internal open-source nature of this project, the GrabCausal Methodology bank is open to contributions from all users within Grab. It provides a collaborative space where users can readily share their code, case studies, guidelines, and suggestions related to 
-causal methodologies. By fostering an open and inclusive environment, this workspace encourages knowledge sharing and promotes the advancement of causal research methods.&lt;/p&gt;
-
-&lt;p&gt;The workspace functions as a platform, which now exhibits a wide range of commonly used methods, including Diff-in-Diff, Event studies, Regression Discontinuity Designs (RDD), Instrumental Variables (IV), Bayesian structural time series, and Bunching. Additionally, we are dedicated to incorporating more, such as Synthetic control, Double ML (Chernozhukov et al. 2018), DAG discovery/validation, etc., to further enhance our offerings in this space.&lt;/p&gt;
-
-&lt;h2 id=&quot;learnings&quot;&gt;Learnings&lt;/h2&gt;
-
-&lt;p&gt;Over the past few years, we have invested in developing and expanding this package. Our initial motivation was humble yet motivating - to contribute to improving the quality of experimentation at Grab, helping it develop from its initial start-up modus operandi to a more consolidated, rigorous, and guided approach.&lt;/p&gt;
-
-&lt;p&gt;Throughout this journey, we have learned that prioritisation holds the utmost significance in open-source projects of this nature; the majority of user demands can be met through relatively small yet pivotal efforts. By focusing on these core capabilities, we avoid spreading resources too thinly across all areas at the initial stage of planning and development.&lt;/p&gt;
-
-&lt;p&gt;Meanwhile, we acknowledge that there is still a significant journey ahead. While the package now focuses solely on individual experiments, an inherent challenge in online-controlled experimentation platforms is the interference between experiments (Gupta, et al, 2019). A recent development in the field is to embrace simultaneous tests (&lt;a href=&quot;https://exp-platform.com/Documents/2013%2520controlledExperimentsAtScale.pdf&quot;&gt;Microsoft&lt;/a&gt;, &lt;a href=&quot;https://medium.datadriveninvestor.com/how-google-conducts-more-better-faster-experiments-3b91446cd3b5&quot;&gt;Google&lt;/a&gt;, &lt;a href=&quot;https://www.infoq.com/news/2016/12/large-experimentation-spotify/&quot;&gt;Spotify&lt;/a&gt; and &lt;a href=&quot;https://cxl.com/blog/can-you-run-multiple-ab-tests-at-the-same-time/&quot;&gt;booking.com and Optimizely&lt;/a&gt;), and to carefully consider the tradeoff between accuracy and velocity.&lt;/p&gt;
-
-&lt;p&gt;The key to overcoming this challenge will be a close collaboration between the community of experimenters, the teams developing this unified toolkit, and the GrabX platform engineers. In particular, the platform developers will continue to enrich the experimentation SDK by providing diverse assignment strategies, sampling mechanisms, and user interfaces to manage potential inference risks better. Simultaneously, the community of experimenters can coordinate among themselves effectively to 
-avoid severe interference, which will also be monitored by GrabX. Last but not least, the development of this unified toolkit will also focus on monitoring, evaluating, and managing inter-experiment interference.&lt;/p&gt;
-
-&lt;p&gt;In addition, we are committed to keeping this package in sync with industry advancements. Many existing tools in this package, despite being labelled as “advanced” in the earlier discussions, are still relatively simplified. For instance,&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Incorporating standard errors clustering based on the diverse assignment and sampling strategies requires attention (Abadie, et al, 2023).&lt;/li&gt;
-  &lt;li&gt;Sequential testing will play a vital role in detecting uplifts earlier and safely, avoiding p-hacking. One recent innovation is the “always valid inference” (Johari, et al., 2022)&lt;/li&gt;
-  &lt;li&gt;The advancements in investigating heterogeneous effects, such as Causal Forest (Athey and Wager, 2019), have extended beyond linear approaches, now incorporating nonlinear and more granular analyses.&lt;/li&gt;
-  &lt;li&gt;Estimating the long-term treatment effects observed from short-term follow-ups is also a long-term objective, and one approach is using a Surrogate Index (Athey, et al 2019).&lt;/li&gt;
-  &lt;li&gt;Continuous effort is required to stay updated and informed about the latest advancements in statistical testing methodologies, to ensure accuracy and effectiveness.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;This article marks the beginning of our journey towards automating the experimentation and product decision-making process among the data scientist community. We are excited about the prospect of expanding the toolkit further in these directions. Stay tuned for more updates and posts.&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;Abadie, Alberto, et al. “When should you adjust standard errors for clustering?.” The Quarterly Journal of Economics 138.1 (2023): 1-35.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Athey, Susan, et al. “The surrogate index: Combining short-term proxies to estimate long-term treatment effects more rapidly and precisely.” No. w26463. National Bureau of Economic Research, 2019.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Athey, Susan, and Stefan Wager. “Estimating treatment effects with causal forests: An application.” Observational studies 5.2 (2019): 37-51.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Chernozhukov, Victor, et al. “Double/debiased machine learning for treatment and structural parameters.” (2018): C1-C68.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Facure, Matheus. Causal Inference in Python. O’Reilly Media, Inc., 2023.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Gupta, Somit, et al. “Top challenges from the first practical online controlled experiments summit.” ACM SIGKDD Explorations Newsletter 21.1 (2019): 20-35.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Huntington-Klein, Nick. The Effect: An Introduction to Research Design and Causality. CRC Press, 2021.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Imbens, Guido W. and Donald B. Rubin. Causal Inference for Statistics, Social, and Biomedical Sciences: An Introduction. Cambridge University Press, 2015.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Johari, Ramesh, et al. “Always valid inference: Continuous monitoring of a/b tests.” Operations Research 70.3 (2022): 1806-1821.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;List, John A., Sally Sadoff, and Mathis Wagner. “So you want to run an experiment, now what? Some simple rules of thumb for optimal experimental design.” Experimental Economics 14 (2011): 439-457.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;Moffatt, Peter. Experimetrics: Econometrics for Experimental Economics. Bloomsbury Publishing, 2020.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 09 Apr 2024 02:22:10 +0000</pubDate>
-        <link>https://engineering.grab.com/grabx-decision-engine</link>
-        <guid isPermaLink="true">https://engineering.grab.com/grabx-decision-engine</guid>
-        
-        <category>Data Science</category>
-        
-        <category>Experiment</category>
-        
-        <category>Statistics</category>
-        
-        <category>Econometrics</category>
-        
-        <category>Python Package</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
         
       </item>
     
