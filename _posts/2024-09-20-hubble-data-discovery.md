@@ -2,8 +2,8 @@
 layout: post
 id: 2024-09-20-hubble-data-discovery
 title: 'Enabling conversational data discovery with LLMs at Grab'
-date: 2024-12-20 00:00:40
-authors: [shreyas-parbat]
+date: 2024-09-26 00:00:40
+authors: [shreyas-parbat, amanda-ng, yucheng-zeng, vinnson-lee, feng-cheng, varun-torka]
 categories: [Engineering]
 tags: [Data Discovery, AI, LLM, Documentation, Elasticsearch]
 comments: true
@@ -53,7 +53,7 @@ Through clickstream analysis and user interviews, the Hubble team identified fou
 Exact and partial searches accounted for 75% of searches on Hubble (and were non-existent on Slack: as a human, receiving a message that just had the name of a dataset would feel rather odd). Given the effectiveness of vanilla Elasticsearch for these categories, the click rank was close to 0.
 
 <div class="post-image-section"><figure>
-  <img src="/img/hubble-data-discovery/image8.png" alt="" style="width:80%"><figcaption align="middle">Fig. 1 Exact and partial searches.</figcaption>
+  <img src="/img/hubble-data-discovery/image8.png" alt="" style="width:80%">
   </figure>
 </div>
 
@@ -61,7 +61,7 @@ Exact and partial searches accounted for 75% of searches on Hubble (and were non
 
 
 <div class="post-image-section"><figure>
-  <img src="/img/hubble-data-discovery/image1.png" alt="" style="width:80%"><figcaption align="middle">Fig. 2 Inexact searches.</figcaption>
+  <img src="/img/hubble-data-discovery/image1.png" alt="" style="width:80%">
   </figure>
 </div>
 
@@ -90,14 +90,14 @@ To support HubbleIQ, we built a documentation generation engine that used GPT-4 
 We added a "generate" button on the Hubble UI, allowing data producers to easily generate documentation for their tables. This feature also supported the ongoing Grab-wide initiative to certify tables.
 
 <div class="post-image-section"><figure>
-  <img src="/img/hubble-data-discovery/image7.png" alt=""><figcaption align="middle">Fig. 3 HubbleIQ.</figcaption>
+  <img src="/img/hubble-data-discovery/image7.png" alt="">
   </figure>
 </div>
 
 In conjunction, we took the initiative to pre-populate docs for the most critical tables, while notifying data producers to review the generated documentation. Such docs were visible to data consumers with an "AI-generated" tag as a precaution. When data producers accepted or edited the documentation, the tag was removed.
 
 <div class="post-image-section"><figure>
-  <img src="/img/hubble-data-discovery/image3.png" alt=""><figcaption align="middle">Fig. 4 AI-generated documentation on Hubble.</figcaption>
+  <img src="/img/hubble-data-discovery/image3.png" alt="">
   </figure>
 </div>
 
@@ -110,14 +110,14 @@ With high documentation coverage in place, we were ready to harness the power of
 First, we integrated Hubble with Glean, making all data lake tables with documentation available on the Glean platform. Next, we used [Glean Apps](https://www.glean.com/product/apps) to create the HubbleIQ bot, which was essentially an LLM with a custom system prompt that could access all Hubble datasets that were catalogued on Glean. Finally, we integrated this bot into Hubble search, such that for any search that is likely to be a semantic search, HubbleIQ results are shown on top, followed by regular search results.
 
 <div class="post-image-section"><figure>
-  <img src="/img/hubble-data-discovery/image5.png" alt=""><figcaption align="middle">Fig. 5 HubbleIQ powered by Glean.</figcaption>
+  <img src="/img/hubble-data-discovery/image5.png" alt="">
   </figure>
 </div>
 
 Recently, we integrated HubbleIQ with Slack, allowing data consumers to discover datasets without breaking their flow. Currently, we are working with analytics teams to add the bot to their “ask” channels (where data consumers come to ask contextual search queries for their domains). After integration, HubbleIQ will act as the first line of defence for answering questions in these channels, reducing the need for human intervention.
 
 <div class="post-image-section"><figure>
-  <img src="/img/hubble-data-discovery/image4.png" alt="" style="width:80%"><figcaption align="middle">Fig. 6 HubbleIQ integration with Slack.</figcaption>
+  <img src="/img/hubble-data-discovery/image4.png" alt="" style="width:80%">
   </figure>
 </div>
 
