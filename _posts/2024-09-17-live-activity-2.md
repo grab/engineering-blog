@@ -74,7 +74,7 @@ We began developing the Live Activity feature by focusing on Food and Mart for t
 
 As we set out to design Grab's Android Live Activity module, we broke down the task into three key components:
 
-1. **Registering Live Activity Token**
+### **Registering Live Activity Token**
 
 In order to enable Hedwig services to send Live Activity notifications to devices, it is necessary to register a Live Activity Token for a specific order to Grab Devices services (refer to figure 1 for the iOS flow). As this use-case is applicable across various verticals in iOS, we have designed a LiveActivityIntegrationManager class specifically to handle this functionality.
 
@@ -97,7 +97,7 @@ interface LiveActivityIntegrationManager {
 
 Our goal is to provide developers with an easy implementation of Live Activity in the Grab app. Developers can simply utilize the startLiveActivity() function to register the token to Grab Devices by passing the vertical name and unique ID as parameters. 
 
-2. **Notification Listener and Payload Mapping**
+### **Notification Listener and Payload Mapping**
 
 To handle Live Activity notifications in Android, it is necessary to listen to the Live Activity notification payload and map it to `LiveActivityAttributes`. Taking into consideration the initial Live Activity design (refer to figure 3), we need to analyse the variables necessary for this process. As a result, we break down the Live Activity UI into different UI elements and layouts, as follows:
 
@@ -143,7 +143,7 @@ class LiveActivityAttributes private constructor(
 
 ```
 
-3. **Payload Rendering**
+### **Payload Rendering**
 
 To ensure a clear separation of responsibilities, we have designed a separate class called `LiveActivityManager`. This dedicated class is responsible for the mapping of `LiveActivityAttributes` to Notifications. The generated notifications are then utilised by Android's `NotificationManager` class to be posted and displayed accordingly.
 
