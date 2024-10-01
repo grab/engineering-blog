@@ -77,7 +77,7 @@ To address the limitations of Phase 1, we transitioned from deploying individual
 The Catwalk proxy acts as the orchestration layer. Clients send requests to Catwalk proxy then it orchestrates calls to different components like transformers, feature-store, and so on. A typical end to end request flow is illustrated below.  
 
 <div class="post-image-section"><figure>
-  <img src="/img/catwalk-evolution/phase2-api-request-flow.png" alt="" style="width:80%">
+  <img src="/img/catwalk-evolution/phase2-api-request-flow.png" alt="">
   </figure>
 </div>
 
