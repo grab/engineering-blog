@@ -60,7 +60,7 @@ I: Large dependencies (fairly obvious, because the box size will be large)
 
 II: Duplicate dependencies (same library that is bundled multiple times across different assets)
 
-![](img/grabfood-bundle/image2.png)![](img/grabfood-bundle/image2.png)
+![](img/grabfood-bundle/image2.png)
 
 III: Dependencies that look like they don’t belong (e.g. Why is ‘elliptic’ in my frontend bundle?)
 
@@ -73,12 +73,13 @@ What to avoid:
     * E.g. Small node dependencies
 
 ### Step B: Investigate the Usage of Your Dependencies (Where are my Dependencies Used?)
-In this step, we are trying to answer this question: “Given a dependency, which files and features are making use of it?”.
 
 <div class="post-image-section"><figure>
   <img src="/img/grabfood-bundle/image10.png" alt="Our grabfood.com bundle analyzer output" style="width:90%"> <a href="https://pixabay.com/photos/architecture-building-geometric-1868547/"><figcaption align="middle"><i>Image source</i></figcaption></a>
   </figure>
 </div>
+
+In this step, we are trying to answer this question: “Given a dependency, which files and features are making use of it?”.
 
 There are two broad approaches that can be used to identify how our dependencies are used:
 
@@ -105,12 +106,13 @@ Don’ts:
 *   Stick to a single approach - Know when to switch between Top-down and Bottom-up approaches to narrow down the search space.
 
 ### Step C: Reducing Your Dependencies
-Now that you know what your largest dependencies are and where they are used, the next step is figuring out how you can shrink your dependencies.
 
 <div class="post-image-section"><figure>
   <img src="/img/grabfood-bundle/image15.gif" alt="Our grabfood.com bundle analyzer output" style="width:90%"> <a href="https://i.imgur.com/w8Ydzvb.gif"><figcaption align="middle"><i>Image source</i></figcaption></a>
   </figure>
 </div>
+
+Now that you know what your largest dependencies are and where they are used, the next step is figuring out how you can shrink your dependencies.
 
 Here are 7 strategies that you can use to reduce your dependencies:
 
