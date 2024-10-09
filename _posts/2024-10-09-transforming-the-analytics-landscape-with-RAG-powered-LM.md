@@ -72,7 +72,7 @@ Introducing **A\* bot**, the team’s very own LLM fraud investigation helper.
 A set of frequently used queries for fraud investigation is made available as Data-Arks APIs. Upon a user prompt or query, SpellVault selects the most relevant queries using RAG, executes them and provides a summary of the results to users through Slack. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/rag-llm/rag-llm-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Architecture Overview - A*</figcaption>
+  <img src="/img/rag-llm/rag-llm-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. A* bot uses Data-Arks and Spellvault to get information for fraud investigations.</figcaption>
   </figure>
 </div>
 
