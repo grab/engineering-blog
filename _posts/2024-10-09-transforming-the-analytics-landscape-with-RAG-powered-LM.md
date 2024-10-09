@@ -63,7 +63,7 @@ A Data-Arks API is called to generate the data in a tabular format and LLM helps
 
 This automated report generation has helped to save an estimated 3-4 hours per report. 
 
-# LLM bots for Fraud Investigations
+## LLM bots for fraud investigations
 
 LLMs also excel in helping to streamline fraud investigations, as LLMs are able to contextualise several different data points and information and derive useful insights from them. 
 
