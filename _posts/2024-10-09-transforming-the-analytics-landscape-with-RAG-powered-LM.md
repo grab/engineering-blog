@@ -30,7 +30,7 @@ While LLMs are known for their proficiency in data interpretation and insight ge
 For most data use cases, DAs are usually running the same set of SQL queries with minor changes to parameters like dates, age or other filter conditions. In most instances, we already have a clear understanding of the required data and format to accomplish a task. Therefore, we need a tool that can execute the **exact SQL query** and channel the data output to the LLM.
 
 <div class="post-image-section"><figure>
-  <img src="/img/rag-llm/rag-llm-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. Dark-Arks & SpellVault</figcaption>
+  <img src="/img/rag-llm/rag-llm-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. Data-Arks hosts various APIs which can be called to serve data to applications like SpellVault.</figcaption>
   </figure>
 </div>
 
