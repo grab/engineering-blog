@@ -20,7 +20,7 @@ In this article, we will share how the Integrity Analytics team has built out a 
 
 While LLMs are known for their proficiency in data interpretation and insight generation, they represent just a fragment of the entire solution. For a comprehensive solution, LLMs must be integrated with other essential tools. The following is required in assembling a solution:
 
-1. **Internally facing LLM tool (Spellvault) \-** Spellvault is a platform within Grab that stores, shares, and refines Large Language Models (LLMs) prompts. It features low/no-code Retrieval-Augmented Generation (RAG) capabilities that lower the barrier of entry for people to create LLM applications.  
+- **Internally facing LLM tool -** Spellvault is a platform within Grab that stores, shares, and refines LLM prompts. It features low/no-code RAG capabilities that lower the barrier of entry for people to create LLM applications.  
 2. **Data \-** with real time or close to real-time latency to ensure accuracy. It has to be in a standardised format to ensure that all LLM data inputs are accurate  
 3. **Scheduler \-**  runs LLM applications at regular intervals. Useful for automating routine tasks.   
 4. **Messaging Tool \-** a user interface where users can interact with LLM by entering a command to receive reports and insights. 
