@@ -25,7 +25,7 @@ While LLMs are known for their proficiency in data interpretation and insight ge
 3. **Scheduler \-**  runs LLM applications at regular intervals. Useful for automating routine tasks.   
 4. **Messaging Tool \-** a user interface where users can interact with LLM by entering a command to receive reports and insights. 
 
-# Introducing Data-Arks, the data middleware serving up relevant data to the LLM agents
+## Introducing Data-Arks, the data middleware serving up relevant data to the LLM agents
 
 For most data use cases, DAs are usually running the same set of SQL queries with minor changes to parameters like dates, age or other filter conditions. In most instances, we already have a clear understanding of the required data and format to accomplish a task. Therefore, we need a tool that can execute the **exact SQL query** and channel the data output to the LLM.
 
