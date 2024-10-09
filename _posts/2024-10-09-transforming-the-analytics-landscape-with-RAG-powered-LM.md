@@ -84,7 +84,7 @@ Figure 5 shows a sample of fraud investigation responses from the A* bot.
 
 Scaling to multiple queries for a fraud investigation process, what was once a time-consuming fraud investigation can now be reduced to a matter of minutes, as the A\* chatbot is capable of providing all the necessary info simultaneously.
 
-# RAG vs Fine-Tuning 
+## RAG vs fine-tuning 
 
 On deciding between RAG or fine-tuning to improve LLM accuracy, three key factors tipped the scales in favour of the RAG approach:
 
