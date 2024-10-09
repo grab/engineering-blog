@@ -76,7 +76,7 @@ A set of frequently used queries for fraud investigation is made available as Da
   </figure>
 </div>
 
-Screenshot of one of the fraud investigation responses from the A* bot  
+Figure 5 shows a sample of fraud investigation responses from the A* bot.  
 <div class="post-image-section"><figure>
   <img src="/img/rag-llm/rag-llm-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Sample of Fraud Investigation Response</figcaption>
   </figure>
