@@ -43,7 +43,7 @@ Data-Arks is an in-house Python-based API platform housing several frequently us
 
 - **Versatility: Data-Arks** can be extended to everyone. Employees from various teams and functions at Grab can self-serve to upload any SQL query that they want onto the platform, allowing this tool to be used for different teams’ use cases.
 
-# Automating Regular Report Generation and Summarisation using Data-Arks and Spellvault
+## Automating regular report generation and summarisation using Data-Arks and Spellvault
 
 LLMs are just one piece of the puzzle, to build a comprehensive solution, they must be integrated with other tools. Figure 2 shows how different tools are used in executing report summaries in Slack.
 
