@@ -41,7 +41,7 @@ Data-Arks is an in-house Python-based API platform housing several frequently us
 
 - **Integration:** Data-Arks service allows users to upload any SQL query or Python script on the platform. These queries are then surfaced as APIs, which can be called to serve data to the LLM agent. 
 
-**Versatility: Data-Arks** can be extended to everyone. Employees from various teams and functions at Grab can self-serve to upload any SQL query that they want onto the platform, allowing this tool to be used for different teams’ use cases.
+- **Versatility: Data-Arks** can be extended to everyone. Employees from various teams and functions at Grab can self-serve to upload any SQL query that they want onto the platform, allowing this tool to be used for different teams’ use cases.
 
 # Automating Regular Report Generation and Summarisation using Data-Arks and Spellvault
 
