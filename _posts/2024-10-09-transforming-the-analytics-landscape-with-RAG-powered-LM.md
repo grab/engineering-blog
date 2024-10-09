@@ -110,6 +110,6 @@ The potential of using RAG-powered LLM can be limitless as the ability of GPT is
 <small class="credits">We would like to express our sincere gratitude to the following individuals and teams whose invaluable support and contributions have made this project a reality: <br>- @meichen.lu, a senior data scientist at Grab, for her guidance and assistance in building the MVP and testing the concept.<br>- The data engineering team, particularly @jialong.loh and @pu.li, for setting up the necessary services and infrastructure. </small>
 
 # Join us
-Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.
+Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.
  
 Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
