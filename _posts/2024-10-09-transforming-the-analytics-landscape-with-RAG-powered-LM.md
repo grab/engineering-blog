@@ -48,7 +48,7 @@ Data-Arks is an in-house Python-based API platform housing several frequently us
 LLMs are just one piece of the puzzle, to build a comprehensive solution, they must be integrated with other tools. Figure 2 shows how different tools are used in executing report summaries in Slack.
 
 <div class="post-image-section"><figure>
-  <img src="/img/rag-llm/rag-llm-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. Architecture Overview - Report Summarizer</figcaption>
+  <img src="/img/rag-llm/rag-llm-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. Report Summarizer uses various tools to summarise queries and deliver a summarised report through Slack.</figcaption>
   </figure>
 </div>
 
