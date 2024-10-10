@@ -76,7 +76,7 @@ A set of frequently used queries for fraud investigation is made available as Da
 </div>
 
 
-Figure 5 shows a sample of fraud investigation responses from A* bot. Scaling to multiple queries for a fraud investigation process, what was once a time-consuming fraud investigation can now be reduced to a matter of minutes, as the A* bot is capable of providing all the necessary information simultaneously.
+Figure 5 shows a sample of fraud investigation responses from A\* bot. Scaling to multiple queries for a fraud investigation process, what was once a time-consuming fraud investigation can now be reduced to a matter of minutes, as the A* bot is capable of providing all the necessary information simultaneously.
 
 <div class="post-image-section"><figure>
   <img src="/img/rag-llm/rag-llm-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Sample of fraud investigation responses.</figcaption>
@@ -102,7 +102,7 @@ Without the burden of model re-training, the team can rapidly scale and build ou
 The potential of using RAG-powered LLM can be limitless as the ability of GPT is correlated with the tools it equips. Hence, the process does not stop here and we will try to onboard more tools or integration to GPT. In the near future, we plan to utilise Data-Arks to provide images to GPT as GPT-4o is a multimodal model that has vision capabilities. We are committed to pushing the boundaries of what's possible with RAG-powered LLM, and we look forward to unveiling the exciting advancements that lie ahead.
 
 <div class="post-image-section"><figure>
-  <img src="/img/rag-llm/rag-llm-what-next.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
+  <img src="/img/rag-llm/rag-llm-what-next.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. What’s next?</figcaption>
   </figure>
 </div>
 
