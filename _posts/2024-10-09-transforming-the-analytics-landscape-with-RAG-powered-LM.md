@@ -97,7 +97,7 @@ Fine-tuning requires model re-training with each new information update, whereas
 - **Speed and scalability**  
 Without the burden of model re-training, the team can rapidly scale and build out new LLM applications with a well managed knowledge base.
 
-# What’s next ?
+## What’s next?
 
 The potential of using RAG-powered LLM can be limitless as the ability of GPT is correlated with the tools it equips. Hence, the process does not stop here and we will try to onboard more tools or integration to GPT. In the near future, we plan to utilise Data-Arks to provide images to GPT as GPT-4o is a multimodal model that has vision capabilities. We are committed to pushing the boundaries of what's possible with RAG-powered LLM, and we look forward to unveiling the exciting advancements that lie ahead.
 
