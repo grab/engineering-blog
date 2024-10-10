@@ -84,7 +84,7 @@ A set of frequently used queries for fraud investigation is made available as Da
 
 Scaling to multiple queries for a fraud investigation process, what was once a time-consuming fraud investigation can now be reduced to a matter of minutes, as the A\* bot is capable of providing all the necessary info simultaneously.
 
-Figure 5 shows a sample of fraud investigation responses from the A* bot.  
+Figure 5 shows a sample of fraud investigation responses from A* bot. Scaling to multiple queries for a fraud investigation process, what was once a time-consuming fraud investigation can now be reduced to a matter of minutes, as the A* bot is capable of providing all the necessary information simultaneously.
 
 <div class="post-image-section"><figure>
   <img src="/img/rag-llm/rag-llm-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Sample of fraud investigation responses.</figcaption>
