@@ -96,7 +96,7 @@ Figure 5 shows a sample of fraud investigation responses from A* bot. Scaling to
 
 On deciding between RAG or fine-tuning to improve LLM accuracy, three key factors tipped the scales in favour of the RAG approach:
 
-- **Effort & Cost Considerations**  
+- **Effort and cost considerations**  
 Fine-tuning requires significant computational cost as it involves taking a base model and further training it with smaller, domain specific data and context. RAG is computationally less expensive as it relies on retrieving only relevant data and context to augment a model’s response. As the same base model can be used for different use cases, RAG is the preferred choice due to its flexibility and cost efficiency.
 
 - **Ability to respond with the latest information**  
