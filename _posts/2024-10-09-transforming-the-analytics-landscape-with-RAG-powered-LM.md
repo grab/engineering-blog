@@ -11,7 +11,7 @@ cover_photo: "/img/rag-llm/rag-llm-banner.png"
 excerpt: "The emergence of Retrieval-Augmented Generation (RAG) has significantly revolutionised Large Language Models (LLMs), propelling them to unprecedented heights. This development prompts us to consider its integration into the field of Analytics. Explore how Grab harnesses this technology to optimise our analytics processes."
 ---
 
-## Problem statement
+## Introduction
 
 Retrieval-Augmented Generation (RAG) is a powerful process that is designed to integrate direct function calling to answer queries more efficiently by retrieving relevant information from a broad database. In the rapidly evolving business landscape, Data Analysts (DAs) are struggling with the growing number of data queries from stakeholders. The conventional method of manually writing and running similar queries repeatedly is time-consuming and inefficient. This is where RAG-powered Large Language Models (LLMs) step in, offering a transformative solution to streamline the analytics process and empower DAs to focus on higher value tasks. 
 
