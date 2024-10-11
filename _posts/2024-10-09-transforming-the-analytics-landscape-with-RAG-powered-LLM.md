@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2024-10-09-transforming-the-analytics-landscape-with-RAG-powered-LLM
+id: 2024-10-09-transforming-the-analytics-landscape-with-rag-powered-llm
 title: 'Leveraging RAG-powered LLMs for Analytical Tasks'
 date: 2024-10-09 00:00:10
 authors: [edmund-hong, yini-ong]
