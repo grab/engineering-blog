@@ -1,10 +1,10 @@
 ---
 layout: post
-id: 2024-10-09-transforming-the-analytics-landscape-with-RAG-powered-LM
+id: 2024-10-09-transforming-the-analytics-landscape-with-rag-powered-llm
 title: 'Leveraging RAG-powered LLMs for Analytical Tasks'
 date: 2024-10-09 00:00:10
 authors: [edmund-hong, yini-ong]
-categories: [Engineering, Design]
+categories: [Engineering, Analytics, Data Science]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
 comments: true
 cover_photo: "/img/rag-llm/rag-llm-banner.png"
