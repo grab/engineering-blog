@@ -6,9 +6,156 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 23 Oct 2024 02:12:08 +0000</pubDate>
-    <lastBuildDate>Wed, 23 Oct 2024 02:12:08 +0000</lastBuildDate>
+    <pubDate>Wed, 30 Oct 2024 02:12:06 +0000</pubDate>
+    <lastBuildDate>Wed, 30 Oct 2024 02:12:06 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>How we reduced peak memory and CPU usage of the product configuration management SDK</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;GrabX is Grab’s central platform for product configuration management. It has the capacity to control any component within Grab’s backend systems through configurations that are hosted directly on GrabX.&lt;/p&gt;
+
+&lt;p&gt;GrabX clients read these configurations through an SDK, which reads the configurations in a way that’s asynchronous and eventually consistent. As a result, it takes about a minute for any updates to the configurations to reach the client SDKs.&lt;/p&gt;
+
+&lt;p&gt;In this article, we discuss our analysis and the steps we took to reduce the peak memory and CPU usage of the SDK.&lt;/p&gt;
+
+&lt;h2 id=&quot;observations-on-potential-sdk-improvements&quot;&gt;Observations on potential SDK improvements&lt;/h2&gt;
+
+&lt;p&gt;Our GrabX clients noticed that the GrabX SDK tended to require high memory and CPU usage. From this, we saw opportunities for further improvements that could:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Optimise the tail latencies of client services.&lt;/li&gt;
+  &lt;li&gt;Enable our clients to use their resources more effectively.&lt;/li&gt;
+  &lt;li&gt;Reduce operation costs and improve the efficiency of using the GrabX SDK.&lt;/li&gt;
+  &lt;li&gt;Accelerate the adoption of GrabX by Grab’s internal services.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;sdk-design&quot;&gt;SDK design&lt;/h2&gt;
+
+&lt;p&gt;At a high-level, creating, updating, and serving configuration values via the GrabX SDK involved the following process:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/previous-grabx-sdk-design.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Previous GrabX SDK design.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;The process begins when GrabX clients either create or update configurations. This is done through the GrabX web portal or by making an API call.&lt;/li&gt;
+  &lt;li&gt;Once the configurations are created or updated, the GrabX backend module takes over. It stores the new configuration into an SQL database table.&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The GrabX backend ensures that the latest configuration data is available to client SDKs.&lt;/p&gt;
+
+    &lt;p&gt;a. The GrabX backend checks every minute for any newly created or updated configurations.&lt;/p&gt;
+
+    &lt;p&gt;b. If there are new or updated configurations, GrabX backend creates a new JSON file. This file contains all existing and newly created configurations. It’s important to note that all configurations across all services are stored in a single JSON file.&lt;/p&gt;
+
+    &lt;p&gt;c. The backend module uploads this newly created JSON file to an AWS S3 bucket.&lt;/p&gt;
+
+    &lt;p&gt;d. The backend module assigns a version number to the new JSON file and updates a text file in the AWS S3 bucket. This text file stores the latest JSON file version number. The client SDK refers to this version file to check if a newer version of the configuration data is available.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;The client SDK performs a check on the version file every minute to determine if a newer version is available. This mechanism is crucial to maintain data consistency across all instances of a service. If any instance fell out of sync, it would be brought back in sync within a minute.&lt;/li&gt;
+  &lt;li&gt;If a new version of the configuration JSON file is available, the client SDK downloads this new file. Following the download, it loads the configuration data into memory. Storing the configuration data in memory reduces the read latency for the configurations.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;areas-of-improvement-for-existing-sdk-design&quot;&gt;Areas of improvement for existing SDK design&lt;/h2&gt;
+
+&lt;p&gt;In this section we outline the areas of improvement we identified within the SDK design.&lt;/p&gt;
+
+&lt;h3 id=&quot;service-based-data-partitioning&quot;&gt;Service-based data partitioning&lt;/h3&gt;
+
+&lt;p&gt;We saw an opportunity for service-based data partitioning. The configuration data for all services was consolidated into a single JSON file. Upon studying the data read patterns of client services, we observed that most services primarily needed to access configuration data specific to their own service. However, the present design required storing configuration data for all other services. This resulted in unnecessary memory consumption.&lt;/p&gt;
+
+&lt;h3 id=&quot;retaining-only-new-version-of-configuration-in-the-same-file&quot;&gt;Retaining only new version of configuration in the same file&lt;/h3&gt;
+
+&lt;p&gt;By using a single JSON file for storing old and new configuration data, we saw a significant increase in the size of the JSON file.&lt;/p&gt;
+
+&lt;p&gt;The SDK only needs the full data when it starts; the more common case is that it needs to stay updated with the latest configuration. Even in that scenario, the SDK needed to fetch a complete new JSON file every minute no matter the size of the updates. Consequently, the process of downloading, decoding, and loading high volumes of data at a high frequency (every minute) caused the client SDK to spike in memory and CPU usage.&lt;/p&gt;
+
+&lt;h3 id=&quot;more-efficient-json-decoding&quot;&gt;More efficient JSON decoding&lt;/h3&gt;
+
+&lt;p&gt;An additional factor which contributed to memory and CPU usage during the decoding phase was the inefficiency of the default JSON decode library to decode this large (&amp;gt;100MB) JSON file. Decoding this JSON file was heavy on available CPU resources, which tended to starve the service of its ability to handle incoming requests. This manifested as increasing the P99 latency of the service.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/graph-increased-p99-latency.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Graph illustrating the increased P99 latency due to CPU throttling for a service.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;implemented-solution&quot;&gt;Implemented solution&lt;/h2&gt;
+
+&lt;p&gt;We proposed modifications to the existing SDK design, which we discuss in this section.&lt;/p&gt;
+
+&lt;h3 id=&quot;partition-data-by-service&quot;&gt;Partition data by service&lt;/h3&gt;
+
+&lt;p&gt;The proposed solution involved partitioning the data based on services. We chose this approach because a single configuration typically belonged to a single service, and most services primarily needed to read configurations that pertained to their own service.&lt;/p&gt;
+
+&lt;p&gt;Upon analysing the distribution of service-configuration, we discovered that 98% of client services required less than 1% of the total configuration data. Despite this, they were required to maintain and reload 100% of the configuration data. Furthermore, the service with the largest number of configurations only required 20% of the total configuration data.&lt;/p&gt;
+
+&lt;p&gt;Therefore, we proposed a shift towards service-based partitioning of configuration data. This allowed individual client services to access only the data they needed to read.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/service-config.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Graph showing the number of services with varying amounts of configurations.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;create-separate-json-files-for-each-configuration&quot;&gt;Create separate JSON files for each configuration&lt;/h3&gt;
+
+&lt;p&gt;Our proposal also included creating a separate JSON file for each configuration in a service. Previously, all data was stored in a single JSON file housed in an AWS S3 bucket, which supported a maximum of 3,500 write/update requests and 5,500 read requests per second.&lt;/p&gt;
+
+&lt;p&gt;By storing each configuration in a separate JSON file, we were able to create a different S3 prefix for each configuration file. These S3 prefixes helped us to maximise S3 throughput by enhancing the read/write performance for each configuration. AWS S3 can handle at least 3,500 PUT/COPY/POST/DELETE requests or 5,500 GET/HEAD requests per second for each partitioned Amazon S3 prefix.&lt;/p&gt;
+
+&lt;p&gt;Therefore, with each configuration’s data stored in a separate S3 file with a different prefix, the GrabX platform could achieve a throughput of 5,500 read requests and 3,500 write/update requests per second per configuration. This was beneficial for boosting read/write capacity when needed.&lt;/p&gt;
+
+&lt;h3 id=&quot;implement-a-service-level-changelog&quot;&gt;Implement a service-level changelog&lt;/h3&gt;
+
+&lt;p&gt;We proposed to create a changelog file at the service level. In other words, a changelog file was created for each service. This file was used to keep track of the latest update version, as well as previous service configuration update versions. This file also recorded the configurations which were created or updated in each version. This enables the SDK to accurately identify the configurations that were created or updated in each update version. This was useful to update the specific configurations belonging to a service on the client side.&lt;/p&gt;
+
+&lt;h3 id=&quot;implement-service-based-sdk&quot;&gt;Implement service-based SDK&lt;/h3&gt;
+
+&lt;p&gt;We proposed that SDK client services should be allowed to subscribe to a list of services for which they need to read configuration data. The SDK was initialised with data of the subscribed services and received updates only for configurations corresponding to the subscribed services.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/sdk-lifecycle-flowchart.png&quot; alt=&quot;&quot; style=&quot;width:40%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. This flowchart shows our proposed service-based SDK implementation.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The SDK only sought updates for the subscribed services. The client SDK needed to read the changelog file for each of the subscribed services, comparing the latest changelog version against the SDK version number. Whenever a newer changelog version was available, the SDK updated the variables with the latest version.&lt;/p&gt;
+
+&lt;p&gt;This approach significantly reduced the volume of data that the SDK needed to download, decode, and load into memory during both initialisation and each subsequent update.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;In summary, we identified ways to optimise CPU and memory usage in the GrabX SDK. Our analysis revealed that frequent high resource consumption hindered the wider adoption of GrabX. We proposed a series of modifications, including partitioning data by service and creating separate JSON files for each configuration.&lt;/p&gt;
+
+&lt;p&gt;After benchmarking the proposed solution with a variety of configuration data sizes, we found that the solution has the potential to reduce memory utilisation by up to 70% and decrease the maximum CPU utilisation by more than 50%. These improvements significantly enhance the performance and scalability of the GrabX SDK.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/bar-charts-before-after.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Bar charts showcasing memory(MB) &amp;amp; CPU(%) utilisation for Service A before and after using the discussed solution.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Moving forward, we plan to continue optimising the GrabX SDK by exploring additional improvements, such as reducing its initialisation time. These efforts aim to make GrabX an even more robust and reliable solution for product configuration management within Grab’s ecosystem.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 30 Oct 2024 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/reduced-memory-cpu-usage-grabx-sdk</link>
+        <guid isPermaLink="true">https://engineering.grab.com/reduced-memory-cpu-usage-grabx-sdk</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Optimisation</category>
+        
+        <category>Service</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>LLM-assisted vector similarity search</title>
@@ -1777,232 +1924,6 @@ Example response
         <category>Engineering</category>
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>Profile-guided optimisation (PGO) on Grab services</title>
-        <description>&lt;p&gt;&lt;a href=&quot;https://go.dev/doc/pgo&quot;&gt;Profile-guided optimisation (PGO)&lt;/a&gt; is a technique where CPU profile data for an application is collected and fed back into the next compiler build of Go application. The compiler then uses this CPU profile data to optimise the performance of that build by around &lt;a href=&quot;https://tip.golang.org/doc/pgo#overview&quot;&gt;2-14%&lt;/a&gt; currently (future releases could likely improve this figure further).&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/high-level-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;High level view of how PGO works&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;PGO is a &lt;a href=&quot;https://docs.oracle.com/en/graalvm/jdk/22/docs/reference-manual/native-image/optimizations-and-performance/PGO/&quot;&gt;widely used technique&lt;/a&gt; that can be implemented with many programming languages. When it was released in May 2023, PGO was introduced as a preview in Go 1.20.&lt;/p&gt;
-
-&lt;h2 id=&quot;enabling-pgoon-a-service&quot;&gt;Enabling PGO on a service&lt;/h2&gt;
-
-&lt;h3 id=&quot;profile-the-service-to-get-pprof-file&quot;&gt;Profile the service to get pprof file&lt;/h3&gt;
-
-&lt;p&gt;First, make sure that your service is built using Golang version v1.20 or higher, as only these versions support PGO.&lt;/p&gt;
-
-&lt;p&gt;Next, &lt;a href=&quot;https://pkg.go.dev/net/http/pprof&quot;&gt;enable pprof&lt;/a&gt; in your service.&lt;/p&gt;
-
-&lt;p&gt;If it’s already enabled, you can use the following command to capture a 6-minute profile and save it to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/tmp/pprof&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl &apos;http://localhost:6060/debug/pprof/profile?seconds=360&apos; -o /tmp/pprof
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;enabled-pgo-on-the-service&quot;&gt;Enabled PGO on the service&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;/big-data-real-time-presto-talariadb&quot;&gt;TalariaDB&lt;/a&gt;: TalariaDB is a distributed, highly available, and low latency time-series database for Presto open sourced by Grab.&lt;/p&gt;
-
-&lt;p&gt;It is a service that runs on an EKS cluster and is entirely managed by our team, we will use it as an example here.&lt;/p&gt;
-
-&lt;p&gt;Since the cluster deployment relies on a Docker image, we only need to update the Docker image’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go build&lt;/code&gt; command to include &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;-PGO=./talaria.PGO&lt;/code&gt;. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;talaria.PGO&lt;/code&gt; file is a pprof profile collected from production services over a span of 360 seconds.&lt;/p&gt;
-
-&lt;p&gt;If you’re utilising a &lt;a href=&quot;https://pkg.go.dev/plugin&quot;&gt;go plugin&lt;/a&gt;, &lt;a href=&quot;/faster-using-the-go-plugin-to-replace-Lua-VM&quot;&gt;as we do in TalariaDB&lt;/a&gt;, it’s crucial to ensure that the PGO is also applied to the plugin.&lt;/p&gt;
-
-&lt;p&gt;Here’s our Dockerfile, with the additions to support PGO.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;FROM arm64v8/golang:1.21 AS builder
-
-ARG GO111MODULE=&quot;on&quot;
-ARG GOOS=&quot;linux&quot;
-ARG GOARCH=&quot;arm64&quot;
-ENV GO111MODULE=${GO111MODULE}
-ENV GOOS=${GOOS}
-ENV GOARCH=${GOARCH}
-
-RUN mkdir -p /go/src/talaria
-COPY . src/talaria
-#RUN cd src/talaria &amp;amp;&amp;amp; go mod download  &amp;amp;&amp;amp; go build &amp;amp;&amp;amp; test -x talaria
-RUN cd src/talaria &amp;amp;&amp;amp; go mod download  &amp;amp;&amp;amp; go build -PGO=./talaria.PGO &amp;amp;&amp;amp; test -x talaria
-
-RUN mkdir -p /go/src/talaria-plugin
-COPY ./talaria-plugin  src/talaria-plugin
-RUN cd src/talaria-plugin &amp;amp;&amp;amp; make plugin &amp;amp;&amp;amp; test -f talaria-plugin.so
-FROM arm64v8/debian:latest AS base
-
-RUN apt-get update &amp;amp;&amp;amp; apt-get install -y ca-certificates &amp;amp;&amp;amp; rm -rf /var/cache/apk/*
-
-WORKDIR /root/ 
-ARG GO_BINARY=talaria
-COPY  --from=builder /go/src/talaria/${GO_BINARY} .
-COPY  --from=builder /go/src/talaria-plugin/talaria-plugin.so .
-
-ADD entrypoint.sh . 
-RUN mkdir /etc/talaria/ &amp;amp;&amp;amp; chmod +x /root/${GO_BINARY} /root/entrypoint.sh
-ENV TALARIA_RC=/etc/talaria/talaria.rc 
-EXPOSE 8027
-ENTRYPOINT [&quot;/root/entrypoint.sh&quot;]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;result-on-enabling-pgo-on-one-grabx-service&quot;&gt;Result on enabling PGO on one GrabX service&lt;/h3&gt;
-
-&lt;p&gt;It’s important to mention that the pprof utilised for PGO was not captured during peak hours and was limited to a duration of 360 seconds.&lt;/p&gt;
-
-&lt;p&gt;Service &lt;a href=&quot;/big-data-real-time-presto-talariadb&quot;&gt;TalariaDB&lt;/a&gt; has three clusters and the time we enabled PGO for these clusters are:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;We enabled PGO on cluster 0, and deployed on 4 Sep 11.16 AM.&lt;/li&gt;
-  &lt;li&gt;We enabled PGO on cluster 1, and deployed on 5 Sep 15:00 PM.&lt;/li&gt;
-  &lt;li&gt;We enabled PGO on cluster 2, and deployed on 6 Sep 16:00 PM.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The size of the instances, their quantity, and all other dependencies remained unchanged.&lt;/p&gt;
-
-&lt;h4 id=&quot;cpu-metrics-on-cluster&quot;&gt;CPU metrics on cluster&lt;/h4&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/cpu-before-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Cluster CPU usage before enabling PGO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/cpu-after-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Cluster CPU usage after enabling PGO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;It’s evident that enabling PGO resulted in at least a 10% reduction in CPU usage.&lt;/p&gt;
-
-&lt;h4 id=&quot;memory-metrics-on-cluster&quot;&gt;Memory metrics on cluster&lt;/h4&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/mem-before-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Memory usage of the cluster before enabling PGO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/percentage-free-mem-after-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Percentage of free memory after enabling PGO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;It’s clear that enabling PGO led to a reduction of at least 10GB (30%) in memory usage.&lt;/p&gt;
-
-&lt;h4 id=&quot;volume-metrics-on-cluster&quot;&gt;Volume metrics on cluster&lt;/h4&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/persistent-volume-usage-before-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Persistent volume usage on cluster before enabling PGO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/volume-usage-after-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Volume usage after enabling PGO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Enabling PGO resulted in a reduction of at least 7GB (38%) in volume usage. This volume is utilised for storing events that are queued for ingestion.&lt;/p&gt;
-
-&lt;h4 id=&quot;ingested-event-countcpumetrics-on-cluster&quot;&gt;Ingested event count/CPU metrics on cluster&lt;/h4&gt;
-
-&lt;p&gt;To gauge the enhancements, I employed the metric of ingested event count per CPU unit (event count / CPU). This approach was adopted to account for the variable influx of events, which complicates direct observation of performance gains.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/count-ingested-event-after-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Count of ingested events on cluster after enabling PGO&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Upon activating PGO, there was a noticeable increase in the ingested event count per CPU, rising from 1.1 million to 1.7 million, as depicted by the blue line in the cluster screenshot.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-we-enabled-pgo-on-a-catwalk-service&quot;&gt;How we enabled PGO on a Catwalk service&lt;/h2&gt;
-
-&lt;p&gt;We also experimented with enabling PGO on certain orchestrators in a Catwalk service. This section covers our findings.&lt;/p&gt;
-
-&lt;h3 id=&quot;enabling-pgo-on-the-test-golang-orch-tfsorchestrator&quot;&gt;Enabling PGO on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;test-golang-orch-tfs&lt;/code&gt; orchestrator&lt;/h3&gt;
-
-&lt;p&gt;&lt;strong&gt;&lt;em&gt;Attempt 1&lt;/em&gt;&lt;/strong&gt;: Take pprof for 59 seconds&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Just 1 pod running with a constant throughput of 420 QPS.&lt;/li&gt;
-  &lt;li&gt;Load test started with a non-PGO image at 5:39 PM SGT.&lt;/li&gt;
-  &lt;li&gt;Take pprof for 59 seconds.&lt;/li&gt;
-  &lt;li&gt;Image with PGO enabled deployed at 5:49 PM SGT.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Observation: &lt;strong&gt;CPU usage increased&lt;/strong&gt; after enabling PGO with pprof for 59 seconds.&lt;/p&gt;
-
-&lt;p&gt;We suspected that taking pprof for just 59 seconds may not be sufficient to collect accurate metrics. Hence, we extended the duration to 6 minutes in our second attempt.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;&lt;em&gt;Attempt 2&lt;/em&gt;&lt;/strong&gt; : Take pprof for 6 minutes&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Just 1 pod running with a constant throughput of 420 QPS.&lt;/li&gt;
-  &lt;li&gt;Deployed non PGO image with custom pprof server at 6:13 PM SGT.&lt;/li&gt;
-  &lt;li&gt;pprof taken at 6:19 PM SGT for 6 minutes.&lt;/li&gt;
-  &lt;li&gt;Image with PGO enabled deployed at 6:29 PM SGT.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Observation: &lt;strong&gt;CPU usage decreased&lt;/strong&gt; after enabling PGO with pprof for 6 minutes.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/cpu-usage-after-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;CPU usage after enabling PGO on Catwalk&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/profile-guided-optimisation/container-mem-after-pgo.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Container memory utilisation after enabling PGO on Catwalk&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Based on this experiment, we found that the impact of PGO is around 5% but the effort involved to enable PGO outweighs the impact. To enable PGO on Catwalk, we would need to create Docker images for each application through CI pipelines.&lt;/p&gt;
-
-&lt;p&gt;Additionally, the Catwalk team would require a workaround to pass the pprof dump, which is not a straightforward task. Hence, we decided to put off the PGO application for Catwalk services.&lt;/p&gt;
-
-&lt;h2 id=&quot;looking-into-pgo-for-monorepo-services&quot;&gt;Looking into PGO for monorepo services&lt;/h2&gt;
-
-&lt;p&gt;From the information provided above, enabling PGO for a service requires the following support mechanisms:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;A pprof service, which is currently facilitated through Jenkins.&lt;/li&gt;
-  &lt;li&gt;A build process that supports PGO arguments and can attach or retrieve the pprof file.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;For services that are hosted outside the monorepo and are self-managed, the effort required to experiment is minimal. However, for those within the monorepo, we will require support from the build process, which is currently unable to support this.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusionlearnings&quot;&gt;Conclusion/Learnings&lt;/h2&gt;
-
-&lt;p&gt;Enabling PGO has proven to be highly beneficial for some of our services, particularly TalariaDB. By using PGO, we’ve observed a clear reduction in both CPU usage and memory usage to the tune of approximately 10% and 30% respectively. Furthermore, the volume used for storing queued ingestion events has been reduced by a significant 38%. These improvements definitely underline the benefits and potential of utilising PGO on services.&lt;/p&gt;
-
-&lt;p&gt;Interestingly, applying PGO resulted in an increased rate of ingested event count per CPU unit on TalariaDB, which demonstrates an improvement in the service’s efficiency.&lt;/p&gt;
-
-&lt;p&gt;Experiments with the Catwalk service have however shown that the effort involved to enable PGO might not always justify the improvements gained. In our case, a mere 5% improvement did not appear to be worth the work required to generate Docker images for each application via CI pipelines and create a solution to pass the pprof dump.&lt;/p&gt;
-
-&lt;p&gt;On the whole, it is evident that the applicability and benefits of enabling PGO can &lt;strong&gt;&lt;em&gt;vary across different services&lt;/em&gt;&lt;/strong&gt;. Factors such as application characteristics, current architecture, and available support mechanisms can influence when and where PGO optimisation is feasible and beneficial.&lt;/p&gt;
-
-&lt;p&gt;Moving forward, further improvements to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go-build&lt;/code&gt; and the introduction of PGO support for monorepo services may drive greater adoption of PGO. In turn, this has the potential to deliver powerful system-wide gains that translate to faster response times, lower resource consumption, and improved user experiences. As always, the relevance and impact of adopting new technologies or techniques should be considered on a case-by-case basis against operational realities and strategic objectives.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 05 Jun 2024 00:10:10 +0000</pubDate>
-        <link>https://engineering.grab.com/profile-guided-optimisation</link>
-        <guid isPermaLink="true">https://engineering.grab.com/profile-guided-optimisation</guid>
-        
-        <category>Go</category>
-        
-        <category>optimisation</category>
-        
-        <category>experiments</category>
-        
-        <category>performance</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
