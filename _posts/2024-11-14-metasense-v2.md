@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2024-11-13-metasense-v2
+id: 2024-11-14-metasense-v2
 title: 'Metasense V2: Enhancing, improving and productionisation of LLM powered data governance'
 date: 2024-11-14 00:00:10
 authors: [nick-buhrer, shreyas-parbat, yucheng-zeng]
@@ -89,8 +89,6 @@ With exceptionally low misclassification rates recorded, table owners can place 
 ## Conclusion
 
 The integration of LLM into our metadata generation process has significantly improved our data classification capabilities, reducing manual workloads and increasing accuracy. Continuous improvements, including the adoption of LangChain and LangSmith frameworks, have streamlined prompt optimisation and enhanced collaboration among our team. With low misclassification rates and robust safety measures, our system is both reliable and scalable, fostering trust and efficiency. In conclusion, these advancements ensure we remain at the forefront of data governance, delivering high-quality solutions and valuable insights to our stakeholders.
-
-<br/>
 
 <small class="credits">We would like to express our sincere gratitude to Infocomm Media Development Authority (IMDA) for supporting this initative.</small>
 
