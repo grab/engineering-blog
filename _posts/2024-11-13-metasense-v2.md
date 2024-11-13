@@ -2,7 +2,7 @@
 layout: post
 id: 2024-11-13-metasense-v2
 title: 'Metasense V2: Enhancing, improving and productionisation of LLM powered data governance'
-date: 2024-11-11 00:00:10
+date: 2024-11-14 00:00:10
 authors: [nick-buhrer, shreyas-parbat, yucheng-zeng]
 categories: [Engineering, Data Science]
 tags: [Engineering, Generative AI, LLM, Machine Learning]
@@ -15,9 +15,8 @@ excerpt: "In the initial article, we explored the integration of Large Language 
 
 ## Introduction
 
-Original article: [LLM Powered Data Classification](https://engineering.grab.com/llm-powered-data-classification)
 
-In the initial article, we addressed how we integrated LLM to automate governance-related metadata generation. The LLM integration enabled us to resolve challenges in Gemini, such as restrictions on the customisation of machine learning classifiers and limitations of resources to train a customised model. Gemini is a metadata generation service built internally to automate the tag generation process using a third-party data classification service. We also focused on LLM-powered column-level tag classifications. The classified tags, combined with Grab’s data privacy rules, allowed us to determine sensitivity tiers of data entities. The affordability of the model also enables us to scale it to cover more data entities in the company. The initial model scanned more than 20,000 data entries, at an average of 300-400 entities per day. Despite its remarkable performance, we were aware that there was room for improvement in the areas of data classification and prompt evaluation.
+In the initial article, [LLM Powered Data Classification](https://engineering.grab.com/llm-powered-data-classification), we addressed how we integrated Large Language Models (LLM) to automate governance-related metadata generation. The LLM integration enabled us to resolve challenges in Gemini, such as restrictions on the customisation of machine learning classifiers and limitations of resources to train a customised model. Gemini is a metadata generation service built internally to automate the tag generation process using a third-party data classification service. We also focused on LLM-powered column-level tag classifications. The classified tags, combined with Grab’s data privacy rules, allowed us to determine sensitivity tiers of data entities. The affordability of the model also enables us to scale it to cover more data entities in the company. The initial model scanned more than 20,000 data entries, at an average of 300-400 entities per day. Despite its remarkable performance, we were aware that there was room for improvement in the areas of data classification and prompt evaluation.
 
 ## Improving the model post-rollout
 
@@ -33,7 +32,7 @@ Following the deployment of our model and receipt of extensive feedback from tab
 
 ### Model improvements with prompt engineering
 
-Expanding the evaluation and testing data allowed us to uncover weaknesses in the previous model. For instance, we discovered that seemingly innocuous table columns like “business email” could contain entries with PII data.
+Expanding the evaluation and testing data allowed us to uncover weaknesses in the previous model. For instance, we discovered that seemingly innocuous table columns like “business email” could contain entries with Personal Identifiable Information (PII) data.
 
 An example of this would be a business that uses a personal email address containing a legal name—a discrepancy that would be challenging for even human reviewers to detect. Additionally, we discovered nested JSON structures occasionally included personal names, phone numbers, and email addresses hidden among other non-PII metadata. Lastly, we identified passenger communications with Grab occasionally mentioning legal names, phone numbers, and other PII, despite most of the content being non-PII.
 
@@ -46,14 +45,11 @@ To prevent the model from being overwhelmed, large tasks are divided into smalle
    * One part for adding PII tags.  
    * Another part for adding all other types of tags. 
 
-2. Reducing the number of tags for the first part from 21 to 8 by removing all non-PII tags.  
-   * Reducing the number of tags simplifies the task of differentiating types of data.  
+2. Reducing the number of tags for the first part from 21 to 8 by removing all non-PII tags. This simplifies the task of differentiating types of data. 
 
-3.  Using clear and concise language, removing unnecessary detail.    
-   * Reduce word count in prompt from 1,254 to 737 words for better data analysis.
+3. Using clear and concise language, removing unnecessary detail. This was done by reducing word count in prompt from 1,254 to 737 words for better data analysis.
 
-4. Splitting tables with more than 150 columns into smaller tables.  
-   * Fewer table rows means that the LLM has sufficient capacity to focus on each column.
+4. Splitting tables with more than 150 columns into smaller tables. Fewer table rows means that the LLM has sufficient capacity to focus on each column.
 
 
 ### Enabling rapid prompt experimentation and deployment
@@ -70,9 +66,9 @@ The integration of LangChain and LangSmith has significantly improved our model 
 The benefits of the LangChain and LangSmith framework enhancements in Metasense are summarised as follows:
 
 
-1\. Streamlined prompt optimisation process.  
+**Streamlined prompt optimisation process.** 
 
-   * Data scientists can create, update, and evaluate prompts directly on the LangSmith user interface and save them in commit mode. For rapid deployment, the prompt identifier in service configurations can be easily adjusted.  
+   Data scientists can create, update, and evaluate prompts directly on the LangSmith user interface and save them in commit mode. For rapid deployment, the prompt identifier in service configurations can be easily adjusted.  
 
 <div class="post-image-section"><figure>
   <img src="/img/metasensev2/figure-1.png" alt="" style="width:60%"><figcaption align="middle">Figure 1: Streamlined prompt optimisation process.</figcaption>
@@ -80,9 +76,9 @@ The benefits of the LangChain and LangSmith framework enhancements in Metasense 
 </div>
 
 
-2\. Transparent prompt performance metrics.  
+**Transparent prompt performance metrics.** 
 
-   * LangSmith's capabilities allow us to effortlessly run evaluations on a dataset and obtain performance metrics across multiple dimensions, such as accuracy, latency, and error rate.  
+   LangSmith's capabilities allow us to effortlessly run evaluations on a dataset and obtain performance metrics across multiple dimensions, such as accuracy, latency, and error rate.  
    
 
 ### Assuring quality in perpetuity
