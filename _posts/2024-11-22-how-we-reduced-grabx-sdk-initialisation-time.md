@@ -2,7 +2,7 @@
 layout: post
 id: 2024-11-22-how-we-reduced-grabx-sdk-initialisation-time
 title: 'How we reduced initialisation time of Product Configuration Management SDK'
-date: 2024-11-22 00:00:10
+date: 2024-11-22 00:00:01
 authors: [ram-pradhan, inderpreet-singh, yonghao-hu, padarn-wilson]
 categories: [Engineering]
 tags: [Engineering, Optimisation, Service]
