@@ -6,9 +6,115 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 15 Nov 2024 02:16:52 +0000</pubDate>
-    <lastBuildDate>Fri, 15 Nov 2024 02:16:52 +0000</lastBuildDate>
+    <pubDate>Fri, 22 Nov 2024 05:49:17 +0000</pubDate>
+    <lastBuildDate>Fri, 22 Nov 2024 05:49:17 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>How we reduced initialisation time of Product Configuration Management SDK</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;GrabX serves as Grab’s central platform for product configuration management. GrabX client services read product configurations through an SDK. This SDK reads the configurations in a way that’s eventually consistent, meaning it takes about a minute for any configuration updates to reach the client SDKs.&lt;/p&gt;
+
+&lt;p&gt;However, some GrabX SDK clients, particularly those that need to read larger configuration data (~400 MB), reported that the SDK takes an extended amount of time to initialise, approximately four minutes. This blog post details how we analysed and addressed this issue.&lt;/p&gt;
+
+&lt;h2 id=&quot;sdk-observations&quot;&gt;SDK Observations&lt;/h2&gt;
+
+&lt;p&gt;GrabX clients have observed that the GrabX SDK requires several minutes to initialise. This results in what is known as ‘cold starts’, where the SDK takes an extended time to begin supporting the reading of configurations at startup. This challenge highlights the importance of efficient SDK start-up management, especially when a service handling a high volume of incoming traffic initiates new SDK instances to manage the load better. However, due to the extended SDK initialisation time, these instances continue to experience stress, potentially leading to service throttling.&lt;/p&gt;
+
+&lt;h2 id=&quot;sdk-initialisation-workflow&quot;&gt;SDK Initialisation Workflow&lt;/h2&gt;
+
+&lt;p&gt;The SDK initialisation flow described below is based on the improvements we proposed to the SDK design in &lt;a href=&quot;reduced-memory-cpu-usage-grabx-sdk/&quot;&gt;our previous post&lt;/a&gt;. In that post, we suggested enhancing the SDK design by:&lt;/p&gt;
+
+&lt;p&gt;A. Implementing service-based data partitioning and storage in the AWS S3 bucket
+B. Allowing service-based subscription of data for the SDK&lt;/p&gt;
+
+&lt;p&gt;The following diagram provides a high-level overview of the initialisation process of the GrabX SDK, which can be divided into the following sequential steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Set options that drive the behaviour of the SDK.&lt;/li&gt;
+  &lt;li&gt;Initialise dependent module clients.&lt;/li&gt;
+  &lt;li&gt;Initialise the GrabX client. (Highlighted as A in the diagram below)&lt;/li&gt;
+  &lt;li&gt;Download data for the SDK’s subscribed list of services from the AWS S3 bucket and store this data on the SDK instance disk. (Highlighted as B in the diagram below)&lt;/li&gt;
+  &lt;li&gt;Download common data needed by the SDK from the AWS S3 bucket and store this data on the SDK instance disk. This data is referred to as ‘common’ because it is required by all different client services.  (Highlighted as C in the diagram below)&lt;/li&gt;
+  &lt;li&gt;Download data for the SDK’s subscribed list of services from the AWS S3 bucket and load this data into the SDK instance memory.  (Highlighted as D in the diagram below)&lt;/li&gt;
+  &lt;li&gt;Download common data needed by the SDK from the AWS S3 bucket and load this data into the SDK instance memory. (Highlighted as E in the diagram below)&lt;/li&gt;
+  &lt;li&gt;Initialise dependent modules for resolving the configuration value.  (Highlighted as F in the diagram below)&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/how-we-reduced-grabx-sdk-initialisation-time/image1.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;proposed-solution&quot;&gt;Proposed Solution&lt;/h2&gt;
+
+&lt;p&gt;In order to address the issue of extended SDK initialisation time, we have decided to enhance the SDK initialisation design in multiple phases. Each phase focused on improving a specific part of the workflow.&lt;/p&gt;
+
+&lt;h3 id=&quot;improvement-phase-1&quot;&gt;Improvement Phase 1&lt;/h3&gt;
+
+&lt;p&gt;As discussed in the previous section, the GrabX SDK needs to load two separate sets of data: the subscribed services data and the common data. These two data sets are currently downloaded from the AWS S3 bucket and sequentially loaded into disk and memory.&lt;/p&gt;
+
+&lt;p&gt;In the first phase of our improvement plan, we decided to change the sequential data load to a concurrent data load for these two data sets, as illustrated in the following diagram. This alteration in the SDK initialisation workflow reduced the initialisation time by approximately 80%.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/how-we-reduced-grabx-sdk-initialisation-time/image2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;improvement-phase-2&quot;&gt;Improvement Phase 2&lt;/h3&gt;
+
+&lt;p&gt;Building on the progress made in Phase 1, we next turned our attention to the issue of large configuration file sizes. As mentioned in the introduction, the extended SDK initialisation time was particularly noticeable for client services that needed to load larger amounts of data.&lt;/p&gt;
+
+&lt;p&gt;In this phase, we decided to implement an SDK design change that allows the SDK to &lt;strong&gt;concurrently&lt;/strong&gt; download data from the AWS S3 bucket and load it into memory for all these large configurations within a subscribed service, as illustrated in the following diagram. This modification to the SDK initialisation workflow further reduced the initialisation time by approximately &lt;strong&gt;6%&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/how-we-reduced-grabx-sdk-initialisation-time/image4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;improvement-phase-3&quot;&gt;Improvement Phase 3&lt;/h3&gt;
+
+&lt;p&gt;Upon examining the SDK’s behaviour, we observed that the SDK is both persisting configuration data downloaded from the AWS S3 bucket to disk and loading the data into memory. We understand that the data is loaded into memory to reduce the latency of configuration reads. The data is stored on disk to support a fallback mechanism, which is activated in a very specific use case: when the client SDK instance restarts and there is a connectivity issue with AWS S3 for downloading configuration files. In this scenario, the SDK will read the configuration data stored on disk. However, this data could be outdated as it is not freshly downloaded from the AWS S3 bucket, and most client services require the most recent data.&lt;/p&gt;
+
+&lt;p&gt;Therefore, we realised that the fallback mechanism, for which data is persisted on disk, actually conflicts with the desired SDK behaviour for most client services. As a result, we decided to eliminate the SDK initialisation step that downloads configuration data from AWS S3 and persists it on disk. If the SDK initialisation fails to connect to the AWS S3 bucket and download data, client services can then take the necessary action, such as retrying initialisation. This modification further reduced the initialisation time by approximately 50% compared to the improvement achieved in Phase 2.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/how-we-reduced-grabx-sdk-initialisation-time/image3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;We benchmarked the proposed solution with a variety of services, each having different configuration data sizes. Our findings suggest that the proposed solution has the potential to reduce initialisation time by up to &lt;strong&gt;90%&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;The following chart illustrates the phase-wise reduction in initialisation time achieved through the improvements made to the GrabX SDK.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/how-we-reduced-grabx-sdk-initialisation-time/image5.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 22 Nov 2024 00:00:01 +0000</pubDate>
+        <link>https://engineering.grab.com/how-we-reduced-grabx-sdk-initialisation-time</link>
+        <guid isPermaLink="true">https://engineering.grab.com/how-we-reduced-grabx-sdk-initialisation-time</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Optimisation</category>
+        
+        <category>Service</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Metasense V2: Enhancing, improving and productionisation of LLM powered data governance</title>
@@ -1603,197 +1709,6 @@ func convertHelper(context, node) -&amp;gt; []Treatment:
         <category>Experiment</category>
         
         <category>Machine learning</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Design</category>
-        
-      </item>
-    
-      <item>
-        <title>How we improved translation experience with cost efficiency</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;As COVID restrictions were fully lifted in 2023, the number of tourists grew dramatically. People began to explore the world again, frequently using the Grab app to make bookings outside of their home country. However, we noticed that communication posed a challenge for some users. Despite our efforts to integrate an auto-translation feature in the booking chat, we received feedback about occasional missed or inaccurate translations. You can refer to this &lt;a href=&quot;https://engineering.grab.com/message-center&quot;&gt;blog&lt;/a&gt; for a better understanding of Grab’s chat system.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/improved-translation-experience-with-cost-efficiency/translation-example.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;An example of a bad translation. The correct translation is: &apos;ok sir&apos;.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;In an effort to enhance the user experience for travellers using the Grab app, we formed an engineering squad to tackle this problem. The objectives are as follows:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Ensure translation is provided when it’s needed.&lt;/li&gt;
-  &lt;li&gt;Improve the quality of translation.&lt;/li&gt;
-  &lt;li&gt;Maintain the cost of this service within a reasonable range.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;ensure-translation-is-provided-when-its-needed&quot;&gt;Ensure translation is provided when it’s needed&lt;/h2&gt;
-
-&lt;p&gt;Originally, we relied on users’ device language settings to determine if translation is needed. For example, if both the passenger and driver’s language setting is set to English, translation is not needed. Interestingly, it turned out that the device language setting did not reliably indicate the language in which a user would send their messages. There were numerous cases where despite having their device language set to English, drivers sent messages in another language.&lt;/p&gt;
-
-&lt;p&gt;Therefore, we needed to detect the language of user messages on the fly to make sure we trigger translation when it’s needed.&lt;/p&gt;
-
-&lt;h3 id=&quot;language-detection&quot;&gt;Language detection&lt;/h3&gt;
-
-&lt;p&gt;Simple as it may seem, language detection is not that straightforward a task. We were unable to find an open-source language detector library that covered all Southeast Asian languages. We looked for Golang libraries as our service was written in Golang. The closest we could find were the following:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Whatlang: unable to detect Malay&lt;/li&gt;
-  &lt;li&gt;Lingua: unable to detect Burmese and Khmer&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We decided to choose Lingua over Whatlang as the base detector due to the following factors:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Overall higher accuracy.&lt;/li&gt;
-  &lt;li&gt;Capability to provide detection confidence level.&lt;/li&gt;
-  &lt;li&gt;We have more users using Malay than those using Burmese or Khmer.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;When a translation request comes in, our first step is to use Lingua for language detection. If the detection confidence level falls below a predefined threshold, we fall back to call the third-party translation service as it can detect all Southeast Asian languages.&lt;/p&gt;
-
-&lt;p&gt;You may ask, why don’t we simply use the third-party service in the first place. It’s because:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The third-party service only has a translate API that also does language detection, but it does not provide a standalone language detection API.&lt;/li&gt;
-  &lt;li&gt;Using the translate API is costly, so we need to avoid calling it when it’s unnecessary. We will cover more on this in a later section.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Another challenge we’ve encountered is the difficulty of distinguishing between Malay and Indonesian languages due to their strong similarities and shared vocabulary. The identical text might convey different meanings in these two languages, which the third-party translation service struggles to accurately detect and translate.&lt;/p&gt;
-
-&lt;p&gt;Differentiating Malay and Indonesian is a tough problem in general. However, in our case, the detection has a very specific context, and we can make use of the context to enhance our detection accuracy.&lt;/p&gt;
-
-&lt;h3 id=&quot;making-use-of-translation-context&quot;&gt;Making use of translation context&lt;/h3&gt;
-
-&lt;p&gt;All our translations are for the messages sent in the context of a booking or order, predominantly between passenger and driver. There are two simple facts that can aid in our language detection:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Booking/order happens in one single country.&lt;/li&gt;
-  &lt;li&gt;Drivers are almost always local to that country.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;So, for a booking that happens in an Indonesian city, if the driver’s message is detected as Malay, it’s highly likely that the message is actually in Bahasa Indonesia.&lt;/p&gt;
-
-&lt;h2 id=&quot;improve-quality-of-translation&quot;&gt;Improve quality of translation&lt;/h2&gt;
-
-&lt;p&gt;Initially, we were entirely dependent on a third-party service for translating our chat messages. While overall powerful, the third-party service is not perfect, and it does generate weird translations from time to time.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/improved-translation-experience-with-cost-efficiency/weird-translation.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;An example of a weird translation from a third-party service recorded on 19 Dec 2023.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Then, it came to us that we might be able to build an in-house translation model that could translate chat messages better than the third-party service. The reasons being:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The scope of our chat content is highly specific. All the chats are related to bookings or orders. There would not be conversations about life or work in the chat. Maybe a small Machine Learning (ML) model would suffice to do the job.&lt;/li&gt;
-  &lt;li&gt;The third-party service is a general translation service. It doesn’t know the context of our messages. We, however, know the whole context. Having the right context gives us a great edge on generating the right translation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;training-steps&quot;&gt;Training steps&lt;/h3&gt;
-
-&lt;p&gt;To create our own translation model, we took the following steps:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Perform topic modelling on Grab chat conversations.&lt;/li&gt;
-  &lt;li&gt;Worked with the localisation team to create a benchmark set of translations.&lt;/li&gt;
-  &lt;li&gt;Measured existing translation solutions against benchmarks.&lt;/li&gt;
-  &lt;li&gt;Used an open source Large Language Model (LLM) to produce synthetic training data.&lt;/li&gt;
-  &lt;li&gt;Used synthetic data to train our lightweight translation model.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;topic-modelling&quot;&gt;Topic modelling&lt;/h4&gt;
-
-&lt;p&gt;In this step, our aim was to generate a dataset which is both representative of the chat messages sent by our users and diverse enough to capture all of the nuances of the conversations. To achieve this, we took a stratified sampling approach. This involved a random sample of past chat conversation messages stratified by various topics to ensure a comprehensive and balanced representation.&lt;/p&gt;
-
-&lt;h4 id=&quot;developing-a-benchmark&quot;&gt;Developing a benchmark&lt;/h4&gt;
-
-&lt;p&gt;For this step we engaged Grab’s localisation team to create a benchmark for translations. The intention behind this step wasn’t to create enough translation examples to fully train or even finetune a model, but rather, it was to act as a benchmark for translation quality, and also as a set of few-shot learning examples for when we generate our synthetic data.&lt;/p&gt;
-
-&lt;p&gt;This second point was critical! Although LLMs can generate good quality translations, LLMs are highly susceptible to their training examples. Thus, by using a set of handcrafted translation examples, we hoped to produce a set of examples that would teach the model the exact style, level of formality, and correct tone for the context in which we plan to deploy the final model.&lt;/p&gt;
-
-&lt;h4 id=&quot;benchmarking&quot;&gt;Benchmarking&lt;/h4&gt;
-
-&lt;p&gt;From a theoretical perspective there are two ways that one can measure the performance of a machine translation system. The first is through the computation of some sort of translation quality score such as a BLEU or CHRF++ score. The second method is via subjective evaluation. For example, you could give each translation a score from 1 to 5 or pit two translations against each other and ask someone to assess which they prefer.&lt;/p&gt;
-
-&lt;p&gt;Both methods have their relative strengths and weaknesses. The advantage of a subjective method is that it corresponds better with what we want, a high quality translation experience for our users. The disadvantage of this method is that it is quite laborious. The opposite is true for the computed translation quality scores, that is to say that they correspond less well to a human’s subjective experience of our translation quality, but that they are easier and faster to compute.&lt;/p&gt;
-
-&lt;p&gt;To overcome the inherent limitations of each method, we decided to do the following:&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;Set a benchmark score for the translation quality of various translation services using a CHRF++ score.&lt;/li&gt;
-  &lt;li&gt;Train our model until its CHRF++ score is significantly better than the benchmark score.&lt;/li&gt;
-  &lt;li&gt;Perform a manual A/B test between the newly trained model and the existing translation service.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h4 id=&quot;synthetic-data-generation&quot;&gt;Synthetic data generation&lt;/h4&gt;
-
-&lt;p&gt;To generate the training data needed to create our model, we had to rely on an open source LLM to generate the synthetic translation data. For this task, we spent considerable effort looking for a model which had both a large enough parameter count to ensure high quality outputs, but also a model which had the correct tokenizer to handle the diverse sets of languages which Grab’s customers speak. This is particularly important for languages which use non-standard character sets such as Vietnamese and Thai. We settled on using a public model from &lt;a href=&quot;https://huggingface.co/&quot;&gt;Hugging Face&lt;/a&gt; for this task.&lt;/p&gt;
-
-&lt;p&gt;We then used a subset of the previously mentioned benchmark translations to input as few-shot learning examples to our prompt. After many rounds of iteration, we were able to generate translations which were superior to the benchmark CHRF++ scores which we had attained in the previous section.&lt;/p&gt;
-
-&lt;h4 id=&quot;model-fine-tuning&quot;&gt;Model fine tuning&lt;/h4&gt;
-&lt;p&gt;We now had one last step before we had something that was production ready! Although we had successfully engineered a prompt capable of generating high quality translations from the public Hugging Face model, there was no way we’d be able to deploy such a model. The model was far too big for us to deploy it in a cost efficient manner and within an acceptable latency. Our solution to this was to fine-tune a smaller bespoke model using the synthetic training data which was derived from the larger model.&lt;/p&gt;
-
-&lt;p&gt;These models were language specific (e.g. English to Indonesian) and built solely for the purpose of language translation. They are 99% smaller than the public model. With approximately 10 Million synthetic training examples, we were able to achieve performance which was 98% as effective as our larger model.&lt;/p&gt;
-
-&lt;p&gt;We deployed our model and ran several A/B tests with it. Our model performed pretty well overall, but we noticed a critical problem: sometimes, numbers got mutated in the translation. These numbers can be part of an address, phone number, price etc. Showing the wrong number in a translation can cause great confusion to the users. Unfortunately, an ML model’s output can never be fully controlled; therefore, we added an additional layer of programmatic check to mitigate this issue.&lt;/p&gt;
-
-&lt;h3 id=&quot;post-translation-quality-check&quot;&gt;Post-translation quality check&lt;/h3&gt;
-&lt;p&gt;Our goal is to ensure non-translatable content such as numbers, special symbols, and emojis  in the original message doesn’t get mutated in the translation produced by our in-house model. We extract all the non-translatable content from the original message, count the occurrences of each, and then try to match the same in the translation. If it fails to match, we discard the in-house translation and fall back to using the third-party translation service.&lt;/p&gt;
-
-&lt;h2 id=&quot;keep-cost-low&quot;&gt;Keep cost low&lt;/h2&gt;
-
-&lt;p&gt;At Grab, we try to be as cost efficient as possible in all aspects. In the case of translation, we tried to minimise cost by avoiding unnecessary on-the-fly translations.&lt;/p&gt;
-
-&lt;p&gt;As you would have guessed, the first thing we did was to implement caching. A cache layer is placed before both the in-house translation model and the third-party translation. We try to serve translation from the cache first before hitting the underlying translation service. However, given that translation requests are in free text and can be quite dynamic, the impact of caching is limited. There’s more we need to do.&lt;/p&gt;
-
-&lt;p&gt;For context, in a booking chat, other than the users, Grab’s internal services can also send messages to the chat room. These messages are called system messages. For example,our food service always sends a message with information on the food order when an order is confirmed.&lt;/p&gt;
-
-&lt;p&gt;System messages are all fairly static in nature, however, we saw a very high amount of translation cost attributed to system messages. Taking a deeper look, we noticed the following:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Many system messages were not sent in the recipient’s language, thus requiring on-the-fly translation.&lt;/li&gt;
-  &lt;li&gt;Many system messages, though having the same static structure, contain quite a few variants such as passenger’s name and  food order item name. This makes it challenging to utilise our translation cache effectively as each message is different.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Since all system messages are manually prepared, we should be able to get them all manually translated into all the required languages, and avoid on-the-fly translations altogether.&lt;/p&gt;
-
-&lt;p&gt;Therefore, we launched an internal campaign, mandating all internal services that send system messages to chat rooms to get manual translations prepared, and pass in the translated contents. This alone helped us save roughly US$255K a year!&lt;/p&gt;
-
-&lt;h2 id=&quot;next-steps&quot;&gt;Next steps&lt;/h2&gt;
-
-&lt;p&gt;At Grab, we firmly believe that our proprietary in-house translation models are not only more cost-effective but cater more accurately to our unique use cases compared to third-party services. We will focus on expanding these models to more languages and countries across our operating regions.&lt;/p&gt;
-
-&lt;p&gt;Additionally, we are exploring opportunities to apply learnings of our chat translations to other Grab content. This strategy aims to guarantee a seamless language experience for our rapidly expanding user base, especially travellers. We are enthusiastically looking forward to the opportunities this journey brings!&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Mon, 05 Aug 2024 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/improved-translation-experience-with-cost-efficiency</link>
-        <guid isPermaLink="true">https://engineering.grab.com/improved-translation-experience-with-cost-efficiency</guid>
-        
-        <category>Chat</category>
-        
-        <category>Chat support</category>
-        
-        <category>Engineering</category>
-        
-        <category>GrabChat</category>
-        
-        <category>Messaging</category>
-        
-        <category>Translation</category>
-        
-        <category>Generative AI</category>
-        
-        <category>LLM</category>
         
         
         <category>Engineering</category>
