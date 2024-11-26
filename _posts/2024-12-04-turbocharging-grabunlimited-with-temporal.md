@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2024-12-04-turbocharging-grabunlimited-with-temporal.md
+id: 2024-12-04-turbocharging-grabunlimited-with-temporal
 title: 'Turbocharging GrabUnlimited with Temporal'
-date: 2024-12-04 00:00:10
+date: 2024-11-25 00:00:10
 authors: [michael-parreno, theodore-felix]
 categories: [Engineering, Product]
 tags: [Engineering, Optimisation, Product, Database, Scalability]
@@ -147,7 +147,7 @@ Out of the box, Temporal allowed us to put in place a few key [resilience mechan
 
 **Idempotency**
 
-Firstly, remember our fourth culprit from above? Our state handlers with SQS were performing too many tasks simultaneously, which made it risky to trust the retry process. This multi-responsibility nature introduced significant risks, including potential database corruption, double charging, and double awarding of benefits. Further breaking down these steps would result in hundreds of intermediary steps, each requiring careful maintenance and correct sequencing. With Temporal, you can imagine a membership as an ever-running workflow consisting of a sequence of steps that are automatically managed and retried in case of failures.
+Remember our fourth culprit from above? Our state handlers with SQS were performing too many tasks simultaneously, which made it risky to trust the retry process. This multi-responsibility nature introduced significant risks, including potential database corruption, double charging, and double awarding of benefits. Further breaking down these steps would result in hundreds of intermediary steps, each requiring careful maintenance and correct sequencing. With Temporal, you can imagine a membership as an ever-running workflow consisting of a sequence of steps that are automatically managed and retried in case of failures.
 
 While this approach didn't directly resolve idempotency issues, it made the system and the code more readable and allowed us to [design steps with single responsibilities](https://docs.temporal.io/activities#idempotency). This, in turn, made it simpler for us to develop and ensure these steps were idempotent.
 
