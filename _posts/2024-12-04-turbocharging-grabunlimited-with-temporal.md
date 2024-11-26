@@ -17,7 +17,7 @@ Welcome to the behind-the-scenes story of [GrabUnlimited](https://www.grab.com/s
 
 The idea behind GrabUnlimited, is pretty simple: you pay a monthly fee, you get monthly benefits as a member (e.g discounted food delivery fee). A membership system plays a key role in enhancing user experience by giving them more value for money, but also by building loyalty, making Grab their go-to app for everyday needs. However, as this program grew and evolved, it brought along unique challenges and opportunities.
 
-With the initial triumph and significant surge in subscriber count by over 1000% from January 2022 to June 2023 - which we were super proud of! -  the architecture that supported GrabUnlimited was starting to show signs of strain. Common subscriber concerns such as not receiving their membership benefits, along with developer issues marked by an increase in service outages highlighted the system's low resiliency. The culprit? A backend service that, while functional, was not built to efficiently manage the complexities of a rapidly scaling membership model.
+With the initial triumph and significant surge in subscriber count by over 1000% from January 2022 to June 2023 - which we were super proud of! - the architecture that supported GrabUnlimited was starting to show signs of strain. Common subscriber concerns such as not receiving their membership benefits, along with developer issues marked by an increase in service outages highlighted the system's low resiliency. The culprit? A backend service that, while functional, was not built to efficiently manage the complexities of a rapidly scaling membership model.
 
 ## Deep dive into our previous system design
 
@@ -38,7 +38,7 @@ Under the hood, our membership system relies on two main flows
 
 We employed a state machine[^3] approach to break down the membership process into smaller chunks called state handlers. For instance, a membership might transition through 'Init', 'Charged', 'Rewarded', and 'Active' states. To operate these states, we used [Amazon's Simple Queue Service](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html) (SQS). SQS acts as a manager, delegating state handlers to workers (our service) and monitoring the status of the state handler. If a worker fails to complete a task, SQS reassigns the task to another worker, ensuring no task is lost. The load is also spread across multiple workers, helping with scalability.
 
-To safeguard our system against duplicate tasks such as charging the user twice, when a worker would take up a task, it would use a [Redis lock](https://redis.io/glossary/redis-lock/)[^4] mechanism with a time-to-live (TTL) of five minutes preventing any other worker from picking up the same task. If a worker fails or crashes, the lock expires, and another worker can pick up the job.
+To safeguard our system against duplicate tasks such as charging the user twice, when a worker takes up a task, it would use a [Redis lock](https://redis.io/glossary/redis-lock/)[^4] mechanism with a time-to-live (TTL) of five minutes preventing any other worker from picking up the same task. If a worker fails or crashes, the lock expires and another worker can pick up the job.
 
 So far, so good.
 
@@ -87,7 +87,7 @@ What happens when the Rewards service faces an outage? The user buys a membershi
 
 **Idempotency**[^9]
 
-Even when some steps could be retried, our system lacked idempotency guarantees - a safety net to ensure that a step could be repeated without unintended side effects. Although our critical upstream systems like Payments and Rewards support idempotency via idempotency keys, our service wasn’t originally designed with this in mind
+Even when some steps could be retried, our system lacked idempotency guarantees - a safety net to ensure that a step could be repeated without unintended side effects. Although our critical upstream systems like Payments and Rewards support idempotency via idempotency keys, our service wasn’t originally designed with this in mind.
 - Users could be stuck in a state where the payment succeeded but they didn’t receive their benefits or received them twice, requiring manual intervention from engineers.
 - We were not able to auto-retry membership renewals if the cron job, database, or any service had an outage.
 
