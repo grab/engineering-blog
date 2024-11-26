@@ -50,7 +50,7 @@ The LLM-Kit brings significant value to our teams at Grab:
 * **Improved observability**: With built-in LangSmith and Datadog integration, teams can monitor their LLM applications in real-time, enabling faster issue detection and resolution.  
 * **Enhanced security**: The LLM-Kit's built-in OIDC auth helpers and secret management using Vault ensure the secure development and deployment of LLM applications.  
 * **Efficient data management**: The integration with Vector databases facilitates efficient data storage and retrieval, crucial for the performance of LLM applications.  
-* **Standardisation**: The LLM-Kit provides a paved road framework for building LLM applications, promoting best practices and standardisation across teams.
+* **Standardisation**: The LLM-Kit provides a paved-road framework for building LLM applications, promoting best practices and standardisation across teams.
 
 Through the LLM-Kit, we can save an estimate of 1.5 weeks before teams start working on their first feature.
 
