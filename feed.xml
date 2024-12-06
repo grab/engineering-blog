@@ -6,9 +6,113 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 29 Nov 2024 04:47:52 +0000</pubDate>
-    <lastBuildDate>Fri, 29 Nov 2024 04:47:52 +0000</lastBuildDate>
+    <pubDate>Fri, 06 Dec 2024 05:57:49 +0000</pubDate>
+    <lastBuildDate>Fri, 06 Dec 2024 05:57:49 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>How we seamlessly migrated high volume real-time streaming traffic from one service to another with zero data loss and duplication</title>
+        <description>&lt;p&gt;At Grab, we continuously enhance our systems to improve scalability, reliability and cost-efficiency. Recently, we undertook a project to split the read and write functionalities of one of our backend services into separate services. This was motivated by the need to independently scale these operations based on their distinct scalability requirements.&lt;/p&gt;
+
+&lt;p&gt;In this post, we will dive deep into how we migrated the stream processing (write) functionality to a new service with zero data loss and duplication. This was accomplished while handling a high volume of real-time traffic averaging 20,000 reads per second from 16 source Kafka streams writing to other output streams and several DynamoDB tables.&lt;/p&gt;
+
+&lt;h2 id=&quot;migration-challenges-and-strategy&quot;&gt;Migration challenges and strategy&lt;/h2&gt;
+
+&lt;p&gt;Migrating the stream processing to the new service while ensuring zero data loss and duplication posed some interesting challenges, especially given the high volume of real-time data. We needed a strategy that would enable us to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Migrate streams one by one gradually.&lt;/li&gt;
+  &lt;li&gt;Validate the new service’s processing in production before fully switching over.&lt;/li&gt;
+  &lt;li&gt;Perform the switchover with no downtime or data inconsistencies.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We considered various options for the switchover such as using feature flags via our unified config management and experimental rollout platform. However, these approaches had some limitations:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;There could be some data loss or duplication during the deployment time when toggling the flags, which can be up to a few minutes.&lt;/li&gt;
+  &lt;li&gt;There might be data inconsistencies as the flag value could be updated on the services (the existing and and the new one) at slightly different times.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Ultimately, we decided on a custom time-based switchover logic implemented in shared code between the two services leveraging our monorepo structure. In the following sections, we will walk you through the steps we took to achieve this seamless migration.&lt;/p&gt;
+
+&lt;h2 id=&quot;step-1-preparation&quot;&gt;Step 1: Preparation&lt;/h2&gt;
+
+&lt;p&gt;First, since both the existing and new services reside in our monorepo, we moved the stream processing code from the existing service to a shared &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/commons&lt;/code&gt; directory. This allowed both the old and new services to import and use the same code. We added logic in this &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;commons&lt;/code&gt; package to selectively turn stream processing on or off based on the service processing them.&lt;/p&gt;
+
+&lt;p&gt;Next, we created temporary “sink” resources  such as streams and DynamoDB tables  for the new service to write the processed data. This allowed us to monitor and validate the new service’s behavior in production without impacting the main resources.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/seamless-migration/figure1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. For a short period, both services consumed the incoming streams, but only the old service continued to write to the actual sink resources while the new service wrote to validation sink resources.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;step-2-scheduling-the-switchover&quot;&gt;Step 2: Scheduling the switchover&lt;/h2&gt;
+
+&lt;p&gt;In the shared &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/commons&lt;/code&gt; code, we added a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;map[string]time.Time&lt;/code&gt; to schedule the switchover for each stream.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;map[string]time.Time{
+  &quot;streamA&quot;: time.Date(2024, 2, 28, 12, 0, 0, 0, time.UTC),
+  &quot;streamB&quot;: time.Date(2024, 3, 10, 12, 0, 0, 0, time.UTC),
+  // ...
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;When a stream is added to this map, it means it is scheduled for switchover at the specified time. This logic is shared between both services, so the switchover happens simultaneously. The new service starts writing to the main resources while the old service stops, with no overlap or gap.&lt;/p&gt;
+
+&lt;h2 id=&quot;step-3-deployment-and-monitoring&quot;&gt;Step 3: Deployment and monitoring&lt;/h2&gt;
+
+&lt;p&gt;To perform the switchover, we:&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;Updated the switchover times for the streams.&lt;/li&gt;
+  &lt;li&gt;Deployed both services with enough buffer time before the scheduled switch.&lt;/li&gt;
+  &lt;li&gt;Closely monitored the process by creating dedicated monitors for the migration process using our observability tools.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/seamless-migration/figure2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. This timeseries graph shows the stream received at the old and the new service (dotted line), facilitating real time monitoring of the stream processing volume across both services during the validation period.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The old service continued consuming the streams for a short monitoring period post-switchover, but without writing anywhere, ensuring no loss or duplication at the output sink resources. Then, the stream consumption was removed from the old service altogether, completing the entire migration process.&lt;/p&gt;
+
+&lt;h2 id=&quot;results-and-learnings&quot;&gt;Results and learnings&lt;/h2&gt;
+
+&lt;p&gt;Using this time-based approach, we were able to seamlessly migrate the high-volume stream processing to the new service with:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Zero data loss or duplication.&lt;/li&gt;
+  &lt;li&gt;No downtime or production issues.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The whole migration, including the gradual stream-by-stream switchover, was completed in about three weeks.&lt;/p&gt;
+
+&lt;p&gt;One learning was that such custom time-based logic, while effective for our use case, has limitations. If a rollback was needed for any of the two services for some unexpected reasons, some data inconsistency would be unavoidable. Generally, such time-based logic should be used with caution as it can lead to unexpected scenarios if the systems fall out of sync. We went ahead with this approach as it was a temporary measure and we had thoroughly tested it before carrying out the switchover.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 05 Dec 2024 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/seamless-migration</link>
+        <guid isPermaLink="true">https://engineering.grab.com/seamless-migration</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Optimisation</category>
+        
+        <category>Data streaming</category>
+        
+        <category>Real-time streaming</category>
+        
+        <category>Service</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Science</category>
+        
+      </item>
     
       <item>
         <title>Supercharging LLM Application Development with LLM-Kit</title>
@@ -1365,384 +1469,6 @@ interface LiveActivityManager {
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Unveiling the process: The creation of our powerful campaign builder</title>
-        <description>&lt;p&gt;In a previous &lt;a href=&quot;https://engineering.grab.com/trident-real-time-event-processing-at-scale&quot;&gt;blog&lt;/a&gt;, we introduced Trident, Grab’s internal marketing campaign platform. Trident empowers our marketing team to configure If This, Then That (IFTTT) logic and processes real-time events based on that.&lt;/p&gt;
-
-&lt;p&gt;While we mainly covered how we scaled up the system to handle large volumes of real-time events, we did not explain the implementation of the event processing mechanism. This blog will fill up this missing piece. We will walk you through the various processing mechanisms supported in Trident and how they were built.&lt;/p&gt;
-
-&lt;h2 id=&quot;base-building-block-treatment&quot;&gt;Base building block: Treatment&lt;/h2&gt;
-
-&lt;p&gt;In our system, we use the term “treatment” to refer to the core unit of a full IFTTT data structure. A treatment is an amalgamation of three key elements - an event, conditions (which are optional), and actions. For example, consider a promotional campaign that offers “100 GrabPoints for completing a ride paid with GrabPay Credit”. This campaign can be transformed into a treatment in which the event is “ride completion”, the condition is “payment made using GrabPay Credit”, and the action is “awarding 100 GrabPoints”.&lt;/p&gt;
-
-&lt;p&gt;Data generated across various Kafka streams by multiple services within Grab forms the crux of events and conditions for a treatment. Trident processes these Kafka streams, treating each data object as an event for the treatments. It evaluates the set conditions against the data received from these events. If all conditions are met, Trident then executes the actions.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/processing-treatments.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Trident processes Kafka streams as events for treatments.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;When the Trident user interface (UI) was first established, campaign creators had to grasp the treatment concept and configure the treatments accordingly. As we improved the UI, it became more user-friendly.&lt;/p&gt;
-
-&lt;h2 id=&quot;building-on-top-of-treatment&quot;&gt;Building on top of treatment&lt;/h2&gt;
-
-&lt;p&gt;Campaigns can be more complex than the example we provided earlier. In such scenarios, a single campaign may need transformation into several treatments. All these individual treatments are categorised under what we refer to as a “treatment group”. In this section, we discuss features that we have developed to manage such intricate campaigns.&lt;/p&gt;
-
-&lt;h3 id=&quot;counter&quot;&gt;Counter&lt;/h3&gt;
-
-&lt;p&gt;Let’s say we have a marketing campaign that “rewards users after they complete 4 rides”. For this requirement, it’s necessary for us to keep track of the number of rides each user has completed. To make this possible, we developed a capability known as &lt;strong&gt;counter&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;On the backend, a single counter setup translates into two treatments.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Treatment 1&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Event: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Condition: N/A&lt;/li&gt;
-  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;incrementUserStats&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Treatment 2&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Event:  &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Condition: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Ride Count == 4&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In this feature, we introduce a new event, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt;. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;incrementUserStats&lt;/code&gt; action in &lt;strong&gt;Treatment 1&lt;/strong&gt; triggers the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt; event following the update of the user counter. This allows &lt;strong&gt;Treatment 2&lt;/strong&gt; to consume the event and perform subsequent evaluations.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/end-to-end-evaluation-process.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. The end-to-end evaluation process when using the Counter feature.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;When the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt; event is consumed, &lt;strong&gt;Treatment 1&lt;/strong&gt; is evaluated which then executes the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;incrementUserStat&lt;/code&gt; action. This action increments the user’s ride counter in the database, gets the latest counter value, and publishes an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt; event to Kafka.&lt;/p&gt;
-
-&lt;p&gt;There are also other consumers that listen to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onProfileUpdate&lt;/code&gt; events. When this event is consumed, &lt;strong&gt;Treatment 2&lt;/strong&gt; is evaluated. This process involves verifying whether the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Ride Count&lt;/code&gt; equals to 4. If the condition is satisfied, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt; action is triggered.&lt;/p&gt;
-
-&lt;p&gt;This feature is not limited to counting the number of event occurrences only. It’s also capable of tallying the total amount of transactions, among other things.&lt;/p&gt;
-
-&lt;h3 id=&quot;delay&quot;&gt;Delay&lt;/h3&gt;
-
-&lt;p&gt;Another feature available on Trident is a delay function. This feature is particularly beneficial in situations where we want to time our actions based on user behaviour. For example, we might want to give a ride voucher to a user three hours after they’ve ordered a ride to a theme park. The intention for this is to offer them a voucher they can use for their return trip.&lt;/p&gt;
-
-&lt;p&gt;On the backend, a delay setup translates into two treatments. Given the above scenario, the treatments are as follows:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Treatment 1&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Event: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Condition: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Dropoff Location == Universal Studio&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;scheduleDelayedEvent&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Treatment 2&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Event:  &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onDelayedEvent&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Condition: N/A&lt;/li&gt;
-  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We introduce a new event, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onDelayedEvent&lt;/code&gt;, which &lt;strong&gt;Treatment 1&lt;/strong&gt; triggers during the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;scheduleDelayedEvent&lt;/code&gt; action. This is made possible by using Simple Queue Service (SQS), given its built-in capability to publish an event with a delay.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/end-to-end-evaluation-process-delay-feature.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. The end-to-end evaluation process when using the Delay feature.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The maximum delay that SQS supports is 15 minutes; meanwhile, our platform allows for a delay of up to x hours. To address this limitation, we publish the event multiple times upon receiving the message, extending the delay by another 15 minutes each time, until it reaches the desired delay of x hours.&lt;/p&gt;
-
-&lt;h3 id=&quot;limit&quot;&gt;Limit&lt;/h3&gt;
-
-&lt;p&gt;The &lt;strong&gt;Limit&lt;/strong&gt; feature is used to restrict the number of actions for a specific campaign or user within that campaign. This feature can be applied on a daily basis or for the full duration of the campaign.&lt;/p&gt;
-
-&lt;p&gt;For instance, we can use the &lt;strong&gt;Limit&lt;/strong&gt; feature to distribute 1000 vouchers to users who have completed a ride and restrict it to only one voucher for one user per day. This ensures a controlled distribution of rewards and prevents a user from excessively using the benefits of a campaign.&lt;/p&gt;
-
-&lt;p&gt;In the backend, a limit setup translates into conditions within a single treatment. Given the above scenario, the treatment would be as follows:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Event: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;onRideCompleted&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Condition: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;TotalUsageCount &amp;lt;= 1000 AND DailyUserUsageCount &amp;lt;= 1&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;Action: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;awardReward&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Similar to the &lt;strong&gt;Counter&lt;/strong&gt; feature, it’s necessary for us to keep track of the number of completed rides for each user in the database.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/end-to-end-evaluation-process-limit-feature.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. The end-to-end evaluation process when using the Limit feature.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;a-better-campaign-builder&quot;&gt;A better campaign builder&lt;/h2&gt;
-
-&lt;p&gt;As our campaigns grew more and more complex, the treatment creation quickly became overwhelming. A complex logic flow often required the creation of many treatments, which was cumbersome and error-prone. The need for a more visual and simpler campaign builder UI became evident.&lt;/p&gt;
-
-&lt;p&gt;Our design team came up with a flow-chart-like UI. Figure 5, 6, and 7 show examples of how certain imaginary campaign setup would look like in the new UI.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. When users complete a food order, if they are a gold user, award them with A. However, if they are a silver user, award them with  B.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. When users complete a food or mart order, increment a counter. When the counter reaches 5, send them a message. Once the counter reaches 10, award them with points.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/better-campaign-builder-example-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. When a user confirms a ride booking, wait for 1 minute, and then conduct A/B testing by sending a message 50% of the time.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The campaign setup in the new UI can be naturally stored as a node tree structure. The following is how the example in figure 5 would look like in JSON format. We assign each node a unique number ID, and store a map of the ID to node content.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{
-  &quot;1&quot;: {
-    &quot;type&quot;: &quot;scenario&quot;,
-    &quot;data&quot;: { &quot;eventType&quot;: &quot;foodOrderComplete&quot;  },
-    &quot;children&quot;: [&quot;2&quot;, &quot;3&quot;]
-  },
-  &quot;2&quot;: {
-    &quot;type&quot;: &quot;condition&quot;,
-    &quot;data&quot;: { &quot;lhs&quot;: &quot;var.user.tier&quot;, &quot;operator&quot;: &quot;eq&quot;, &quot;rhs&quot;: &quot;gold&quot; },
-    &quot;children&quot;: [&quot;4&quot;]
-  },
-  &quot;3&quot;: {
-    &quot;type&quot;: &quot;condition&quot;,
-    &quot;data&quot;: { &quot;lhs&quot;: &quot;var.user.tier&quot;, &quot;operator&quot;: &quot;eq&quot;, &quot;rhs&quot;: &quot;silver&quot; },
-    &quot;children&quot;: [&quot;5&quot;]
-  },
-  &quot;4&quot;: {
-    &quot;type&quot;: &quot;action&quot;,
-    &quot;data&quot;: {
-      &quot;type&quot;: &quot;awardReward&quot;,
-      &quot;payload&quot;: { &quot;rewardID&quot;: &quot;ID-of-A&quot;  }
-    }
-  },
-  &quot;5&quot;: {
-    &quot;type&quot;: &quot;action&quot;,
-    &quot;data&quot;: {
-      &quot;type&quot;: &quot;awardReward&quot;,
-      &quot;payload&quot;: { &quot;rewardID&quot;: &quot;ID-of-B&quot;  }
-    }
-  }
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;conversion-to-treatments&quot;&gt;Conversion to treatments&lt;/h3&gt;
-
-&lt;p&gt;The question then arises, how do we execute this node tree as treatments? This requires a conversion process. We then developed the following algorithm for converting the node tree into equivalent treatments:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;// convertToTreatments is the main function
-func convertToTreatments(rootNode) -&amp;gt; []Treatment:
-  output = []
-
-  for each scenario in rootNode.scenarios:
-    // traverse down each branch
-    context = createConversionContext(scenario)
-    for child in rootNode.children:
-      treatments = convertHelper(context, child)
-      output.append(treatments)
-
-  return output
-
-// convertHelper is a recursive helper function
-func convertHelper(context, node) -&amp;gt; []Treatment:
-  output = []
-  f = getNodeConverterFunc(node.type)
-  treatments, updatedContext = f(context, node)
-
-  output.append(treatments)
-
-  for child in rootNode.children:
-    treatments = convertHelper(updatedContext, child)
-    output.append(treatments)
-
-  return output
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;getNodeConverterFunc&lt;/code&gt; will return different handler functions according to the node type. Each handler function will either update the conversion context, create treatments, or both.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-  &lt;caption style=&quot;caption-side:bottom&quot;&gt;Table 1. The handler logic mapping for each node type.&lt;/caption&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th style=&quot;width:20%&quot;&gt;Node type&lt;/th&gt;
-      &lt;th&gt;Logic&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;condition&lt;/td&gt;
-      &lt;td&gt;Add conditions into the context and return the updated context.&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;action&lt;/td&gt;
-      &lt;td&gt;Return a treatment with the event type, condition from the context, and the action itself.&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;delay&lt;/td&gt;
-      &lt;td&gt;Return a treatment with the event type, condition from the context, and a scheduleDelayedEvent action.&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;count&lt;/td&gt;
-      &lt;td&gt;Return a treatment with the event type, condition from the context, and an incrementUserStats action.&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;count condition&lt;/td&gt;
-      &lt;td&gt;Form a condition with the count key from the context, and return an updated context with the condition.&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;It is important to note that treatments cannot always be reverted to their original node tree structure. This is because different node trees might be converted into the same set of treatments.&lt;/p&gt;
-
-&lt;p&gt;The following is an example where two different node trees setups correspond to the same set of treatments:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Food order complete -&amp;gt; if gold user -&amp;gt; then award A&lt;/li&gt;
-  &lt;li&gt;Food order complete -&amp;gt; if silver user -&amp;gt; then award B&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/two-node-tree-setup.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8. An example of two node tree setups corresponding to the the same set of treatments.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Therefore, we need to store both the campaign node tree JSON and treatments, along with the mapping between the nodes and the treatments. Campaigns are executed using treatments, but displayed using the node tree JSON.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/storing-campaigns.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 9. For each campaign, we store both the node tree JSON and treatments, along with their mapping.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;how-we-handle-campaign-updates&quot;&gt;How we handle campaign updates&lt;/h3&gt;
-
-&lt;p&gt;There are instances where a marketing user updates a campaign after its creation. For such cases we need to identify:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Which existing treatments should be removed.&lt;/li&gt;
-  &lt;li&gt;Which existing treatments should be updated.&lt;/li&gt;
-  &lt;li&gt;What new treatments should be added.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We can do this by using the node-treatment mapping information we stored. The following is the pseudocode for this process:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;func howToUpdateTreatments(oldTreatments []Treatment, newTreatments []Treatment):
-  treatmentsUpdate = map[int]Treatment // treatment ID -&amp;gt; updated treatment
-  treatmentsRemove = []int // list of treatment IDs
-  treatmentsAdd = []Treatment // list of new treatments to be created
-
-  matchedOldTreamentIDs = set()
-
-  for newTreatment in newTreatments:
-    matched = false
-
-    // see whether the nodes match any old treatment
-    for oldTreatment in oldTreatments:
-      // two treatments are considered matched if their linked node IDs are identical
-      if isSame(oldTreatment.nodeIDs, newTreatment.nodeIDs):
-        matched = true
-        treatmentsUpdate[oldTreament.ID] = newTreatment
-        matchedOldTreamentIDs.Add(oldTreatment.ID)
-        break
-
-    // if no match, that means it is a new treatment we need to create
-    if not matched:
-      treatmentsAdd.Append(newTreatment)
-
-  // all the non-matched old treatments should be deleted
-  for oldTreatment in oldTreatments:
-    if not matchedOldTreamentIDs.contains(oldTreatment.ID):
-      treatmentsRemove.Append(oldTreatment.ID)
-
-  return treatmentsAdd, treatmentsUpdate, treatmentsRemove
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;For a visual illustration, let’s consider a campaign that initially resembles the one shown in figure 10. The node IDs are highlighted in red.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/campaign-node-tree-structure.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 10. A campaign in node tree structure.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;This campaign will generate two treatments.&lt;/p&gt;
-
-&lt;table style=&quot;width: 70%&quot; class=&quot;table&quot;&gt;
-  &lt;caption style=&quot;caption-side:bottom&quot;&gt;Table 2. The campaign shown in the figure 10 will generated two treatments.&lt;/caption&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th style=&quot;width:10%&quot;&gt;ID&lt;/th&gt;
-      &lt;th style=&quot;width:50%&quot;&gt;Treatment&lt;/th&gt;
-      &lt;th&gt;Linked node IDs&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;1&lt;/td&gt;
-      &lt;td&gt;Event: food order complete &lt;br /&gt; Condition: gold user &lt;br /&gt; Action: award A&lt;/td&gt;
-      &lt;td&gt;1, 2, 3&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;2&lt;/td&gt;
-      &lt;td&gt;Event: food order complete &lt;br /&gt; Condition: silver user &lt;br /&gt; Action: award B&lt;/td&gt;
-      &lt;td&gt;1, 4, 5&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;After creation, the campaign creator updates the upper condition branch, deletes the lower branch, and creates a new branch. Note that after node deletion, the deleted node ID will not be reused.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/the-creation-of-our-powerful-campaign-builder/updated-campaign-node-tree-structure.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 11. An updated campaign in node tree structure.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;According to our logic in figure 11, the following update will be performed:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Update action for treatment 1 to “award C”.&lt;/li&gt;
-  &lt;li&gt;Delete treatment 2&lt;/li&gt;
-  &lt;li&gt;Create a new treatment: food -&amp;gt; is promo used -&amp;gt; send push&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;This article reveals the workings of Trident, our bespoke marketing campaign platform. By exploring the core concept of a “treatment” and additional features like Counter, Delay and Limit, we illustrated the flexibility and sophistication of our system.&lt;/p&gt;
-
-&lt;p&gt;We’ve explained changes to the Trident UI that have made campaign creation more intuitive. Transforming campaign setups into executable treatments while preserving the visual representation ensures seamless campaign execution and adaptation.&lt;/p&gt;
-
-&lt;p&gt;Our devotion to improving Trident aims to empower our marketing team to design engaging and dynamic campaigns, ultimately providing excellent experiences to our users.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 10 Sep 2024 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/the-creation-of-our-powerful-campaign-builder</link>
-        <guid isPermaLink="true">https://engineering.grab.com/the-creation-of-our-powerful-campaign-builder</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Generative AI</category>
-        
-        <category>LLM</category>
-        
-        <category>Experiment</category>
-        
-        <category>Machine learning</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Design</category>
         
       </item>
     
