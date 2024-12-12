@@ -6,9 +6,281 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 06 Dec 2024 05:57:49 +0000</pubDate>
-    <lastBuildDate>Fri, 06 Dec 2024 05:57:49 +0000</lastBuildDate>
+    <pubDate>Thu, 12 Dec 2024 02:25:22 +0000</pubDate>
+    <lastBuildDate>Thu, 12 Dec 2024 02:25:22 +0000</lastBuildDate>
     <generator>Jekyll v4.2.0</generator>
+    
+      <item>
+        <title>Turbocharging GrabUnlimited with Temporal</title>
+        <description>&lt;p&gt;Welcome to the behind-the-scenes story of &lt;a href=&quot;https://www.grab.com/sg/grabunlimited/&quot;&gt;GrabUnlimited&lt;/a&gt;, Grab’s flagship membership program. We undertook the mammoth task of migrating from our legacy system to a Temporal&lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; workflow-based system, enhancing our ability to handle millions of subscribers with increased efficiency and resilience. The result? A whopping 80% reduction in open production incidents, and most importantly - an improved membership experience for our users. In this first part of the series, you will learn how to design a robust and scalable membership system as we delve into our own experience building one.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-is-grabunlimited&quot;&gt;What is GrabUnlimited?&lt;/h2&gt;
+
+&lt;p&gt;The idea behind GrabUnlimited, is pretty simple: you pay a monthly fee, you get monthly benefits as a member (e.g discounted food delivery fee). A membership system plays a key role in enhancing user experience by giving them more value for money, but also by building loyalty, making Grab their go-to app for everyday needs. However, as this program grew and evolved, it brought along unique challenges and opportunities.&lt;/p&gt;
+
+&lt;p&gt;With the initial triumph and significant surge in subscriber count by over 1000% from January 2022 to June 2023 - which we were super proud of! - the architecture that supported GrabUnlimited was starting to show signs of strain. Common subscriber concerns such as not receiving their membership benefits, along with developer issues marked by an increase in service outages highlighted the system’s low resiliency. The culprit? A backend service that, while functional, was not built to efficiently manage the complexities of a rapidly scaling membership model.&lt;/p&gt;
+
+&lt;h2 id=&quot;deep-dive-into-our-previous-system-design&quot;&gt;Deep dive into our previous system design&lt;/h2&gt;
+
+&lt;p&gt;As engineers, we know that deciding to migrate any system to a new one is like changing the engine of a running car. It requires meticulous evaluation of the existing systems, a deep dive into the issues and their root causes, and a thorough analysis of potential solutions and their trade-offs.&lt;/p&gt;
+
+&lt;h3 id=&quot;how-was-grabunlimited-designed&quot;&gt;How was GrabUnlimited designed?&lt;/h3&gt;
+
+&lt;p&gt;Initially, GrabUnlimited systems were designed for an experiment and not a full-fledged regional product. The idea was to try it out as a minimum viable product over a restricted segment of a few hundred thousand users. Let’s first have a look at how the membership program works.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/life-of-a-membership-worfklow.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. GrabUnlimited life of a membership flowchart.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Under the hood, our membership system relies on two main flows&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Membership purchase&lt;/strong&gt;: The user enrols for a certain duration (e.g 3 months), completes the payment through our Payment service, and receives benefits via our Reward service.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Membership renewal&lt;/strong&gt;: A daily cron job&lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; checks which memberships need renewal, processes the payment, and delivers the benefits.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We employed a state machine&lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; approach to break down the membership process into smaller chunks called state handlers. For instance, a membership might transition through ‘Init’, ‘Charged’, ‘Rewarded’, and ‘Active’ states. To operate these states, we used &lt;a href=&quot;https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html&quot;&gt;Amazon’s Simple Queue Service&lt;/a&gt; (SQS). SQS acts as a manager, delegating state handlers to workers (our service) and monitoring the status of the state handler. If a worker fails to complete a task, SQS reassigns the task to another worker, ensuring no task is lost. The load is also spread across multiple workers, helping with scalability.&lt;/p&gt;
+
+&lt;p&gt;To safeguard our system against duplicate tasks such as charging the user twice, when a worker takes up a task, it would use a &lt;a href=&quot;https://redis.io/glossary/redis-lock/&quot;&gt;Redis lock&lt;/a&gt;&lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; mechanism with a time-to-live (TTL) of five minutes preventing any other worker from picking up the same task. If a worker fails or crashes, the lock expires and another worker can pick up the job.&lt;/p&gt;
+
+&lt;p&gt;So far, so good.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/grabunlimited-previous-system-design-overview.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. GrabUnlimited previous system design overview.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;with-our-success-came-many-challenges&quot;&gt;With our success came many challenges&lt;/h3&gt;
+
+&lt;p&gt;As our subscriber base grew, we experienced an increase in system outages. To address this, we scrutinised metrics like the number of support tickets and gauged the toll on our engineering team. This included the time spent patching up issues and the opportunity cost of not developing new features or improvements.&lt;/p&gt;
+
+&lt;p&gt;From our subscribers’ point of view, we saw a steady increase in reported incidents.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Users were blocked because their membership status was corrupted in our database.&lt;/li&gt;
+  &lt;li&gt;Memberships were not automatically renewed, or users were not able to resubscribe.&lt;/li&gt;
+  &lt;li&gt;Users were not receiving their benefits after renewing their membership.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;From the engineering team’s perspective, we were dedicating one engineer every week to battle these incidents full time. The on-call engineers were not only tasked with manually fixing all customer reports but were also swamped with frequent system alerts. This situation had three detrimental impacts on our team:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;We were constantly putting out fires instead of addressing the root causes.&lt;/li&gt;
+  &lt;li&gt;We were spending resources that could have been used to enhance our customers’ experience.&lt;/li&gt;
+  &lt;li&gt;Our team’s motivation and confidence was taking a big hit.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;finding-the-architectural-culprit&quot;&gt;Finding the architectural culprit&lt;/h3&gt;
+
+&lt;p&gt;The first step was to clearly identify and understand the issues within our systems. We looked at the frequency of failures and their root cause. From there, we were able to detect recurring patterns, which led us to four major issues in our architecture.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Scalability&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Our system’s cron job, which retrieves all daily memberships due for renewal from our database, becomes slower and more resource-intensive as the number of members increases. Despite our attempt to alleviate high database usage by dividing the process into multiple batches and running several cron jobs, we were still experiencing significant surges each time a cron job runs. So our only viable solution was vertical scaling&lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt; of the database. In other words, we had a serious bottleneck in our system.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/database-qps-membership-renewals.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Database queries per second during membership renewals at night.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Concurrency&lt;/strong&gt;&lt;sup id=&quot;fnref:6&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;Picture this - A user tries to cancel their membership in the middle of the auto-renewal process, and voila, we have what we call a “zombie” state where the membership is both cancelled and renewed. This situation happens due to the limitations of our 5-minute Redis lock. If the renewal process holding the lock doesn’t complete within the timeout, the lock is released, enabling the cancel process to obtain the lock and run concurrently.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Resiliency&lt;/strong&gt;&lt;sup id=&quot;fnref:7&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;7&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;What happens when the Rewards service faces an outage? The user buys a membership but doesn’t receive the rewards. It’s like throwing a party but the guests never arrive. We had three issues here:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;In the event where upstream services had an outage, we relied on SQS’s maximum number of retries without exponential backoff&lt;sup id=&quot;fnref:8&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;8&lt;/a&gt;&lt;/sup&gt;, causing potential overloads on recovering services.&lt;/li&gt;
+  &lt;li&gt;Our cron job being housed within the service itself was susceptible to interruptions during outages or service restarts.&lt;/li&gt;
+  &lt;li&gt;Over time, the logic to transition between states in our state machine became complex and multi-responsibility as more states were added. This made our retry mechanism unreliable due to potential risks of double charging or double awarding users. Which leads us to our fourth culprit.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Idempotency&lt;/strong&gt;&lt;sup id=&quot;fnref:9&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:9&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;9&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;Even when some steps could be retried, our system lacked idempotency guarantees - a safety net to ensure that a step could be repeated without unintended side effects. Although our critical upstream systems like Payments and Rewards support idempotency via idempotency keys, our service wasn’t originally designed with this in mind.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Users could be stuck in a state where the payment succeeded but they didn’t receive their benefits or received them twice, requiring manual intervention from engineers.&lt;/li&gt;
+  &lt;li&gt;We were not able to auto-retry membership renewals if the cron job, database, or any service had an outage.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/idempotency-issue-old-system-design.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Example of Idempotency issue in our old system design. If a single task fails in a state handler, the whole step would be retried which could lead to a double awarding.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;For example, consider a state handler “BenefitsAwarding” that follows these steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Generate an idempotency key.&lt;/li&gt;
+  &lt;li&gt;Calls Reward service to award the first set of benefits to the subscriber using the key.&lt;/li&gt;
+  &lt;li&gt;Calls Reward service to award the second set of benefits to the subscriber using the key.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;If step 3 fails due to an outage, and the step is retried and re-queued in SQS, it would restart from step 1. This generates a new idempotency key, meaning the Reward system wouldn’t recognize the retry and will award Benefits1 twice. One way to fix this with our current design is to substantially increase the number of states in our SQS state machine, to isolate tasks further rather than handling too much logic in a state handler. However, that would mean having hundreds of states making the whole process difficult to maintain.&lt;/p&gt;
+
+&lt;p&gt;Ultimately, most incidents traced back to one fundamental issue: Our systems were relying on a sequential process that couldn’t be easily replayed if any incident or disturbance happened during execution. We were placing all our bets on the happy path, a risky gamble indeed.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-solution-migrating-our-system-to-temporal&quot;&gt;The Solution: Migrating our system to Temporal&lt;/h2&gt;
+
+&lt;p&gt;Armed with a clear understanding of the problems and their impacts, we set out to explore potential solutions. This journey led us to consider &lt;strong&gt;refactoring our existing system&lt;/strong&gt; or &lt;strong&gt;migrating to a new architecture&lt;/strong&gt; that another team introduced to us: &lt;strong&gt;Temporal&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;enter-temporal&quot;&gt;Enter Temporal&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://temporal.io/&quot;&gt;Temporal&lt;/a&gt; is an open-source workflow orchestration engine. Think of it as a more robust and battle-tested implementation of our previous SQS architecture. It’s designed to run millions of &lt;a href=&quot;https://docs.temporal.io/workflows&quot;&gt;workflows&lt;/a&gt; concurrently and can recover/resume the state of a workflow execution at the exact point of failure even in the event of an outage. It has features like &lt;a href=&quot;https://docs.temporal.io/encyclopedia/retry-policies&quot;&gt;infinite retries&lt;/a&gt;, &lt;a href=&quot;https://docs.temporal.io/encyclopedia/retry-policies#backoff-coefficient&quot;&gt;exponential backoff&lt;/a&gt;, &lt;a href=&quot;https://docs.temporal.io/cloud/nexus/operations#rate-limiting&quot;&gt;rate limiting&lt;/a&gt;, and observability out of the box. This sounded exactly like what we needed! By using Temporal, we could offload the complexity of managing state transitions, retries, and task concurrency, allowing us to focus on our core business logic.&lt;/p&gt;
+
+&lt;p&gt;In order to make the right decision, we meticulously assessed our options over the following criteria:  scalability&lt;sup id=&quot;fnref:10&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:10&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;10&lt;/a&gt;&lt;/sup&gt;, reliability&lt;sup id=&quot;fnref:11&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:11&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;11&lt;/a&gt;&lt;/sup&gt;, resiliency&lt;sup id=&quot;fnref:12&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:12&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;12&lt;/a&gt;&lt;/sup&gt;, performance, development effort, cost, security, flexibility&lt;sup id=&quot;fnref:13&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:13&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;13&lt;/a&gt;&lt;/sup&gt;, and testability&lt;sup id=&quot;fnref:14&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:14&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;14&lt;/a&gt;&lt;/sup&gt;. We realised that most of what we needed to build to compensate for our system design gaps was already built into Temporal. Let’s have a sneak peek on how the architecture looks and how it solves all four major culprits we discussed.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/grabunlimited-new-system-design-architecture.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. GrabUnlimited new system design architecture.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;fixing-our-architecture-culprits&quot;&gt;Fixing our architecture culprits&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Scalability&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Let’s start with the easiest fix, remember our old cron job for membership renewals? We replaced it with &lt;a href=&quot;https://docs.temporal.io/develop/go/timers&quot;&gt;Timer&lt;/a&gt; which allows a workflow to sleep and automatically wake up. Instead of renewing membership by batches, they are now renewed throughout the entire day based on the hour and minute when the user subscribed. What does this mean for us? We no longer need to fetch memberships from our database to trigger renewals. The workflow will resume at the due date to process the renewal, eliminating the database as a bottleneck.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/total-qps-before-after-temporal.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Total queries per second (QPS) on database before and after the migration to Temporal.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Concurrency&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Our legacy Redis lock mechanism was clearly not enough. However, with Temporal, we have alternative solutions to avoid race conditions. What happens if a user tries to cancel while the membership renewal workflow is being triggered? Temporal allows us to assign the &lt;a href=&quot;https://docs.temporal.io/workflows#workflow-id-reuse-policy&quot;&gt;same workflow ID&lt;/a&gt; to multiple workflows running mutually exclusive operations, ensuring only one operation runs at a time. Basically, we assigned the same workflow ID to both cancellation and renewal workflows, either cancellation happens first, removing the need to renew the consumer membership, or renewal takes the lead, and cancellation only happens after.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/total-corrupted-membership-states.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Total corrupted membership states (zombies) manually handled by engineers significantly decreased during our migration which started in February.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Resiliency&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Out of the box, Temporal allowed us to put in place a few key &lt;a href=&quot;https://docs.temporal.io/encyclopedia/retry-policies&quot;&gt;resilience mechanisms&lt;/a&gt; like exponential backoff and infinite retry which was a key gap in our previous SQS architecture. That was great because we didn’t have to implement these mechanisms on our own and it meant that when calling key upstream services like Payment, we were able to precisely set our retry policies without overwhelming the service in case of an outage on their end.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Idempotency&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Remember our fourth culprit from above? Our state handlers with SQS were performing too many tasks simultaneously, which made it risky to trust the retry process. This multi-responsibility nature introduced significant risks, including potential database corruption, double charging, and double awarding of benefits. Further breaking down these steps would result in hundreds of intermediary steps, each requiring careful maintenance and correct sequencing. With Temporal, you can imagine a membership as an ever-running workflow consisting of a sequence of steps that are automatically managed and retried in case of failures.&lt;/p&gt;
+
+&lt;p&gt;While this approach didn’t directly resolve idempotency issues, it made the system and the code more readable and allowed us to &lt;a href=&quot;https://docs.temporal.io/activities#idempotency&quot;&gt;design steps with single responsibilities&lt;/a&gt;. This, in turn, made it simpler for us to develop and ensure these steps were idempotent.&lt;/p&gt;
+
+&lt;p&gt;Let’s take a look at our previous example with Temporal.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/temporal-workflow.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8. Temporal workflow: If a single task fails, only that task is retried.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Let’s consider the same use case where a member needs to receive their benefits. The tasks remain the same except we don’t need to persist the idempotency key as it will be in the Temporal workflow state instead.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Generate idempotency keys.&lt;/li&gt;
+  &lt;li&gt;Calls Reward service to award the first set of benefits to the subscriber using the key abc1.&lt;/li&gt;
+  &lt;li&gt;Calls Reward service to award the second set of benefits to the subscriber using the second key xyz1.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;If the “AssignBenefits2” step fails, and the process is retried by Temporal, it will restart directly from that step, thus preventing the double awarding we were experiencing with SQS. Thanks to this approach, we largely improved idempotency and resiliency in our system, which also led to great results in decreasing user reported incidents.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/total-opi-related-to-membership.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 9. Total open production incidents reported by users related to membership issues from January to October 2024.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;embracing-temporal-challenges-and-mindset-shift&quot;&gt;Embracing Temporal: Challenges and mindset shift&lt;/h2&gt;
+
+&lt;p&gt;Transitioning to Temporal was quite a paradigm shift for our team. Rather than managing SQS state transitions, we could now focus on our core business logic while Temporal handled the complexities of state management, error handling, and retries. This change allowed us to streamline development, making our processes more intuitive.&lt;/p&gt;
+
+&lt;p&gt;However, this shift wasn’t without its challenges. Temporal features such as Workflow and Activity design, deterministic execution, and built-in retry mechanisms required a steep learning curve. We had to quickly adapt to Temporal’s new way of thinking, and while it took some time to master these tools, they ultimately led to a more robust and scalable system. The transition to Temporal brought not only technical improvements but also a new mindset for solving problems efficiently.&lt;/p&gt;
+
+&lt;h2 id=&quot;key-takeaways-and-conclusion&quot;&gt;Key takeaways and conclusion&lt;/h2&gt;
+
+&lt;p&gt;After a thorough analysis, we decided to transition our architecture to Temporal, as it outperformed on nearly every evaluation criteria. Here are the key takeaways from our experience:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Understand the problem, fix it for the future&lt;/strong&gt;: Migrating legacy systems requires more than just patching up issues; it demands a deep dive into the root causes. For us, that meant addressing challenges in scalability, resiliency, and concurrency head-on to prevent future headaches.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Focusing on what matters&lt;/strong&gt;: By adopting Temporal workflow orchestration, we could shift our focus to what really counts, core business logic. The result? An 80% reduction in production incidents and a much smoother post-migration experience.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Resilience and flexibility at scale&lt;/strong&gt;: Temporal provided the infrastructure we needed to handle millions of subscribers with more robust processes for retries, idempotency, and state management. These features played a key role in ensuring the system remained stable and flexible as our user base grew.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;The learning curve pays off&lt;/strong&gt;: Every system migration has its challenges, but the payoff was transformative. Despite the initial hiccups, moving to Temporal allowed us to scale GrabUnlimited seamlessly while significantly improving both our development processes and the overall user experience.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Stay tuned for Part 2, where we dive into the challenges of the migration and the lessons learned along the way. How did we seamlessly migrate millions of users to this new architecture without disrupting their memberships? How did we implement Temporal without pausing development for months? And what roadblocks did we encounter as we scaled this solution to all our users? We’ll answer these questions and more in the next post.&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Nothing would have been possible without the unwavering support of Abegail Nato Alcantara, Andrys Silalahi, Pavel Sidlo, and Renu Yadav.&lt;/small&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+
+&lt;h3 id=&quot;definition-of-terms&quot;&gt;Definition of terms&lt;/h3&gt;
+
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Temporal: Temporal is an open-source workflow orchestration platform. It allows developers to build scalable and reliable applications using familiar development patterns and easy-to-use tools. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Cron job: A cron job is a time-based job scheduler in Unix-like operating systems. Users can schedule jobs (commands or scripts) to run periodically at fixed times, dates, or intervals. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;State machine: A state machine is a behavioural model used in computer science. It represents a system in terms of states and transitions between those states. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Redis lock mechanism: Redis is an in-memory data structure store that can be used as a database, cache, and message broker. A Redis lock mechanism is a way to ensure that only one computer in a distributed network can process a certain piece of code at a time. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Vertical scaling: also known as “scaling up”, is the process of adding more resources (such as memory, CPUs, or storage) to an existing server or database to enhance its performance and capacity. Which is different from Horizontal scaling, also known as “scaling out”, the process of adding more servers or nodes to a system to handle increased load. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:6&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Concurrency: In computing, concurrency is the ability of different parts or units of a program, algorithm, or problem to be executed out-of-order or in partial order, without affecting the final outcome. &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:7&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Resiliency: refers to the ability of a system or application to quickly recover from failures and continue its intended operation without significant interruption. &lt;a href=&quot;#fnref:7&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:8&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Exponential backoff: Exponential backoff is an algorithm that uses feedback to multiplicatively decrease the rate of some process, in order to gradually find an acceptable rate. In the context of the article, it refers to a strategy for retrying failed tasks with increasing wait times between retries. &lt;a href=&quot;#fnref:8&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:9&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Idempotency: An operation is idempotent if the result of performing it once is exactly the same as the result of performing it repeatedly without any intervening actions. &lt;a href=&quot;#fnref:9&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:10&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Scalability: The ability of a system to handle increased workload or demand by adding resources. &lt;a href=&quot;#fnref:10&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:11&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Reliability: The capacity of a system to consistently perform its intended functions without failure. &lt;a href=&quot;#fnref:11&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:12&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Resiliency: The ability of a system to recover quickly and effectively from failures or disruptions, ensuring continuity of service. &lt;a href=&quot;#fnref:12&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:13&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Flexibility: The architecture should be flexible enough to accommodate future changes in requirements. &lt;a href=&quot;#fnref:13&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:14&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Testability: The architecture should allow for effective testing to ensure the system works as expected. &lt;a href=&quot;#fnref:14&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Thu, 12 Dec 2024 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/turbocharging-grabunlimited-with-temporal</link>
+        <guid isPermaLink="true">https://engineering.grab.com/turbocharging-grabunlimited-with-temporal</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Optimisation</category>
+        
+        <category>Product</category>
+        
+        <category>Database</category>
+        
+        <category>Scalability</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Product</category>
+        
+      </item>
     
       <item>
         <title>How we seamlessly migrated high volume real-time streaming traffic from one service to another with zero data loss and duplication</title>
@@ -1291,181 +1563,6 @@ spec:
         <category>Documentation</category>
         
         <category>Elasticsearch</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Bringing Grab’s Live Activity to Android: Enhancing user experience through custom notifications</title>
-        <description>&lt;p&gt;In May 2023, Grab unveiled the Live Activity feature for iOS, which received positive feedback from users. Live Activity is a feature that enhances user experience by displaying a user interface (UI) outside of the app, delivering real-time updates and interactive content. At Grab, we leverage this feature to keep users informed about their order updates without requiring them to manually open the app.&lt;/p&gt;
-
-&lt;p&gt;While Live Activity is a native iOS feature provided by Apple, there is currently no official Android equivalent. However, we are determined to bring this immersive experience to Android users. Inspired by the success of Live Activity on iOS, we have embarked on design explorations and feasibility studies to ensure the seamless integration of Live Activity into the Android platform. Our ultimate goal is to provide Android users with the same level of convenience and real-time updates, elevating their Grab experience.&lt;/p&gt;
-
-&lt;h2 id=&quot;product-exploration&quot;&gt;Product Exploration&lt;/h2&gt;
-
-&lt;p&gt;In July 2023, we took a proactive step by forming a dedicated working group with the specific goal of exploring Live Activity on the Android platform. Our mindset was focused on quickly enabling the MVP (Minimum Viable Product) of this feature for Android users. We focused on enabling Grab users to track food and mart orders on Live Activity as our first use-case. We also designed the Live Activity module as an extendable platform, allowing easy adoption by other Grab internal verticals such as the Express and Transport teams.&lt;/p&gt;
-
-&lt;p&gt;The team kicked off by analysing the current solution and end-to-end flow of Live Activity on iOS. The objective was to uncover opportunities on how we could leverage the existing platform approach.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img//live-activity-2/figure1.png&quot; alt=&quot;&quot; style=&quot;width:30%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Grab iOS Live Activity flow.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The first thing that caught our attention was that there is no Live Activity Token (also known as Push Token) concept on Android. Push Token is a token generated from the ActivityKit framework and used to remotely start, update, and end Live Activity notifications on iOS.&lt;/p&gt;
-
-&lt;p&gt;Our goal was to match the Live Activity set-up of iOS in Android, which was a challenge due to the missing Push Token. This required us to think outside the box and develop an innovative workaround. After multiple brainstorming sessions, the team developed two potential solutions, Solution 1 and Solution 2, as illustrated below:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img//live-activity-2/figure2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Proposed solutions for Live Activity for Android.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We evaluated the two solutions. The first solution is to substitute the Push Token with a placeholder value, serving as a distinctive notification identifier. Whereas, the second solution involves the Hedwig service, our in-house message delivery service. We proposed to bypass the Live Activity token check process specifically for Android devices. Following extensive discussions, we decided to proceed with the first solution, which ensures consistency in the technical approach between Android and iOS platforms. Additionally, this solution allows us to ensure that notifications are only pushed to the devices that support the Live Activity feature. This decision strikes a good balance between efficiency and compatibility.&lt;/p&gt;
-
-&lt;h3 id=&quot;ui-components&quot;&gt;UI Components&lt;/h3&gt;
-
-&lt;p&gt;Starting with a kick-off project meeting where we showcased our plans and proposed solutions to our stakeholders, the engineering team presented two native Android UI components that could be utilised to replicate Live Activity: the Notification View and the Floating View.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The Notification View&lt;/strong&gt; is a component located in the notification drawer (and potentially on the Lock Screen) that fulfils the most basic use-case of the Live Activity feature. It enables Android users to access information without the need to open the app. Since the standard notification template only allows developers to display a single content title, a content subtitle, and one image, it falls short of meeting our Live Activity UI requirements. To overcome this limitation, custom notifications with custom layouts are needed.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img//live-activity-2/figure3.gif&quot; alt=&quot;&quot; style=&quot;width:40%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Early design spec of Grab’s LA using custom notification.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;One of the key advantages of custom notifications is that they do not require any additional new permissions, ensuring a smooth user experience. Additionally, Android users are accustomed to checking their notifications from the notification tray, making it a familiar and intuitive interaction. However, it is important to acknowledge that custom notifications rely on a remote view, which can pose restrictions on rendering only specific views. On top of that, custom notifications provide a limited space for content – limited to 48dp when collapsed and 252dp when expanded.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The Floating View&lt;/strong&gt; is a component that will appear above all the applications in Android. It adds the convenience of accessing the information when the device is unlocked or when the user is on another app.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img//live-activity-2/figure4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Early design spec of Grab’s LA using floating view.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The use of a Floating View offers greater flexibility to the view by eliminating the reliance on a remote view. However, it’s important to be aware of the potential limitations associated with this approach. These limitations include the requirement for screen space, which can potentially impact other app functionalities and cause frustration for users. Additionally, if we intend to display multiple order updates, we may require even more space, taking into account that Grab allows users to place multiple orders. Furthermore, the Floating View feature requires an extra “Draw over other apps” permission, a setting that allows an app to display information on top of other apps on your screen.&lt;/p&gt;
-
-&lt;p&gt;After thoughtful deliberation, we concluded that custom notifications provide a more consistent and user-friendly solution for implementing Grab’s Live Activity feature on Android. They offer compatibility, non-intrusiveness, no extra permissions, and the flexibility of silent notifications, ensuring an optimised user experience.&lt;/p&gt;
-
-&lt;h2 id=&quot;building-grab-androids-live-activity&quot;&gt;Building Grab Android’s “Live Activity”&lt;/h2&gt;
-
-&lt;p&gt;We began developing the Live Activity feature by focusing on Food and Mart for the MVP. However, we prioritised potential future use cases for other verticals by examining the existing functionality of the Grab iOS Live Activity feature. By considering these factors from the start, we need to make sure that we build an extendable and flexible solution that caters to different verticals and their various use-cases.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img//live-activity-2/figure5.gif&quot; alt=&quot;&quot; style=&quot;width:40%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Grab’s Android Live Activity.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;As we set out to design Grab’s Android Live Activity module, we broke down the task into three key components:&lt;/p&gt;
-
-&lt;h3 id=&quot;registering-live-activity-token&quot;&gt;&lt;strong&gt;Registering Live Activity Token&lt;/strong&gt;&lt;/h3&gt;
-
-&lt;p&gt;In order to enable Hedwig services to send Live Activity notifications to devices, it is necessary to register a Live Activity Token for a specific order to Grab Devices services (refer to figure 1 for the iOS flow). As this use-case is applicable across various verticals in iOS, we have designed a LiveActivityIntegrationManager class specifically to handle this functionality.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;interface LiveActivityIntegrationManager {  
-    /\*\*  
-     \* To start live activity journey  
-     \* @param vertical refers to vertical name  
-     \* @param id refers to unique id which is used to differentiate live activity UI instances  
-     \* eg: Food will use orderID as id, transport can pass rideID  
-     \*\*/  
-    fun startLiveActivity(vertical: Vertical, id: String): Completable
-
-    fun updateLiveActivity(id: String, attributes: LiveActivityAttributes)
-
-    fun cancelLiveActivity(id: String)  
-}  
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Our goal is to provide developers with an easy implementation of Live Activity in the Grab app. Developers can simply utilize the startLiveActivity() function to register the token to Grab Devices by passing the vertical name and unique ID as parameters.&lt;/p&gt;
-
-&lt;h3 id=&quot;notification-listener-and-payload-mapping&quot;&gt;&lt;strong&gt;Notification Listener and Payload Mapping&lt;/strong&gt;&lt;/h3&gt;
-
-&lt;p&gt;To handle Live Activity notifications in Android, it is necessary to listen to the Live Activity notification payload and map it to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LiveActivityAttributes&lt;/code&gt;. Taking into consideration the initial Live Activity design (refer to figure 3), we need to analyse the variables necessary for this process. As a result, we break down the Live Activity UI into different UI elements and layouts, as follows:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img//live-activity-2/figure6.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Android Live Activity view breakdown.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;App Icon&lt;/strong&gt; – labeled as 1 in Figure 6. &lt;br /&gt;
-This view always shows the Grab app icon.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Header Icon&lt;/strong&gt; – labeled as 2 in Figure 6.&lt;br /&gt;
-This view is an image view that could be set with icon resources.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Content Title View&lt;/strong&gt; – labeled as 3 in Figure 6. &lt;br /&gt;
-This view is a placeholder that could be set with a text or custom remote view.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Content Text View&lt;/strong&gt; – labeled as 4 in Figure 6. &lt;br /&gt;
-This view is a placeholder that could be set with a text or custom remote view.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Footer View&lt;/strong&gt; – labeled as 5 in Figure 6.&lt;br /&gt;
-This view is a placeholder that could be set with icon resources, bitmap, or custom remote view.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Decomposing the UI into different parts allows us to clearly understand of the UI components that need to maintain consistency across different use-cases, as well as the elements that can be easily customised and configured based on specific requirements. As a result, we have designed the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LiveActivityAttributes&lt;/code&gt; class that serves as a container that encompasses all the necessary configurations required for rendering the Live Activity.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; 
-class LiveActivityAttributes private constructor(  
-    val iconRes: Int?,  
-    val headerIconRes: Int?,  
-    val contentTitle: CharSequence?,  
-    val contentTitleStyle: ContentStyle.TitleStyle?,  
-    val customContentTitleView: LiveActivityCustomView?,  
-    val contentText: CharSequence?,  
-    val contentTextStyle: ContentStyle.TextStyle?,  
-    val customContentTextView: LiveActivityCustomView?,  
-    val footerIconRes: Int?,  
-    val footerBitmap: Bitmap?,  
-    val footerProgressBarProgress: Float?,  
-    val footerProgressBarStyle: ProgressBarStyle?,  
-    val footerRatingBarAttributes: RatingBarAttributes?,  
-    val customFooterView: LiveActivityCustomView?,  
-    val contentIntent: PendingIntent?,  
-    …  
-)  
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;payload-rendering&quot;&gt;&lt;strong&gt;Payload Rendering&lt;/strong&gt;&lt;/h3&gt;
-
-&lt;p&gt;To ensure a clear separation of responsibilities, we have designed a separate class called &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LiveActivityManager&lt;/code&gt;. This dedicated class is responsible for the mapping of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LiveActivityAttributes&lt;/code&gt; to Notifications. The generated notifications are then utilised by Android’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NotificationManager&lt;/code&gt; class to be posted and displayed accordingly.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;
-interface LiveActivityManager {  
-    /\*\*  
-     \* Post a Live Activity to be shown in the status bar, stream, etc.  
-     \*  
-     \* @param id           the ID of the Live Activity  
-     \* @param attributes the LiveActivity to post to the system  
-     \*/  
-    fun notify(id: Int, attributes: LiveActivityAttributes)
-
-    fun cancel(id: Int)  
-}
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s Next?&lt;/h2&gt;
-
-&lt;p&gt;We are delighted to announce that we have successfully implemented Grab’s Android version of the Live Activity feature for Express and Transport products. Furthermore, we plan to extend this feature to the Driver and Merchant applications as well. We understand the value this feature brings to our users and are committed to enhancing it further. Stay tuned for upcoming updates and enhancements to the Live Activity feature as we continue to improve and expand its capabilities across various verticals.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-
-</description>
-        <pubDate>Mon, 23 Sep 2024 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/live-activity-2</link>
-        <guid isPermaLink="true">https://engineering.grab.com/live-activity-2</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Android</category>
-        
-        <category>Exploration</category>
         
         
         <category>Engineering</category>
