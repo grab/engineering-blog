@@ -2,7 +2,7 @@
 layout: post
 id: 2024-12-26-embracing-passwordless-authentication-with-passkey
 title: 'Embracing passwordless authentication with Grab’s Passkey'
-date: 2024-12-12 00:00:10
+date: 2024-12-26 00:00:10
 authors: [ocean-nguyen, zharif-khairuddin, renshi-bao, edmund-lui]
 categories: [Engineering, Security]
 tags: [Engineering, Security]
