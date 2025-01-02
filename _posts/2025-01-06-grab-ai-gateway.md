@@ -129,7 +129,7 @@ Internally, the gateway powers innovative solutions to boost productivity and re
 
 As we continue to add more features, we plan to focus our efforts on these areas:
 
-**1. Catalog**
+**1. Catalogue**
 
 With over fifty AI models each suited for a specific task type, finding the correct model to use is becoming complex. Users are often unsure of the difference between models in terms of capabilities, latency and cost implications. A catalog can serve as a guideline by listing current supported models along with the list of metadata like the input/output modality, token limits, provider quota, pricing, and reference guide.
 
