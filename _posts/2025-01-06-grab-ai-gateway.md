@@ -89,7 +89,7 @@ The AI Gateway records each call’s request, response body, and additional meta
 
 **Cost attribution**   
 
-Allocating cost to each use case is important to encourage responsible usage. The cost of calling LLMs tends to increase at higher request rates, therefore understanding the incurred cost is crucial to understand feasibility of a use case. The gateway performs cost calculations for each request once response is received from the provider. The cost is archived to the data lake along with an audit trail. For async usage like fine tuning and assisting, cost is calculated through a separate daily job. Finally, a separate job aggregates the cost for each service which is used for reporting on dashboards and showback. In addition to showback, alerts are configured to notify if a service exceeds cost threshold.
+Allocating costs to each use case is important to encourage responsible usage. The cost of calling LLMs tends to increase at higher request rates, therefore understanding the incurred cost is crucial to understanding the feasibility of a use case. The gateway performs cost calculations for each request once the response is received from the provider. The cost is archived in the data lake along with an audit trail. For async usages like fine-tuning and assisting, the cost is calculated through a separate daily job. Finally, a job aggregates the cost for each service which is used for reporting on dashboards and showback. In addition, alerts are configured to notify if a service exceeds the cost threshold.
 
 **Rate limits**  
 
