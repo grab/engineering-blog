@@ -8,7 +8,7 @@ categories: [Engineering, Data Science]
 tags: [Engineering, Data Science, Optimisation, Generative AI, LLM, Machine Learning]
 comments: true
 cover_photo: /img/grabaigateway/GenAIGateway-banner-3.png
-excerpt: "GenAI has become integral to innovation, powering the next generation of AI enabled applications. With easy integration with multiple AI providers, it brings cutting edge technology to every user. This article explores why we need GenAI Gateway, how it works, what are the user benefits and the challenges faced in GenAI in this article."
+excerpt: "GenAI has become integral to innovation, powering the next generation of AI enabled applications. With easy integration with multiple AI providers, it brings cutting edge technology to every user. This article explores why we need GenAI Gateway, how it works, what are the user benefits, and the challenges faced in GenAI in this article."
 ---
 
 
