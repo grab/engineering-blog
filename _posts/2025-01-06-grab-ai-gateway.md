@@ -85,7 +85,7 @@ The AI Gateway plays a crucial role in maintaining usage efficiency of various r
 
 **Auditing**  
 
-The AI Gateway records each call’s request, response body and additional metadata like token usage, URL path, and model name into Grab’s data lake. The purpose of doing so is to maintain a trail of usage which can be used for auditing. The archived data can be inspected for security threats like prompt injection or to look for potential data policy violations.
+The AI Gateway records each call’s request, response body, and additional metadata like token usage, URL path, and model name into Grab’s data lake. The purpose of doing so is to maintain a trail of usage which can be used for auditing. The archived data can be inspected for security threats like prompt injection or potential data policy violations.
 
 **Cost attribution**   
 
