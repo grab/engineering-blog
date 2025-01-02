@@ -20,7 +20,7 @@ Before we begin implementing Grab AI Gateway in our work process, it is importan
 
 **Streamline access**  
 
-Each AI provider has its own way of authenticating their services. Some providers use key-based authentication while others require instance roles or cloud credentials. Grab AI Gateway provides a centralised platform that only requires a one-time provider access setup. Grab AI Gateway removes the effort of procuring resources and setting up infrastructure for AI services. Users do not need to worry about setting up and maintaining servers, storage, and other necessary components.
+Each AI provider has its own way of authenticating their services. Some providers use key-based authentication while others require instance roles or cloud credentials. Grab AI Gateway provides a centralised platform that only requires a one-time provider access setup. Grab AI Gateway removes the effort of procuring resources and setting up infrastructure for AI services, such as servers, storage, and other necessary components.
 
 **Enables experimentation**
 
