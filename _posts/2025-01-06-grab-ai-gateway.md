@@ -93,7 +93,7 @@ Allocating costs to each use case is important to encourage responsible usage. T
 
 **Rate limits**  
 
-AI Gateway enforces its own rate limit on top of the global provider limits to make sure quotas are not consumed by a single service. Currently limits are enforced on the request rate at the key level.
+AI Gateway enforces its own rate limit on top of the global provider limits to make sure quotas are not consumed by a single service. Currently, limits are enforced on the request rate at the key level.
 
 **Integration with the ML Platform**  
 
