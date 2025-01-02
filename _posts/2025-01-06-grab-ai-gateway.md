@@ -109,7 +109,7 @@ With new features or LLMs being released at a rapid pace, the AI Gateway develop
 
 **Fair distribution of quota**  
 
-Every use case has a different service level objective (SLO). Batch use cases require high throughput but can tolerate failures while online applications are sensitive to latency and rate limits. In many cases, the underlying provider resource is the same. The responsibility falls over to the gateway to ensure fair distribution based on criticality and requests per second (RPS) requirements. As adoption increases, we have encounterd issues where batch usage interfered with uptime of online services. Use of Async APIs do mitigate the issues, but not all use cases can adhere to turnaround time.   
+Every use case has a different service level objective (SLO). Batch use cases require high throughput but can tolerate failures while online applications are sensitive to latency and rate limits. In many cases, the underlying provider resource is the same. The responsibility falls over to the gateway to ensure fair distribution based on criticality and requests per second (RPS) requirements. As adoption increases, we have encountered issues where batch usage interfered with the uptime of online services. The use of Async APIs does mitigate the issues, but not all use cases can adhere to turnaround time.   
 
 **Maintaining reverse proxies**  
 
