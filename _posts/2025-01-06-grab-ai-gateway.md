@@ -123,7 +123,7 @@ Internally, the gateway powers innovative solutions to boost productivity and re
 * GenAI portal that is used for translation and language detection tasks, image generation, and file analysis.
 * Text-to-Insights for converting questions into SQL queries.
 * Incident management automation for triaging incidents and creating reports.
-* Support bot for answering user queries in Slack channels using knowledge base.
+* Support bot for answering user queries in Slack channels using a knowledge base.
 
 ## What’s next?
 
