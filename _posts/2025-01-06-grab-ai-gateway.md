@@ -34,7 +34,7 @@ Grab AI Gateway overcomes this problem and minimises wastage with a shared capac
 
 **Auditing**
 
-A central setup ensures that use cases undergo a thorough review process to comply with the privacy and cyber security standards before being deployed in production. For instance, a Q&A bot with access to both restricted and non-restricted data could inadvertently reveal sensitive information if proper authorisation is not set up. Therefore, it is important that use cases are reviewed to ensure they follow Grab’s standard for data privacy and protection.
+A central setup ensures that use cases undergo a thorough review process to comply with the privacy and cyber security standards before being deployed in production. For instance, a Q&A bot with access to both restricted and non-restricted data could inadvertently reveal sensitive information if authorisation is not set up properly. Therefore, it is important that use cases are reviewed to ensure they follow Grab’s standard for data privacy and protection.
 
 **Platformisation benefits**  
 
