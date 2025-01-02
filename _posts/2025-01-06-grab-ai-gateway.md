@@ -67,7 +67,7 @@ GenAI based applications come with inherent risks like generating offensive or i
 
 **Exploration keys**  
 
-At Grab, every Grabber is encouraged to use GenAI technologies to improve productivity and to experiment and learn within this field. The gateway provides exploration keys to make it easier for users to experiment with building chatbots and Retrieval Augmented Generation (RAG). These keys can be requested by Grabbers through a Slack bot. The keys are short lived with a vilidity period of a few days, stricter rate limit restrictions and access limited to only the staging environment. Exploration keys are highly popular with more than 3,000 Grabbers requesting the key to experiment with APIs.
+At Grab, every Grabber is encouraged to use GenAI technologies to improve productivity and to experiment and learn within this field. The gateway provides exploration keys to make it easier for users to experiment with building chatbots and Retrieval Augmented Generation (RAG). These keys can be requested by Grabbers through a Slack bot. The keys are short-lived with a validity period of a few days, stricter rate limit restrictions, and access limited to only the staging environment. Exploration keys are highly popular, with more than 3,000 Grabbers requesting the key to experiment with APIs.
 
 **Unified API interface**  
 
