@@ -105,7 +105,7 @@ With more than 300 unique use cases onboarded and many of those making it to pro
 
 **Keeping up with innovations**  
 
-With new features or LLMs being released at a rapid pace, the AI Gateway development has required continuous dedicated effort. Reflecting on our experience,it is easy to get overwhelmed with a constant stream of user requests for each new development in the field. However, we have come to realise it is important to balance release timelines and user expectations. 
+With new features or LLMs being released at a rapid pace, the AI Gateway development has required continuous dedicated effort. Reflecting on our experience, it is easy to get overwhelmed by a constant stream of user requests for each new development in the field. However, we have come to realise it is important to balance release timelines and user expectations. 
 
 **Fair distribution of quota**  
 
