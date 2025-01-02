@@ -47,7 +47,7 @@ Proper implementation of a central gateway provides platformisation benefits lik
 
 ##  Architecture and design
 
-At its core, the AI Gateway is a set of reverse proxies to different external AI providers like Azure, OpenAI, AWS, and others. From the user’s perspective, the AI Gateway acts like the actual provider where users are only required to set the correct base URLs to access the LLMs. The gateway handles functionalities like authentication, authorisation and rate limiting. Allowing users to solely focus on building GenAI enabled apps. 
+At its core, the AI Gateway is a set of reverse proxies to different external AI providers like Azure, OpenAI, AWS, and others. From the user’s perspective, the AI Gateway acts like the actual provider where users are only required to set the correct base URLs to access the LLMs. The gateway handles functionalities like authentication, authorisation, and rate limiting, allowing users to solely focus on building GenAI enabled applications. 
 
 To form the basis of identity and access management (IAM) in a gateway, each user is allocated an internal API key (short term exploration key) and a use-case (long term production key). The gateway implements a request path based authorisation where certain keys can be granted access to specific providers or features. Once authenticated, the AI Gateway replaces the internal key in request with the provider key and executes the request on behalf of the user.
 
