@@ -37,9 +37,9 @@ Over a span of 2 to 3 years, the TechDocs team executed these key steps in quart
 
 
 1. [**Take inventory**](#take-inventory-of-existing-internal-processes-and-tools-portals-understand-user-behavior): Assess current internal processes, tools, and user behaviour.  
-2. [**Finalize policy**](#finalize-a-suitable-policy-and-begin-enforcing-it-collect-feedback-and-reiterate): Establish a clear policy, enforce it, and iterate based on feedback.  
+2. [**Finalise policy**](#finalise-a-suitable-policy-and-begin-enforcing-it-collect-feedback-and-reiterate): Establish a clear policy, enforce it, and iterate based on feedback.  
 3. [**Empower teams**](#empower-creators-and-maintainers-to-self-serve-documentation-upkeep): Equip creators and maintainers with tools to manage their documentation.  
-4. [**Track metrics, celebrate wins**](#track-metrics): Recognize and reward teams that follow best practices. Repeat regularly.
+4. [**Track metrics, celebrate wins**](#track-metrics): Recognise and reward teams that follow best practices. Repeat regularly.
 
 Now let's look at each of these steps in detail.
 
@@ -92,7 +92,7 @@ Here are insights from the 1-1 user research that helped us enhance the TechDocs
 
 Using this feedback, the product roadmap was set for the year to focus on addressing the top user complaints and improving the TechDocs tools accordingly.
 
-## Finalise a suitable policy and begin enforcing it. Collect feedback and reiterate {#finalize-a-suitable-policy-and-begin-enforcing-it-collect-feedback-and-reiterate}
+## Finalise a suitable policy and begin enforcing it. Collect feedback and reiterate {#finalise-a-suitable-policy-and-begin-enforcing-it-collect-feedback-and-reiterate}
 
 To improve discoverability and maintain consistency, we established a structured policy for organising documents. This policy ensures that documentation is stored in the right place based on its purpose and usage, making it easier for Grabbers to find what they need. The key guidelines are as follows:
 
