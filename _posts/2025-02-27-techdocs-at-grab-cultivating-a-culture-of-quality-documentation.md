@@ -63,7 +63,7 @@ The insights on understanding the culture of documentation were obtained from co
 1. The first focused on gathering feedback from as many people as possible. We scaled this approach to reach a wide audience across multiple teams and departments. To manage this volume, we used closed-ended questions with multiple-choice options, allowing us to collect broad, organisation-wide insights on user needs and preferences.  
 2. The second approach was more in-depth and personal. We conducted 1:1 sessions where we observed how users interacted with tools, asked open-ended questions, and dug into the reasons behind their behaviors. This helped us understand not just what users did, but why and how they did it.
 
-From the first approach, we were able to gather that users frequently browse for **Runbooks, how-to's, and FAQs** when it comes to technical documentation. They emphasise structure, ease of navigation, and up-to-date content when it comes to quality**.** 
+From the first approach, we were able to gather that users frequently browse for **Runbooks, how-to's, and FAQs** when it comes to technical documentation. They emphasise structure, ease of navigation, and up-to-date content when it comes to quality.
 
 According to the feedback, only 2% of engineers (1 out of 56\) reported that 80-100% of on-call engineering questions were resolved using technical documentation. Meanwhile, 29% of engineers indicated that 40-60% of their questions were answered through documentation, and 25% stated that 20-40% were resolved this way.
 
