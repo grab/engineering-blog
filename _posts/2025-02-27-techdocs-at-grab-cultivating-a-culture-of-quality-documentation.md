@@ -36,7 +36,7 @@ Over a span of 2 to 3 years, the TechDocs team executed these key steps in quart
 </div>
 
 
-1. [**Take inventory**](#take-inventory-of-existing-internal-processes-and-tools-portals-understand-user-behavior): Assess current internal processes, tools, and user behaviour.  
+1. [**Take inventory**](#take-inventory-of-existing-internal-processes-and-tools-portals-understand-user-behaviour): Assess current internal processes, tools, and user behaviour.  
 2. [**Finalise policy**](#finalise-a-suitable-policy-and-begin-enforcing-it-collect-feedback-and-reiterate): Establish a clear policy, enforce it, and iterate based on feedback.  
 3. [**Empower teams**](#empower-creators-and-maintainers-to-self-serve-documentation-upkeep): Equip creators and maintainers with tools to manage their documentation.  
 4. [**Track metrics, celebrate wins**](#track-metrics): Recognise and reward teams that follow best practices. Repeat regularly.
