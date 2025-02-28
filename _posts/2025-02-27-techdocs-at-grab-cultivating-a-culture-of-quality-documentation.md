@@ -98,7 +98,7 @@ To improve discoverability and maintain consistency, we established a structured
 
 * **Markdown for ‘create and publish’ type content:** Documentation related to platforms, products, or services that don’t require frequent updates should be in markdown format and stored in GitLab. These documents were rendered in Helix.  
 * **Collaborative portals for collaborative docs:** Time-sensitive and collaborative documents—such as postmortems, RFCs, design docs, and project plans— are not compatible with docs-as-code and hence should reside in portals that offer collaboration features, like easy commenting and multi-user editing. Dedicated spaces within Confluence Wiki are ideal for this purpose.  
-* **Separation of internal data:** Internal documents meant only for specific teams should not mix with general engineering resources. These can be stored in portals with less stringent review processes, as they don't require the same level of quality or accuracy checks. Team-specific spaces on Confluence Wiki can serve this need effectively.
+* **Separation of internal data:** Internal documents meant only for specific teams should not mix with general engineering resources for end users. These can be stored in portals with less stringent review processes, as they don't require the same level of quality or accuracy checks. Team-specific spaces on Confluence Wiki can serve this need effectively.
 
 
 ## Empower creators and maintainers to self-serve documentation upkeep {#empower-creators-and-maintainers-to-self-serve-documentation-upkeep}
