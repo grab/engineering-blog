@@ -107,7 +107,7 @@ To improve discoverability and maintain consistency, we established a structured
 
 Getting people to create documentation is one thing, but getting them to maintain and update it is a whole different challenge. One major issue is the lack of accountability. Without a clear owning team or point of contact (PIC) for a document, everyone assumes someone else will handle updates. This leads to stale, outdated information because no one takes responsibility. To address this, the TechDocs team introduced features like showing the "last updated" date on each page and flagging documents that hadn’t been updated in over three months. This approach helped in two ways:
 
-* Consumers could quickly gauge how up-to-date the information was.  
+* Readers could quickly gauge how up-to-date the information was.  
 * Maintainers were reminded when their documents needed attention.
 
 Another key strategy was requiring every document to have a dedicated Point of Contact (PIC) at the time of creation. This ensured:
