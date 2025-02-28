@@ -125,7 +125,7 @@ To make the “last updated” feature more relevant, we introduced an option fo
 
 The TechDocs team had a unique advantage in influencing the quality of internal product and platform documentation. Many of the creators and maintainers of these documents belonged to the same organisation, which allowed for smoother collaboration.
 
-To elevate the quality of TechDocs, we recognised that improving the drafts produced by platform engineers was essential. This realisation led us to create self-paced training materials focused on info-typing guidelines and writing best practices specifically designed for these engineers, which included:
+To elevate the quality of TechDocs, we recognised that improving the drafts produced by platform engineers was essential. This realisation led us to create self-paced training materials focused on information typing guidelines and writing best practices specifically designed for these engineers, which included:
 
 * **Info-typing guidelines**: Helping engineers categorise information for better clarity.  
 * **Writing best practices**: Teaching techniques to enhance readability and engagement.
