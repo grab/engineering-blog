@@ -110,7 +110,7 @@ Getting people to create documentation is one thing, but getting them to maintai
 * Readers could quickly gauge how up-to-date the information was.  
 * Content owners were reminded when their documents needed attention.
 
-Another key strategy was requiring every document to have a dedicated Point of Contact (PIC) at the time of creation. This ensured:
+Another key strategy was requiring every document to have a dedicated PIC at the time of creation. This ensured:
 
 * Clear accountability for maintaining the document.  
 * The PIC would receive notifications about outdated documents and any comments from readers, making it easier to address issues.
