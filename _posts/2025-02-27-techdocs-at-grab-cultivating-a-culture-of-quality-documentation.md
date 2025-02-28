@@ -51,7 +51,7 @@ To shift the documentation culture at a company, you need to first understand wh
 
 Here are a few observations that apply not just to Grab but to most tech companies:
 
-* People default to the easiest way to get information—asking someone or searching familiar places. If they can’t find a document quickly, they assume it doesn’t exist.  
+* People default to the easiest way to get information, either by asking someone or searching familiar places. If they can’t find a document quickly, they assume it doesn’t exist.  
 * Different teams use different documentation tools, leading to scattered, hard-to-maintain content. Without a unified search, finding the right document is a challenge.  
 * Documentation is often created during development but rarely maintained, resulting in outdated or duplicate content over time.  
 * Lack of clear ownership and governance causes inconsistencies, making it harder to trust or rely on documentation.
