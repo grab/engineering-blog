@@ -18,7 +18,7 @@ Changing how a company approaches writing and documentation is a complex task. I
 
 At Grab, our first significant step was adopting the **Docs-as-Code** approach, which we’ve covered in the blog [Embracing a Docs-as-Code approach](https://engineering.grab.com/doc-as-code). This method integrated documentation into the engineering workflow, allowing teams to create and update content effortlessly.
 
-Since then, the TechDocs team—a collaboration between Tech Learning and the internal development team—has focused not just on improving tools but on fostering a mindset where documentation is an essential part of everyday work. In this post, let us dive into how we’ve continued to embed high-quality documentation into the core of Grab’s engineering culture.
+Since then, the TechDocs working group — a collaboration between Tech Learning and the internal development team — has focused not just on improving tools, but on fostering a mindset where documentation is an essential part of everyday work. In this post, let us dive into how we’ve continued to embed high-quality documentation into the core of Grab’s engineering culture.
 
 ## What is TechDocs?
 
