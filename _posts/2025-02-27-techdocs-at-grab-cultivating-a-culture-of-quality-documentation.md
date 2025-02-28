@@ -43,7 +43,7 @@ Over a span of 2 to 3 years, the TechDocs team executed these key steps in quart
 
 Now let's look at each of these steps in detail.
 
-## Take inventory: Access existing internal processes and tools/portals and understand user behavior {#take-inventory-of-existing-internal-processes-and-tools-portals-understand-user-behavior}
+## Take inventory: Assess existing internal processes and tools/portals and understand user behaviour {#take-inventory-of-existing-internal-processes-and-tools-portals-understand-user-behaviour}
 
 #### Understanding the current culture 
 
