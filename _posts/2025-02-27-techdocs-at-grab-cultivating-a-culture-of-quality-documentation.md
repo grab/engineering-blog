@@ -148,7 +148,7 @@ Celebrating wins wasn’t a one-off—it became a regular practice, helping to s
 Looking ahead, we have some exciting goals to push the documentation culture even further:
 
 * **Boost documentation quality**: We’re aiming to improve the quality of platform docs by a significant percentage, which will help reduce support tickets and inquiries to the automated tech support bot.  
-* **Expand training**: We're ramping up training for TI engineers in Vietnam and Indonesia, helping them sharpen their tech writing skills and aiming for top CSAT ratings.  
+* **Expand training**: We're ramping up training for more engineers, helping them sharpen their tech writing skills and aiming for top CSAT ratings.  
 * **Launch new TechDocs portal**: Our goal is to build a well-structured doc portal with clear navigation, aiming for high satisfaction from both consumers and document producers.  
 * **Increase advocacy and engagement**: We’ll be focusing on getting more engineering teams to contribute to blogs and more actively participate in sessions like TILT (knowledge sharing ‘show and tell’ sessions).  
 * **Enhance onboarding and reduce redundancies**: We’ll update the onboarding bootcamp with hands-on exercises to speed up the time to first commit, while also reducing duplicate onboarding docs and increasing task list usage across teams.
