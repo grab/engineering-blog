@@ -151,7 +151,7 @@ Looking ahead, we have some exciting goals to push the documentation culture eve
 * **Expand training**: We're ramping up training for more engineers, helping them sharpen their tech writing skills and aiming for top CSAT ratings.  
 * **Launch improved TechDocs portal**: Our goal is to build better and more intuitive navigation and categorisation of content for an improved user experience.
 * **User interviews and engagement**: We'll be working closely with champions and users across tech families to create an open feedback loop.
-* **Enhance onboarding and reduce redundancies**: We’ll update the onboarding bootcamp with hands-on exercises to speed up the time to first commit, while also reducing duplicate onboarding docs and increasing task list usage across teams.
+* **Enhance doc creation and editing workflows**: We’ll streamline the process of creating and editing content using templates and native tools with consistent Markdown flavour usage.
 
 # Join us
 
