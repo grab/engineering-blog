@@ -24,7 +24,7 @@ Since then, the TechDocs team—a collaboration between Tech Learning and the in
 
 Helix is Grab's engineering platform designed to unify infrastructure, tooling, services, and documentation into a single, consistent user interface. It serves as a central hub for managing various engineering tasks and resources within Grab. Helix provides a comprehensive set of guides and tools for users.
 
-TechDocs is an internal documentation platform on Helix that integrates with our Docs-as-Code approach. Built on Helix (a platform designed to unify infrastructure, tooling, services, and documentation into a single, consistent user interface), it allows engineering teams to create, manage, and access technical content seamlessly within their workflow. By using tools like Markdown and GitHub, TechDocs makes it easier for teams to maintain up-to-date, high-quality documentation.
+TechDocs is an internal documentation platform built on Helix and integrates with our Docs-as-Code approach. It allows engineering teams to create, manage, and access technical content seamlessly within their workflows. TechDocs makes it easier for teams to maintain up-to-date, high-quality documentation with customised features for notification and editing.
 
 # How to create a healthy documentation culture 
 
