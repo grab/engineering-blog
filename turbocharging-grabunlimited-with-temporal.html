@@ -195,7 +195,7 @@
     </header>
     <div class="wrapper-content">
       <article class="post-content">
-        <p>Welcome to the behind-the-scenes story of <a href="https://www.grab.com/sg/grabunlimited/">GrabUnlimited</a>, Grab’s flagship membership program. We undertook the mammoth task of migrating from our legacy system to a Temporal<sup id="fnref:1" role="doc-noteref"><a href="#fn:1" class="footnote" rel="footnote">1</a></sup> workflow-based system, enhancing our ability to handle millions of subscribers with increased efficiency and resilience. The result? A whopping 80% reduction in open production incidents, and most importantly - an improved membership experience for our users. In this first part of the series, you will learn how to design a robust and scalable membership system as we delve into our own experience building one.</p>
+        <p>Welcome to the behind-the-scenes story of <a href="https://www.grab.com/sg/grabunlimited/">GrabUnlimited</a>, Grab’s flagship membership program. We undertook the mammoth task of migrating from our legacy system to a Temporal<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> workflow-based system, enhancing our ability to handle millions of subscribers with increased efficiency and resilience. The result? A whopping 80% reduction in open production incidents, and most importantly - an improved membership experience for our users. In this first part of the series, you will learn how to design a robust and scalable membership system as we delve into our own experience building one.</p>
 
 <h2 id="what-is-grabunlimited">What is GrabUnlimited?</h2>
 
@@ -219,12 +219,12 @@
 <p>Under the hood, our membership system relies on two main flows</p>
 <ul>
   <li><strong>Membership purchase</strong>: The user enrols for a certain duration (e.g 3 months), completes the payment through our Payment service, and receives benefits via our Reward service.</li>
-  <li><strong>Membership renewal</strong>: A daily cron job<sup id="fnref:2" role="doc-noteref"><a href="#fn:2" class="footnote" rel="footnote">2</a></sup> checks which memberships need renewal, processes the payment, and delivers the benefits.</li>
+  <li><strong>Membership renewal</strong>: A daily cron job<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup> checks which memberships need renewal, processes the payment, and delivers the benefits.</li>
 </ul>
 
-<p>We employed a state machine<sup id="fnref:3" role="doc-noteref"><a href="#fn:3" class="footnote" rel="footnote">3</a></sup> approach to break down the membership process into smaller chunks called state handlers. For instance, a membership might transition through ‘Init’, ‘Charged’, ‘Rewarded’, and ‘Active’ states. To operate these states, we used <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html">Amazon’s Simple Queue Service</a> (SQS). SQS acts as a manager, delegating state handlers to workers (our service) and monitoring the status of the state handler. If a worker fails to complete a task, SQS reassigns the task to another worker, ensuring no task is lost. The load is also spread across multiple workers, helping with scalability.</p>
+<p>We employed a state machine<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup> approach to break down the membership process into smaller chunks called state handlers. For instance, a membership might transition through ‘Init’, ‘Charged’, ‘Rewarded’, and ‘Active’ states. To operate these states, we used <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html">Amazon’s Simple Queue Service</a> (SQS). SQS acts as a manager, delegating state handlers to workers (our service) and monitoring the status of the state handler. If a worker fails to complete a task, SQS reassigns the task to another worker, ensuring no task is lost. The load is also spread across multiple workers, helping with scalability.</p>
 
-<p>To safeguard our system against duplicate tasks such as charging the user twice, when a worker takes up a task, it would use a <a href="https://redis.io/glossary/redis-lock/">Redis lock</a><sup id="fnref:4" role="doc-noteref"><a href="#fn:4" class="footnote" rel="footnote">4</a></sup> mechanism with a time-to-live (TTL) of five minutes preventing any other worker from picking up the same task. If a worker fails or crashes, the lock expires and another worker can pick up the job.</p>
+<p>To safeguard our system against duplicate tasks such as charging the user twice, when a worker takes up a task, it would use a <a href="https://redis.io/glossary/redis-lock/">Redis lock</a><sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> mechanism with a time-to-live (TTL) of five minutes preventing any other worker from picking up the same task. If a worker fails or crashes, the lock expires and another worker can pick up the job.</p>
 
 <p>So far, so good.</p>
 
@@ -257,27 +257,27 @@
 
 <p><strong>Scalability</strong></p>
 
-<p>Our system’s cron job, which retrieves all daily memberships due for renewal from our database, becomes slower and more resource-intensive as the number of members increases. Despite our attempt to alleviate high database usage by dividing the process into multiple batches and running several cron jobs, we were still experiencing significant surges each time a cron job runs. So our only viable solution was vertical scaling<sup id="fnref:5" role="doc-noteref"><a href="#fn:5" class="footnote" rel="footnote">5</a></sup> of the database. In other words, we had a serious bottleneck in our system.</p>
+<p>Our system’s cron job, which retrieves all daily memberships due for renewal from our database, becomes slower and more resource-intensive as the number of members increases. Despite our attempt to alleviate high database usage by dividing the process into multiple batches and running several cron jobs, we were still experiencing significant surges each time a cron job runs. So our only viable solution was vertical scaling<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">5</a></sup> of the database. In other words, we had a serious bottleneck in our system.</p>
 
 <div class="post-image-section"><figure>
   <img src="/img/turbocharging-grabunlimited-with-temporal/database-qps-membership-renewals.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3. Database queries per second during membership renewals at night.</figcaption>
   </figure>
 </div>
 
-<p><strong>Concurrency</strong><sup id="fnref:6" role="doc-noteref"><a href="#fn:6" class="footnote" rel="footnote">6</a></sup></p>
+<p><strong>Concurrency</strong><sup id="fnref:6"><a href="#fn:6" class="footnote" rel="footnote" role="doc-noteref">6</a></sup></p>
 
 <p>Picture this - A user tries to cancel their membership in the middle of the auto-renewal process, and voila, we have what we call a “zombie” state where the membership is both cancelled and renewed. This situation happens due to the limitations of our 5-minute Redis lock. If the renewal process holding the lock doesn’t complete within the timeout, the lock is released, enabling the cancel process to obtain the lock and run concurrently.</p>
 
-<p><strong>Resiliency</strong><sup id="fnref:7" role="doc-noteref"><a href="#fn:7" class="footnote" rel="footnote">7</a></sup></p>
+<p><strong>Resiliency</strong><sup id="fnref:7"><a href="#fn:7" class="footnote" rel="footnote" role="doc-noteref">7</a></sup></p>
 
 <p>What happens when the Rewards service faces an outage? The user buys a membership but doesn’t receive the rewards. It’s like throwing a party but the guests never arrive. We had three issues here:</p>
 <ul>
-  <li>In the event where upstream services had an outage, we relied on SQS’s maximum number of retries without exponential backoff<sup id="fnref:8" role="doc-noteref"><a href="#fn:8" class="footnote" rel="footnote">8</a></sup>, causing potential overloads on recovering services.</li>
+  <li>In the event where upstream services had an outage, we relied on SQS’s maximum number of retries without exponential backoff<sup id="fnref:8"><a href="#fn:8" class="footnote" rel="footnote" role="doc-noteref">8</a></sup>, causing potential overloads on recovering services.</li>
   <li>Our cron job being housed within the service itself was susceptible to interruptions during outages or service restarts.</li>
   <li>Over time, the logic to transition between states in our state machine became complex and multi-responsibility as more states were added. This made our retry mechanism unreliable due to potential risks of double charging or double awarding users. Which leads us to our fourth culprit.</li>
 </ul>
 
-<p><strong>Idempotency</strong><sup id="fnref:9" role="doc-noteref"><a href="#fn:9" class="footnote" rel="footnote">9</a></sup></p>
+<p><strong>Idempotency</strong><sup id="fnref:9"><a href="#fn:9" class="footnote" rel="footnote" role="doc-noteref">9</a></sup></p>
 
 <p>Even when some steps could be retried, our system lacked idempotency guarantees - a safety net to ensure that a step could be repeated without unintended side effects. Although our critical upstream systems like Payments and Rewards support idempotency via idempotency keys, our service wasn’t originally designed with this in mind.</p>
 <ul>
@@ -310,7 +310,7 @@
 
 <p><a href="https://temporal.io/">Temporal</a> is an open-source workflow orchestration engine. Think of it as a more robust and battle-tested implementation of our previous SQS architecture. It’s designed to run millions of <a href="https://docs.temporal.io/workflows">workflows</a> concurrently and can recover/resume the state of a workflow execution at the exact point of failure even in the event of an outage. It has features like <a href="https://docs.temporal.io/encyclopedia/retry-policies">infinite retries</a>, <a href="https://docs.temporal.io/encyclopedia/retry-policies#backoff-coefficient">exponential backoff</a>, <a href="https://docs.temporal.io/cloud/nexus/operations#rate-limiting">rate limiting</a>, and observability out of the box. This sounded exactly like what we needed! By using Temporal, we could offload the complexity of managing state transitions, retries, and task concurrency, allowing us to focus on our core business logic.</p>
 
-<p>In order to make the right decision, we meticulously assessed our options over the following criteria:  scalability<sup id="fnref:10" role="doc-noteref"><a href="#fn:10" class="footnote" rel="footnote">10</a></sup>, reliability<sup id="fnref:11" role="doc-noteref"><a href="#fn:11" class="footnote" rel="footnote">11</a></sup>, resiliency<sup id="fnref:12" role="doc-noteref"><a href="#fn:12" class="footnote" rel="footnote">12</a></sup>, performance, development effort, cost, security, flexibility<sup id="fnref:13" role="doc-noteref"><a href="#fn:13" class="footnote" rel="footnote">13</a></sup>, and testability<sup id="fnref:14" role="doc-noteref"><a href="#fn:14" class="footnote" rel="footnote">14</a></sup>. We realised that most of what we needed to build to compensate for our system design gaps was already built into Temporal. Let’s have a sneak peek on how the architecture looks and how it solves all four major culprits we discussed.</p>
+<p>In order to make the right decision, we meticulously assessed our options over the following criteria:  scalability<sup id="fnref:10"><a href="#fn:10" class="footnote" rel="footnote" role="doc-noteref">10</a></sup>, reliability<sup id="fnref:11"><a href="#fn:11" class="footnote" rel="footnote" role="doc-noteref">11</a></sup>, resiliency<sup id="fnref:12"><a href="#fn:12" class="footnote" rel="footnote" role="doc-noteref">12</a></sup>, performance, development effort, cost, security, flexibility<sup id="fnref:13"><a href="#fn:13" class="footnote" rel="footnote" role="doc-noteref">13</a></sup>, and testability<sup id="fnref:14"><a href="#fn:14" class="footnote" rel="footnote" role="doc-noteref">14</a></sup>. We realised that most of what we needed to build to compensate for our system design gaps was already built into Temporal. Let’s have a sneak peek on how the architecture looks and how it solves all four major culprits we discussed.</p>
 
 <div class="post-image-section"><figure>
   <img src="/img/turbocharging-grabunlimited-with-temporal/grabunlimited-new-system-design-architecture.jpg" alt="" style="width:80%" /><figcaption align="middle">Figure 5. GrabUnlimited new system design architecture.</figcaption>
@@ -399,46 +399,46 @@
 
 <div class="footnotes" role="doc-endnotes">
   <ol>
-    <li id="fn:1" role="doc-endnote">
+    <li id="fn:1">
       <p>Temporal: Temporal is an open-source workflow orchestration platform. It allows developers to build scalable and reliable applications using familiar development patterns and easy-to-use tools. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:2" role="doc-endnote">
+    <li id="fn:2">
       <p>Cron job: A cron job is a time-based job scheduler in Unix-like operating systems. Users can schedule jobs (commands or scripts) to run periodically at fixed times, dates, or intervals. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:3" role="doc-endnote">
+    <li id="fn:3">
       <p>State machine: A state machine is a behavioural model used in computer science. It represents a system in terms of states and transitions between those states. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:4" role="doc-endnote">
+    <li id="fn:4">
       <p>Redis lock mechanism: Redis is an in-memory data structure store that can be used as a database, cache, and message broker. A Redis lock mechanism is a way to ensure that only one computer in a distributed network can process a certain piece of code at a time. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:5" role="doc-endnote">
+    <li id="fn:5">
       <p>Vertical scaling: also known as “scaling up”, is the process of adding more resources (such as memory, CPUs, or storage) to an existing server or database to enhance its performance and capacity. Which is different from Horizontal scaling, also known as “scaling out”, the process of adding more servers or nodes to a system to handle increased load. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:6" role="doc-endnote">
+    <li id="fn:6">
       <p>Concurrency: In computing, concurrency is the ability of different parts or units of a program, algorithm, or problem to be executed out-of-order or in partial order, without affecting the final outcome. <a href="#fnref:6" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:7" role="doc-endnote">
+    <li id="fn:7">
       <p>Resiliency: refers to the ability of a system or application to quickly recover from failures and continue its intended operation without significant interruption. <a href="#fnref:7" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:8" role="doc-endnote">
+    <li id="fn:8">
       <p>Exponential backoff: Exponential backoff is an algorithm that uses feedback to multiplicatively decrease the rate of some process, in order to gradually find an acceptable rate. In the context of the article, it refers to a strategy for retrying failed tasks with increasing wait times between retries. <a href="#fnref:8" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:9" role="doc-endnote">
+    <li id="fn:9">
       <p>Idempotency: An operation is idempotent if the result of performing it once is exactly the same as the result of performing it repeatedly without any intervening actions. <a href="#fnref:9" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:10" role="doc-endnote">
+    <li id="fn:10">
       <p>Scalability: The ability of a system to handle increased workload or demand by adding resources. <a href="#fnref:10" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:11" role="doc-endnote">
+    <li id="fn:11">
       <p>Reliability: The capacity of a system to consistently perform its intended functions without failure. <a href="#fnref:11" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:12" role="doc-endnote">
+    <li id="fn:12">
       <p>Resiliency: The ability of a system to recover quickly and effectively from failures or disruptions, ensuring continuity of service. <a href="#fnref:12" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:13" role="doc-endnote">
+    <li id="fn:13">
       <p>Flexibility: The architecture should be flexible enough to accommodate future changes in requirements. <a href="#fnref:13" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
-    <li id="fn:14" role="doc-endnote">
+    <li id="fn:14">
       <p>Testability: The architecture should allow for effective testing to ensure the system works as expected. <a href="#fnref:14" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
     </li>
   </ol>

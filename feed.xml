@@ -6,9 +6,743 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 03 Mar 2025 07:59:03 +0000</pubDate>
-    <lastBuildDate>Mon, 03 Mar 2025 07:59:03 +0000</lastBuildDate>
-    <generator>Jekyll v4.2.0</generator>
+    <pubDate>Thu, 06 Mar 2025 06:58:14 +0000</pubDate>
+    <lastBuildDate>Thu, 06 Mar 2025 06:58:14 +0000</lastBuildDate>
+    <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Building a Spark observability product with StarRocks: Real-time and historical performance analysis</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;At Grab, we’ve been working to perfect our Spark observability tools. Our initial solution, Iris, was developed to provide a custom, in-depth observability tool for Spark jobs. As described in our previous &lt;a href=&quot;https://engineering.grab.com/iris&quot;&gt;blog post&lt;/a&gt;, Iris collects and analyses metrics and metadata at the job level, providing insights into resource usage, performance, and query patterns across our Spark clusters.&lt;/p&gt;
+
+&lt;p&gt;Iris addresses a critical gap in Spark observability by providing real-time performance metrics at the Spark application level. Unlike traditional monitoring tools that typically provide metrics only at the EC2 instance level, Iris dives deeper into the Spark ecosystem. It bridges the observability gap by making Spark metrics accessible through a tabular dataset, enabling real-time monitoring and historical analysis. This approach eliminates the need to parse complex Spark event log JSON files, which users are often unable to access when they need immediate insights. Iris empowers users with on-demand access to comprehensive Spark performance data, facilitating quicker decision-making and more efficient resource management.&lt;/p&gt;
+
+&lt;p&gt;Iris served us well, offering basic dashboards and charts that helped our teams understand trends, discover issues, and debug their Spark jobs. However, as our needs evolved and usage grew, we began to encounter limitations:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Fragmented user experience and access control&lt;/strong&gt;: Observability data is split between Grafana (real-time) and Superset (historical), forcing users to switch platforms for a complete view. The complex Grafana dashboards, while powerful, were challenging for non-technical users. The lack of granular permissions hindered wider adoption. We needed a unified, user-friendly interface with role-based access to serve all Grabbers effectively.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Operational overhead:&lt;/strong&gt; Our data pipeline for offline analytics includes multiple hops and complex transformations.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Data management:&lt;/strong&gt; We faced challenges managing real-time data in InfluxDB alongside offline data in our data lake, particularly with string-type metadata.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;These challenges and the need for a centralised, user-friendly web application prompted us to seek a more robust solution. Enter StarRocks – a modern analytical database that addresses many of our pain points:&lt;/p&gt;
+
+&lt;table class=&quot;table&quot; border=&quot;1&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Pain points with InfluxDB&lt;/th&gt;
+      &lt;th&gt;StarRocks solution&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Limited SQL compatibility: Requires use of Flux query language instead of full SQL&lt;/td&gt;
+      &lt;td&gt;Full MySQL-compatible SQL support, enabling seamless integration with existing tools and skills&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Complex data ingestion pipeline: Requires external agents like Telegraf to consume Kafka and insert into InfluxDB&lt;/td&gt;
+      &lt;td&gt;Direct Kafka ingestion, eliminating the need for intermediate agents and simplifying the data pipeline&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Limited pre-aggregation capabilities: Aggregation is limited to time windows and indexed columns, not string columns&lt;/td&gt;
+      &lt;td&gt;Flexible materialised views supporting complex aggregations on any column type, improving query performance&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Poor support for metadata and joins: Designed primarily for numerical time series data, with slow performance on string data and joins&lt;/td&gt;
+      &lt;td&gt;Efficient handling of both time-series and string-type metadata in a single system, with optimised join performance&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Difficult integration with data lake: There is no official way to backup or stream data directly to the datalake, requiring separate pipelines&lt;/td&gt;
+      &lt;td&gt;Native S3 integration for easy backup and direct data lake accessibility, eliminating the need for separate ingestion pipelines&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Performance issues with high cardinality data: Indexing unique identifiers (like app\_id) causes huge indexes and slow queries&lt;/td&gt;
+      &lt;td&gt;Optimised for high cardinality data, allowing efficient querying on unique identifiers without performance degradation&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;In this blog post, we will dive into leveraging StarRocks to build the next generation of the Spark observability platform. We will explore the architecture, data model, and key features that are helping us overcome previous limitations and provide more value to Spark users at Grab.&lt;/p&gt;
+
+&lt;h1 id=&quot;system-architecture-overview&quot;&gt;System architecture overview&lt;/h1&gt;
+
+&lt;p&gt;In the journey to enhance user experience, we’ve made substantial changes to the architecture, moving from the Telegraf/InfluxDB/Grafana (TIG) stack to a more streamlined and powerful setup centered around StarRocks. This new architecture addresses the previous challenges and provides a more unified, flexible, and efficient solution.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/spark-observability-image/figure-1-new-iris-architecture-with-starrocks-integration.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. New Iris architecture with StarRocks integration&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Key Components of the new architecture:&lt;/p&gt;
+
+&lt;p&gt;1. &lt;strong&gt;StarRocks database&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Replaces InfluxDB for both real-time and historical data storage&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Supports complex queries on metrics and metadata tables&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;2. &lt;strong&gt;Direct Kafka ingestion&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;StarRocks ingests data directly from Kafka, eliminating Telegraf&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;3. &lt;strong&gt;Custom web application (Iris UI)&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Replaces Grafana dashboards&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Centralised, flexible interface with custom API&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;4. &lt;strong&gt;Superset integration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Maintained and now connected directly to StarRocks&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Provides real-time data access, consistent with the custom web app&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;5. &lt;strong&gt;Simplified offline data process&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Scheduled backups from StarRocks to S3 directly&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Replaces previous complex data lake pipelines&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Key improvements:&lt;/p&gt;
+
+&lt;p&gt;1. &lt;strong&gt;Unified data store:&lt;/strong&gt; Single source for real-time and historical data&lt;/p&gt;
+
+&lt;p&gt;2. &lt;strong&gt;Streamlined data flow:&lt;/strong&gt; A simplified pipeline reduces latency and failure points&lt;/p&gt;
+
+&lt;p&gt;3. &lt;strong&gt;Flexible visualisation:&lt;/strong&gt; Custom web app with intuitive, role-specific interfaces&lt;/p&gt;
+
+&lt;p&gt;4. &lt;strong&gt;Consistent real-time access:&lt;/strong&gt; Across both custom app and Superset&lt;/p&gt;
+
+&lt;p&gt;5. &lt;strong&gt;Simplified backup and data lake integration:&lt;/strong&gt; Direct S3 backups&lt;/p&gt;
+
+&lt;h1 id=&quot;data-model-and-ingestion&quot;&gt;Data model and ingestion&lt;/h1&gt;
+
+&lt;p&gt;The Iris observability system is designed to monitor both job executions and ad-hoc cluster usage, encompassing what we call “cluster observation”. This model accounts for two scenarios:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Adhoc use:&lt;/strong&gt; Pre-created clusters shared among team users&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Job execution:&lt;/strong&gt; New clusters are created for each job submission&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;key-design-points&quot;&gt;Key design points&lt;/h2&gt;
+
+&lt;p&gt;For each cluster, we capture both metadata and metrics:&lt;/p&gt;
+
+&lt;table class=&quot;table&quot; border=&quot;1&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Key point &lt;/th&gt;
+      &lt;th&gt;Description&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt; &lt;b&gt;Linkage&lt;/b&gt;&lt;/td&gt;
+      &lt;td&gt;We use &lt;b&gt;worker\_uuid&lt;/b&gt; to link metadata with worker metrics &lt;b&gt;app\_id&lt;/b&gt; to link metadata with Spark event metrics.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;b&gt;Granularity&lt;/b&gt;&lt;/td&gt;
+      &lt;td&gt;Worker metrics are captured every 5 seconds, linked by worker\_uuid. Spark events are captured as they occur, linked by app\_id. Metadata can be captured multiple times.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;b&gt;Flexibility&lt;/b&gt;&lt;/td&gt;
+      &lt;td&gt;This schema allows for queries at various levels: Individual worker level, job level, cluster level.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;b&gt;Historical analysis&lt;/b&gt;&lt;/td&gt;
+      &lt;td&gt;The design enables insights from historical runs, such as: Auto-scaling behaviour, maximum worker count per job, maximum or average memory usage over time.&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;schemas&quot;&gt;Schemas&lt;/h2&gt;
+
+&lt;p&gt;Let’s break down our table schemas:&lt;/p&gt;
+
+&lt;h3 id=&quot;cluster-metadata&quot;&gt;Cluster metadata&lt;/h3&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    CREATE TABLE `cluster_worker_metadata_raw` (
+        `report_date` date  NOT NULL COMMENT &quot;Report date&quot;,
+        `platform` varchar(128) NOT NULL COMMENT &quot;Platform&quot;,
+        `worker_uuid` varchar(128) NULL COMMENT &quot;Worker UUID (Iris UUID)&quot;,
+        `worker_role` varchar(128) NULL COMMENT &quot;Worker role&quot;,
+        `epoch_ms` bigint(20) NULL COMMENT &quot;Event Time&quot;,
+        `cluster_id` varchar(128) NULL COMMENT &quot;Cluster ID&quot;,
+        `job_id` varchar(128) NULL COMMENT &quot;User Job ID&quot;,
+        `run_id` varchar(128) NULL COMMENT &quot;User Job Run ID&quot;,
+        `job_owner` varchar(128) NULL COMMENT &quot;User Job Owner&quot;,
+        `app_id` varchar(128) NULL COMMENT &quot;Spark Application ID&quot;,
+        `spark_ui_url` varchar(256) NULL COMMENT &quot;Spark UI URL&quot;,
+        `driver_log_location` varchar(256) NULL COMMENT &quot;Spark Driver Log Location&quot;,
+        -- other relevant metadata fields
+    )
+    ENGINE=OLAP
+    DUPLICATE KEY(`report_date`, `platform`,`worker_uuid`,`worker_role`)
+    PARTITION BY RANGE(`report_date`)()
+    DISTRIBUTED BY HASH(`report_date`,`platform`)
+    PROPERTIES (
+        &quot;replication_num&quot; = &quot;3&quot;,
+    );
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;cluster-worker-metrics&quot;&gt;Cluster worker metrics&lt;/h3&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    CREATE TABLE `cluster_worker_metrics_raw` (
+        `report_date` date NOT NULL COMMENT &quot;Report date&quot;,
+        `platform` varchar(128) NOT NULL COMMENT &quot;Platform&quot;,
+        `worker_uuid` varchar(128) NULL COMMENT &quot;Worker UUID&quot;,
+        `worker_role` varchar(128) NULL COMMENT &quot;Worker Role&quot;,
+        `epoch_ms` bigint(20) NULL COMMENT &quot;EpochMillis&quot;,
+        `cpus` bigint(20) NULL COMMENT &quot;Worker CPU Cores&quot;,
+        `memory` bigint(20) NULL COMMENT &quot;Worker Memory&quot;,
+        `bytes_heap_used` double NULL COMMENT &quot;Byte Heap Used&quot;,
+        `bytes_non_heap_used` double NULL COMMENT &quot;Byte Non Heap Used&quot;,
+        `gc_collection_time` double NULL COMMENT &quot;GC Collection Time&quot;,
+        `cpu_time` double NULL COMMENT &quot;CPU Time&quot;,
+        -- other relevant metrics fields
+    )
+    ENGINE=OLAP
+    DUPLICATE KEY(`report_date`, `platform`,`worker_uuid`,`worker_role`)
+    PARTITION BY RANGE(`report_date`)()
+    DISTRIBUTED BY HASH(`report_date`,`platform`)
+    PROPERTIES (
+        &quot;replication_num&quot; = &quot;3&quot;,
+    );
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;cluster-spark-metrics&quot;&gt;Cluster spark metrics&lt;/h3&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    CREATE TABLE `cluster_spark_metrics_raw`
+    (
+        `report_date`                 date           NOT NULL COMMENT &quot;Report date&quot;,
+        `platform`                    varchar(128)   NOT NULL COMMENT &quot;Platform&quot;,
+        `app_id`                      varchar(128)   NOT NULL COMMENT &quot;Spark Application ID&quot;,
+        `app_attempt_id`              varchar(128) DEFAULT &apos;1&apos; COMMENT &quot;Spark Application ID&quot;,
+        `measure_name`                varchar(128)   NULL COMMENT &quot;The spark measure name&quot;,
+        `epoch_ms`                    bigint(20)     NULL COMMENT &quot;EpochMillis&quot;,
+        `records_read`                double         NULL COMMENT &quot;Stage Records Read&quot;,
+        `records_written`             double         NULL COMMENT &quot;Stage Records Written&quot;,
+        `bytes_read`                  double         NULL COMMENT &quot;Stage Bytes Read&quot;,
+        `bytes_written`               double         NULL COMMENT &quot;Stage Bytes Written&quot;,
+        `memory_bytes_spilled`        double         NULL COMMENT &quot;Stage Memory Bytes Spilled&quot;,
+        `disk_bytes_spilled`          double         NULL COMMENT &quot;Stage Disk Bytes Spilled&quot;,
+        `shuffle_total_bytes_read`    double         NULL COMMENT &quot;Stage Shuffle Total Bytes Read&quot;,
+        `shuffle_total_bytes_written` double         NULL COMMENT &quot;Stage Shuffle Total Bytes Written&quot;,
+        `total_tasks`                 double         NULL COMMENT &quot;Stage Total Tasks&quot;,
+        `shuffle_write_time`          double         NULL COMMENT &quot;Shuffle Write Time&quot;,
+        `shuffle_fetch_wait_time`     double         NULL COMMENT &quot;Shuffle Fetch Waiting Time&quot;,
+        `result_serialization_time`   double         NULL COMMENT &quot;Result Serialization Time&quot;,
+        -- other relevant metrics fields
+    )
+    ENGINE = OLAP
+    DUPLICATE KEY(`report_date`, `platform`,`app_id`, `app_attempt_id`)
+    PARTITION BY RANGE(`report_date`)()
+    DISTRIBUTED BY HASH(`report_date`,`platform`)
+    PROPERTIES (
+        &quot;replication_num&quot; = &quot;3&quot;,
+    );
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;data-ingestion-from-kafka-to-starrocks&quot;&gt;Data ingestion from Kafka to StarRocks&lt;/h2&gt;
+
+&lt;p&gt;We use StarRocks’ routine load feature to ingest data directly from Kafka into our tables. Refer to the StarRocks documentation: &lt;a href=&quot;https://docs.starrocks.io/docs/loading/RoutineLoad/&quot;&gt;Load data using routine load&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Here is a simple example of creating a routine load job for cluster worker metrics:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    CREATE ROUTINE LOAD iris.routetine_cluster_worker_metrics_raw ON cluster_worker_metrics_raw
+    COLUMNS(platform, worker_uuid, worker_role, epoch_ms, cpus, `memory`, bytes_heap_used, bytes_non_heap_used, gc_collection_time, report_date=date(from_unixtime(epoch_ms / 1000)))
+    WHERE ISNOTNULL(platform)
+    PROPERTIES
+    (
+        &quot;desired_concurrent_number&quot; = &quot;3&quot;,
+        &quot;format&quot; = &quot;json&quot;,
+    &quot;jsonpaths&quot; = &quot;[\&quot;$.platform\&quot;,\&quot;$.workerUuid\&quot;,\&quot;$.workerRole\&quot;,\&quot;$.epochMillis\&quot;,\&quot;$.cpuCores\&quot;,\&quot;$.memory\&quot;,\&quot;$.heapMemoryTotalUsed\&quot;,\&quot;$.nonHeapMemoryTotalUsed\&quot;,\&quot;$.gc-collectionTime\&quot;]&quot;
+    )
+    FROM KAFKA
+    (
+        &quot;kafka_broker_list&quot; =&quot;broker:9092&quot;,
+        &quot;kafka_topic&quot; = &quot;&amp;lt;worker metrics topic&amp;gt;&quot;,
+        &quot;property.kafka_default_offsets&quot; = &quot;OFFSET_END&quot;
+    );
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This configuration sets up continuous data ingestion from the specified Kafka topic into our cluster_worker_metrics table, with JSON parsing.&lt;/p&gt;
+
+&lt;p&gt;For monitoring the routine, StarRocks provides built-in tools to monitor the status/error log of routine load jobs. Example query to check load:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    SHOW ROUTINE LOAD WHERE NAME = &quot;iris.routetine_cluster_worker_metrics_raw&quot;;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;handle-both-real-time-and-historical-data-in-the-unified-system&quot;&gt;Handle both real-time and historical data in the unified system&lt;/h2&gt;
+
+&lt;p&gt;The new Iris system uses StarRocks to efficiently manage both real-time and historical data. We have implemented three key features to achieve this:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;StarRocks’ &lt;strong&gt;routine load&lt;/strong&gt; enables near real-time data ingestion from Kafka. Multiple load tasks concurrently consume messages from different topic partitions, resulting in data appearing in Iris tables within seconds of collection. This quick ingestion keeps our monitoring capabilities current, providing users with up-to-date information about their Spark jobs.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;For historical analysis, StarRocks serves as a &lt;strong&gt;persistent dataset&lt;/strong&gt;, storing metadata and job metrics with a time-to-live of over 30 days. This allows us to perform analysis based on the last 30 days of job runs directly in StarRocks, which is significantly faster than using offline data in our data lake.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;We’ve also implemented &lt;strong&gt;materialised views&lt;/strong&gt; in StarRocks to pre-calculate and aggregate data for each job run. These views combine information from metadata, worker metrics, and Spark metrics, creating ready-to-use summary data. This approach eliminates the need for complex join operations when users access the job run summary screen in the UI, improving response times for both SQL queries and API access.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This setup offers substantial improvements over our previous InfluxDB-based system. As a time-series database, InfluxDB makes complex queries and joins challenging. It also lacked support for materialised views, making it difficult to create pre-built job-run summaries. Previously, we had to query our data lake using Spark and Presto to view historical runs for a particular job over the last 30 days, which was slower than directly querying in StarRocks.&lt;/p&gt;
+
+&lt;p&gt;By combining real-time ingestion, persistent storage, and materialised views, Iris now provides a unified, efficient platform for both immediate monitoring and in-depth historical analysis of Spark jobs.&lt;/p&gt;
+
+&lt;h1 id=&quot;query-performance-and-optimisation&quot;&gt;Query performance and optimisation&lt;/h1&gt;
+
+&lt;p&gt;StarRocks has significantly improved our query performance for Spark observability. Here are some key aspects of our optimisation strategy.&lt;/p&gt;
+
+&lt;h2 id=&quot;materialised-views&quot;&gt;Materialised views&lt;/h2&gt;
+
+&lt;p&gt;As mentioned, we leverage StarRocks’ materialised views to pre-aggregate job run summaries. This approach significantly reduces query complexity and improves response times for common UI operations. Materialised views combine data from metadata, worker metrics, and Spark metrics tables, thus eliminating the need for complex joins during query execution. This is particularly beneficial for our job-run summary screen, where pre-calculated aggregations can be retrieved instantly, improving both speed and user experience.&lt;/p&gt;
+
+&lt;p&gt;Here’s an example&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    CREATE MATERIALIZED VIEW job_runs_001
+    PARTITION BY (`report_date`)
+    DISTRIBUTED BY HASH(`report_date`,`platform`)
+    REFRESH ASYNC
+    PROPERTIES (
+        &quot;auto_refresh_partitions_limit&quot; = &quot;3&quot;,
+        &quot;partition_ttl&quot; = &quot;33 DAY&quot;
+    )
+    AS
+    select m.report_date                                                                     as report_date,
+        m.platform,
+        m.job_id,
+        m.run_id,
+        m.app_id,
+        m.app_attempt_id,
+        ANY_VALUE(COALESCE(m.cluster_id, m.cluster_name))                                 as cluster_id,
+        ANY_VALUE(m.cluster_name)                                                         as cluster_name,
+        ANY_VALUE(m.job_name)                                                             as job_name,
+        ANY_VALUE(m.job_owner)                                                            as job_owner,
+        ANY_VALUE(m.job_client)                                                           as job_client,
+        ANY_VALUE(CASE WHEN m.worker_role = &apos;driver&apos; THEN m.spark_ui_url END)             as spark_ui_url,
+        ANY_VALUE(CASE WHEN m.worker_role = &apos;driver&apos; THEN m.spark_history_url END)        as spark_history_url,
+        ANY_VALUE(CASE WHEN m.worker_role = &apos;driver&apos; THEN m.driver_log_location END)      as driver_log_location,
+        COUNT(d.worker_uuid)                                                              as total_instances,
+        from_unixtime(MIN(d.start_time) / 1000, &apos;yyyy-MM-dd HH:mm:ss&apos;)                    as start_time,
+        from_unixtime(MAX(d.end_time) / 1000, &apos;yyyy-MM-dd HH:mm:ss&apos;)                      as end_time,
+        COALESCE((((MAX(d.end_time) - MIN(d.start_time)) + 120000) / (1000 * 3600)), 0)   as job_hour,
+        SUM(COALESCE(d.machine_hour, 0))                                                  as machine_hour,
+        SUM(COALESCE(d.cpu_hour, 0))                                                      as cpu_hour,
+        MAX(COALESCE(CASE WHEN d.worker_role = &apos;driver&apos; THEN d.cpu_utilization END, 0))   as driver_cpu_utilization,
+        MAX(COALESCE(CASE WHEN d.worker_role = &apos;driver&apos; THEN d.memory_utilization END,
+                        0))                                                                  as driver_memory_utilization,
+        MAX(COALESCE(CASE WHEN d.worker_role = &apos;executor&apos; THEN d.cpu_utilization END, 0)) as worker_cpu_utilization,
+        MAX(COALESCE(CASE WHEN d.worker_role = &apos;executor&apos; THEN d.memory_utilization END,
+                        0))                                                                  as worker_memory_utilization,
+        -- other relevant metrics fields
+    from iris.cluster_worker_metadata_view_001 m
+            left join iris.cluster_worker_metrics_view_006 d
+                    on d.report_date &amp;gt;= m.report_date and d.platform = m.platform and d.worker_uuid = m.worker_uuid and
+                        d.worker_role = m.worker_role
+    where m.job_id is not null
+    group by m.report_date,
+            m.platform,
+            m.job_id,
+            m.run_id,
+            m.app_id,
+            m.app_attempt_id;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;StarRocks offers powerful and flexible materialised view capabilities that significantly enhance our query performance and data management in Iris. Here are three key features we leverage:&lt;/p&gt;
+
+&lt;h3 id=&quot;sync-and-async&quot;&gt;SYNC and ASYNC&lt;/h3&gt;
+
+&lt;p&gt;StarRocks supports both SYNC and ASYNC materialised views. We primarily use ASYNC views as they allow us to join multiple underlying tables, which is crucial for our job-run summaries. We can configure these views to refresh:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Immediately when downstream tables are updated.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;At set intervals (e.g., every 1 minute). This flexibility allows us to balance data freshness with system performance.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Example setting:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    REFRESH ASYNC START(&apos;2022-09-01 10:00:00&apos;) EVERY (interval 1 day)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;For more details on supported features and settings, refer to the StarRocks documentation: &lt;a href=&quot;https://docs.starrocks.io/docs/using_starrocks/async_mv/Materialized_view/&quot;&gt;Materialised view&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;partition-ttl&quot;&gt;Partition TTL&lt;/h3&gt;
+
+&lt;p&gt;We utilise the partition Time To Live (TTL) feature for materialised views. This allows us to control the amount of historical data stored in the views, typically setting it to 33 days. This ensures that the views remain performant and do not consume excessive storage while still providing quick access to recent historical data.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    PROPERTIES (
+        &quot;partition_ttl&quot; = &quot;33 DAY&quot;
+    )
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;selective-partition-refresh&quot;&gt;Selective partition refresh&lt;/h3&gt;
+
+&lt;p&gt;StarRocks allows us to refresh only specific partitions of a materialised view instead of the entire dataset. We take advantage of this by configuring our views to refresh only the most recent partitions (e.g., the last few days) where new data is typically added. This approach significantly reduces the computational overhead of keeping our materialised views up-to-date, especially for large historical datasets.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    PROPERTIES (
+        &quot;auto_refresh_partitions_limit&quot; = &quot;3&quot;,
+    )
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;partitioning&quot;&gt;Partitioning&lt;/h2&gt;
+
+&lt;p&gt;Our tables are partitioned by date, allowing for efficient pruning of historical data. This partitioning strategy is crucial for queries that focus on recent job runs or specific time ranges. By quickly eliminating irrelevant partitions, we significantly reduce the amount of data scanned for each query, leading to faster execution times.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    PARTITION BY RANGE(`report_date`)()
+    DISTRIBUTED BY HASH(`report_date`,`platform`)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;dynamic-partitioning&quot;&gt;Dynamic partitioning&lt;/h2&gt;
+
+&lt;p&gt;We utilise StarRocks’ dynamic partitioning feature to automatically manage our partitions. This ensures that new partitions are created as fresh data arrives and old partitions are dropped when data expires. Dynamic partitioning helps maintain optimal query performance over time without manual intervention, which is especially important for our continuous data ingestion process.&lt;/p&gt;
+
+&lt;p&gt;Here’s an example of how we configure dynamic partitioning for a 33-day retention period:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    PROPERTIES (
+        &quot;dynamic_partition.enable&quot; = &quot;true&quot;,
+        &quot;dynamic_partition.time_unit&quot; = &quot;DAY&quot;,
+        &quot;dynamic_partition.start&quot; = &quot;-33&quot;,
+        &quot;dynamic_partition.end&quot; = &quot;3&quot;,
+        &quot;dynamic_partition.prefix&quot; = &quot;p&quot;,
+        &quot;dynamic_partition.buckets&quot; = &quot;32&quot;,
+        &quot;dynamic_partition.history_partition_num&quot; = &quot;30&quot;
+    );
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;To verify that dynamic partitioning is working correctly and to monitor the state of your partitions, you can use the following SQL command:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    SHOW PARTITIONS FROM iris.cluster_worker_metrics_raw;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This command provides a summary of all partitions for the specified table (in this case, iris.cluster_worker_metrics_raw). The output includes valuable information such as:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;The total number of partitions&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The date range covered by each partition&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Row count per partition&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Size of each partition&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;While dynamic partitioning keeps the most recent 33 days of data readily available in StarRocks for fast querying, we’ve implemented a strategy to retain older data for long-term analysis.&lt;/p&gt;
+
+&lt;p&gt;We use a daily cron job to back up data older than 30 days to Amazon S3. This ensures we maintain historical data without impacting the performance of our primary StarRocks cluster.&lt;/p&gt;
+
+&lt;p&gt;Here’s an example of the backup query we use:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    Python
+    INSERT INTO
+        FILES(
+            &quot;path&quot; = &quot;{s3backUpPath}/{table_name}/&quot;,
+            &quot;format&quot; = &quot;parquet&quot;,
+            &quot;compression&quot; = &quot;zstd&quot;,
+            &quot;partition_by&quot; = &quot;report_date&quot;,
+            &quot;aws.s3.region&quot; = &quot;ap-southeast-1&quot;
+        )
+        SELECT * FROM iris.{table_name} WHERE report_date between &apos;{start_date}&apos; and &apos;{end_date}&apos;;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;After backing up to S3, we map this data to a data lake table, enabling us to query historical data beyond the 33-day window in StarRocks when needed, without affecting the performance of our primary observability system.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    Python
+    df_snapshot = spark.read.parquet(f&quot;{s3backUpPath}/{table_name}&quot;)
+
+    # do the transformation if needed here
+
+    df_snapshot.write.format(&quot;delta&quot;).mode(&quot;overwrite&quot;).option(&quot;partitionOverwriteMode&quot;, &quot;dynamic&quot;).option(&quot;mergeSchema&quot;, &quot;true&quot;).partitionBy(&quot;report_date&quot;).save(f&quot;{s3SinkPath}/{table_name}&quot;)
+
+    %sql
+    CREATE TABLE IF NOT EXISTS iris.{table_name}
+    USING DELTA
+    LOCATION &apos;{s3SinkPath}/{table_name}&apos;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;data-replication&quot;&gt;Data replication&lt;/h2&gt;
+
+&lt;p&gt;StarRocks uses data replication across multiple nodes, which is crucial for both fault tolerance and query performance. This strategy allows parallel query execution speeding up data retrieval. It’s particularly beneficial for our front-end queries, where low latency is crucial for user experience. This approach aligns with best practices seen in other distributed database systems like Cassandra, DynamoDB, and MySQL’s master-slave architecture.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    PROPERTIES (
+        &quot;replication_num&quot; = &quot;3&quot;,
+    );
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;unified-web-application&quot;&gt;Unified web application&lt;/h1&gt;
+
+&lt;p&gt;We’ve developed a comprehensive web application for Iris, consisting of both backend and frontend components. This unified interface offers users a seamless experience for monitoring and analysing Spark jobs.&lt;/p&gt;
+
+&lt;h2 id=&quot;backend&quot;&gt;Backend&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Built using Golang, our backend service connects directly to the StarRocks database.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;It queries data from both raw tables and materialised views, leveraging the optimised data structures we’ve set up in StarRocks.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The backend handles authentication and authorisation, ensuring that users have appropriate access to job data.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;frontend&quot;&gt;Frontend&lt;/h2&gt;
+
+&lt;p&gt;The frontend offers several key screens to show:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;List of job runs&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Job status&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Job metadata&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Driver log&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Spark UI&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Statistics on resource usage and cost&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Here is an example of the job overview screen, which displays key summary information: total number of runs, job owner details, performance trends, and cost analysis charts. This comprehensive view provides users with a quick snapshot of their Spark job’s overall health and resource utilisation.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;img/spark-observability-image/figure-2-example-of-job-overview screen.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Example of job overview screen&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h1 id=&quot;advanced-analytics-and-insights&quot;&gt;Advanced analytics and insights&lt;/h1&gt;
+
+&lt;p&gt;One of the key features we’ve implemented in Iris is the ability to perform analytics on historical job runs to capture trends. This feature leverages the power of StarRocks and our data model to provide users with valuable insights and recommendations. Here’s how we’ve implemented it:&lt;/p&gt;
+
+&lt;h2 id=&quot;historical-run-analysis&quot;&gt;Historical run analysis&lt;/h2&gt;
+
+&lt;p&gt;We’ve created a materialised view that aggregates job run data over the last 30 days. This view likely includes metrics such as count of runs, p95 values for various resource utilisation, etc.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    C/C++
+    CREATE MATERIALIZED VIEW job_run_summaries_001
+    REFRESH ASYNC EVERY(INTERVAL 1 DAY)
+    AS
+    select platform,
+        job_id,
+        count(distinct run_id)                                as count_run,
+        ceil(percentile_approx(total_instances, 0.95))        as p95_total_instances,
+        ceil(percentile_approx(worker_instances, 0.95))       as p95_worker_instances,
+        percentile_approx(job_hour, 0.95)                     as p95_job_hour,
+        percentile_approx(machine_hour, 0.95)                 as p95_machine_hour,
+        percentile_approx(cpu_hour, 0.95)                     as p95_cpu_hour,
+        percentile_approx(worker_gc_hour, 0.95)               as p95_worker_gc_hour,
+        ceil(percentile_approx(driver_cpus, 0.95))            as p95_driver_cpus,
+        ceil(percentile_approx(worker_cpus, 0.95))            as p95_worker_cpus,
+        ceil(percentile_approx(driver_memory_gb, 0.95))       as p95_driver_memory_gb,
+        ceil(percentile_approx(worker_memory_gb, 0.95))       as p95_worker_memory_gb,
+        percentile_approx(driver_cpu_utilization, 0.95)       as p95_driver_cpu_utilization,
+        percentile_approx(worker_cpu_utilization, 0.95)       as p95_worker_cpu_utilization,
+        percentile_approx(driver_memory_utilization, 0.95)    as p95_driver_memory_utilization,
+        percentile_approx(worker_memory_utilization, 0.95)    as p95_worker_memory_utilization,
+        percentile_approx(total_gb_read, 0.95)                as p95_gb_read,
+        percentile_approx(total_gb_written, 0.95)             as p95_gb_written,
+        percentile_approx(total_memory_gb_spilled, 0.95)      as p95_memory_gb_spilled,
+        percentile_approx(disk_spilled_rate, 0.95)            as p95_disk_spilled_rate
+    from iris.job_runs
+    where report_date &amp;gt;= current_date - interval 30 day
+    group by platform, job_id;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Using this aggregated data, we can identify trends in job performance and resource usage over time, such as increasing run times or spikes in resource consumption.&lt;/p&gt;
+
+&lt;h2 id=&quot;recommendation-api&quot;&gt;Recommendation API&lt;/h2&gt;
+
+&lt;p&gt;Based on trend analysis insights, we’ve built a recommendation API that suggests optimizations, such as adjusting resource allocations, identifying potential bottlenecks, or proposing schedule changes to optimise cost and performance.&lt;/p&gt;
+
+&lt;h3 id=&quot;frontend-integration&quot;&gt;Frontend integration&lt;/h3&gt;
+
+&lt;p&gt;The recommendations generated by our API are integrated into the Iris front end. Users can view these recommendations directly in the job overview or details screens, offering actionable insights to improve Spark jobs.&lt;/p&gt;
+
+&lt;p&gt;Here is an example: in a job with consistently low resource utilisation (less than 25% over time), our system suggests reducing the worker size by half to optimise costs.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/spark-observability-image/figure-3-example-of-job-with-low-resource-utilisation.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Example of job with low resource utilisation.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;slackbot-integration&quot;&gt;Slackbot integration&lt;/h3&gt;
+
+&lt;p&gt;To make these insights more accessible, we’ve integrated the recommendation system with a SpellVault app (a GenAI platform at Grab). This allows users to interact with the recommendation system directly from Slack, allowing them to stay informed about job performance and potential optimisations without constantly checking the Iris web interface.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/spark-observability-image/figure-4-example-of-integration-with-spellvault.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Example of integration with SpellVault.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h1 id=&quot;migration-and-adoption&quot;&gt;Migration and adoption&lt;/h1&gt;
+
+&lt;h2 id=&quot;migration-strategy&quot;&gt;Migration strategy&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Fully migrating real-time CPU/Memory charts from Grafana to the new Iris UI&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Will deprecate the Grafana dashboard after migration&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Retaining Superset for platform metrics and specific BI needs&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;user-onboarding-and-feedback&quot;&gt;User onboarding and feedback&lt;/h2&gt;
+
+&lt;p&gt;Iris deployed within the One DE app, centralising access to data engineering tools. The feedback button in the UI allows users to submit comments easily.&lt;/p&gt;
+
+&lt;h1 id=&quot;lessons-learned-and-future-roadmap&quot;&gt;Lessons learned and future roadmap&lt;/h1&gt;
+
+&lt;h2 id=&quot;lessons-learned&quot;&gt;Lessons learned&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Unified data store:&lt;/strong&gt; Using StarRocks as a single source for both real-time and historical data has significantly improved query performance and streamlined our architecture.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Materialised views:&lt;/strong&gt; Leveraging StarRocks’ materialised views for pre-aggregations has significantly enhanced query response times, especially for common UI operations.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Dynamic partitioning:&lt;/strong&gt; Implementing dynamic partitioning has helped in maintaining optimal performance as data volumes grow, automatically managing data retention.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Direct Kafka ingestion:&lt;/strong&gt; StarRocks’ ability to ingest data directly from Kafka has streamlined our data pipeline, reducing latency and complexity.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Flexible data model:&lt;/strong&gt; Compared to the previous time-series-focused InfluxDB, the StarRocks relational model enables more complex queries and simplifies metadata handling.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;future-roadmap&quot;&gt;Future roadmap&lt;/h2&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Enhanced recommendations:&lt;/strong&gt; Expand the recommendation system to include more in-depth suggestions, such as identifying potential bottlenecks and recommending Spark configurations to add or remove from jobs. These recommendations, aimed at improving runtime and cost performance, will leverage the detailed Spark metrics and event data we’re already collecting.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Advanced analytics:&lt;/strong&gt; Leverage the comprehensive Spark metrics data to provide deeper insights into job performance and resource utilisation.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Integration expansion:&lt;/strong&gt; Enhance Iris integration with other internal tools and platforms to increase adoption and ensure a seamless experience across the data engineering ecosystem.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Machine learning integration:&lt;/strong&gt; Explore the possibility of incorporating machine learning models for predictive analytics on Spark performance.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Scalability improvements:&lt;/strong&gt; Continue to optimise the system to handle increasing data volumes and user loads as adoption grows.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;User experience enhancements:&lt;/strong&gt; Continuously improve the Iris application’s UI/UX based on user feedback to make it more intuitive and informative.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h1&gt;
+
+&lt;p&gt;The journey of building the Iris web application, powered by StarRocks, has been transformative for our Spark observability capabilities at Grab. This evolution was driven by the need for a user-friendly, centralised platform for Spark monitoring and logging.&lt;/p&gt;
+
+&lt;p&gt;By leveraging StarRocks’ capabilities, we’ve created a unified interface that seamlessly handles both real-time and historical data. This has allowed us to consolidate previously fragmented tools like Grafana and Superset into a single, cohesive platform. The ability to capture and analyse job metadata and metrics in one place has been crucial, enabling us to implement effective showback/chargeback mechanisms at the job level.&lt;/p&gt;
+
+&lt;p&gt;Looking ahead, we’re excited about the potential for more advanced analytics and machine learning-driven insights. The lessons learned from this project will guide our approach to building robust, scalable, and user-friendly data tools at Grab.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 06 Mar 2025 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/building-a-spark-observability</link>
+        <guid isPermaLink="true">https://engineering.grab.com/building-a-spark-observability</guid>
+        
+        <category>Spark Observability</category>
+        
+        <category>StarRocks</category>
+        
+        <category>Data Engineering</category>
+        
+        <category>Real-time Analytics</category>
+        
+        <category>System Architecture</category>
+        
+        <category>Generative AI</category>
+        
+        <category>LLM</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Analytics</category>
+        
+      </item>
     
       <item>
         <title>TechDocs at Grab: Cultivating a culture of quality documentation</title>
@@ -633,7 +1367,7 @@ As we gather user feedback, analyse usage data, and delve into Passkey’s impac
     
       <item>
         <title>Turbocharging GrabUnlimited with Temporal</title>
-        <description>&lt;p&gt;Welcome to the behind-the-scenes story of &lt;a href=&quot;https://www.grab.com/sg/grabunlimited/&quot;&gt;GrabUnlimited&lt;/a&gt;, Grab’s flagship membership program. We undertook the mammoth task of migrating from our legacy system to a Temporal&lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; workflow-based system, enhancing our ability to handle millions of subscribers with increased efficiency and resilience. The result? A whopping 80% reduction in open production incidents, and most importantly - an improved membership experience for our users. In this first part of the series, you will learn how to design a robust and scalable membership system as we delve into our own experience building one.&lt;/p&gt;
+        <description>&lt;p&gt;Welcome to the behind-the-scenes story of &lt;a href=&quot;https://www.grab.com/sg/grabunlimited/&quot;&gt;GrabUnlimited&lt;/a&gt;, Grab’s flagship membership program. We undertook the mammoth task of migrating from our legacy system to a Temporal&lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; workflow-based system, enhancing our ability to handle millions of subscribers with increased efficiency and resilience. The result? A whopping 80% reduction in open production incidents, and most importantly - an improved membership experience for our users. In this first part of the series, you will learn how to design a robust and scalable membership system as we delve into our own experience building one.&lt;/p&gt;
 
 &lt;h2 id=&quot;what-is-grabunlimited&quot;&gt;What is GrabUnlimited?&lt;/h2&gt;
 
@@ -657,12 +1391,12 @@ As we gather user feedback, analyse usage data, and delve into Passkey’s impac
 &lt;p&gt;Under the hood, our membership system relies on two main flows&lt;/p&gt;
 &lt;ul&gt;
   &lt;li&gt;&lt;strong&gt;Membership purchase&lt;/strong&gt;: The user enrols for a certain duration (e.g 3 months), completes the payment through our Payment service, and receives benefits via our Reward service.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Membership renewal&lt;/strong&gt;: A daily cron job&lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; checks which memberships need renewal, processes the payment, and delivers the benefits.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Membership renewal&lt;/strong&gt;: A daily cron job&lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; checks which memberships need renewal, processes the payment, and delivers the benefits.&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;We employed a state machine&lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; approach to break down the membership process into smaller chunks called state handlers. For instance, a membership might transition through ‘Init’, ‘Charged’, ‘Rewarded’, and ‘Active’ states. To operate these states, we used &lt;a href=&quot;https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html&quot;&gt;Amazon’s Simple Queue Service&lt;/a&gt; (SQS). SQS acts as a manager, delegating state handlers to workers (our service) and monitoring the status of the state handler. If a worker fails to complete a task, SQS reassigns the task to another worker, ensuring no task is lost. The load is also spread across multiple workers, helping with scalability.&lt;/p&gt;
+&lt;p&gt;We employed a state machine&lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; approach to break down the membership process into smaller chunks called state handlers. For instance, a membership might transition through ‘Init’, ‘Charged’, ‘Rewarded’, and ‘Active’ states. To operate these states, we used &lt;a href=&quot;https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html&quot;&gt;Amazon’s Simple Queue Service&lt;/a&gt; (SQS). SQS acts as a manager, delegating state handlers to workers (our service) and monitoring the status of the state handler. If a worker fails to complete a task, SQS reassigns the task to another worker, ensuring no task is lost. The load is also spread across multiple workers, helping with scalability.&lt;/p&gt;
 
-&lt;p&gt;To safeguard our system against duplicate tasks such as charging the user twice, when a worker takes up a task, it would use a &lt;a href=&quot;https://redis.io/glossary/redis-lock/&quot;&gt;Redis lock&lt;/a&gt;&lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; mechanism with a time-to-live (TTL) of five minutes preventing any other worker from picking up the same task. If a worker fails or crashes, the lock expires and another worker can pick up the job.&lt;/p&gt;
+&lt;p&gt;To safeguard our system against duplicate tasks such as charging the user twice, when a worker takes up a task, it would use a &lt;a href=&quot;https://redis.io/glossary/redis-lock/&quot;&gt;Redis lock&lt;/a&gt;&lt;sup id=&quot;fnref:4&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; mechanism with a time-to-live (TTL) of five minutes preventing any other worker from picking up the same task. If a worker fails or crashes, the lock expires and another worker can pick up the job.&lt;/p&gt;
 
 &lt;p&gt;So far, so good.&lt;/p&gt;
 
@@ -695,27 +1429,27 @@ As we gather user feedback, analyse usage data, and delve into Passkey’s impac
 
 &lt;p&gt;&lt;strong&gt;Scalability&lt;/strong&gt;&lt;/p&gt;
 
-&lt;p&gt;Our system’s cron job, which retrieves all daily memberships due for renewal from our database, becomes slower and more resource-intensive as the number of members increases. Despite our attempt to alleviate high database usage by dividing the process into multiple batches and running several cron jobs, we were still experiencing significant surges each time a cron job runs. So our only viable solution was vertical scaling&lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt; of the database. In other words, we had a serious bottleneck in our system.&lt;/p&gt;
+&lt;p&gt;Our system’s cron job, which retrieves all daily memberships due for renewal from our database, becomes slower and more resource-intensive as the number of members increases. Despite our attempt to alleviate high database usage by dividing the process into multiple batches and running several cron jobs, we were still experiencing significant surges each time a cron job runs. So our only viable solution was vertical scaling&lt;sup id=&quot;fnref:5&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;5&lt;/a&gt;&lt;/sup&gt; of the database. In other words, we had a serious bottleneck in our system.&lt;/p&gt;
 
 &lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
   &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/database-qps-membership-renewals.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Database queries per second during membership renewals at night.&lt;/figcaption&gt;
   &lt;/figure&gt;
 &lt;/div&gt;
 
-&lt;p&gt;&lt;strong&gt;Concurrency&lt;/strong&gt;&lt;sup id=&quot;fnref:6&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Concurrency&lt;/strong&gt;&lt;sup id=&quot;fnref:6&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;6&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
 
 &lt;p&gt;Picture this - A user tries to cancel their membership in the middle of the auto-renewal process, and voila, we have what we call a “zombie” state where the membership is both cancelled and renewed. This situation happens due to the limitations of our 5-minute Redis lock. If the renewal process holding the lock doesn’t complete within the timeout, the lock is released, enabling the cancel process to obtain the lock and run concurrently.&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;Resiliency&lt;/strong&gt;&lt;sup id=&quot;fnref:7&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;7&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Resiliency&lt;/strong&gt;&lt;sup id=&quot;fnref:7&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;7&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
 
 &lt;p&gt;What happens when the Rewards service faces an outage? The user buys a membership but doesn’t receive the rewards. It’s like throwing a party but the guests never arrive. We had three issues here:&lt;/p&gt;
 &lt;ul&gt;
-  &lt;li&gt;In the event where upstream services had an outage, we relied on SQS’s maximum number of retries without exponential backoff&lt;sup id=&quot;fnref:8&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;8&lt;/a&gt;&lt;/sup&gt;, causing potential overloads on recovering services.&lt;/li&gt;
+  &lt;li&gt;In the event where upstream services had an outage, we relied on SQS’s maximum number of retries without exponential backoff&lt;sup id=&quot;fnref:8&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;8&lt;/a&gt;&lt;/sup&gt;, causing potential overloads on recovering services.&lt;/li&gt;
   &lt;li&gt;Our cron job being housed within the service itself was susceptible to interruptions during outages or service restarts.&lt;/li&gt;
   &lt;li&gt;Over time, the logic to transition between states in our state machine became complex and multi-responsibility as more states were added. This made our retry mechanism unreliable due to potential risks of double charging or double awarding users. Which leads us to our fourth culprit.&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;&lt;strong&gt;Idempotency&lt;/strong&gt;&lt;sup id=&quot;fnref:9&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:9&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;9&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Idempotency&lt;/strong&gt;&lt;sup id=&quot;fnref:9&quot;&gt;&lt;a href=&quot;#fn:9&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;9&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
 
 &lt;p&gt;Even when some steps could be retried, our system lacked idempotency guarantees - a safety net to ensure that a step could be repeated without unintended side effects. Although our critical upstream systems like Payments and Rewards support idempotency via idempotency keys, our service wasn’t originally designed with this in mind.&lt;/p&gt;
 &lt;ul&gt;
@@ -748,7 +1482,7 @@ As we gather user feedback, analyse usage data, and delve into Passkey’s impac
 
 &lt;p&gt;&lt;a href=&quot;https://temporal.io/&quot;&gt;Temporal&lt;/a&gt; is an open-source workflow orchestration engine. Think of it as a more robust and battle-tested implementation of our previous SQS architecture. It’s designed to run millions of &lt;a href=&quot;https://docs.temporal.io/workflows&quot;&gt;workflows&lt;/a&gt; concurrently and can recover/resume the state of a workflow execution at the exact point of failure even in the event of an outage. It has features like &lt;a href=&quot;https://docs.temporal.io/encyclopedia/retry-policies&quot;&gt;infinite retries&lt;/a&gt;, &lt;a href=&quot;https://docs.temporal.io/encyclopedia/retry-policies#backoff-coefficient&quot;&gt;exponential backoff&lt;/a&gt;, &lt;a href=&quot;https://docs.temporal.io/cloud/nexus/operations#rate-limiting&quot;&gt;rate limiting&lt;/a&gt;, and observability out of the box. This sounded exactly like what we needed! By using Temporal, we could offload the complexity of managing state transitions, retries, and task concurrency, allowing us to focus on our core business logic.&lt;/p&gt;
 
-&lt;p&gt;In order to make the right decision, we meticulously assessed our options over the following criteria:  scalability&lt;sup id=&quot;fnref:10&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:10&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;10&lt;/a&gt;&lt;/sup&gt;, reliability&lt;sup id=&quot;fnref:11&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:11&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;11&lt;/a&gt;&lt;/sup&gt;, resiliency&lt;sup id=&quot;fnref:12&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:12&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;12&lt;/a&gt;&lt;/sup&gt;, performance, development effort, cost, security, flexibility&lt;sup id=&quot;fnref:13&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:13&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;13&lt;/a&gt;&lt;/sup&gt;, and testability&lt;sup id=&quot;fnref:14&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:14&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;14&lt;/a&gt;&lt;/sup&gt;. We realised that most of what we needed to build to compensate for our system design gaps was already built into Temporal. Let’s have a sneak peek on how the architecture looks and how it solves all four major culprits we discussed.&lt;/p&gt;
+&lt;p&gt;In order to make the right decision, we meticulously assessed our options over the following criteria:  scalability&lt;sup id=&quot;fnref:10&quot;&gt;&lt;a href=&quot;#fn:10&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;10&lt;/a&gt;&lt;/sup&gt;, reliability&lt;sup id=&quot;fnref:11&quot;&gt;&lt;a href=&quot;#fn:11&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;11&lt;/a&gt;&lt;/sup&gt;, resiliency&lt;sup id=&quot;fnref:12&quot;&gt;&lt;a href=&quot;#fn:12&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;12&lt;/a&gt;&lt;/sup&gt;, performance, development effort, cost, security, flexibility&lt;sup id=&quot;fnref:13&quot;&gt;&lt;a href=&quot;#fn:13&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;13&lt;/a&gt;&lt;/sup&gt;, and testability&lt;sup id=&quot;fnref:14&quot;&gt;&lt;a href=&quot;#fn:14&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;14&lt;/a&gt;&lt;/sup&gt;. We realised that most of what we needed to build to compensate for our system design gaps was already built into Temporal. Let’s have a sneak peek on how the architecture looks and how it solves all four major culprits we discussed.&lt;/p&gt;
 
 &lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
   &lt;img src=&quot;/img/turbocharging-grabunlimited-with-temporal/grabunlimited-new-system-design-architecture.jpg&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. GrabUnlimited new system design architecture.&lt;/figcaption&gt;
@@ -837,46 +1571,46 @@ As we gather user feedback, analyse usage data, and delve into Passkey’s impac
 
 &lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
   &lt;ol&gt;
-    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:1&quot;&gt;
       &lt;p&gt;Temporal: Temporal is an open-source workflow orchestration platform. It allows developers to build scalable and reliable applications using familiar development patterns and easy-to-use tools. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:2&quot;&gt;
       &lt;p&gt;Cron job: A cron job is a time-based job scheduler in Unix-like operating systems. Users can schedule jobs (commands or scripts) to run periodically at fixed times, dates, or intervals. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:3&quot;&gt;
       &lt;p&gt;State machine: A state machine is a behavioural model used in computer science. It represents a system in terms of states and transitions between those states. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:4&quot;&gt;
       &lt;p&gt;Redis lock mechanism: Redis is an in-memory data structure store that can be used as a database, cache, and message broker. A Redis lock mechanism is a way to ensure that only one computer in a distributed network can process a certain piece of code at a time. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:5&quot;&gt;
       &lt;p&gt;Vertical scaling: also known as “scaling up”, is the process of adding more resources (such as memory, CPUs, or storage) to an existing server or database to enhance its performance and capacity. Which is different from Horizontal scaling, also known as “scaling out”, the process of adding more servers or nodes to a system to handle increased load. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:6&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:6&quot;&gt;
       &lt;p&gt;Concurrency: In computing, concurrency is the ability of different parts or units of a program, algorithm, or problem to be executed out-of-order or in partial order, without affecting the final outcome. &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:7&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:7&quot;&gt;
       &lt;p&gt;Resiliency: refers to the ability of a system or application to quickly recover from failures and continue its intended operation without significant interruption. &lt;a href=&quot;#fnref:7&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:8&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:8&quot;&gt;
       &lt;p&gt;Exponential backoff: Exponential backoff is an algorithm that uses feedback to multiplicatively decrease the rate of some process, in order to gradually find an acceptable rate. In the context of the article, it refers to a strategy for retrying failed tasks with increasing wait times between retries. &lt;a href=&quot;#fnref:8&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:9&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:9&quot;&gt;
       &lt;p&gt;Idempotency: An operation is idempotent if the result of performing it once is exactly the same as the result of performing it repeatedly without any intervening actions. &lt;a href=&quot;#fnref:9&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:10&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:10&quot;&gt;
       &lt;p&gt;Scalability: The ability of a system to handle increased workload or demand by adding resources. &lt;a href=&quot;#fnref:10&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:11&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:11&quot;&gt;
       &lt;p&gt;Reliability: The capacity of a system to consistently perform its intended functions without failure. &lt;a href=&quot;#fnref:11&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:12&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:12&quot;&gt;
       &lt;p&gt;Resiliency: The ability of a system to recover quickly and effectively from failures or disruptions, ensuring continuity of service. &lt;a href=&quot;#fnref:12&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:13&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:13&quot;&gt;
       &lt;p&gt;Flexibility: The architecture should be flexible enough to accommodate future changes in requirements. &lt;a href=&quot;#fnref:13&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
-    &lt;li id=&quot;fn:14&quot; role=&quot;doc-endnote&quot;&gt;
+    &lt;li id=&quot;fn:14&quot;&gt;
       &lt;p&gt;Testability: The architecture should allow for effective testing to ensure the system works as expected. &lt;a href=&quot;#fnref:14&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
     &lt;/li&gt;
   &lt;/ol&gt;
@@ -1509,170 +2243,6 @@ B. Allowing service-based subscription of data for the SDK&lt;/p&gt;
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>LLM-assisted vector similarity search</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;As the complexity of data retrieval requirements continue to grow, traditional search methods often struggle to provide relevant and accurate results, especially for nuanced or conceptual queries. Vector similarity search has emerged as a powerful technique for finding semantically similar information. It refers to finding vectors in a large dataset that are most similar to a given query vector, typically using some distance or similarity measure. The concept originated in the 1960s with the work by Minsky and Papert on nearest neighbour search &lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;. Since then, the idea has evolved substantially with modern approaches often using approximate methods to enable fast search in high-dimensional spaces, such as locality-sensitive hashing &lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; and graph-based indexing &lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
-
-&lt;p&gt;Recently, vector similarity search has become a crucial component in many machine learning and information retrieval applications. It is one of the key technologies that popularised the idea of Retrieval Augmented Generation (RAG) &lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; which increased the applicability of Transformer &lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt; based Generative Large Language Models (LLMs) &lt;sup id=&quot;fnref:6&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt; in domain-specific tasks without requiring any further training or fine-tuning. However, the effectiveness of the vector search can be limited when dealing with intricate queries or contextual nuances. For example, from a typical vector similarity search perspective, “I like fishing” and “I do not like fishing” may be quite close to each other, while in reality, they are the exact opposite. In this blog post, we discuss an approach that we experimented with that combines vector similarity search with LLMs to enhance the relevance and accuracy of search results for such complex and nuanced queries. We leverage the strengths of both techniques: vector similarity search for efficient shortlisting of potential matches, and LLMs for their ability to understand natural language queries and rank the shortlisted results based on their contextual relevance.&lt;/p&gt;
-
-&lt;h2 id=&quot;proposed-solution&quot;&gt;Proposed solution&lt;/h2&gt;
-&lt;p&gt;The proposed solution involves a two-step process:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;Vector similarity search: We first perform a vector similarity search on the dataset to obtain a shortlist of potential matches (e.g., top 10-50 results) for the given query. This step leverages the efficiency of vector similarity search to quickly narrow down the search space.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;LLM-assisted ranking: The shortlisted results from the vector similarity search are then fed into an LLM, which ranks the results based on their relevance to the original query. The LLM’s ability to understand natural language queries and contextual information helps in identifying the most relevant results from the shortlist.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;By combining these two steps, we aim to achieve the best of both worlds: the efficiency of vector similarity search for initial shortlisting, and the contextual understanding and ranking capabilities of LLMs for refining the final results.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/llm-assisted-vector-similarity-search/similarity-search.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Similarity search and the proposed LLM-assisted similarity search.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;experiment&quot;&gt;Experiment&lt;/h2&gt;
-
-&lt;h3 id=&quot;datasets&quot;&gt;Datasets&lt;/h3&gt;
-&lt;p&gt;To evaluate the effectiveness of our proposed solution, we conducted experiments on two small synthetic datasets in CSV format that we curated using GPT-4o &lt;sup id=&quot;fnref:7&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;7&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Food dataset&lt;/strong&gt;: A collection of 100 dishes with their titles and descriptions.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Tourist spots dataset&lt;/strong&gt;: A collection of 100 tourist spots in Asia, including their names, cities, countries, and descriptions.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;It is important to note that we primarily focus on performing similarity search on structured data such as description of various entities in a relational database.&lt;/p&gt;
-
-&lt;h3 id=&quot;setup&quot;&gt;Setup&lt;/h3&gt;
-
-&lt;p&gt;Our experimental setup included a Python script for vector similarity search leveraging Facebook AI Similarity Search (FAISS) &lt;sup id=&quot;fnref:8&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;8&lt;/a&gt;&lt;/sup&gt;, a library developed by Facebook that offers efficient similarity search, and OpenAI’s embeddings (i.e., text-embedding-ada-002) &lt;sup id=&quot;fnref:9&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:9&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;9&lt;/a&gt;&lt;/sup&gt; to generate the vector embeddings needed for facilitating the vector search. For our proposed solution, an LLM component (i.e., GPT-4o) was included in the setup in addition to the FAISS-based similarity search component.&lt;/p&gt;
-
-&lt;h3 id=&quot;observations&quot;&gt;Observations&lt;/h3&gt;
-
-&lt;p&gt;To compare the performance of the proposed approach of LLM-assisted vector similarity search as outlined in the “Proposed solution” section with the raw vector similarity search, we conducted both techniques on our two synthetic datasets. With the raw vector search, we get the top three matches for a given query. For our proposed technique, we first get a shortlist of 15 entity matches from FAISS for the same query, and supply the shortlist and the original query to LLM with some descriptive instructions in the prompt to find the top three matches from the provided shortlist.&lt;/p&gt;
-
-&lt;p&gt;From the experiments, in simpler cases where the queries were straightforward and directly aligned with the textual content of the data, both the raw similarity search and the LLM-assisted similarity search demonstrated comparable performance. However, as the queries became more complex, involving additional constraints, negations, or conceptual requirements, the LLM-assisted search exhibited a clear advantage over the raw similarity search. The LLM’s ability to understand context and capture subtleties in the queries allowed it to filter out irrelevant results and rank the most appropriate ones higher, leading to improved accuracy.&lt;/p&gt;
-
-&lt;p&gt;Here are a few examples where the LLM-assisted similarity search performed better:&lt;/p&gt;
-
-&lt;h4 id=&quot;food-dataset&quot;&gt;Food dataset&lt;/h4&gt;
-
-&lt;p&gt;&lt;strong&gt;Query&lt;/strong&gt;: “food with no fish or shrimp”&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Raw similarity search result&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- title: Tempura, description: A Japanese dish of seafood or vegetables that have been battered and deep fried.
-- title: Ceviche, description: A seafood dish popular in Latin America, made from fresh raw fish cured in citrus juices.
-- title: Sushi, description: A Japanese dish consisting of vinegared rice accompanied by various ingredients such as seafood and vegetables.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;LLM-assisted similarity search result&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- title: Chicken Piccata, description: Chicken breasts cooked in a sauce of lemon, butter, and capers.
-- title: Chicken Alfredo, description: An Italian-American dish of pasta in a creamy sauce made from butter and Parmesan cheese.
-- title: Chicken Satay, description: Grilled chicken skewers served with peanut sauce.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Observation&lt;/strong&gt;: The LLM correctly filtered out dishes containing fish or shrimp, while the raw similarity search failed to do so, presumably due to the presence of negation in the query.&lt;/p&gt;
-
-&lt;h4 id=&quot;tourist-spots-dataset&quot;&gt;Tourist spots dataset&lt;/h4&gt;
-
-&lt;p&gt;&lt;strong&gt;Query&lt;/strong&gt;: “exposure to wildlife”&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Raw similarity search result&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- name: Ocean Park, city: Hong Kong, country: Hong Kong, description: Marine mammal park and oceanarium.
-- name: Merlion Park, city: Singapore, country: Singapore, description: Iconic statue with the head of a lion and body of a fish.
-- name: Manila Bay, city: Manila, country: Philippines, description: A natural harbor known for its sunset views.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;LLM-assisted similarity search result&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;- name: Ocean Park, city: Hong Kong, country: Hong Kong, description: Marine mammal park and oceanarium.
-- name: Chengdu Research Base, city: Chengdu, country: China, description: A research center for giant panda breeding.
-- name: Mount Hua, city: Shaanxi, country: China, description: Mountain known for its dangerous hiking trails.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Observation&lt;/strong&gt;: Two out of the top three matches by the LLM-assisted technique seem relevant to the query while only one result from the raw similarity search is relevant and the other two being somewhat irrelevant to the query. The LLM identified the relevance of a research base for giant panda breeding to the “exposure to wildlife”, which the raw similarity search ignored in its ranking.&lt;/p&gt;
-
-&lt;p&gt;These examples provide a glimpse into the utility of LLMs in finding more relevant matches in scenarios where the queries involved additional context, constraints, or conceptual requirements beyond simple keyword matching. On the other hand, when the queries were more straightforward and focused on specific keywords or phrases present in the data, both approaches demonstrated comparable performance. For instance, queries like “Japanese food” or “beautiful mountains” yielded similar results from both the raw similarity search and the proposed LLM-assisted approach.&lt;/p&gt;
-
-&lt;p&gt;Overall, the LLM-assisted vector search exhibited a clear advantage in handling complex queries, leveraging its ability to understand natural language and contextual information. However, for simpler queries, the raw similarity search remained a viable option, especially when computational efficiency is a concern.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;The experiments demonstrated the potential of combining vector similarity search with LLMs to enhance the relevance and accuracy of search results, particularly for complex and nuanced queries. While vector similarity search alone can provide reasonable results for straightforward queries, the LLM-assisted approach shines when dealing with queries that require a deeper understanding of context, nuances, and conceptual relationships. By leveraging the natural language understanding capabilities of LLMs, this approach can better capture the intent behind complex queries and provide more relevant search results.&lt;/p&gt;
-
-&lt;p&gt;Our experiment was limited to using a small volume of structured data (100 data points in each dataset) with a limited number of queries. However, we have witnessed similar enhancement in search result relevance when we deployed this solution internally within Grab for larger datasets, for example, 4500+ rows of data stored in a relational database.&lt;/p&gt;
-
-&lt;p&gt;Nevertheless, it is important to note that the effectiveness of this approach may still depend on the quality and complexity of the data, as well as the specific use case and query patterns. We believe it is still worthwhile to evaluate the proposed approach for more diverse (e.g., beyond CSV) and larger datasets. An interesting future work can be varying the size of the shortlist from the similarity search and observing how it impacts the overall search relevance when using the proposed approach. In addition, for real world applications, the performance implications in terms of additional latency introduced by the additional LLM query must also be considered.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
-  &lt;ol&gt;
-    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;M. Minsky and S. Papert, Perceptrons: An Introduction to Computational Geometry. MIT Press, 1969. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;P. Indyk and R. Motwani, “Approximate nearest neighbors: Towards removing the curse of dimensionality,” in Proceedings of the Thirtieth Annual ACM Symposium on Theory of Computing, 1998. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;Y. Malkov and D. Yashunin, “Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs,” IEEE Transactions on Pattern Analysis and Machine Intelligence, 2020. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;P. Lewis, E. Perez, A. Piktus, F. Petroni, V. Karpukhin, N. Goyal, and D. Kiela, “Retrieval-augmented generation for knowledge-intensive NLP tasks,” in Advances in Neural Information Processing Systems, 2020. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;A. Vaswani, “Attention is all you need,” in Advances in Neural Information Processing Systems, 2017. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:6&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;A. Radford, “Improving language understanding by generative pre-training,” 2018. &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:7&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;“Hello GPT-4o,” OpenAI, May 2024. [Online]. Available: https://openai.com/index/hello-gpt-4o/. [Accessed: Oct. 6, 2024]. &lt;a href=&quot;#fnref:7&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:8&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;M. Douze, A. Guzhva, C. Deng, J. Johnson, G. Szilvasy, P. E. Mazaré, and H. Jégou, “The faiss library,” arXiv preprint arXiv:2401.08281, 2024. &lt;a href=&quot;#fnref:8&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:9&quot; role=&quot;doc-endnote&quot;&gt;
-      &lt;p&gt;“Embeddings,” OpenAI API. [Online]. Available: https://platform.openai.com/docs/guides/embeddings. [Accessed: Oct. 6, 2024]. &lt;a href=&quot;#fnref:9&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;/ol&gt;
-&lt;/div&gt;
-</description>
-        <pubDate>Wed, 23 Oct 2024 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/llm-assisted-vector-similarity-search</link>
-        <guid isPermaLink="true">https://engineering.grab.com/llm-assisted-vector-similarity-search</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Generative AI</category>
-        
-        <category>LLM</category>
-        
-        <category>Machine Learning</category>
-        
-        <category>Experiment</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Science</category>
         
       </item>
     
