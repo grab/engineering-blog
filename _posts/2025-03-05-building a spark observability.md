@@ -31,7 +31,7 @@ These challenges and the need for a centralised, user-friendly web application p
 <table class="table" border=1>
   <thead>
     <tr>
-      <th>Pain Points with InfluxDB</th>
+      <th>Pain points with InfluxDB</th>
       <th>StarRocks solution</th>
     </tr>
   </thead>
