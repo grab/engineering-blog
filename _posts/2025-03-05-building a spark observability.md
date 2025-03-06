@@ -68,7 +68,7 @@ In this blog post, we will dive into leveraging StarRocks to build the next gene
 
 # System architecture overview
 
-In the journey to enhance user experience, we've made substantial changes to the architecture, moving from the TIG (Telegraf/InfluxDB/Grafana) stack to a more streamlined and powerful setup centered around StarRocks. This new architecture addresses the previous challenges and provides a more unified, flexible, and efficient solution.
+In the journey to enhance user experience, we've made substantial changes to the architecture, moving from the Telegraf/InfluxDB/Grafana (TIG) stack to a more streamlined and powerful setup centered around StarRocks. This new architecture addresses the previous challenges and provides a more unified, flexible, and efficient solution.
 
 
 <div class="post-image-section"><figure>
@@ -106,7 +106,7 @@ Key Components of the new architecture:
 
 * Replaces previous complex data lake pipelines
 
-Key Improvements:
+Key improvements:
 
 1\. **Unified data store:** Single source for real-time and historical data
 
@@ -120,11 +120,11 @@ Key Improvements:
 
 # Data model and ingestion
 
-Iris observability system is designed to monitor both job executions and ad-hoc cluster usage, encompassing what we call "cluster observation". This model accounts for two scenarios:
+The Iris observability system is designed to monitor both job executions and ad-hoc cluster usage, encompassing what we call "cluster observation". This model accounts for two scenarios:
 
-1\. **Adhoc use:** Pre-created clusters shared among team users
+* **Adhoc use:** Pre-created clusters shared among team users
 
-2\. **Job execution:** New clusters are created for each job submission
+* **Job execution:** New clusters are created for each job submission
 
 ## Key design points
 
@@ -134,7 +134,7 @@ For each cluster, we capture both metadata and metrics:
 <table class="table" border=1>
   <thead>
     <tr>
-      <th>Key Point </th>
+      <th>Key point </th>
       <th>Description</th>
     </tr>
   </thead>
@@ -152,8 +152,8 @@ For each cluster, we capture both metadata and metrics:
       <td>This schema allows for queries at various levels: Individual worker level, job level, cluster level.</td>
     </tr>
     <tr>
-      <td><b>Historical Analysis</b></td>
-      <td>The design enables insights from historical runs, such as: Auto-scaling behavior, maximum worker count per job, maximum or average memory usage over time.</td>
+      <td><b>Historical analysis</b></td>
+      <td>The design enables insights from historical runs, such as: Auto-scaling behaviour, maximum worker count per job, maximum or average memory usage over time.</td>
     </tr>
   </tbody>
 </table>
@@ -614,15 +614,15 @@ Iris deployed within the One DE app, centralising access to data engineering too
 
 ## Lessons learned
 
-1. **Unified data store:** Using StarRocks as a single source for both real-time and historical data has significantly improved query performance and streamlined our architecture.
+* **Unified data store:** Using StarRocks as a single source for both real-time and historical data has significantly improved query performance and streamlined our architecture.
 
-2. **Materialised views:** Leveraging StarRocks' materialised views for pre-aggregations has significantly enhanced query response times, especially for common UI operations.
+* **Materialised views:** Leveraging StarRocks' materialised views for pre-aggregations has significantly enhanced query response times, especially for common UI operations.
 
-3. **Dynamic partitioning:** Implementing dynamic partitioning has helped in maintaining optimal performance as data volumes grow, automatically managing data retention.
+* **Dynamic partitioning:** Implementing dynamic partitioning has helped in maintaining optimal performance as data volumes grow, automatically managing data retention.
 
-4. **Direct Kafka ingestion:** StarRocks' ability to ingest data directly from Kafka has streamlined our data pipeline, reducing latency and complexity.
+* **Direct Kafka ingestion:** StarRocks' ability to ingest data directly from Kafka has streamlined our data pipeline, reducing latency and complexity.
 
-5. **Flexible data model:** Compared to the previous time-series-focused InfluxDB, the StarRocks relational model enables more complex queries and simplifies metadata handling.
+* **Flexible data model:** Compared to the previous time-series-focused InfluxDB, the StarRocks relational model enables more complex queries and simplifies metadata handling.
 
 ## Future roadmap
 
