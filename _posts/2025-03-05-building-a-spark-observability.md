@@ -80,7 +80,6 @@ In the journey to enhance user experience, we've made substantial changes to the
 Key components of the new architecture:
 
 1. **StarRocks database**
-
   * Replaces InfluxDB for both real-time and historical data storage
 
   * Supports complex queries on metrics and metadata tables
@@ -89,19 +88,16 @@ Key components of the new architecture:
   * StarRocks ingests data directly from Kafka, eliminating Telegraf
 
 3. **Custom web application (Iris UI)**
-
   * Replaces Grafana dashboards
 
   * Centralised, flexible interface with custom API
 
 4. **Superset integration**
-
   * Maintained and now connected directly to StarRocks
 
   * Provides real-time data access, consistent with the custom web app
 
 5. **Simplified offline data process**
-
   * Scheduled backups from StarRocks to S3 directly
 
   * Replaces previous complex data lake pipelines
@@ -141,11 +137,11 @@ For each cluster, we capture both metadata and metrics:
   <tbody>
     <tr>
       <td> <b>Linkage</b></td>
-      <td>We use <b>worker\_uuid</b> to link metadata with worker metrics <b>app\_id</b> to link metadata with Spark event metrics.</td>
+      <td>We use <b>worker\_uuid</b> to link metadata with worker metrics <b>app_id</b> to link metadata with Spark event metrics.</td>
     </tr>
     <tr>
       <td><b>Granularity</b></td>
-      <td>Worker metrics are captured every 5 seconds, linked by worker\_uuid. Spark events are captured as they occur, linked by app\_id. Metadata can be captured multiple times.</td>
+      <td>Worker metrics are captured every 5 seconds, linked by worker_uuid. Spark events are captured as they occur, linked by app_id. Metadata can be captured multiple times.</td>
     </tr>
     <tr>
       <td><b>Flexibility</b></td>
@@ -315,7 +311,8 @@ Here's an example
         "partition_ttl" = "33 DAY"
     )
     AS
-    select m.report_date                                                                     as report_date,
+    select m.report_date                                                                     
+    as report_date,
         m.platform,
         m.job_id,
         m.run_id,
