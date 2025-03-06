@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2025-03-05-building-a-spark-observability
-title: 'Building a Spark Observability Product with StarRocks: Real-time and Historical Performance Analysis'
+title: 'Building a Spark observability product with StarRocks: Real-time and historical performance analysis'
 date: 2025-03-06 00:00:10
 authors: [huong-vuong, hainam-cao]
 categories: [Engineering, Data Analytics]
