@@ -8,7 +8,7 @@ categories: [Engineering, Data Analytics]
 tags: [Spark Observability, StarRocks, Data Engineering, Real-time Analytics, System Architecture, Generative AI, LLM]
 comments: true
 cover_photo: /img/spark-observability-image/cover.png
-excerpt: "GenAI has become integral to innovation, powering the next generation of AI enabled applications. With easy integration with multiple AI providers, it brings cutting edge technology to every user. This article explores why we need GenAI Gateway, how it works, what are the user benefits, and the challenges faced in GenAI in this article."
+excerpt: "Discover how Grab revolutionized its Spark observability with StarRocks! We transformed our monitoring capabilities by moving from a fragmented system to a unified, high-performance platform. Learn about our journey from the initial Iris tool to a robust solution that tackles limitations with real-time and historical data analysis, all powered by StarRocks. Explore the architecture, data model, and advanced analytics that enable us to provide deeper insights and recommendations for optimizing Spark jobs at Grab."
 ---
 
 # Introduction
@@ -382,7 +382,7 @@ For more details on supported features and settings, refer to the StarRocks docu
 
 ### Partition TTL
 
-We utilise the partition TTL (Time To Live) feature for materialised views. This allows us to control the amount of historical data stored in the views, typically setting it to 33 days. This ensures that the views remain performant and do not consume excessive storage while still providing quick access to recent historical data.
+We utilise the partition Time To Live (TTL) feature for materialised views. This allows us to control the amount of historical data stored in the views, typically setting it to 33 days. This ensures that the views remain performant and do not consume excessive storage while still providing quick access to recent historical data.
 
 ```
     C/C++
