@@ -32,7 +32,7 @@ These challenges and the need for a centralised, user-friendly web application p
   <thead>
     <tr>
       <th>Pain Points with InfluxDB</th>
-      <th>StarRocks Solution</th>
+      <th>StarRocks solution</th>
     </tr>
   </thead>
   <tbody>
