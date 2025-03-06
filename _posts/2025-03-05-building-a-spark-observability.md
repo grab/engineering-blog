@@ -77,46 +77,46 @@ In the journey to enhance user experience, we've made substantial changes to the
 </div>
 
 
-Key Components of the new architecture:
+Key components of the new architecture:
 
-1\. **StarRocks database**
+1. **StarRocks database**
 
-* Replaces InfluxDB for both real-time and historical data storage
+  * Replaces InfluxDB for both real-time and historical data storage
 
-* Supports complex queries on metrics and metadata tables
+  * Supports complex queries on metrics and metadata tables
 
-2\. **Direct Kafka ingestion**
-* StarRocks ingests data directly from Kafka, eliminating Telegraf
+2. **Direct Kafka ingestion**
+  * StarRocks ingests data directly from Kafka, eliminating Telegraf
 
-3\. **Custom web application (Iris UI)**
+3. **Custom web application (Iris UI)**
 
-* Replaces Grafana dashboards
+  * Replaces Grafana dashboards
 
-* Centralised, flexible interface with custom API
+  * Centralised, flexible interface with custom API
 
-4\. **Superset integration**
+4. **Superset integration**
 
-* Maintained and now connected directly to StarRocks
+  * Maintained and now connected directly to StarRocks
 
-* Provides real-time data access, consistent with the custom web app
+  * Provides real-time data access, consistent with the custom web app
 
-5\. **Simplified offline data process**
+5. **Simplified offline data process**
 
-* Scheduled backups from StarRocks to S3 directly
+  * Scheduled backups from StarRocks to S3 directly
 
-* Replaces previous complex data lake pipelines
+  * Replaces previous complex data lake pipelines
 
 Key improvements:
 
-1\. **Unified data store:** Single source for real-time and historical data
+1. **Unified data store:** Single source for real-time and historical data
 
-2\. **Streamlined data flow:** A simplified pipeline reduces latency and failure points
+2. **Streamlined data flow:** A simplified pipeline reduces latency and failure points
 
-3\. **Flexible visualisation:** Custom web app with intuitive, role-specific interfaces
+3. **Flexible visualisation:** Custom web app with intuitive, role-specific interfaces
 
-4\. **Consistent real-time access:** Across both custom app and Superset
+4. **Consistent real-time access:** Across both custom app and Superset
 
-5\. **Simplified backup and data lake integration:** Direct S3 backups
+5. **Simplified backup and data lake integration:** Direct S3 backups
 
 # Data model and ingestion
 
@@ -164,8 +164,7 @@ Let's break down our table schemas:
 
 ### Cluster metadata
 
-```
-    C/C++
+```c
     CREATE TABLE `cluster_worker_metadata_raw` (
         `report_date` date  NOT NULL COMMENT "Report date",
         `platform` varchar(128) NOT NULL COMMENT "Platform",
@@ -192,8 +191,7 @@ Let's break down our table schemas:
 
 ### Cluster worker metrics
 
-```
-    C/C++
+```c
     CREATE TABLE `cluster_worker_metrics_raw` (
         `report_date` date NOT NULL COMMENT "Report date",
         `platform` varchar(128) NOT NULL COMMENT "Platform",
@@ -219,8 +217,7 @@ Let's break down our table schemas:
 
 ### Cluster spark metrics
 
-```
-    C/C++
+```c
     CREATE TABLE `cluster_spark_metrics_raw`
     (
         `report_date`                 date           NOT NULL COMMENT "Report date",
@@ -258,8 +255,7 @@ We use StarRocks' routine load feature to ingest data directly from Kafka into o
 
 Here is a simple example of creating a routine load job for cluster worker metrics:
 
-```
-    C/C++
+```c
     CREATE ROUTINE LOAD iris.routetine_cluster_worker_metrics_raw ON cluster_worker_metrics_raw
     COLUMNS(platform, worker_uuid, worker_role, epoch_ms, cpus, `memory`, bytes_heap_used, bytes_non_heap_used, gc_collection_time, report_date=date(from_unixtime(epoch_ms / 1000)))
     WHERE ISNOTNULL(platform)
@@ -281,8 +277,7 @@ This configuration sets up continuous data ingestion from the specified Kafka to
 
 For monitoring the routine, StarRocks provides built-in tools to monitor the status/error log of routine load jobs. Example query to check load:
 
-```
-    C/C++
+```c
     SHOW ROUTINE LOAD WHERE NAME = "iris.routetine_cluster_worker_metrics_raw";
 ```
 
@@ -310,8 +305,7 @@ As mentioned, we leverage StarRocks' materialised views to pre-aggregate job run
 
 Here's an example
 
-```
-    C/C++
+```c
     CREATE MATERIALIZED VIEW job_runs_001
     PARTITION BY (`report_date`)
     DISTRIBUTED BY HASH(`report_date`,`platform`)
@@ -373,8 +367,7 @@ StarRocks supports both SYNC and ASYNC materialised views. We primarily use ASYN
 
 Example setting:
 
-```
-    C/C++
+```c
     REFRESH ASYNC START('2022-09-01 10:00:00') EVERY (interval 1 day)
 ```
 
@@ -384,8 +377,7 @@ For more details on supported features and settings, refer to the StarRocks docu
 
 We utilise the partition Time To Live (TTL) feature for materialised views. This allows us to control the amount of historical data stored in the views, typically setting it to 33 days. This ensures that the views remain performant and do not consume excessive storage while still providing quick access to recent historical data.
 
-```
-    C/C++
+```c
     PROPERTIES (
         "partition_ttl" = "33 DAY"
     )
@@ -395,8 +387,7 @@ We utilise the partition Time To Live (TTL) feature for materialised views. This
 
 StarRocks allows us to refresh only specific partitions of a materialised view instead of the entire dataset. We take advantage of this by configuring our views to refresh only the most recent partitions (e.g., the last few days) where new data is typically added. This approach significantly reduces the computational overhead of keeping our materialised views up-to-date, especially for large historical datasets.
 
-```
-    C/C++
+```c
     PROPERTIES (
         "auto_refresh_partitions_limit" = "3",
     )
@@ -406,8 +397,7 @@ StarRocks allows us to refresh only specific partitions of a materialised view i
 
 Our tables are partitioned by date, allowing for efficient pruning of historical data. This partitioning strategy is crucial for queries that focus on recent job runs or specific time ranges. By quickly eliminating irrelevant partitions, we significantly reduce the amount of data scanned for each query, leading to faster execution times.
 
-```
-    C/C++
+```c
     PARTITION BY RANGE(`report_date`)()
     DISTRIBUTED BY HASH(`report_date`,`platform`)
 ```
@@ -418,8 +408,7 @@ We utilise StarRocks' dynamic partitioning feature to automatically manage our p
 
 Here's an example of how we configure dynamic partitioning for a 33-day retention period:
 
-```
-    C/C++
+```c
     PROPERTIES (
         "dynamic_partition.enable" = "true",
         "dynamic_partition.time_unit" = "DAY",
@@ -433,8 +422,7 @@ Here's an example of how we configure dynamic partitioning for a 33-day retentio
 
 To verify that dynamic partitioning is working correctly and to monitor the state of your partitions, you can use the following SQL command:
 
-```
-    C/C++
+```c
     SHOW PARTITIONS FROM iris.cluster_worker_metrics_raw;
 ```
 
@@ -454,8 +442,7 @@ We use a daily cron job to back up data older than 30 days to Amazon S3. This en
 
 Here's an example of the backup query we use:
 
-```
-    Python
+```c
     INSERT INTO
         FILES(
             "path" = "{s3backUpPath}/{table_name}/",
@@ -469,8 +456,7 @@ Here's an example of the backup query we use:
 
 After backing up to S3, we map this data to a data lake table, enabling us to query historical data beyond the 33-day window in StarRocks when needed, without affecting the performance of our primary observability system.
 
-```
-    Python
+```c
     df_snapshot = spark.read.parquet(f"{s3backUpPath}/{table_name}")
 
     # do the transformation if needed here
@@ -487,8 +473,7 @@ After backing up to S3, we map this data to a data lake table, enabling us to qu
 
 StarRocks uses data replication across multiple nodes, which is crucial for both fault tolerance and query performance. This strategy allows parallel query execution speeding up data retrieval. It's particularly beneficial for our front-end queries, where low latency is crucial for user experience. This approach aligns with best practices seen in other distributed database systems like Cassandra, DynamoDB, and MySQL's master-slave architecture.
 
-```
-    C/C++
+```c
     PROPERTIES (
         "replication_num" = "3",
     );
@@ -538,8 +523,7 @@ One of the key features we've implemented in Iris is the ability to perform anal
 
 We've created a materialised view that aggregates job run data over the last 30 days. This view likely includes metrics such as count of runs, p95 values for various resource utilisation, etc. 
 
-```
-    C/C++
+```c
     CREATE MATERIALIZED VIEW job_run_summaries_001
     REFRESH ASYNC EVERY(INTERVAL 1 DAY)
     AS
