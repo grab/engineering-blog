@@ -137,7 +137,7 @@ For each cluster, we capture both metadata and metrics:
   <tbody>
     <tr>
       <td> <b>Linkage</b></td>
-      <td>We use <b>worker\_uuid</b> to link metadata with worker metrics <b>app_id</b> to link metadata with Spark event metrics.</td>
+      <td>We use <b>worker_uuid</b> to link metadata with worker metrics <b>app_id</b> to link metadata with Spark event metrics.</td>
     </tr>
     <tr>
       <td><b>Granularity</b></td>
