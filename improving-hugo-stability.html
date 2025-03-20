@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Improving Hugo stability and addressing oncall challenges through automation</title>
+    <meta name="description" content="Managing 4,000+ data pipelines demanded a smarter approach to stability. We built a comprehensive automation solution that enhances Hugo's monitoring capabilities, streamlines issue diagnosis, and significantly reduces on-call workload. Explore our architecture, implementation, and the impact of automated healing features.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/improving-hugo-stability">
+    <meta property="og:title" content="Improving Hugo stability and addressing oncall challenges through automation">
+    <meta property="og:description" content="Managing 4,000+ data pipelines demanded a smarter approach to stability. We built a comprehensive automation solution that enhances Hugo's monitoring capabilities, streamlines issue diagnosis, and significantly reduces on-call workload. Explore our architecture, implementation, and the impact of automated healing features.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/improving-hugo-stability/cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/improving-hugo-stability">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/improving-hugo-stability/cover.jpg" class="post-cover-photo" alt="Improving Hugo stability and addressing oncall challenges through automation cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+        
+          &middot;
+        
+          <a class="post-category" href="/categories/data-analytics/">Data Analytics </a>
+      
+
+      <h1 class="post-title">Improving Hugo stability and addressing oncall challenges through automation</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/shuguang-xiang.jpg">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/hung-nguyen.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/hung-tran.jpeg">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/hualin-liu.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/bowen-wang.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/chamal-sapumohotti.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#shuguang-xiang">Shuguang Xiang</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#hung-nguyen">Hung Nguyen</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#hung-tran">Hung Tran Viet</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#hualin-liu">Hualin Liu</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#bowen-wang">Bowen Wang</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#chamal-sapumohotti">Chamal Sapumohotti</a>
+                  
+                
+              </span>
+              <span class="post-date-large">20 Mar 2025 | 8 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>Hugo plays a pivotal role in enabling data ingestion for Grab’s data lake, managing over 4,000 pipelines onboarded by users. The stability of Hugo pipelines is contingent upon the health of both the data sources and various Hugo components. Given the complexity of this system, pipeline failures occasionally occur, necessitating user intervention when retry mechanisms prove insufficient. These incidents present challenges such as:</p>
+
+<ul>
+  <li>Limited user visibility into pipeline issues.</li>
+  <li>Uncertainty about resolution steps due to extensive documentation.</li>
+  <li>An overwhelmed Hugo on-call team dealing with ad-hoc requests and growing infrastructure dependencies.</li>
+  <li>Raised Data Production Issues (DPIs) lacking clear Root Cause Analysis (RCA), hindering effective management.</li>
+</ul>
+
+<p>Such challenges ultimately increase data downtime due to prolonged issue triage and resolution times.</p>
+
+<p>To address these problems, we conducted a thorough analysis of failure modes and the efforts required to resolve them. Based on our findings, we propose a comprehensive automation solution.</p>
+
+<p>This blog outlines the architecture and implementation of our proposed solution, consisting of modules like Signal, Diagnosis, RCA Table, Auto-resolution, Data Health API, and Data Health WorkBench, each with a specific function to enhance Hugo’s monitoring, diagnosis, and resolution capabilities.</p>
+
+<p>The blog further details the impact of these automated features, such as enhanced data visibility, reduced on-call workload, and concludes with our next steps, which focus on advancing auto-resolution strategies, enriching the Data Health Workbench, and broadening diagnostics to include more infrastructure components, like Flink, for comprehensive coverage.</p>
+
+<h2 id="architecture-details">Architecture details</h2>
+
+<p>We designed the solution based on these principles:</p>
+
+<ol>
+  <li>Identify different failure modes based on past issues and analysis from first principles.</li>
+  <li>Analyse temporal relationships of pipeline execution steps to diagnose issues to failure modes.</li>
+  <li>Focus on auto-resolution, and add additional features to cover gaps which can’t be immediately addressed by auto-resolution or diagnosis.</li>
+</ol>
+
+<p>The following diagram shows the solution we proposed.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/improving-hugo-stability/architecture.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1. Architecture</figcaption>
+  </figure>
+</div>
+
+<p>The architecture consists of five core modules, each with a specific function:</p>
+
+<ol>
+  <li><strong>Signal module</strong>: This module is responsible for collecting signals. It gathers three different types of signals that collectively define the health status of the data lake table. The signals include:
+    <ul>
+      <li>Failure callback signal: This indicates whether the pipeline runs involving this data lake table are successful or not.</li>
+      <li>SLA alert signal: This indicates whether the pipeline execution involving this data lake table meets the Service Level Agreement (SLA). For an hourly batch job, the expectation is to complete within one hour.</li>
+      <li>Data quality test failure signal: This represents various types of completeness checks to ensure that data lake tables are consistent with the source tables based on their pipeline strategies.</li>
+    </ul>
+  </li>
+  <li><strong>Diagnosis module:</strong> This is the core module responsible for diagnosing the root cause of 3 types of failures collected in the Signal module. It determines:
+    <ul>
+      <li>The root cause of the failure.</li>
+      <li>The assignee responsible for fixing the error.</li>
+      <li>The auto-resolution method to fix the issue.</li>
+      <li>Manual resolution steps if the auto-resolution fails.</li>
+    </ul>
+  </li>
+  <li><strong>RCA table:</strong> This module stores the following information:
+    <ul>
+      <li>Signals</li>
+      <li>Assignee information</li>
+      <li>Diagnosis results</li>
+      <li>Auto-resolution methods</li>
+      <li>Manual resolution steps</li>
+    </ul>
+  </li>
+  <li><strong>Auto-resolution module:</strong> This module executes the auto-resolution methods to resolve issues automatically.</li>
+  <li><strong>Data health API:</strong> This module provides API access to other platforms. External platforms or pipelines that rely on Hugo onboarded tables can subscribe to the health status and investigate the root cause when a table is deemed unhealthy.</li>
+  <li><strong>Hugo pipeline health dashboard:</strong> A centralised dashboard for Hugo users to visualise the health status of tables, auto resolution status, and manual fix button.</li>
+</ol>
+
+<p>By leveraging these modules, the architecture ensures robust monitoring, diagnosis, and resolution of issues, leading to improved data health and operational efficiency.</p>
+
+<h2 id="implementation">Implementation</h2>
+
+<h3 id="signal-module">Signal module</h3>
+
+<p>There are two methods for generating these three signals. The failure signal is generated through an airflow callback, while the SLA miss and data completeness test signals are produced by Genchi. Genchi is a data quality observability platform at Grab that performs data quality checks and acts as a crucial enabler for the enforcement of data contracts.</p>
+
+<h3 id="diagnosis-module">Diagnosis module</h3>
+
+<p>As soon as an alert is created, the diagnosis begins. To avoid lengthy diagnosis times, Hugo has developed an innovative approach that eliminates the requirement for parsing extensive logs, such as Spark executor logs or Airflow logs. Instead, it gathers signals transmitted by the computation engine or Grab’s internal platforms.</p>
+
+<p>The diagnosis process can be time-consuming, even with efforts to reduce the time it takes. For example, the SLA diagnoser uses multiple analysers that run sequentially, and some of these analysers (like the Airflow analyser) make API calls that can take a significant amount of time. The more analysers that are involved in the diagnosis process, the longer it can take.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/improving-hugo-stability/diagnosis.gif" alt="" style="width:80%" /><figcaption align="middle">Figure 2. Diagnosis process</figcaption>
+  </figure>
+</div>
+
+<p>Parallelism in diagnosis serves as a solution to lower the overall latency when there is a surge in error traffic. The degree of parallelism differs based on the type of signal. For example, the failure signal diagnosis can be executed in thousands of processes at once, while for SLA miss and data quality test failures signals, the parallelism is determined by the number of partitions in the Kafka topic since these signals are received from Kafka.</p>
+
+<h3 id="auto-resolution-module">Auto-resolution module</h3>
+
+<p>Auto-resolution is a flexible framework that enables the implementation of custom handlers for various types of failures. One of the common handlers employs a retry mechanism with backoff for transient errors. For instance, if Hugo receives a failure callback indicating that the root cause is a database replica lag, it would wait for an hour before re-triggering the job. This auto-resolution process runs asynchronously with the diagnosis process.</p>
+
+<h3 id="data-health-api">Data health API</h3>
+
+<p>The data health information includes a unique identifier, current status, error details, and the time of the last health check, providing a comprehensive snapshot of the dataset’s health.</p>
+
+<p>Hugo converts the detailed information available in its internal data health API to the data health API specification format to be consumed by Kinabalu, our internal system designed to automate and streamline incident management processes by integrating with multiple systems such as Slack, Jira, Splunk on-call, and Datadog.</p>
+
+<h3 id="hugo-pipeline-health-dashboard">Hugo pipeline health dashboard</h3>
+
+<p>The Data Health Workbench is a centralised dashboard for Hugo users to visualise the health status of tables, auto-resolution status, and manual fix buttons. It provides a comprehensive view of data health and facilitates efficient issue resolution.</p>
+
+<p>The key features are as follows:</p>
+
+<ol>
+  <li><strong>Health status visualisation:</strong> Displays the current health status of tables, making it easy to identify unhealthy tables.</li>
+  <li><strong>Assignee information:</strong> Indicates the assignee responsible for fixing the issue, ensuring clear accountability.</li>
+  <li><strong>How-to-fix guide:</strong> Provides step-by-step instructions on how to resolve the issue, empowering users to take immediate action.</li>
+  <li><strong>Action:</strong> Offers an action button to initiate the resolution process with a single click, streamlining issue resolution.</li>
+  <li><strong>Admin feature with detailed diagnosis information:</strong> Provides admins supplementary information, including the reasoning behind the root cause identification and assignee determination, which allows for a deeper understanding of the root cause of issues.</li>
+</ol>
+
+<p>By leveraging the Data Health Workbench, Hugo users can efficiently monitor and manage data health, ensuring data integrity and operational efficiency.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/improving-hugo-stability/data-health-workbench.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3. Data Health Workbench</figcaption>
+  </figure>
+</div>
+
+<h2 id="impact">Impact</h2>
+
+<p>The implementation of Hugo’s auto-healing and diagnosis features has resulted in significant improvements in stability and operational efficiency for our data pipelines. Here are some key outcomes:</p>
+
+<ul>
+  <li><strong>Enhanced data visibility</strong>: We’ve improved the visibility into the health of datasets, allowing for quick identification of issues and more informed decision-making.</li>
+  <li><strong>Timely resolution of data issues</strong>: With automated diagnostic and resolution processes, we ensure that data issues are addressed promptly, minimising data downtime and enhancing overall data availability.</li>
+  <li><strong>Reduced on-call workload</strong>: By automating many of the common failure resolutions, the workload on Hugo on-call teams has been significantly reduced. This allows teams to focus on more complex and impactful tasks.</li>
+  <li><strong>Scalable solution for managing complexity</strong>: The auto-resolution framework is well-equipped to handle the increasing complexity of data infrastructure, offering scalable solutions for transient errors through custom handlers and retry mechanisms.</li>
+  <li><strong>Improved data contract management</strong>: By providing detailed pipeline health information via the Data Health API, we enable precise and accurate DPIs, complete with root cause analysis and assignee information, enhancing the management and resolution of data contract breaches.</li>
+  <li><strong>Valuable reference for other platforms</strong>: The insights and methodologies developed through this initiative provide a valuable reference for other platform teams at Grab looking to implement similar automation and diagnostic capabilities.</li>
+  <li><strong>Support for Grab’s success</strong>: These enhancements support Grabbers by ensuring easy access to the datasets they need and contribute to the overall success of Grab through reliable data availability.</li>
+</ul>
+
+<h2 id="next-steps">Next steps</h2>
+
+<p>Our next steps involve advancing auto-resolution strategies by focusing on complex solutions like pipeline runtime optimisation to boost efficiency and minimise processing delays. We will enrich the Data Health Workbench with detailed information, enabling users to visualise and understand pipeline health more effectively and make informed corrective actions. Additionally, we plan to broaden our diagnosis capabilities by integrating more infrastructure components, such as Flink health information, to ensure a comprehensive and holistic monitoring approach for all engines within Hugo.</p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grb.to/techblog4">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#data-observability" class="label tags-label">Data observability</a>
+  
+    <a href="/tags#data-pipeline" class="label tags-label">Data Pipeline</a>
+  
+    <a href="/tags#data-reliability" class="label tags-label">Data reliability</a>
+  
+    <a href="/tags#platform" class="label tags-label">Platform</a>
+  
+    <a href="/tags#system-architecture" class="label tags-label">System Architecture</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Improving Hugo stability and addressing oncall challenges through automation&url=https://engineering.grab.com/improving-hugo-stability&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/improving-hugo-stability" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/improving-hugo-stability&title=Improving Hugo stability and addressing oncall challenges through automation
+&summary=Managing 4,000+ data pipelines demanded a smarter approach to stability. We built a comprehensive automation solution that enhances Hugo's monitoring capabilities, streamlines issue diagnosis, and significantly reduces on-call workload. Explore our architecture, implementation, and the impact of automated healing features.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/improving-hugo-stability';
+    this.page.identifier = '/improving-hugo-stability';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>

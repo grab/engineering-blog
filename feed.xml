@@ -6,9 +6,176 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 17 Mar 2025 05:05:17 +0000</pubDate>
-    <lastBuildDate>Mon, 17 Mar 2025 05:05:17 +0000</lastBuildDate>
+    <pubDate>Thu, 20 Mar 2025 08:11:12 +0000</pubDate>
+    <lastBuildDate>Thu, 20 Mar 2025 08:11:12 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Improving Hugo stability and addressing oncall challenges through automation</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Hugo plays a pivotal role in enabling data ingestion for Grab’s data lake, managing over 4,000 pipelines onboarded by users. The stability of Hugo pipelines is contingent upon the health of both the data sources and various Hugo components. Given the complexity of this system, pipeline failures occasionally occur, necessitating user intervention when retry mechanisms prove insufficient. These incidents present challenges such as:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Limited user visibility into pipeline issues.&lt;/li&gt;
+  &lt;li&gt;Uncertainty about resolution steps due to extensive documentation.&lt;/li&gt;
+  &lt;li&gt;An overwhelmed Hugo on-call team dealing with ad-hoc requests and growing infrastructure dependencies.&lt;/li&gt;
+  &lt;li&gt;Raised Data Production Issues (DPIs) lacking clear Root Cause Analysis (RCA), hindering effective management.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Such challenges ultimately increase data downtime due to prolonged issue triage and resolution times.&lt;/p&gt;
+
+&lt;p&gt;To address these problems, we conducted a thorough analysis of failure modes and the efforts required to resolve them. Based on our findings, we propose a comprehensive automation solution.&lt;/p&gt;
+
+&lt;p&gt;This blog outlines the architecture and implementation of our proposed solution, consisting of modules like Signal, Diagnosis, RCA Table, Auto-resolution, Data Health API, and Data Health WorkBench, each with a specific function to enhance Hugo’s monitoring, diagnosis, and resolution capabilities.&lt;/p&gt;
+
+&lt;p&gt;The blog further details the impact of these automated features, such as enhanced data visibility, reduced on-call workload, and concludes with our next steps, which focus on advancing auto-resolution strategies, enriching the Data Health Workbench, and broadening diagnostics to include more infrastructure components, like Flink, for comprehensive coverage.&lt;/p&gt;
+
+&lt;h2 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h2&gt;
+
+&lt;p&gt;We designed the solution based on these principles:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Identify different failure modes based on past issues and analysis from first principles.&lt;/li&gt;
+  &lt;li&gt;Analyse temporal relationships of pipeline execution steps to diagnose issues to failure modes.&lt;/li&gt;
+  &lt;li&gt;Focus on auto-resolution, and add additional features to cover gaps which can’t be immediately addressed by auto-resolution or diagnosis.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;The following diagram shows the solution we proposed.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/improving-hugo-stability/architecture.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Architecture&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The architecture consists of five core modules, each with a specific function:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Signal module&lt;/strong&gt;: This module is responsible for collecting signals. It gathers three different types of signals that collectively define the health status of the data lake table. The signals include:
+    &lt;ul&gt;
+      &lt;li&gt;Failure callback signal: This indicates whether the pipeline runs involving this data lake table are successful or not.&lt;/li&gt;
+      &lt;li&gt;SLA alert signal: This indicates whether the pipeline execution involving this data lake table meets the Service Level Agreement (SLA). For an hourly batch job, the expectation is to complete within one hour.&lt;/li&gt;
+      &lt;li&gt;Data quality test failure signal: This represents various types of completeness checks to ensure that data lake tables are consistent with the source tables based on their pipeline strategies.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Diagnosis module:&lt;/strong&gt; This is the core module responsible for diagnosing the root cause of 3 types of failures collected in the Signal module. It determines:
+    &lt;ul&gt;
+      &lt;li&gt;The root cause of the failure.&lt;/li&gt;
+      &lt;li&gt;The assignee responsible for fixing the error.&lt;/li&gt;
+      &lt;li&gt;The auto-resolution method to fix the issue.&lt;/li&gt;
+      &lt;li&gt;Manual resolution steps if the auto-resolution fails.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;RCA table:&lt;/strong&gt; This module stores the following information:
+    &lt;ul&gt;
+      &lt;li&gt;Signals&lt;/li&gt;
+      &lt;li&gt;Assignee information&lt;/li&gt;
+      &lt;li&gt;Diagnosis results&lt;/li&gt;
+      &lt;li&gt;Auto-resolution methods&lt;/li&gt;
+      &lt;li&gt;Manual resolution steps&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Auto-resolution module:&lt;/strong&gt; This module executes the auto-resolution methods to resolve issues automatically.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Data health API:&lt;/strong&gt; This module provides API access to other platforms. External platforms or pipelines that rely on Hugo onboarded tables can subscribe to the health status and investigate the root cause when a table is deemed unhealthy.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Hugo pipeline health dashboard:&lt;/strong&gt; A centralised dashboard for Hugo users to visualise the health status of tables, auto resolution status, and manual fix button.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;By leveraging these modules, the architecture ensures robust monitoring, diagnosis, and resolution of issues, leading to improved data health and operational efficiency.&lt;/p&gt;
+
+&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;/h2&gt;
+
+&lt;h3 id=&quot;signal-module&quot;&gt;Signal module&lt;/h3&gt;
+
+&lt;p&gt;There are two methods for generating these three signals. The failure signal is generated through an airflow callback, while the SLA miss and data completeness test signals are produced by Genchi. Genchi is a data quality observability platform at Grab that performs data quality checks and acts as a crucial enabler for the enforcement of data contracts.&lt;/p&gt;
+
+&lt;h3 id=&quot;diagnosis-module&quot;&gt;Diagnosis module&lt;/h3&gt;
+
+&lt;p&gt;As soon as an alert is created, the diagnosis begins. To avoid lengthy diagnosis times, Hugo has developed an innovative approach that eliminates the requirement for parsing extensive logs, such as Spark executor logs or Airflow logs. Instead, it gathers signals transmitted by the computation engine or Grab’s internal platforms.&lt;/p&gt;
+
+&lt;p&gt;The diagnosis process can be time-consuming, even with efforts to reduce the time it takes. For example, the SLA diagnoser uses multiple analysers that run sequentially, and some of these analysers (like the Airflow analyser) make API calls that can take a significant amount of time. The more analysers that are involved in the diagnosis process, the longer it can take.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/improving-hugo-stability/diagnosis.gif&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Diagnosis process&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Parallelism in diagnosis serves as a solution to lower the overall latency when there is a surge in error traffic. The degree of parallelism differs based on the type of signal. For example, the failure signal diagnosis can be executed in thousands of processes at once, while for SLA miss and data quality test failures signals, the parallelism is determined by the number of partitions in the Kafka topic since these signals are received from Kafka.&lt;/p&gt;
+
+&lt;h3 id=&quot;auto-resolution-module&quot;&gt;Auto-resolution module&lt;/h3&gt;
+
+&lt;p&gt;Auto-resolution is a flexible framework that enables the implementation of custom handlers for various types of failures. One of the common handlers employs a retry mechanism with backoff for transient errors. For instance, if Hugo receives a failure callback indicating that the root cause is a database replica lag, it would wait for an hour before re-triggering the job. This auto-resolution process runs asynchronously with the diagnosis process.&lt;/p&gt;
+
+&lt;h3 id=&quot;data-health-api&quot;&gt;Data health API&lt;/h3&gt;
+
+&lt;p&gt;The data health information includes a unique identifier, current status, error details, and the time of the last health check, providing a comprehensive snapshot of the dataset’s health.&lt;/p&gt;
+
+&lt;p&gt;Hugo converts the detailed information available in its internal data health API to the data health API specification format to be consumed by Kinabalu, our internal system designed to automate and streamline incident management processes by integrating with multiple systems such as Slack, Jira, Splunk on-call, and Datadog.&lt;/p&gt;
+
+&lt;h3 id=&quot;hugo-pipeline-health-dashboard&quot;&gt;Hugo pipeline health dashboard&lt;/h3&gt;
+
+&lt;p&gt;The Data Health Workbench is a centralised dashboard for Hugo users to visualise the health status of tables, auto-resolution status, and manual fix buttons. It provides a comprehensive view of data health and facilitates efficient issue resolution.&lt;/p&gt;
+
+&lt;p&gt;The key features are as follows:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Health status visualisation:&lt;/strong&gt; Displays the current health status of tables, making it easy to identify unhealthy tables.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Assignee information:&lt;/strong&gt; Indicates the assignee responsible for fixing the issue, ensuring clear accountability.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;How-to-fix guide:&lt;/strong&gt; Provides step-by-step instructions on how to resolve the issue, empowering users to take immediate action.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Action:&lt;/strong&gt; Offers an action button to initiate the resolution process with a single click, streamlining issue resolution.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Admin feature with detailed diagnosis information:&lt;/strong&gt; Provides admins supplementary information, including the reasoning behind the root cause identification and assignee determination, which allows for a deeper understanding of the root cause of issues.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;By leveraging the Data Health Workbench, Hugo users can efficiently monitor and manage data health, ensuring data integrity and operational efficiency.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/improving-hugo-stability/data-health-workbench.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Data Health Workbench&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
+
+&lt;p&gt;The implementation of Hugo’s auto-healing and diagnosis features has resulted in significant improvements in stability and operational efficiency for our data pipelines. Here are some key outcomes:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Enhanced data visibility&lt;/strong&gt;: We’ve improved the visibility into the health of datasets, allowing for quick identification of issues and more informed decision-making.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Timely resolution of data issues&lt;/strong&gt;: With automated diagnostic and resolution processes, we ensure that data issues are addressed promptly, minimising data downtime and enhancing overall data availability.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Reduced on-call workload&lt;/strong&gt;: By automating many of the common failure resolutions, the workload on Hugo on-call teams has been significantly reduced. This allows teams to focus on more complex and impactful tasks.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scalable solution for managing complexity&lt;/strong&gt;: The auto-resolution framework is well-equipped to handle the increasing complexity of data infrastructure, offering scalable solutions for transient errors through custom handlers and retry mechanisms.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Improved data contract management&lt;/strong&gt;: By providing detailed pipeline health information via the Data Health API, we enable precise and accurate DPIs, complete with root cause analysis and assignee information, enhancing the management and resolution of data contract breaches.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Valuable reference for other platforms&lt;/strong&gt;: The insights and methodologies developed through this initiative provide a valuable reference for other platform teams at Grab looking to implement similar automation and diagnostic capabilities.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Support for Grab’s success&lt;/strong&gt;: These enhancements support Grabbers by ensuring easy access to the datasets they need and contribute to the overall success of Grab through reliable data availability.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;next-steps&quot;&gt;Next steps&lt;/h2&gt;
+
+&lt;p&gt;Our next steps involve advancing auto-resolution strategies by focusing on complex solutions like pipeline runtime optimisation to boost efficiency and minimise processing delays. We will enrich the Data Health Workbench with detailed information, enabling users to visualise and understand pipeline health more effectively and make informed corrective actions. Additionally, we plan to broaden our diagnosis capabilities by integrating more infrastructure components, such as Flink health information, to ensure a comprehensive and holistic monitoring approach for all engines within Hugo.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/techblog4&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 20 Mar 2025 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/improving-hugo-stability</link>
+        <guid isPermaLink="true">https://engineering.grab.com/improving-hugo-stability</guid>
+        
+        <category>Data Pipeline</category>
+        
+        <category>Data reliability</category>
+        
+        <category>Data observability</category>
+        
+        <category>Platform</category>
+        
+        <category>System Architecture</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data Analytics</category>
+        
+      </item>
     
       <item>
         <title>Building a Spark observability product with StarRocks: Real-time and historical performance analysis</title>
@@ -2093,153 +2260,6 @@ B. Allowing service-based subscription of data for the SDK&lt;/p&gt;
         <category>Engineering</category>
         
         <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>How we reduced peak memory and CPU usage of the product configuration management SDK</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;GrabX is Grab’s central platform for product configuration management. It has the capacity to control any component within Grab’s backend systems through configurations that are hosted directly on GrabX.&lt;/p&gt;
-
-&lt;p&gt;GrabX clients read these configurations through an SDK, which reads the configurations in a way that’s asynchronous and eventually consistent. As a result, it takes about a minute for any updates to the configurations to reach the client SDKs.&lt;/p&gt;
-
-&lt;p&gt;In this article, we discuss our analysis and the steps we took to reduce the peak memory and CPU usage of the SDK.&lt;/p&gt;
-
-&lt;h2 id=&quot;observations-on-potential-sdk-improvements&quot;&gt;Observations on potential SDK improvements&lt;/h2&gt;
-
-&lt;p&gt;Our GrabX clients noticed that the GrabX SDK tended to require high memory and CPU usage. From this, we saw opportunities for further improvements that could:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Optimise the tail latencies of client services.&lt;/li&gt;
-  &lt;li&gt;Enable our clients to use their resources more effectively.&lt;/li&gt;
-  &lt;li&gt;Reduce operation costs and improve the efficiency of using the GrabX SDK.&lt;/li&gt;
-  &lt;li&gt;Accelerate the adoption of GrabX by Grab’s internal services.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;sdk-design&quot;&gt;SDK design&lt;/h2&gt;
-
-&lt;p&gt;At a high-level, creating, updating, and serving configuration values via the GrabX SDK involved the following process:&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/previous-grabx-sdk-design.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Previous GrabX SDK design.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The process begins when GrabX clients either create or update configurations. This is done through the GrabX web portal or by making an API call.&lt;/li&gt;
-  &lt;li&gt;Once the configurations are created or updated, the GrabX backend module takes over. It stores the new configuration into an SQL database table.&lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;The GrabX backend ensures that the latest configuration data is available to client SDKs.&lt;/p&gt;
-
-    &lt;p&gt;a. The GrabX backend checks every minute for any newly created or updated configurations.&lt;/p&gt;
-
-    &lt;p&gt;b. If there are new or updated configurations, GrabX backend creates a new JSON file. This file contains all existing and newly created configurations. It’s important to note that all configurations across all services are stored in a single JSON file.&lt;/p&gt;
-
-    &lt;p&gt;c. The backend module uploads this newly created JSON file to an AWS S3 bucket.&lt;/p&gt;
-
-    &lt;p&gt;d. The backend module assigns a version number to the new JSON file and updates a text file in the AWS S3 bucket. This text file stores the latest JSON file version number. The client SDK refers to this version file to check if a newer version of the configuration data is available.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;The client SDK performs a check on the version file every minute to determine if a newer version is available. This mechanism is crucial to maintain data consistency across all instances of a service. If any instance fell out of sync, it would be brought back in sync within a minute.&lt;/li&gt;
-  &lt;li&gt;If a new version of the configuration JSON file is available, the client SDK downloads this new file. Following the download, it loads the configuration data into memory. Storing the configuration data in memory reduces the read latency for the configurations.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;areas-of-improvement-for-existing-sdk-design&quot;&gt;Areas of improvement for existing SDK design&lt;/h2&gt;
-
-&lt;p&gt;In this section we outline the areas of improvement we identified within the SDK design.&lt;/p&gt;
-
-&lt;h3 id=&quot;service-based-data-partitioning&quot;&gt;Service-based data partitioning&lt;/h3&gt;
-
-&lt;p&gt;We saw an opportunity for service-based data partitioning. The configuration data for all services was consolidated into a single JSON file. Upon studying the data read patterns of client services, we observed that most services primarily needed to access configuration data specific to their own service. However, the present design required storing configuration data for all other services. This resulted in unnecessary memory consumption.&lt;/p&gt;
-
-&lt;h3 id=&quot;retaining-only-new-version-of-configuration-in-the-same-file&quot;&gt;Retaining only new version of configuration in the same file&lt;/h3&gt;
-
-&lt;p&gt;By using a single JSON file for storing old and new configuration data, we saw a significant increase in the size of the JSON file.&lt;/p&gt;
-
-&lt;p&gt;The SDK only needs the full data when it starts; the more common case is that it needs to stay updated with the latest configuration. Even in that scenario, the SDK needed to fetch a complete new JSON file every minute no matter the size of the updates. Consequently, the process of downloading, decoding, and loading high volumes of data at a high frequency (every minute) caused the client SDK to spike in memory and CPU usage.&lt;/p&gt;
-
-&lt;h3 id=&quot;more-efficient-json-decoding&quot;&gt;More efficient JSON decoding&lt;/h3&gt;
-
-&lt;p&gt;An additional factor which contributed to memory and CPU usage during the decoding phase was the inefficiency of the default JSON decode library to decode this large (&amp;gt;100MB) JSON file. Decoding this JSON file was heavy on available CPU resources, which tended to starve the service of its ability to handle incoming requests. This manifested as increasing the P99 latency of the service.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/graph-increased-p99-latency.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Graph illustrating the increased P99 latency due to CPU throttling for a service.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;implemented-solution&quot;&gt;Implemented solution&lt;/h2&gt;
-
-&lt;p&gt;We proposed modifications to the existing SDK design, which we discuss in this section.&lt;/p&gt;
-
-&lt;h3 id=&quot;partition-data-by-service&quot;&gt;Partition data by service&lt;/h3&gt;
-
-&lt;p&gt;The proposed solution involved partitioning the data based on services. We chose this approach because a single configuration typically belonged to a single service, and most services primarily needed to read configurations that pertained to their own service.&lt;/p&gt;
-
-&lt;p&gt;Upon analysing the distribution of service-configuration, we discovered that 98% of client services required less than 1% of the total configuration data. Despite this, they were required to maintain and reload 100% of the configuration data. Furthermore, the service with the largest number of configurations only required 20% of the total configuration data.&lt;/p&gt;
-
-&lt;p&gt;Therefore, we proposed a shift towards service-based partitioning of configuration data. This allowed individual client services to access only the data they needed to read.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/service-config.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Graph showing the number of services with varying amounts of configurations.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;create-separate-json-files-for-each-configuration&quot;&gt;Create separate JSON files for each configuration&lt;/h3&gt;
-
-&lt;p&gt;Our proposal also included creating a separate JSON file for each configuration in a service. Previously, all data was stored in a single JSON file housed in an AWS S3 bucket, which supported a maximum of 3,500 write/update requests and 5,500 read requests per second.&lt;/p&gt;
-
-&lt;p&gt;By storing each configuration in a separate JSON file, we were able to create a different S3 prefix for each configuration file. These S3 prefixes helped us to maximise S3 throughput by enhancing the read/write performance for each configuration. AWS S3 can handle at least 3,500 PUT/COPY/POST/DELETE requests or 5,500 GET/HEAD requests per second for each partitioned Amazon S3 prefix.&lt;/p&gt;
-
-&lt;p&gt;Therefore, with each configuration’s data stored in a separate S3 file with a different prefix, the GrabX platform could achieve a throughput of 5,500 read requests and 3,500 write/update requests per second per configuration. This was beneficial for boosting read/write capacity when needed.&lt;/p&gt;
-
-&lt;h3 id=&quot;implement-a-service-level-changelog&quot;&gt;Implement a service-level changelog&lt;/h3&gt;
-
-&lt;p&gt;We proposed to create a changelog file at the service level. In other words, a changelog file was created for each service. This file was used to keep track of the latest update version, as well as previous service configuration update versions. This file also recorded the configurations which were created or updated in each version. This enables the SDK to accurately identify the configurations that were created or updated in each update version. This was useful to update the specific configurations belonging to a service on the client side.&lt;/p&gt;
-
-&lt;h3 id=&quot;implement-service-based-sdk&quot;&gt;Implement service-based SDK&lt;/h3&gt;
-
-&lt;p&gt;We proposed that SDK client services should be allowed to subscribe to a list of services for which they need to read configuration data. The SDK was initialised with data of the subscribed services and received updates only for configurations corresponding to the subscribed services.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/sdk-lifecycle-flowchart.png&quot; alt=&quot;&quot; style=&quot;width:40%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. This flowchart shows our proposed service-based SDK implementation.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The SDK only sought updates for the subscribed services. The client SDK needed to read the changelog file for each of the subscribed services, comparing the latest changelog version against the SDK version number. Whenever a newer changelog version was available, the SDK updated the variables with the latest version.&lt;/p&gt;
-
-&lt;p&gt;This approach significantly reduced the volume of data that the SDK needed to download, decode, and load into memory during both initialisation and each subsequent update.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;In summary, we identified ways to optimise CPU and memory usage in the GrabX SDK. Our analysis revealed that frequent high resource consumption hindered the wider adoption of GrabX. We proposed a series of modifications, including partitioning data by service and creating separate JSON files for each configuration.&lt;/p&gt;
-
-&lt;p&gt;After benchmarking the proposed solution with a variety of configuration data sizes, we found that the solution has the potential to reduce memory utilisation by up to 70% and decrease the maximum CPU utilisation by more than 50%. These improvements significantly enhance the performance and scalability of the GrabX SDK.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/reduced-memory-cpu-usage-grabx-sdk/bar-charts-before-after.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Bar charts showcasing memory(MB) &amp;amp; CPU(%) utilisation for Service A before and after using the discussed solution.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Moving forward, we plan to continue optimising the GrabX SDK by exploring additional improvements, such as reducing its initialisation time. These efforts aim to make GrabX an even more robust and reliable solution for product configuration management within Grab’s ecosystem.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 700 cities in eight countries.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 30 Oct 2024 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/reduced-memory-cpu-usage-grabx-sdk</link>
-        <guid isPermaLink="true">https://engineering.grab.com/reduced-memory-cpu-usage-grabx-sdk</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Optimisation</category>
-        
-        <category>Service</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
