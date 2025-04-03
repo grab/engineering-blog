@@ -77,7 +77,7 @@ Here are the three key user journeys we focused on addressing:
 1. **User authentication**:  
    * If the user is not authenticated, they are redirected to GitLab for authentication.  
    * If the user is already authenticated, the process skips to the next step.  
-2. **Registering Merge Requests**:  
+2. **Registering merge requests**:  
    * The MR is registered to a scheduler job to automatically register a new entity catalog when it detects that the MR has been merged.
 
 This workflow ensures that users are authenticated via GitLab before proceeding and that new entity catalogs are automatically registered upon the merging of MRs.
