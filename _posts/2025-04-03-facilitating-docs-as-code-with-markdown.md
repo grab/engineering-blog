@@ -127,7 +127,7 @@ Phase 2 includes expanded functionality to support independent documentation cre
 * MkDocs updates: change site name.  
 * Auto-registeration of new entity catalogs when MRs are merged.
 
-#### Phase 3: Advanced editor capabilities
+### Phase 3: Advanced editor capabilities
 
 Phase 3 introduced additional features, such as:
 
