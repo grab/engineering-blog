@@ -62,7 +62,7 @@ Here are the three key user journeys we focused on addressing:
 
 1. **Toggle to "edit" mode**: The user switches to the edit mode to start making changes to the TechDocs.  
 2. **User starts editing TechDocs**: The user begins the process of editing the documentation and clicks save.  
-3. **User gets redirected to GitLab**: If not authenticated, they are redirected to GitLab for authentication. Once authenticated, a Merge Request is created to update the entity YAML file and add the new TechDocs.  
+3. **User gets redirected to GitLab**: If not authenticated, they are redirected to GitLab for authentication. Once authenticated, a merge request is created to update the entity YAML file and add the new TechDocs.  
 4. **Access check**: The system checks if the user has access to the TechDocs file repository. If not, they are prompted to request access.
 
 <div class="post-image-section"><figure>
