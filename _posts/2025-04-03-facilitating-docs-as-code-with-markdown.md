@@ -88,7 +88,7 @@ This workflow ensures that users are authenticated via GitLab before proceeding 
 </div>
 
 
-### Journey 3: Create TechDocs from "docs" tab on entity page
+### Journey 3: Create TechDocs from "Docs" tab on entity page
 
 #### High level workflow definition:
 
