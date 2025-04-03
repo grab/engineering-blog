@@ -108,7 +108,7 @@ This workflow ensures that users are authenticated via GitLab before proceeding 
 
 
 
-# Phased rollout
+## Phased rollout
 
 We phased the rollout of our Markdown editor to ensure a smooth transition, allowing users to gradually adapt while we gathered feedback and iterated on features. This approach helped us address challenges early, refine usability, and deliver meaningful improvements with each phase.
 
