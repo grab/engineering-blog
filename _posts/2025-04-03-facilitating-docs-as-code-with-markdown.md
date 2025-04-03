@@ -74,7 +74,7 @@ Here are the three key user journeys we focused on addressing:
 
 #### High level workflow definition:
 
-1. **User Authentication**:  
+1. **User authentication**:  
    * If the user is not authenticated, they are redirected to GitLab for authentication.  
    * If the user is already authenticated, the process skips to the next step.  
 2. **Registering Merge Requests**:  
