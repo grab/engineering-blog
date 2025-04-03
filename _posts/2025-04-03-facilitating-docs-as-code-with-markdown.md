@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2025-04-03-facilitating-docs-as-code-with-markdown
-title: 'Facilitating Docs-as-Code Implementation for Users Unfamiliar with Markdown'
+title: 'Facilitating Docs-as-Code implementation for users unfamiliar with Markdown'
 date: 2025-04-03 00:23:00
 authors: [david-khu, preeti-karkera, sita-yadav, ziqin-yeow]
 categories: [Engineering]
