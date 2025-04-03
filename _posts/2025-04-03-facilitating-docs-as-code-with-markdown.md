@@ -12,13 +12,13 @@ excerpt: "In this article, we’ll discuss how we’ve streamlined the Docs-as-C
 
 ---
 
-# Introduction
+## Introduction
 
 Although Grab is a tech company, not everyone is an engineer. Many team members don’t use GitLab daily, and Markdown’s quirks can be challenging for them. This made adopting the Docs-as-Code culture a hurdle, particularly for non-engineering teams responsible for key engineering-facing documents. In this article, we’ll discuss how we’ve streamlined the Docs-as-Code process for technical contributors, specifically non-engineers, who are not very familiar with GitLab and might face challenges with Markdown. For more on the benefits of the Docs-as-Code approach, check out [this blog](https://engineering.grab.com/doc-as-code) on the subject.
 
 As part of our ongoing efforts to enhance the TechDocs experience, we’ve introduced a rich text editor for those who prefer a [WYSIWYG (What You See Is What You Get)](https://en.wikipedia.org/wiki/WYSIWYG) interface on top of a Git workflow, helping to simplify authoring. We’ll also cover how we plan to improve the workflow for non-engineering teams contributing to service and standalone documentation.
 
-# The need for a rich text editor
+## The need for a rich text editor
 
 Ask any developer today, and they'll likely tell you that Markdown is the go-to format for documentation. Due to its simplicity, whether it’s GitHub, GitLab, Bitbucket, or other platforms, Markdown has become the default choice, even for issue tracking. It's also integrated into most text editors, like IntelliJ, VS Code, Vim, and Emacs, with handy plugins for syntax highlighting and previewing.
 
@@ -33,7 +33,7 @@ We’ve kept GitLab as the central storage system, but now, with the TechDocs ed
 - Formatting text with titles, bullets, numbering
 
 <div class="post-image-section"><figure>
-  <img src="/img/Facilitating-Docs-as-Code/figure-1.gif" alt="" style="width:80%"><figcaption align="middle">Figure 1: TechDocs editor in Helix</figcaption>
+  <img src="/img/Facilitating-Docs-as-Code/figure-1.gif" alt="" style="width:80%"><figcaption align="middle">Figure 1: TechDocs editor in Helix TechDocs portal</figcaption>
   </figure>
 </div>
 
@@ -60,7 +60,7 @@ Here are the three key user journeys we focused on addressing:
 
 #### High level workflow definition:
 
-1. **Toggle to "edit" mode**: The user switches to the edit mode to start making changes to the TechDocs.  
+1. **Toggle to 'edit' mode**: The user switches to the edit mode to start making changes to the TechDocs.  
 2. **User starts editing TechDocs**: The user begins the process of editing the documentation and clicks save.  
 3. **User gets redirected to GitLab**: If not authenticated, they are redirected to GitLab for authentication. Once authenticated, a merge request is created to update the entity YAML file and add the new TechDocs.  
 4. **Access check**: The system checks if the user has access to the TechDocs file repository. If not, they are prompted to request access.
@@ -154,7 +154,7 @@ To minimise Git conflicts, we considered and implemented some of these approache
 * Show who else is editing the same TechDocs to help users coordinate and avoid conflicts.  
 * Include tools to automatically or semi-automatically resolve Git conflicts.
 
-# Conclusion
+## Conclusion
 
 Bringing Docs-as-Code to a broader audience at Grab meant addressing the challenges faced by non-engineering contributors. With the introduction of a WYSIWYG editor, seamless GitLab integration, and a live preview feature, we’ve made it easier for everyone to contribute without needing deep Markdown expertise.
 
@@ -163,7 +163,7 @@ As we continue to improve the TechDocs editor, our focus remains on removing bar
 Docs-as-Code isn’t just about engineers writing documentation—it’s about making documentation a natural and frictionless part of the development process for everyone.
 
 
-# Join us
+## Join us
 
 Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.
 
