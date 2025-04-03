@@ -116,7 +116,7 @@ We phased the rollout of our Markdown editor to ensure a smooth transition, allo
 
 In Phase 1, we built a basic editor aligned with our documentation standards. Users can create and edit TechDocs for different entity catalogs, with support for basic Markdown and image previews for both absolute and relative paths. The editor tracks concurrent editing sessions and shows pending merge requests. It also includes Markdown configuration options to add, rename, reorganise, or delete pages. Additionally, our GitLab integration consolidates changes into a single commit and opens a merge request.
 
-#### Phase 2: Independent documentation creation
+### Phase 2: Independent documentation creation
 
 Phase 2 includes expanded functionality to support independent documentation creation and related features, such as:
 
