@@ -24,7 +24,13 @@ Ask any developer today, and they'll likely tell you that Markdown is the go-to 
 
 Engineers are gradually embracing the Docs-as-Code approach and enjoying the benefits of writing the documentation in Markdown format directly in their IDEs and pushing them out as merge requests (MR). However, non-engineers face the nuance of writing in Markdown and going through the Git workflow. This is when the call for a **WYSIWYG (What You See Is What You Get)** editor aka TechDocs editor came about. This solution brought about several benefits to non-engineers. It provides a familiar, UI-based experience for editing, but it still aligns with the Docs-as-Code model. This tool allows users to edit documentation via a simple UI in the Backstage portal without having to deal with the complexities of MkDocs, entity catalogs, or Markdown syntax. In the context Backstage, "entities" refer to services, platforms, tools, or libraries, and documentation is often tied to these entities to provide context sensitivity. The goal was to make it easy for people to focus on content, not the tools, and enable quick updates without the technical overhead.
 
-We’ve kept GitLab as the central storage system, but now, with the TechDocs editor, non-engineers can contribute with ease. Figure 1 highlights our editor’s features, including reordering, renaming, and deleting pages, switching between normal and Markdown views, and formatting text with titles, bullets, numbering, and more.
+We’ve kept GitLab as the central storage system, but now, with the TechDocs editor, non-engineers can contribute with ease. Figure 1 highlights our editor’s features:
+
+- Reordering
+- Renaming
+- Deleting pages
+- Switching between normal and Markdown views
+- Formatting text with titles, bullets, numbering
 
 <div class="post-image-section"><figure>
   <img src="/img/Facilitating-Docs-as-Code/figure-1.gif" alt="" style="width:80%"><figcaption align="middle">Figure 1: TechDocs editor in Helix</figcaption>
