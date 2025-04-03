@@ -96,7 +96,7 @@ This workflow ensures that users are authenticated via GitLab before proceeding 
    * User selects 'create TechDocs' on the 'Docs' tab in the Helix UI.  
 2. **Save and redirect**:  
    * User clicks 'save' and is redirected to GitLab with a Merge Request (MR) created to update the entity YAML file and add new TechDocs.  
-3. **Access Check and MR Registration**:  
+3. **Access check and MR registration**:  
    * If the user has access to the entity YAML file repository, proceed with the MR. If not, prompt the user to get access.  
    * Register the MR to a scheduler job to automatically refresh the entity catalog when it detects the MR as merged.
 
