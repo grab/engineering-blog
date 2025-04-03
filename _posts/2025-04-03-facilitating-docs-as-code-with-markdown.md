@@ -70,7 +70,7 @@ Here are the three key user journeys we focused on addressing:
   </figure>
 </div>
 
-### Journey 2: Create stand-alone TechDocs from "documentation” page 
+### Journey 2: Create stand-alone TechDocs from "Documentation" page 
 
 #### High level workflow definition:
 
