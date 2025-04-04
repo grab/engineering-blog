@@ -93,7 +93,7 @@ This workflow ensures that users are authenticated via GitLab before proceeding 
 #### High level workflow definition:
 
 1. **Start creating TechDocs**:  
-   * User selects 'create TechDocs' on the 'Docs' tab in the Helix UI.  
+   * User selects 'create TechDocs' on the 'Docs' tab in the Helix TechDocs portal UI.  
 2. **Save and redirect**:  
    * User clicks 'save' and is redirected to GitLab with a merge request (MR) created to update the entity YAML file and add new TechDocs.  
 3. **Access check and MR registration**:  
