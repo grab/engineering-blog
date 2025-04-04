@@ -2,29 +2,29 @@
 layout: post
 id: 2025-04-03-facilitating-docs-as-code-with-markdown
 title: 'Facilitating Docs-as-Code implementation for users unfamiliar with Markdown'
-date: 2025-04-03 00:23:00
+date: 2025-04-04 00:23:00
 authors: [david-khu, preeti-karkera, sita-yadav, ziqin-yeow]
 categories: [Engineering]
 tags: [Blog, TechDocs, Helix, Engineering]
 comments: true
 cover_photo: /img/Facilitating-Docs-as-Code/banner-img-2.png
-excerpt: "In this article, we’ll discuss how we’ve streamlined the Docs-as-Code process for technical contributors, specifically engineers, who are already familiar with GitLab but might face challenges with Markdown. Discover how we plan to improve the workflow for non-engineering teams contributing to service and standalone documentation."
+excerpt: "In this article, we'll discuss how we've streamlined the Docs-as-Code process for technical contributors, specifically engineers, who are already familiar with GitLab but might face challenges with Markdown. Discover how we plan to improve the workflow for non-engineering teams contributing to service and standalone documentation."
 
 ---
 
 ## Introduction
 
-Although Grab is a tech company, not everyone is an engineer. Many team members don’t use GitLab daily, and Markdown’s quirks can be challenging for them. This made adopting the Docs-as-Code culture a hurdle, particularly for non-engineering teams responsible for key engineering-facing documents. In this article, we’ll discuss how we’ve streamlined the Docs-as-Code process for technical contributors, specifically non-engineers, who are not very familiar with GitLab and might face challenges with Markdown. For more on the benefits of the Docs-as-Code approach, check out [this blog](https://engineering.grab.com/doc-as-code) on the subject.
+Although Grab is a tech company, not everyone is an engineer. Many team members don't use GitLab daily, and Markdown's quirks can be challenging for them. This made adopting the Docs-as-Code culture a hurdle, particularly for non-engineering teams responsible for key engineering-facing documents. In this article, we'll discuss how we've streamlined the Docs-as-Code process for technical contributors, specifically non-engineers, who are not very familiar with GitLab and might face challenges with Markdown. For more on the benefits of the Docs-as-Code approach, check out [this blog](https://engineering.grab.com/doc-as-code) on the subject.
 
-As part of our ongoing efforts to enhance the TechDocs experience, we’ve introduced a rich text editor for those who prefer a [WYSIWYG (What You See Is What You Get)](https://en.wikipedia.org/wiki/WYSIWYG) interface on top of a Git workflow, helping to simplify authoring. We’ll also cover how we plan to improve the workflow for non-engineering teams contributing to service and standalone documentation.
+As part of our ongoing efforts to enhance the TechDocs experience, we've introduced a rich text editor for those who prefer a [WYSIWYG (What You See Is What You Get)](https://en.wikipedia.org/wiki/WYSIWYG) interface on top of a Git workflow, helping to simplify authoring. We'll also cover how we plan to improve the workflow for non-engineering teams contributing to service and standalone documentation.
 
 ## The need for a rich text editor
 
-Ask any developer today, and they'll likely tell you that Markdown is the go-to format for documentation. Due to its simplicity, whether it’s GitHub, GitLab, Bitbucket, or other platforms, Markdown has become the default choice, even for issue tracking. It's also integrated into most text editors, like IntelliJ, VS Code, Vim, and Emacs, with handy plugins for syntax highlighting and previewing.
+Ask any developer today, and they'll likely tell you that Markdown is the go-to format for documentation. Due to its simplicity, whether it's GitHub, GitLab, Bitbucket, or other platforms, Markdown has become the default choice, even for issue tracking. It's also integrated into most text editors, like IntelliJ, VS Code, Vim, and Emacs, with handy plugins for syntax highlighting and previewing.
 
 Engineers are gradually embracing the Docs-as-Code approach and enjoying the benefits of writing the documentation in Markdown format directly in their IDEs and pushing them out as merge requests (MR). However, non-engineers face the nuance of writing in Markdown and going through the Git workflow. This is when the call for a **WYSIWYG (What You See Is What You Get)** editor aka TechDocs editor came about. This solution brought about several benefits to non-engineers. It provides a familiar, UI-based experience for editing, but it still aligns with the Docs-as-Code model. This tool allows users to edit documentation via a simple UI in the Backstage portal without having to deal with the complexities of MkDocs, entity catalogs, or Markdown syntax. In the context Backstage, "entities" refer to services, platforms, tools, or libraries, and documentation is often tied to these entities to provide context sensitivity. The goal was to make it easy for people to focus on content, not the tools, and enable quick updates without the technical overhead.
 
-We’ve kept GitLab as the central storage system, but now, with the TechDocs editor, non-engineers can contribute with ease. Figure 1 highlights our editor’s features:
+We've kept GitLab as the central storage system, but now, with the TechDocs editor, non-engineers can contribute with ease. Figure 1 highlights our editor's features:
 
 - Reordering
 - Renaming
@@ -138,7 +138,7 @@ Each phase improved the editor, enhancing TechDocs at Grab with seamless GitLab 
 
 ## Integrating the ability to do a live preview
 
-While syntax highlighting in the TechDocs editor is helpful, it can’t fully predict how the final Markdown document will appear once rendered due to Markdown flavour inconsistencies. This is especially true for elements like images, tables, and diagrams, where visual verification is crucial. To minimise these risks, the TechDocs editor includes a live preview feature, allowing users to see the fully rendered document alongside the editor in a split-screen view. This lets users verify their work as they go, preventing the need to switch back and forth between the editor and the final document, saving time and reducing potential formatting errors.
+While syntax highlighting in the TechDocs editor is helpful, it can't fully predict how the final Markdown document will appear once rendered due to Markdown flavour inconsistencies. This is especially true for elements like images, tables, and diagrams, where visual verification is crucial. To minimise these risks, the TechDocs editor includes a live preview feature, allowing users to see the fully rendered document alongside the editor in a split-screen view. This lets users verify their work as they go, preventing the need to switch back and forth between the editor and the final document, saving time and reducing potential formatting errors.
 
 However, like most live preview features, performance challenges can arise. For larger documents, the process of continuously converting Markdown to HTML can slow down editing. External resources such as images that need to be re-rendered, can cause visual glitches or delays in the preview. Running scripts or using plugins with extended grammar also adds to the performance load, requiring frequent re-execution and potentially slowing down the experience.
 
@@ -146,7 +146,7 @@ To mitigate these issues, the TechDocs editor uses an inbuilt preview feature th
 
 ## GitLab integration strategy
 
-The TechDocs editor integrates seamlessly with GitLab, allowing users to make changes effortlessly through OAuth2 authentication. When users log into the editor, they simply click the "Connect with GitLab" button, which provides access via the OAuth 2.0 protocol. Once connected, all modifications made within the editor are executed using the user’s GitLab credentials, streamlining the documentation process and ensuring a smooth experience for users as they update their documentation directly within the TechDocs framework.
+The TechDocs editor integrates seamlessly with GitLab, allowing users to make changes effortlessly through OAuth2 authentication. When users log into the editor, they simply click the "Connect with GitLab" button, which provides access via the OAuth 2.0 protocol. Once connected, all modifications made within the editor are executed using the user's GitLab credentials, streamlining the documentation process and ensuring a smooth experience for users as they update their documentation directly within the TechDocs framework.
 
 To minimise Git conflicts, we considered and implemented some of these approaches:
 
@@ -156,11 +156,11 @@ To minimise Git conflicts, we considered and implemented some of these approache
 
 ## Conclusion
 
-Bringing Docs-as-Code to a broader audience at Grab meant addressing the challenges faced by non-engineering contributors. With the introduction of a WYSIWYG editor, seamless GitLab integration, and a live preview feature, we’ve made it easier for everyone to contribute without needing deep Markdown expertise.
+Bringing Docs-as-Code to a broader audience at Grab meant addressing the challenges faced by non-engineering contributors. With the introduction of a WYSIWYG editor, seamless GitLab integration, and a live preview feature, we've made it easier for everyone to contribute without needing deep Markdown expertise.
 
 As we continue to improve the TechDocs editor, our focus remains on removing barriers to documentation, enhancing collaboration, and ensuring that our docs evolve alongside our fast-moving engineering teams.
 
-Docs-as-Code isn’t just about engineers writing documentation—it’s about making documentation a natural and frictionless part of the development process for everyone.
+Docs-as-Code isn't just about engineers writing documentation—it's about making documentation a natural and frictionless part of the development process for everyone.
 
 
 ## Join us
