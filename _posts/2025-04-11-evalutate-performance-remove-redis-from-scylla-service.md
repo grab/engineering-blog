@@ -61,39 +61,134 @@ Let's assume we have the following data in these three tables for "rain_drops:ci
 Let's assume we have the following data in these three tables for "rain_drops:city:111222". The datapoints used in the above example request are highlighted in **bold**.
 
 <br>
-***minutely_count_table***:
+**minutely_count_table**:
 
-| key &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  | minute_timestamp &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | count |
-| :---- | ---- | :----: |
-| `rain_drops:city:111222` | 2024-09-24T22:00:00Z | 3 |
-| `rain_drops:city:111222` | 2024-09-24T22:15:00Z | 2 |
-| `rain_drops:city:111222` | 2024-09-24T22:30:00Z | 4 |
-| `rain_drops:city:111222` | 2024-09-24T22:45:00Z | 1 |
-| ... | ... | ... |
-| **`rain_drops:city:111222`** | **2024-09-27T01:00:00Z** | **2** |
-| `rain_drops:city:111222` | 2024-09-27T01:15:00Z | 3 |
+<table class="table">
+  <thead>
+    <tr>
+      <th>key</th>
+      <th>minutely_timestamp</th>
+      <th>count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-24T22:00:00Z</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-24T22:15:00Z</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-24T22:30:00Z</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-24T22:45:00Z</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <td style="font-weight:bold">rain_drops:city:111222</td>
+      <td style="font-weight:bold">2024-09-27T01:00:00Z</td>
+      <td style="font-weight:bold">2</td>
+    </tr>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-27T01:15:00Z</td>
+      <td>3</td>
+    </tr>
+  </tbody>
+</table>
 
 <br>
-***hourly_count_table***:
+**hourly_count_table**:
 
-| key &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  | minute_timestamp &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | count |
-| :---- | ---- | :----: |
-| **`rain_drops:city:111222`** | **2024-09-24T22:00:00Z** | **18** |
-| **`rain_drops:city:111222`** | **2024-09-24T23:00:00Z** | **22** |
-| `rain_drops:city:111222` | 2024-09-25T00:00:00Z | 15 |
-| ... | ... | ... |
-| **`rain_drops:city:111222`** | **2024-09-27T00:00:00Z** | **11** |
-| `rain_drops:city:111222` | 2024-09-27T01:00:00Z | 9 |
+<table class="table">
+  <thead>
+    <tr>
+      <th>key</th>
+      <th>hourly_timestamp</th>
+      <th>count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="font-weight:bold">rain_drops:city:111222</td>
+      <td style="font-weight:bold">2024-09-24T22:00:00Z</td>
+      <td style="font-weight:bold">18</td>
+    </tr>
+    <tr>
+      <td style="font-weight:bold">rain_drops:city:111222</td>
+      <td style="font-weight:bold">2024-09-24T23:00:00Z</td>
+      <td style="font-weight:bold">22</td>
+    </tr>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-25T00:00:00Z</td>
+      <td>15</td>
+    </tr>
+    <tr>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <td style="font-weight:bold">rain_drops:city:111222</td>
+      <td style="font-weight:bold">2024-09-27T00:00:00Z</td>
+      <td style="font-weight:bold">11</td>
+    </tr>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-27T01:00:00Z</td>
+      <td>9</td>
+    </tr>
+  </tbody>
+</table>
 
 <br>
-***daily_count_table***:
+**daily_count_table**:
 
-| key &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  | minute_timestamp &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | count |
-| :---- | ---- | :----: |
-| `rain_drops:city:111222` |   2024-09-24T00:00:00Z       | 214 |
-| **`rain_drops:city:111222`** |   **2024-09-25T00:00:00Z**       | **189** |
-| **`rain_drops:city:111222`** |   **2024-09-26T00:00:00Z**      | **245** |
-| `rain_drops:city:111222` |   2024-09-27T00:00:00Z      | 78 |
+<table class="table">
+  <thead>
+    <tr>
+      <th>key</th>
+      <th>daily_timestamp</th>
+      <th>count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-24T00:00:00Z</td>
+      <td>214</td>
+    </tr>
+    <tr>
+      <td style="font-weight:bold">rain_drops:city:111222</td>
+      <td style="font-weight:bold">2024-09-25T00:00:00Z</td>
+      <td style="font-weight:bold">189</td>
+    </tr>
+    <tr>
+      <td style="font-weight:bold">rain_drops:city:111222</td>
+      <td style="font-weight:bold">2024-09-26T00:00:00Z</td>
+      <td style="font-weight:bold">245</td>
+    </tr>
+    <tr>
+      <td>rain_drops:city:111222</td>
+      <td>2024-09-27T00:00:00Z</td>
+      <td>78</td>
+    </tr>
+  </tbody>
+</table>
 
 <br>
 Now, let's see how the service calculates the total count for the incoming request with “rain_drops:city:111222” based on the provided data:
