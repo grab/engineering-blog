@@ -1,13 +1,13 @@
 ---
 layout: post
-id: 2025-04-11-evalutate-performance-remove-redis-from-scylla-service
+id: 2025-04-11-evaluate-performance-remove-redis-from-scylla-service
 title: 'Evaluating performance impact of removing Redis-cache from a Scylla-backed service'
 date: 2025-04-11 00:23:00
 authors: [riyadh-sharif, jialong-loh, swarit-arora, muqi-li]
 categories: [Engineering]
 tags: [Database, Engineering, Event processing, Optimisation, Redis]
 comments: true
-cover_photo: /img/evalutate-performance-remove-redis-from-scylla-service/cover.png
+cover_photo: /img/evaluate-performance-remove-redis-from-scylla-service/cover.png
 excerpt: "At Grab, we recently reevaluated a setup that combined Scylla with an external Redis cache. We decided to remove Redis and adjusted our Scylla configurations and strategies accordingly. This change helped reduce latency spikes while significantly lowering the overall cost. In this article, we explore the process, the challenges we faced, and the solutions we implemented to create a more efficient and cost-effective setup."
 ---
 
@@ -226,7 +226,7 @@ For the full days within the range, specifically 25th and 26th September, we can
      = 487
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/example-request.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: The example request for “rain_drops:city:111222” is handled using data from three different Scylla tables.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/example-request.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: The example request for “rain_drops:city:111222” is handled using data from three different Scylla tables.</figcaption>
   </figure>
 </div>
 
@@ -250,7 +250,7 @@ For example, for the following three start times, although they are different, a
 In day-to-day operations, this caching setup allows roughly half of our total production requests to be served by the Redis cache.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/visualise-cache-hits.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. The graph visualises the relative quantity of cache hits vs Scylla-bound requests.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/visualise-cache-hits.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. The graph visualises the relative quantity of cache hits vs Scylla-bound requests.</figcaption>
   </figure>
 </div>
 
@@ -259,7 +259,7 @@ In day-to-day operations, this caching setup allows roughly half of our total pr
 The setup consisting of Scylla and Redis cache works well. Particularly because Scylla-bound queries need to look up 1-3 tables (minutely, hourly, daily, depending on the time range) and perform the summation as explained earlier, whereas a single cache lookup gets the final value for the same query. However, as our cache key pattern follows the 15-minute truncation strategy, along with a 5-minute cache TTL, it leads to an interesting phenomenon - our cache hits plummet and Scylla QPS spikes at the end of every 15 minutes.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/15-mins-spikes-scylla-request.png" alt="" style="width:80%"><figcaption align="middle">Figure 3. Graph showing 15-minute spikes in Scylla-bound requests accompanied by a decline in cache hit rates.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/15-mins-spikes-scylla-request.png" alt="" style="width:80%"><figcaption align="middle">Figure 3. Graph showing 15-minute spikes in Scylla-bound requests accompanied by a decline in cache hit rates.</figcaption>
   </figure>
 </div>
 
@@ -270,7 +270,7 @@ The table in Figure 4 shows example data for configurations "rain_drops:city:111
 One question that arises is - "Why don’t we see a spike every 5 minutes for cache key TTL expiry?" This is because, within the 15 minutes block, new cache keys are continuously created when a key reaches TTL and a new request for that is received. Since this happens all the time as shown in Figure 4, we do not see a sharp spike. In other words, although Scylla does receive more queries due to cache TTL expiry, it does not lead to a spike in Scylla queries or a sharp drop in cache hits. This is because the cache keys are always being created and invalidated due to TTL expiry instead of following a fixed 5-minute block similar to the 15-minute block we use for our truncation strategy.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/scenario-new-cache-keys.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. This table visualises scenarios when new cache keys are required due to TTL expiry vs due to 15-minute truncation strategy.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/scenario-new-cache-keys.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. This table visualises scenarios when new cache keys are required due to TTL expiry vs due to 15-minute truncation strategy.</figcaption>
   </figure>
 </div>
 
@@ -321,7 +321,7 @@ As we progressively disabled read from external Redis cache over the span of 8 d
 As we progressively disabled Redis cache for most of the counters, one obvious impact was the gradual increase in Scylla-bound QPS and similar decrease in Redis-cache hit. When Redis-cache was enabled for 100% of the configurations, 50% of the requests were bound for Scylla and the other 50% were for Redis. At the end of the experiment, after fully disabling Redis cache, 100% of the requests were Scylla-bound.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/gradual-increase-scylla-qps.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Gradual increase in Scylla QPS and simultaneous decrease in Redis cache hit.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/gradual-increase-scylla-qps.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Gradual increase in Scylla QPS and simultaneous decrease in Redis cache hit.</figcaption>
   </figure>
 </div>
 
@@ -330,12 +330,12 @@ As we progressively disabled Redis cache for most of the counters, one obvious i
 We noticed that the 15-minute spikes in Scylla QPS as well as the associated latency slowly became less prominent and eventually disappeared from the graph after we completely disabled the Redis cache. However, we noticed that the hourly spike still remained. This is attributed to the higher QPS from the clients calling this service at the turn of every hour. As a result, limited optimisation can be done to reduce the hourly spike on this service’s end.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/scyalla-vs-cache.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. The 15-minute spikes in Scylla QPS disappeared after the external Redis cache was fully disabled. This graph uses a smaller time window to show the earlier spikes. It also shows the persistence of hourly spikes after the experiment which is attributed to the clients of this service sending more requests at the start of every hour.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/scyalla-vs-cache.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. The 15-minute spikes in Scylla QPS disappeared after the external Redis cache was fully disabled. This graph uses a smaller time window to show the earlier spikes. It also shows the persistence of hourly spikes after the experiment which is attributed to the clients of this service sending more requests at the start of every hour.</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/avg-latency.png" alt="" style="width:80%"><figcaption align="middle">Figure 7. The graph shows that the 15-minute spikes in Scylla’s latency disappeared after the external Redis cache was fully disabled. This graph uses a smaller time window to show the earlier spikes. It also shows the persistence of hourly spikes in latency after the experiment which is attributed to the clients of this service sending more requests at the start of every hour.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/avg-latency.png" alt="" style="width:80%"><figcaption align="middle">Figure 7. The graph shows that the 15-minute spikes in Scylla’s latency disappeared after the external Redis cache was fully disabled. This graph uses a smaller time window to show the earlier spikes. It also shows the persistence of hourly spikes in latency after the experiment which is attributed to the clients of this service sending more requests at the start of every hour.</figcaption>
   </figure>
 </div>
 
@@ -344,12 +344,12 @@ We noticed that the 15-minute spikes in Scylla QPS as well as the associated lat
 When we disabled Redis cache for about 75% of the counters configurations on Nov 7 (which accounts for about 85% of the overall QPS), we noticed an increase in the overall average service latency, from between 6-8 ms to 7-12 ms (P99 went from ~30-50ms to ~30-70ms). This caused a spike in open circuit breaker (CB) events on [Hystrix](https://engineering.grab.com/designing-resilient-systems-part-1). At this point, before disabling cache for more counters, on Nov 12, we experimented with running an additional major compaction job on Scylla between 2-5 PM on all our Scylla nodes, progressively on each availability zone (AZ). It is noteworthy that we already have a scheduled major compaction job that runs around 3 AM every day. The outcome of this experiment was quite positive. It brought back the average and P99 latency almost to the prior level when we had Redis cache enabled for 100% of the counters. This also had a similar effect on the Hystrix CB open events. Based on this observation, we made this additional day time major compaction job as a daily scheduled job. We disabled Redis cache for 100% of the counters the next day (Nov 13). This expectedly increased the Scylla QPS, with no noticeable adverse effect on the service latency or Hystrix CB open events.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/avg-latency-change.png" alt="" style="width:80%"><figcaption align="middle">Figure 8. This graph shows how the average latency changed as a result of the experiment. The higher spikes correspond to the time when Redis cache was being progressively disabled before introducing the day time Scylla compaction job. The spikes lessened after the compaction job was introduced on Nov 12 (Note: Friday spike was due to higher traffic in general).</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/avg-latency-change.png" alt="" style="width:80%"><figcaption align="middle">Figure 8. This graph shows how the average latency changed as a result of the experiment. The higher spikes correspond to the time when Redis cache was being progressively disabled before introducing the day time Scylla compaction job. The spikes lessened after the compaction job was introduced on Nov 12 (Note: Friday spike was due to higher traffic in general).</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/p99-latency.png" alt="" style="width:80%"><figcaption align="middle">Figure 9. This graph shows how the P99 latency changed as a result of the experiment. The higher spikes correspond to the time when Redis cache was being progressively disabled before introducing the day time Scylla compaction job. The spikes lessened after the compaction job was introduced on Nov 12 (Note: Friday spike was due to higher traffic in general).</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/p99-latency.png" alt="" style="width:80%"><figcaption align="middle">Figure 9. This graph shows how the P99 latency changed as a result of the experiment. The higher spikes correspond to the time when Redis cache was being progressively disabled before introducing the day time Scylla compaction job. The spikes lessened after the compaction job was introduced on Nov 12 (Note: Friday spike was due to higher traffic in general).</figcaption>
   </figure>
 </div>
 
@@ -358,12 +358,12 @@ When we disabled Redis cache for about 75% of the counters configurations on Nov
 One of our hypotheses was that we were not using Scylla cache due to our system’s design, along with all the service specific characteristics discussed earlier. Our experimental results show that this is indeed the case. We observed a significant increase in Scylla reads with Scylla’s own cache hits, while Scylla reads with Scylla’s own cache misses remained about the same despite our Scylla cluster receiving double the traffic. Percentage-wise, before disabling the external Redis cache, Scylla hit its own cache for ~30% of the total reads, and after we have completely disabled the external Redis cache, Scylla hit its cache for about 70% of the reads. We believe that this largely contributes to the overall performance of the service despite fully decommissioning the expensive Redis cache component from our system architecture.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/scylla-reads-increase.png" alt="" style="width:80%"><figcaption align="middle">Figure 10. Significant increase in Scylla reads after disable Redis cache.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/scylla-reads-increase.png" alt="" style="width:80%"><figcaption align="middle">Figure 10. Significant increase in Scylla reads after disable Redis cache.</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/reads-with-cache-miss.png" alt="" style="width:80%"><figcaption align="middle">Figure 11. No change in Scylla cache miss despite the doubling of Scylla traffic.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/reads-with-cache-miss.png" alt="" style="width:80%"><figcaption align="middle">Figure 11. No change in Scylla cache miss despite the doubling of Scylla traffic.</figcaption>
   </figure>
 </div>
 
@@ -372,12 +372,12 @@ One of our hypotheses was that we were not using Scylla cache due to our system�
 Contrary to our assumption, although the Scylla QPS doubled due to the change done as part of this experiment, there was marginal increase in Scylla CPU usage (from ~50% to ~52% at peak). In terms of memory, Scylla log-structured allocator (LSA) memory usage remains consistent. For Non-LSA memory, the maximum utilisation did not increase. However, we noticed two daily spikes instead of one existed before the experiment. The second spike results from the newly added daily major compaction job. Notably,the overall non-LSA peak has slightly decreased after the introduction of the new compaction job.
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/load.png" alt="" style="width:80%"><figcaption align="middle">Figure 12. Relatively steady Scylla CPU utilisation.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/load.png" alt="" style="width:80%"><figcaption align="middle">Figure 12. Relatively steady Scylla CPU utilisation.</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/evalutate-performance-remove-redis-from-scylla-service/non-lsa-used-memory.png" alt="" style="width:80%"><figcaption align="middle">Figure 13. Non-LSA memory usage spikes twice a day after the experiment. The new spike corresponds to the newly added day time compaction job.</figcaption>
+  <img src="/img/evaluate-performance-remove-redis-from-scylla-service/non-lsa-used-memory.png" alt="" style="width:80%"><figcaption align="middle">Figure 13. Non-LSA memory usage spikes twice a day after the experiment. The new spike corresponds to the newly added day time compaction job.</figcaption>
   </figure>
 </div>
 
