@@ -3,7 +3,7 @@ layout: post
 id: 2025-04-25-introducing-the-sop-drive-llm-agent-framework
 title: 'Introducing the SOP-driven LLM agent frameworks'
 date: 2025-04-25 00:00:10
-authors: [fujiao-liu, shuqi-wang, wenhui-wu, muqi-li, jia-chen, haitao-bao,  meichen-lu] 
+authors: [fujiao-liu, shuqi-wang, wenhui-wu, muqi-li, jia-chen, haitao-bao, meichen-lu] 
 categories: [Engineering, Data Analytics, Data Science]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
 comments: true
@@ -14,9 +14,9 @@ excerpt: "The SOP-driven Large Language Model (LLM) agent framework, revolutioni
 
 ## Introduction
 
-We're excited to introduce an innovative Large Language Model (LLM) agent framework that reimagines how enterprises can harness the power of AI to streamline operations and boost productivity. At its core, this framework leverages Standard Operating Procedures (SOPs) to guide AI-driven execution, ensuring reliability and consistency in complex processes. Initial evaluations have shown remarkable results, with over 99.8% accuracy in real-world use cases. For example, the framework has powered solutions like the Account Takeover Investigations bot, which achieved a 0 false rate while reducing investigation time from 23 minutes to just 3, automating 87% of cases. The fraud investigation use case also  reduced the average handling time (AHT) by 45%, saving over 300 man-hours monthly with a 0 false rate, demonstrating its potential to transform even the most intricate enterprise operations with a high degree of accuracy. 
+We're excited to introduce an innovative Large Language Model (LLM) agent framework that reimagines how enterprises can harness the power of AI to streamline operations and boost productivity. At its core, this framework leverages Standard Operating Procedures (SOPs) to guide AI-driven execution, ensuring reliability and consistency in complex processes. Initial evaluations have shown remarkable results, with over 99.8% accuracy in real-world use cases. For example, the framework has powered solutions like the Account Takeover Investigations (ATI) bot, which achieved a 0 false rate while reducing investigation time from 23 minutes to just 3, automating 87% of cases. The fraud investigation use case also reduced the average handling time (AHT) by 45%, saving over 300 man-hours monthly with a 0 false rate, demonstrating its potential to transform even the most intricate enterprise operations with a high degree of accuracy. 
 
-The framework's capabilities extend far beyond just accuracy—it offers a versatile suite of tools that revolutionise automation and app development, enabling AI-powered solutions up to 10 times faster than traditional methods.
+The framework's capabilities extend far beyond just accuracy, it offers a versatile suite of tools that revolutionise automation and app development, enabling AI-powered solutions up to 10 times faster than traditional methods.
 
 
 ## The power of SOPs in AI automation
@@ -25,7 +25,7 @@ Traditional agent-based applications often use LLMs as the core controller to na
 
 Our framework addresses these challenges head-on by leveraging the structure and reliability of SOPs. We represent SOPs as a tree, with nodes encapsulating individual actions or decision points. This structure supports both sequential and conditional branching operations, mirroring the hierarchical nature of real-world business processes.
 
-To make this powerful tool accessible to all, we've developed an intuitive SOP editor that allows non-technical users to easily define and visualise complex workflows. These visual representations are then converted into a structured, indented format that our system can interpret and execute efficiently.  
+To make this powerful tool accessible to all, we've developed an intuitive SOP editor that allows non-technical users to easily define and visualise complex workflows. These visual representations are then converted into a structured, indented format that our system can interpret and execute efficiently.
 
 
 <div class="post-image-section"><figure>
@@ -69,7 +69,7 @@ In an era where data security and process transparency are paramount, our framew
 
 ## Looking ahead
 
-As we continue to refine and expand this LLM agent framework, we're excited to explore its potential across different industries. We'll be sharing more about each of these features  in the future and showcase how they can be leveraged to solve specific business challenges and explore real-world applications.
+As we continue to refine and expand this LLM agent framework, we're excited to explore its potential across different industries. We'll be sharing more about each of these features in the future and showcase how they can be leveraged to solve specific business challenges and explore real-world applications.
 
 Look forward to more in-depth explorations of the framework's capabilities, use cases, and technical innovations. With this revolutionary approach, you're not just automating tasks – you're transforming the way your enterprise operates, unleashing the true power of LLM in your organisation.
 
