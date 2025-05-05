@@ -2,7 +2,7 @@
 layout: post
 id: 2025-05-8-streamlining-riskops-with-sop
 title: 'Streamlining RiskOps with the SOP agent framework'
-date: 2025-05-04 00:00:10
+date: 2025-05-08 00:00:10
 authors: [fujiao-liu, haitao-bao, jia-chen, meichen-lu, muqi-li] 
 categories: [Engineering, Data Analytics, Data Science]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
