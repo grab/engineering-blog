@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Engineering, Optimisation, AI]
 comments: true
 cover_photo: /img/birth-of-grabgpt/grabgpt-banner.png
-excerpt: "When Grab's Machine Learning team sought to automate support queries, a failed chatbot experiment sparked an unexpected pivot: GrabGPT. Born from the need to harness Large Language Models (LLMs) internally, this tool became a go-to resource for employees. Offering private, auditable access to models like GPT and Gemini. Author Wenbo shares his journey of turning failed experiments into startegic wins."
+excerpt: "When Grab's Machine Learning team sought to automate support queries, a failed chatbot experiment sparked an unexpected pivot: GrabGPT. Born from the need to harness Large Language Models (LLMs) internally, this tool became a go-to resource for employees. Offering private, auditable access to models like GPT and Gemini, the author shares his journey of turning failed experiments into strategic wins."
 ---
 
 ### Introduction
@@ -17,17 +17,17 @@ In March 2023, I embarked on a mission to explore the potential of Large Languag
 
 ### The problem: Overwhelmed support channels
 
-As part of Grab’s machine learning platform team, we were drowning in user inquiries. Slack channels were flooded with questions and our on-call engineers were spending more time answering repetitive queries than building innovative solutions. This led me to ponder on this question, “*could we use LLMs to build a chatbot that understands our platform’s documentation and answers these questions automatically?”*
+As part of Grab’s machine learning platform team, we were drowning in user inquiries. Slack channels were flooded with questions and our on-call engineers were spending more time answering repetitive queries than building innovative solutions. This led me to ponder on this question, *“could we use LLMs to build a chatbot that understands our platform’s documentation and answers these questions automatically?”*
 
 ### The first attempt: A chatbot for platform support
 
-I started by exploring open-source frameworks to build a chatbot. I stumbled upon [chatbot-ui](https://github.com/mckaywrigley/chatbot-ui), a simple yet powerful tool that could be wired up with LLMs. My idea was to feed the chatbot our platform’s Q\&A documentation (over 20,000 words) and let it handle user queries.
+I started by exploring open-source frameworks to build a chatbot. I stumbled upon [chatbot-ui](https://github.com/mckaywrigley/chatbot-ui), a simple yet powerful tool that could be wired up with LLMs. My idea was to feed the chatbot our platform’s Q&A documentation (over 20,000 words) and let it handle user queries.
 
 But there was a catch: **GPT-3.5-turbo could only handle 8,000 tokens (\~2,000 words)**. I spent days summarising the documentation, reducing it to less than 800 words. While the chatbot worked for a handful of frequently asked questions, it was clear that this approach wasn’t scalable. I tried with embedding search and it didn’t work that well too, so I decided to **give up on this idea**.
 
 ### The pivot: Why not build Grab’s own ChatGPT?
 
-As I stepped back, a new thought struck me: *Grab doesn’t have its own ChatGPT-like tool yet.* I had the frameworks, the LLM knowledge, and most importantly—access to [Grab’s model-serving platform, catwalk](https://engineering.grab.com/catwalk-evolution). Why not build an internal tool that any Grabber could use?
+As I stepped back, a new thought struck me: *Grab doesn’t have its own ChatGPT-like tool yet.* I had the frameworks, the LLM knowledge, and most importantly—access to [Grab’s model-serving platform, catwalk](https://engineering.grab.com/catwalk-evolution). Why not build an internal tool that every Grabber could use?
 
 Over a weekend, I extended the existing frameworks, added Google login for authentication, and deployed the tool internally. I called it **Grab’s ChatGPT**. Little did I know, this would become one of the most widely used tools in the company.
 
@@ -72,10 +72,10 @@ GrabGPT didn’t just solve an immediate problem, it sparked a broader conversat
 
 GrabGPT is a story of resilience, innovation, and the unexpected rewards from thinking outside the box. It’s a reminder that sometimes, the best solution comes from pivoting away from what doesn’t work and embracing new possibilities. As LLMs continue to evolve, I’m excited to see how GrabGPT will grow and inspire even more innovation within Grab.
 
-I would like to end this article by letting readers know that if you’re working on a project and feel stuck, don’t be afraid to pivot. You never know, your next failure might just be the beginning of your greatest success. And if you’re at Grab, give GrabGPT a try. It might just change the way you work\!
+I would like to end this article by letting readers know that if you’re working on a project and feel stuck, don’t be afraid to pivot. You never know, your next failure might just be the beginning of your greatest success. And if you’re at Grab, give GrabGPT a try. It might just change the way you work!
 
 # Join us
 
 Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.
 
-Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grab.careers/) today!
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grb.to/gebgrabgpt) today!
