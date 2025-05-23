@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Access control, Engineering, Security]
 comments: true
 cover_photo: /img/dex-in-action/cover.png
-excerpt: "This document outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features , and discusses future plans for an unified authorisation model."
+excerpt: "This document outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features, and discusses future plans for an unified authorisation model."
 ---
 
 ## Introduction
@@ -19,14 +19,14 @@ We recognised the need for a centralised internal system to manage access, authe
 
 Grab created Concedo to fulfill this requirement by providing a mechanism for services to configure their access control based on their specific role to permission matrix (R2PM)[^5]. This allows for quick and easy integration with Concedo, enabling developers to expedite the shipping of their systems without investing excessive time in building the authentication and authorisation module.
 
-The authentication mechanism, based on Google’s Oauth2.0[^3], includes custom features that enhance identity for service integration. However, this customisation isn't standard, creating integration challenges with external platforms like Databricks and Datadog. These platforms then use their own authentication and authorisation, resulting in a fragmented and undesirable sign-on experience for users.
+The authentication mechanism, based on Google’s OAuth2.0[^3], includes custom features that enhance identity for service integration. However, this customisation isn't standard, creating integration challenges with external platforms like Databricks and Datadog. These platforms then use their own authentication and authorisation, resulting in a fragmented and undesirable sign-on experience for users.
 
 <div class="post-image-section"><figure>
   <img src="/img/dex-in-action/undesired-sign-on-experience.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. Undesired user sign-on experience due to fragmented authentication approaches.</figcaption>
   </figure>
 </div>
 
-The inconsistency in user experience also results in complications. The lack of standardisation leads to difficulties in establishing authentication and authorisation for individual applications. Additionally, it creates substantial administrative overhead due to the necessity of managing multiple identities. The absence of standardisation also hinders transparency in access control across all applications.
+The inconsistency in user experience also resulted in complications. The lack of standardisation led to difficulties in establishing authentication and authorisation for individual applications. Additionally, it created substantial administrative overhead due to the necessity of managing multiple identities. The absence of standardisation also hindered transparency in access control across all applications.
 
 This led us to inquire how a standardised protocol could be established to function seamlessly across all applications, regardless of whether they were developed internally or sourced from external platforms.
 
@@ -37,7 +37,7 @@ This led us to inquire how a standardised protocol could be established to funct
 
 ## Choosing among industry standards
 
-We want to build a platform to serve both authentication and authorisation, providing a seamless integration and user sign-on experience. What are the current industry standards we can leverage on?
+We wanted to build a platform to serve both authentication and authorisation, providing a seamless integration and user sign-on experience. We then asked ourselves, "What are the current industry standards we can leverage on?".
 
 - **Security Assertion Markup Language (SAML)**: An authentication protocol which leverages heavily on session cookies to manage each authentication session.
 - **Open Authorisation (OAuth)**: An authorisation protocol which focuses on granting access for particular details rather than providing user identity information.
@@ -52,18 +52,18 @@ With OIDC, authentication and authorisation are fully implemented, enabling seam
   </figure>
 </div>
 
-OIDC seems like an ideal solution, but it does come with potential drawbacks:
+OIDC seemed like an ideal solution, but it came with potential drawbacks:
 
 - OIDC relies on trusting a third-party authentication service. Any disruption to this service could result in downtime.
 - Compromised credentials could affect access to multiple services.
 
-In the following section, we will explore strategies to mitigate these challenges effectively.
+In the following section, we will explore our strategies in mitigating these challenges effectively.
 
 ## Implementing the chosen standard
 
-With OIDC chosen as the standard, the focus shifts to implementation.
+With OIDC chosen as the standard, the focus shifted to implementation.
 
-We have  always been a supporter of open source projects. Rather than building a platform from the ground up, we leverage existing solutions while seeking opportunities to contribute back to the open source community.
+We have always been a supporter of open source projects. Rather than building a platform from the ground up, we leveraged existing solutions while seeking opportunities to contribute back to the open source community.
 
 The team explored Cloud Native Computing Foundation (CNCF) projects and discovered [Dex](https://dexidp.io/) - A federated OpenID connect provider that aims to allow integration of any IdP into an application using OIDC. Dex was selected as our open-source platform of choice due to its alignment with our high-level objectives.
 
@@ -94,7 +94,7 @@ Dex implementation separated application authentication concerns, established a 
 
 ### Token delegation
 
-When services communicate with each other, one service will often assign an identity to ensure that authorisation can be carried out on a specific service. For example, in figure 7, a service account or robot account is typically used as an identity so that service B can identify the caller.
+When services communicate with each other, one service often assigns an identity to ensure that authorisation can be carried out on a specific service. For example, in figure 7, a service account or robot account is typically used as an identity so that service B can identify the caller.
 
 <div class="post-image-section"><figure>
   <img src="/img/dex-in-action/service-identification.png" alt="" style="width:80%"><figcaption align="middle">Figure 7. Service identification through service account.</figcaption>
@@ -103,7 +103,7 @@ When services communicate with each other, one service will often assign an iden
 
 Although service accounts are the recommended approach for enabling Service B to identify the caller, they come with challenges that must be addressed:
 
-- **Service account compromise**: Service accounts often have  high-level privileges and typically broad access to Service B. If compromised, they pose a significant security risk, making careful management essential.
+- **Service account compromise**: Service accounts often have high-level privileges and typically broad access to Service B. If compromised, they pose a significant security risk, making careful management essential.
 - **Access control issue**: The other approach creates unnecessary complexity by requiring Service A to handle user-level permissions for Service B. This violates the principle of separation of concerns.
 
 To address this issue, Dex introduced a [token exchange](https://dexidp.io/docs/guides/token-exchange/) feature.
@@ -124,7 +124,7 @@ The token exchange process involves two main components; token minting and trust
 - Service B must be configured to trust Service A as a peer.
 - Service B accepts tokens minted by Service A.
 
-This approach differs from the service account-based scenario by using a trust-based peer relationship. Service A is authorised to mint tokens for Service B providing a more sophisticated but preferred method.  The token is properly scoped for both services, ensuring a clear audit trail of token issuance, while reducing token manipulation risks.
+This approach differs from the service account-based scenario by using a trust-based peer relationship. Service A is authorised to mint tokens for Service B providing a more sophisticated but preferred method. The token is properly scoped for both services, ensuring a clear audit trail of token issuance, while reducing token manipulation risks.
 
 ### Kill switch
 
@@ -158,5 +158,5 @@ Powered by technology and driven by heart, our mission is to drive Southeast Asi
 [^1]: Authentication: Who you are. Making sure you are who you say you are by verifying your identity.
 [^2]: Authorisation: What you can do. Defining the resources or actions you are allowed to access or perform after your identity has been verified.
 [^3]: Open Authorisation (OAuth 2.0): Protocol for authorisation. For example, Google Login on third-party portals allows your identity to remain with Google, but third-party portals can obtain limited access to specific data such as your profile photo.
-[^4]: OpenID Connect (OIDC)** - Identity protocol built on top of OAuth 2.0. On top of authorisation provided by OAuth 2.0, it verifies and provides a trusted identity.
-[^5]: Role-to-Permission Matrix (R2PM)** - A structured framework used to map roles within an organisation to the permissions or access rights each role has in a system, application, or process. This matrix serves as a critical component in access control and identity management, ensuring that users have appropriate access based on their roles while minimising the risk of unauthorised access.
+[^4]: OpenID Connect (OIDC): Identity protocol built on top of OAuth 2.0. On top of authorisation provided by OAuth 2.0, it verifies and provides a trusted identity.
+[^5]: Role-to-Permission Matrix (R2PM): A structured framework used to map roles within an organisation to the permissions or access rights each role has in a system, application, or process. This matrix serves as a critical component in access control and identity management, ensuring that users have appropriate access based on their roles while minimising the risk of unauthorised access.
