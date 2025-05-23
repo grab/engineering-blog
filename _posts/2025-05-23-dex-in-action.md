@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Access control, Engineering, Security]
 comments: true
 cover_photo: /img/dex-in-action/cover.png
-excerpt: "This document outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features, and discusses future plans for an unified authorisation model."
+excerpt: "This article outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features, and discusses future plans for an unified authorisation model."
 ---
 
 ## Introduction
@@ -75,7 +75,7 @@ The team explored Cloud Native Computing Foundation (CNCF) projects and discover
 ### How Dex works
 
 <div class="post-image-section"><figure>
-  <img src="/img/dex-in-action/dex-work.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. High level architecture of Dex. [Source](https://dexidp.io/docs/)</figcaption>
+  <img src="/img/dex-in-action/dex-work.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. High level architecture of Dex. Source: https://dexidp.io/docs/</figcaption>
   </figure>
 </div>
 
@@ -151,7 +151,7 @@ By centralising authorisation and aligning it with the unified identity provided
 
 Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.
 
-Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://www.grab.careers/en/) today!
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grb.to/gebdex) today!
 
 ### Definition of terms
 
