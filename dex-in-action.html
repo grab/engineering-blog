@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Effortless enterprise authentication at Grab: Dex in action</title>
+    <meta name="description" content="This document outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features, and discusses future plans for an unified authorisation model.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/dex-in-action">
+    <meta property="og:title" content="Effortless enterprise authentication at Grab: Dex in action">
+    <meta property="og:description" content="This document outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features, and discusses future plans for an unified authorisation model.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/dex-in-action/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/dex-in-action">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/dex-in-action/cover.png" class="post-cover-photo" alt="Effortless enterprise authentication at Grab: Dex in action cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Effortless enterprise authentication at Grab: Dex in action</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/kah-wei-lee.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/jack-wang.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/weibin-wu.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/jan-bissinger.jpeg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#kah-wei-lee">Kah Wei Lee</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#jack-wang">Jack Wang</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#weibin-wu">Weibin Wu</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#jan-bissinger">Jan Bissinger</a>
+                  
+                
+              </span>
+              <span class="post-date-large">23 May 2025 | 9 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>Grab, Southeast Asia’s leading superapp, has created many internal applications to support its diverse range of internal and external business needs. Authentication<sup id="fnref:1"><a href="#fn:1" class="footnote" rel="footnote" role="doc-noteref">1</a></sup> and authorisation<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup> serve as fundamental components of application development, as robust identity and access management are essential for all systems.</p>
+
+<p>We recognised the need for a centralised internal system to manage access, authentication, and authorisation. This system would streamline access management, ensure compliance with audit requirements, enhance developer velocity, and simplify authentication and authorisation processes for both developers and business operations.</p>
+
+<p>Grab created Concedo to fulfill this requirement by providing a mechanism for services to configure their access control based on their specific role to permission matrix (R2PM)<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>. This allows for quick and easy integration with Concedo, enabling developers to expedite the shipping of their systems without investing excessive time in building the authentication and authorisation module.</p>
+
+<p>The authentication mechanism, based on Google’s OAuth2.0<sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">4</a></sup>, includes custom features that enhance identity for service integration. However, this customisation isn’t standard, creating integration challenges with external platforms like Databricks and Datadog. These platforms then use their own authentication and authorisation, resulting in a fragmented and undesirable sign-on experience for users.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/undesired-sign-on-experience.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1. Undesired user sign-on experience due to fragmented authentication approaches.</figcaption>
+  </figure>
+</div>
+
+<p>The inconsistency in user experience also resulted in complications. The lack of standardisation led to difficulties in establishing authentication and authorisation for individual applications. Additionally, it created substantial administrative overhead due to the necessity of managing multiple identities. The absence of standardisation also hindered transparency in access control across all applications.</p>
+
+<p>This led us to inquire how a standardised protocol could be established to function seamlessly across all applications, regardless of whether they were developed internally or sourced from external platforms.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/desired-state.png" alt="" style="width:80%" /><figcaption align="middle">Figure 2. Desired state, having something in between the different identity providers (IdP).</figcaption>
+  </figure>
+</div>
+
+<h2 id="choosing-among-industry-standards">Choosing among industry standards</h2>
+
+<p>We wanted to build a platform to serve both authentication and authorisation, providing a seamless integration and user sign-on experience. We then asked ourselves, “What are the current industry standards we can leverage on?”.</p>
+
+<ul>
+  <li><strong>Security Assertion Markup Language (SAML)</strong>: An authentication protocol which leverages heavily on session cookies to manage each authentication session.</li>
+  <li><strong>Open Authorisation (OAuth)</strong>: An authorisation protocol which focuses on granting access for particular details rather than providing user identity information.</li>
+  <li><strong>OpenID Connect (OIDC)<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">5</a></sup></strong>: An authentication protocol built on OAuth 2.0, enabling single sign-on (SSO). OIDC unifies and standardises user authentication, making it a solution for organisations with numerous applications.</li>
+</ul>
+
+<p>OIDC enhances user experience by redirecting them to an identity provider (IdP) like Google or Microsoft for authentication when accessing an application. Upon successful verification, the IdP sends a secure token with the user’s identity information back to the application, granting access without the need for additional credentials.</p>
+
+<p>With OIDC, authentication and authorisation are fully implemented, enabling seamless integration across platforms, including mobile, API, and browser-based applications, while also providing SSO functionality.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/desired-state-protocol.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3. Desired state with the protocol decided.</figcaption>
+  </figure>
+</div>
+
+<p>OIDC seemed like an ideal solution, but it came with potential drawbacks:</p>
+
+<ul>
+  <li>OIDC relies on trusting a third-party authentication service. Any disruption to this service could result in downtime.</li>
+  <li>Compromised credentials could affect access to multiple services.</li>
+</ul>
+
+<p>In the following section, we will explore our strategies in mitigating these challenges effectively.</p>
+
+<h2 id="implementing-the-chosen-standard">Implementing the chosen standard</h2>
+
+<p>With OIDC chosen as the standard, the focus shifted to implementation.</p>
+
+<p>We have always been a supporter of open source projects. Rather than building a platform from the ground up, we leveraged existing solutions while seeking opportunities to contribute back to the open source community.</p>
+
+<p>The team explored Cloud Native Computing Foundation (CNCF) projects and discovered <a href="https://dexidp.io/">Dex</a> - A federated OpenID connect provider that aims to allow integration of any IdP into an application using OIDC. Dex was selected as our open-source platform of choice due to its alignment with our high-level objectives.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/desired-state-platform.png" alt="" style="width:80%" /><figcaption align="middle">Figure 4. Desired state with Dex as the platform foundation.</figcaption>
+  </figure>
+</div>
+
+<h3 id="how-dex-works">How Dex works</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/dex-work.png" alt="" style="width:80%" /><figcaption align="middle">Figure 5. High level architecture of Dex. [Source](https://dexidp.io/docs/)</figcaption>
+  </figure>
+</div>
+
+<p>When a user or machine tries to access a protected application or service, they are redirected to Dex for authentication. Dex acts as a middleman (identity aggregator) between the user and various IdPs to establish an authenticated session.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/sequence-diagram-dex-auth.png" alt="" style="width:80%" /><figcaption align="middle">Figure 6. Simplified sequence diagram of how authentication works for Dex.</figcaption>
+  </figure>
+</div>
+
+<p>Dex’s key features include enabling SSO experiences, allowing users to access multiple applications after authenticating through a single provider. Dex also supports multiple IdP use cases and provides standardised OIDC authentication tokens.</p>
+
+<p>Dex implementation separated application authentication concerns, established a single source of truth for identity, enabled new IdP additions, ensured adherence to security best practices, and provided scalability for deployments of all sizes.</p>
+
+<h2 id="how-dex-is-streamlining-authentication-and-authorisation">How Dex is streamlining authentication and authorisation</h2>
+
+<h3 id="token-delegation">Token delegation</h3>
+
+<p>When services communicate with each other, one service often assigns an identity to ensure that authorisation can be carried out on a specific service. For example, in figure 7, a service account or robot account is typically used as an identity so that service B can identify the caller.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/service-identification.png" alt="" style="width:80%" /><figcaption align="middle">Figure 7. Service identification through service account.</figcaption>
+  </figure>
+</div>
+
+<p>Although service accounts are the recommended approach for enabling Service B to identify the caller, they come with challenges that must be addressed:</p>
+
+<ul>
+  <li><strong>Service account compromise</strong>: Service accounts often have high-level privileges and typically broad access to Service B. If compromised, they pose a significant security risk, making careful management essential.</li>
+  <li><strong>Access control issue</strong>: The other approach creates unnecessary complexity by requiring Service A to handle user-level permissions for Service B. This violates the principle of separation of concerns.</li>
+</ul>
+
+<p>To address this issue, Dex introduced a <a href="https://dexidp.io/docs/guides/token-exchange/">token exchange</a> feature.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/token-exchange.png" alt="" style="width:80%" /><figcaption align="middle">Figure 8. Token exchange example with trusted peers established.</figcaption>
+  </figure>
+</div>
+
+<p>The token exchange process involves two main components; token minting and trust relationship.</p>
+
+<p><strong>Token minting</strong></p>
+<ol>
+  <li>The user (Alice) logs into Service A.</li>
+  <li>Service A, acting as a trusted peer, is authorised to mint tokens.</li>
+  <li>Service A generates a token valid for both Service A and Service B. This is reflected in the token’s “aud” (audience) field: “aud”: “serviceA serviceB”</li>
+</ol>
+
+<p><strong>Trust relationship</strong></p>
+<ul>
+  <li>Service B must be configured to trust Service A as a peer.</li>
+  <li>Service B accepts tokens minted by Service A.</li>
+</ul>
+
+<p>This approach differs from the service account-based scenario by using a trust-based peer relationship. Service A is authorised to mint tokens for Service B providing a more sophisticated but preferred method. The token is properly scoped for both services, ensuring a clear audit trail of token issuance, while reducing token manipulation risks.</p>
+
+<h3 id="kill-switch">Kill switch</h3>
+
+<p>As highlighted earlier,</p>
+
+<blockquote>
+  <p>OIDC relies on trusting a third-party authentication service. Any disruption to this service could result in downtime.</p>
+</blockquote>
+
+<p>Dex’s ability to support multiple IdPs enables traffic to be shifted to a different IdP if one, such as Google, experiences an outage. This “kill switch” mechanism ensures that integrated services are not disrupted and do not require any changes to mitigate the issue. It is only triggered during specific IdP outages.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/dex-in-action/killswitch.png" alt="" style="width:80%" /><figcaption align="middle">Figure 9. Trigger kill switch without having other services changing from their end.</figcaption>
+  </figure>
+</div>
+
+<h2 id="looking-forward">Looking forward</h2>
+
+<p>Following the successful implementation of Dex as the unified authentication provider, the next phase in enhancing our identity and access management infrastructure is to leverage this robust identity foundation to establish a unified and simplified authorisation model. This initiative is driven by the recognition that the current authorisation landscape remains fragmented and complex, leading to potential inefficiencies and security vulnerabilities.</p>
+
+<p>By centralising authorisation and aligning it with the unified identity provided by Dex, we can streamline access control, improve user experience, and strengthen security across our applications and services. This will involve consolidating authorisation policies, standardising access control mechanisms, and simplifying the management of user permissions.</p>
+
+<p><small class="credits">Shoutout to the awesome Concedo team for driving Dex integration and to our leadership for steering the way toward a simpler, unified authentication and authorisation journey! </small></p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://www.grab.careers/en/">join our team</a> today!</p>
+
+<h3 id="definition-of-terms">Definition of terms</h3>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:1">
+      <p>Authentication: Who you are. Making sure you are who you say you are by verifying your identity. <a href="#fnref:1" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:2">
+      <p>Authorisation: What you can do. Defining the resources or actions you are allowed to access or perform after your identity has been verified. <a href="#fnref:2" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:5">
+      <p>Role-to-Permission Matrix (R2PM): A structured framework used to map roles within an organisation to the permissions or access rights each role has in a system, application, or process. This matrix serves as a critical component in access control and identity management, ensuring that users have appropriate access based on their roles while minimising the risk of unauthorised access. <a href="#fnref:5" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:3">
+      <p>Open Authorisation (OAuth 2.0): Protocol for authorisation. For example, Google Login on third-party portals allows your identity to remain with Google, but third-party portals can obtain limited access to specific data such as your profile photo. <a href="#fnref:3" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:4">
+      <p>OpenID Connect (OIDC): Identity protocol built on top of OAuth 2.0. On top of authorisation provided by OAuth 2.0, it verifies and provides a trusted identity. <a href="#fnref:4" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#access-control" class="label tags-label">Access control</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#security" class="label tags-label">Security</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Effortless enterprise authentication at Grab: Dex in action&url=https://engineering.grab.com/dex-in-action&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/dex-in-action" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/dex-in-action&title=Effortless enterprise authentication at Grab: Dex in action
+&summary=This document outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features, and discusses future plans for an unified authorisation model.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/dex-in-action';
+    this.page.identifier = '/dex-in-action';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
