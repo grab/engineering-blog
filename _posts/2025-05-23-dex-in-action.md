@@ -145,7 +145,7 @@ Following the successful implementation of Dex as the unified authentication pro
 
 By centralising authorisation and aligning it with the unified identity provided by Dex, we can streamline access control, improve user experience, and strengthen security across our applications and services. This will involve consolidating authorisation policies, standardising access control mechanisms, and simplifying the management of user permissions.
 
-<small class="credits">Shoutout to the awesome Concedo team for driving DEX integration and to our leadership for steering the way toward a simpler, unified authentication and authorisation journey! Special recognition to Arun Ravi for his invaluable contributions to the project—his work on DEX within the Data Tech platform laid the foundation for what eventually evolved into the Concedo DEX.</small>
+<small class="credits">Shoutout to the awesome Concedo team for driving Dex integration and to our leadership for steering the way toward a simpler, unified authentication and authorisation journey! Special recognition to Arun Ravi for his invaluable contributions to the project—his work on DEX within the Data Tech platform laid the foundation for what eventually evolved into the Concedo Dex.</small>
 
 # Join us
 
