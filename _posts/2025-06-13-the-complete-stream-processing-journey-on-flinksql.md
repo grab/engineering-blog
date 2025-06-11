@@ -106,7 +106,7 @@ This setup enables a few use case for our teams such as:
 
 - Fraud analysts using the real-time data to debug and spot patterns in fraudulent transactions.  
 - Data scientists querying live signals to validate their prediction models.  
-- Engineers validating the message sent from their system to confirm they are properly structured and accurately delivered.
+- Engineers validating the messages sent from their system to confirm they are properly structured and accurately delivered.
 
 ## Productionising FlinkSQL
 
