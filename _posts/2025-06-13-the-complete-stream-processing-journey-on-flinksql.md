@@ -57,7 +57,7 @@ Another advantage of using the shared FlinkSQL gateway was the reduced cold star
 
 ### Integration layer
 
-The Integration layer serves as the glue between the user-facing query layer and the underlying compute layer, ensuring seamless communication, security across our ecosystem. With the shift to a shared FlinkSQL gateway, we recognised the need for an intermediary that could handle authentication, authorisation, orchestration, and integration with internal platforms \- all while abstracting the complexities of Flink’s native REST API.  
+The Integration layer serves as the glue between the user-facing query layer and the underlying compute layer, ensuring seamless communication and security across our ecosystem. With the shift to a shared FlinkSQL gateway, we recognised the need for an intermediary that could handle authentication, authorisation, orchestration, and integration with internal platforms \- all while abstracting the complexities of Flink’s native REST API.  
 
 <div class="post-image-section"><figure>
   <img src="/img/flink-sql/figure-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2: FlinkSQL gateway</figcaption>
