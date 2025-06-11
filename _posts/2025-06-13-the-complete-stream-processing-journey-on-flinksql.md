@@ -29,7 +29,7 @@ Our design to spin up a Zeppelin cluster per user on demand invokes a cold start
 
 ### Integration challenges
 
-Whilst Zeppelin notebooks were useful for serving individual developers, we experienced difficulty integrating it with other internal platforms, we designed Zeppelin to empower solo data explorers, but other internal platforms like dashboards or automated pipelines needed a way to aggregate data from Kafka and Zeppelin just couldn’t keep up. The notebook setup was too isolated, requiring a workaround to share insights or plug into existing tools. For instance, if a team wanted to pull aggregated real-time metrics into a monitoring system, they had to export data manually, it’s far from seamless access that we aimed for. 
+Whilst Zeppelin notebooks were useful for serving individual developers, we experienced difficulty integrating it with other internal platforms. We designed Zeppelin to empower solo data explorers, but other internal platforms like dashboards or automated pipelines needed a way to aggregate data from Kafka and Zeppelin just couldn’t keep up. The notebook setup was too isolated, requiring a workaround to share insights or plug into existing tools. For instance, if a team wanted to pull aggregated real-time metrics into a monitoring system, they had to export data manually, which is far from seamless access that we aimed for. 
 
 ## Introducing FlinkSQL interactive
 
