@@ -36,7 +36,7 @@ Whilst Zeppelin notebooks were useful for serving individual developers, we expe
 With those considerations in mind, we decided to swap out our Zeppelin cluster with a shared [FlinkSQL gateway](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/table/sql-gateway/overview/) cluster. We simplified our solution by removing some features our notebooks offered, focusing only on features that promote data democratisation.   
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-sql/figure-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: Shared FlinkSQL gateway structure</figcaption>
+  <img src="/img/flink-sql/figure-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: Shared FlinkSQL gateway architecture</figcaption>
   </figure>
 </div>
 
