@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Database, FlinkSQL]
 comments: true
 cover_photo: /img/flink-sql/cover.png
-excerpt: "Introducing FlinkSQL interactive solution to enhance real-time stream processing exploration. The new system simplifies stream processing development, automates production workflows and democratizes access to real-time insights. Read on about our journey that begun at addressing challenges encountered with the previous Zeppelin notebook-based solution to the current state of integration with and productionisation of FlinkSQL."
+excerpt: "Introducing FlinkSQL interactive solution to enhance real-time stream processing exploration. The new system simplifies stream processing development, automates production workflows and democratises access to real-time insights. Read on about our journey that begun at addressing challenges encountered with the previous Zeppelin notebook-based solution to the current state of integration with and productionisation of FlinkSQL."
 ---
 
 # Introduction
