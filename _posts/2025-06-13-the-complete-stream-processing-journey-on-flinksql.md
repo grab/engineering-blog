@@ -102,7 +102,7 @@ This all crystalises into the user flow demonstrated in figure 3, where we can e
 SELECT COUNT(*) FROM titanicstream WHERE kafkaEventTime > NOW() - INTERVAL '1' HOUR.
 ```
 
-This setup enables a few use case for our teams such as:
+This setup enables a few use cases for our teams, such as:
 
 - Fraud analysts using the real-time data to debug and spot patterns in fraudulent transactions.  
 - Data scientists querying live signals to validate their prediction models.  
