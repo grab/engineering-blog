@@ -67,7 +67,7 @@ The Integration layer serves as the glue between the user-facing query layer and
 
 The FlinkSQL gateway’s built-in REST API gets the job done for basic query submission, but it falls short in areas like session management, requiring multiple POST requests just to fetch results. To address this, we extended a custom control plane with its own set of REST APIs, layered on top of the gateway. 
 
-We then extend these sessions and integrate them to our inhouse authentication and authorisation platform. For each query made, the control plane authenticates the user, spins up lightweight sessions and manages the communication between the caller and the Flink Session Cluster. If you are interested, check out our previous blog post, [An elegant platform](https://engineering.grab.com/an-elegant-platform) for more details on the above mentioned streaming platform and its control plane.
+We then extend these sessions and integrate them to our inhouse authentication and authorisation platform. For each query made, the control plane authenticates the user, spins up lightweight sessions and manages the communication between the caller and the Flink Session Cluster. If you are interested, check out our previous blog post, [An elegant platform](https://engineering.grab.com/an-elegant-platform), for more details on the above mentioned streaming platform and its control plane.
 
 ```
 curl --location 'https://example.com/v1/flink/flinksql/interactive' \
