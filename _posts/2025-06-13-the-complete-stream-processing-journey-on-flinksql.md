@@ -11,7 +11,7 @@ cover_photo: /img/flink-sql/cover.png
 excerpt: "Introducing FlinkSQL interactive solution to enhance real-time stream processing exploration. The new system simplifies stream processing development, automates production workflows and democratises access to real-time insights. Read on about our journey that begun at addressing challenges encountered with the previous Zeppelin notebook-based solution to the current state of integration with and productionisation of FlinkSQL."
 ---
 
-# Introduction
+## Introduction
 
 In the fast-paced world of data analytics, real-time processing has become a necessity. Modern businesses require insights not just quickly, but in real-time to make informed decisions and stay ahead of the competition. **Apache Flink** has emerged as a powerful tool in this domain, offering state-of-the-art stream processing capabilities. In this blog, we introduce our FlinkSQL interactive solution in accompanying productionising automation, and enhancing our users’ stream processing development journey.
 
