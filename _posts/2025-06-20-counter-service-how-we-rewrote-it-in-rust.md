@@ -202,7 +202,7 @@ This is especially important for developers new to Rust. As the lack of experien
 
 Following the eventful process of rewriting the service from the ground up in Rust, the outcomes proved to be quite intriguing.
 
-Shadowing traffic to both services as seen in Figure 2, the p99 latency is similar (or perhaps even slightly worse) in the Rust service compared to the original Golang one.
+Shadowing traffic to both services as seen in Figure 2, the P99 latency is similar (or perhaps even slightly worse) in the Rust service compared to the original Golang one.
 
 <div class="post-image-section"><figure>
   <img src="/img/rust-blog/figure-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2: p99 latency comparison between the Golang service and Rust service. Purple is the original Golang service, Blue is the Rust service.
