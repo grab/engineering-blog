@@ -244,7 +244,7 @@ Normalising the QPS and resource consumption, we see from Table 2 that Rust cons
 
 The outcomes and insights from this rewrite have been eye-opening, debunking certain myths while also validating others.
 
-#### Myth 1: Rust is blazingly fast! Faster than Golang!
+### Myth 1: Rust is blazingly fast! Faster than Golang!
 
 **Verdict**: Disproved.
 Golang is "fast enough" for most use cases. It’s a mature language built with concurrency at its core, and it performs exceptionally well in its intended domain. While Rust can outperform Golang due to its higher performance ceiling and finer-grained control, rewriting a Golang service in Rust solely for performance improvements is unlikely to yield significant benefits.
