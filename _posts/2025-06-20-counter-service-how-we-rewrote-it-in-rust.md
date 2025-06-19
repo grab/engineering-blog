@@ -249,7 +249,7 @@ The outcomes and insights from this rewrite have been eye-opening, debunking cer
 **Verdict**: Disproved.
 Golang is "fast enough" for most use cases. It’s a mature language built with concurrency at its core, and it performs exceptionally well in its intended domain. While Rust can outperform Golang due to its higher performance ceiling and finer-grained control, rewriting a Golang service in Rust solely for performance improvements is unlikely to yield significant benefits.
 
-#### Myth 2: Rust is more efficient than Golang
+### Myth 2: Rust is more efficient than Golang
 
 **Verdict**: True.
 Rewriting a Golang service in Rust will probably give you 50% savings in compute. Rust does indeed fulfill its promise of being memory safe without garbage collection, allowing it to be one of the more efficient languages out there. This is in line with other discoveries in the market ([AWS](https://aws.amazon.com/blogs/opensource/sustainability-with-rust/)). 
