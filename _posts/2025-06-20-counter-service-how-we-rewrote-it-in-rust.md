@@ -59,7 +59,7 @@ Therefore, we established a set of guidelines to follow when identifying a suita
 
 The ideal service should have a sufficiently large infrastructure footprint to justify the potential cost savings, while also being straightforward in functionality to minimise time spent on handling edge cases and complex business logic.
 
-Looking across the stack of microservices in Integrity, [Counter Service](https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully) stands out. As its name implies, Counter Service is a service that “counts” and serves the counters for ML models and fraud rules. The original service has two primary functionalities:
+Looking across the stack of microservices in Integrity, [Counter Service](/using-grabs-trust-counter-service-to-detect-fraud-successfully) stands out. As its name implies, Counter Service is a service that “counts” and serves the counters for ML models and fraud rules. The original service has two primary functionalities:
 
 * Consuming from streams, counting events and **writing** to [Scylla](https://engineering.grab.com/seamless-migration).
 * Exposing Google Remote Procedure Call (GRPC) endpoints to query from Scylla (and Redis) and return counts of events based on query keys. For example, **BatchRead**. BatchRead's functionality of Counter Service serves up to tens of thousands of QPS at peak and is fairly constrained in functionality. Hence, it fulfilled our target criteria of being “simple” in functionality yet serving a large enough amount of traffic that justifies the ROI of a rewrite.
