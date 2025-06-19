@@ -65,7 +65,7 @@ Looking across the stack of microservices in Integrity, [Counter Service](/using
 * Exposing Google Remote Procedure Call (GRPC) endpoints to query from Scylla (and Redis) and return counts of events based on query keys. For example, **BatchRead**. BatchRead's functionality of Counter Service serves up to tens of thousands of QPS at peak and is fairly constrained in functionality. Hence, it fulfilled our target criteria of being “simple” in functionality yet serving a large enough amount of traffic that justifies the ROI of a rewrite.
 
 <div class="post-image-section"><figure>
-  <img src="/img/rust-blog/figure-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: BatchRead flow of Counter Service, reading data from Scylla, DynamoDB, Redis, Mysql and serving the counters through GRPC.</figcaption>
+  <img src="/img/rust-blog/figure-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: BatchRead flow of Counter Service, reading data from Scylla, DynamoDB, Redis, MySQL and serving the counters through GRPC.</figcaption>
   </figure>
 </div>
 
