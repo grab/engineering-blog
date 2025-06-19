@@ -7,7 +7,7 @@ authors: [jialong-loh, pu-li, muqi-li, moinuddin-sharif-riyadh]
 categories: [Engineering]
 tags: [Database, Rust, Data]
 comments: true
-cover_photo: /img/rust-blog/banner-desin.png
+cover_photo: /img/rust-blog/banner-design.png
 excerpt: "The Integrity Data Platform team at Grab rewrote a QPS-heavy Golang microservice in Rust, achieving 70% infrastructure savings while maintaining similar performance. This initiative explored the ROI of adopting Rust for production services, balancing efficiency gains against challenges like Rust’s steep learning curve and the risks of rewriting legacy systems. The blog delves into the selection process, approach, pitfalls, and the ultimate business value of the rewrite."
 ---
 
@@ -83,7 +83,10 @@ Based on how we understood the application to work based on its specs and contra
 ### OSS library support
 
 We started out by mapping out the key external dependencies and checking how well they were supported in the Rust ecosystem and in open source. 
-
+<br/>
+<div style align="middle">
+<b>Table 1: List of libraries and their star ratings</b>
+</div>
 <table class="table" style align="middle">
   <thead>
     <tr>
@@ -135,10 +138,6 @@ We started out by mapping out the key external dependencies and checking how wel
     </tr>
  </tbody>  
 </table>
-
-<div style align="middle">
-<b>Table 1: List of libraries and their star ratings</b>
-</div>
 <br/>
 
 All the functionality we need is available through libraries in the Rust ecosystem. However, we found that some libraries are not particularly "popular," as indicated by their relatively low number of GitHub stars.
@@ -212,8 +211,10 @@ Shadowing traffic to both services as seen in Figure 2, the P99 latency is simil
 
 
 Normalising the QPS and resource consumption, we see from Table 2 that Rust consumes ~20% of the resources of the original Golang application, resulting in 5x savings in terms of resource consumption.
-
-
+<br/>
+<div style align="middle">
+<b>Table 2: Comparison of resource consumption between Rust and Golang service.</b>
+</div>
 <table class="table" style align="middle">
   <thead>
     <tr>
@@ -235,9 +236,6 @@ Normalising the QPS and resource consumption, we see from Table 2 that Rust cons
     </tr>
  </tbody>   
 </table>
-<div style align="middle">
-<b>Table 2: Comparison of resource consumption between Rust and Golang service.</b>
-</div>
 <br/>
 
 ## Learnings and conclusion
