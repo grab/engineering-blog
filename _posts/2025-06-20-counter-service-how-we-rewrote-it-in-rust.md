@@ -23,7 +23,7 @@ The Integrity Data Platform (IDP) team decided to rewrite one of our heavy Queri
 
 ## Introduction
 
-Grab is predominantly based on microservice architecture, with the vast majority of microservices being hosted in a monorepo and written in Golang. It has served the company well so far, as the “simplicity” of Golang allows developers to ramp up and iterate quickly.
+Grab is predominantly based on a microservice architecture, with the vast majority of microservices being hosted in a monorepo and written in Golang. It has served the company well so far, as the “simplicity” of Golang allows developers to ramp up and iterate quickly.
 
 However, Rust has seen some gradual adoption across the company. Starting with a few minor [CLIs](https://engineering.grab.com/how-we-reduced-our-ci-yaml), which then progressed to notable success with a Rust-based reverse proxy in [Catwalk](https://engineering.grab.com/catwalk-serving-machine-learning-models-at-scale) for model serving. Additionally, a growing community of Rust enthusiasts within the organisation has expressed interest in advocating for and expanding the adoption of Rust more proactively.
 
