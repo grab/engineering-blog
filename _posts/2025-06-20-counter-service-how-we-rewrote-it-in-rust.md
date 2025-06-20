@@ -3,7 +3,7 @@ layout: post
 id: 2025-06-20-counter-service-how-we-rewrote-it-in-rust.md
 title: 'Counter Service: How we rewrote it in Rust'
 date: 2025-06-20 00:23:00
-authors: [jialong-loh, pu-li, muqi-li, moinuddin-sharif-riyadh]
+authors: [jialong-loh, pu-li, muqi-li, riyadh-sharif]
 categories: [Engineering]
 tags: [Database, Rust, Data]
 comments: true
