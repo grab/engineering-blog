@@ -6,9 +6,299 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 19 Jun 2025 03:31:51 +0000</pubDate>
-    <lastBuildDate>Thu, 19 Jun 2025 03:31:51 +0000</lastBuildDate>
+    <pubDate>Fri, 20 Jun 2025 06:21:48 +0000</pubDate>
+    <lastBuildDate>Fri, 20 Jun 2025 06:21:48 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Counter Service: How we rewrote it in Rust</title>
+        <description>&lt;h2 id=&quot;abstract&quot;&gt;Abstract&lt;/h2&gt;
+
+&lt;p&gt;The Integrity Data Platform (IDP) team decided to rewrite one of our heavy Queries Per Second (QPS) Golang microservices in Rust. It resulted in 70% infrastructure savings at a similar performance, but was not without its pitfalls. This article will elaborate on:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;How we picked what to rewrite in Rust.&lt;/li&gt;
+  &lt;li&gt;Approach taken to tackle the rewrite.&lt;/li&gt;
+  &lt;li&gt;The pitfalls and speed bumps along the way.&lt;/li&gt;
+  &lt;li&gt;Was it worthwhile?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Grab is predominantly based on a microservice architecture, with the vast majority of microservices being hosted in a monorepo and written in Golang. It has served the company well so far, as the “simplicity” of Golang allows developers to ramp up and iterate quickly.&lt;/p&gt;
+
+&lt;p&gt;However, Rust has seen some gradual adoption across the company. Starting with a few minor &lt;a href=&quot;/how-we-reduced-our-ci-yaml&quot;&gt;CLIs&lt;/a&gt;, which then progressed to notable success with a Rust-based reverse proxy in &lt;a href=&quot;/catwalk-serving-machine-learning-models-at-scale&quot;&gt;Catwalk&lt;/a&gt; for model serving. Additionally, a growing community of Rust enthusiasts within the organisation has expressed interest in advocating for and expanding the adoption of Rust more proactively.&lt;/p&gt;
+
+&lt;p&gt;After achieving success with several projects on the ML platform and addressing concerns about Rust’s ability to handle traffic at scale, the next logical step was to assess the Return on Investment (ROI) of rewriting a Golang microservice in Rust.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Rust has the reputation of being &lt;a href=&quot;https://dl.acm.org/doi/10.1145/3136014.3136031&quot;&gt;highly efficient&lt;/a&gt; yet poses a steep learning curve. Rust is often touted to perform close to C, doing away with garbage collection while remaining memory safe through strict compile checks and the borrow checker. It is loved by developers for having rich features like being multi-paradigm (supporting both functional and OOP style), having a rich type system, and doing away with nil pointers and errors.&lt;/p&gt;
+
+&lt;p&gt;However, regardless of how well regarded a certain language is in the industry, rewrites of any system should always be considered very carefully. When it comes to “legacy software”, there is a prevalent assumption that rewriting legacy software is a solution to eliminate technical debt and phase out legacy systems. The reality is often more nuanced.&lt;/p&gt;
+
+&lt;p&gt;Legacy code occurs when the developers who originally wrote the code are no longer working on the project. There are often business logic and edge-cases baked into complex legacy codebases of which the context has been lost over time. In practice, rewrites frequently take longer than anticipated and tend to reintroduce bugs and edge cases that must be identified and resolved all over again.&lt;/p&gt;
+
+&lt;p&gt;Rewriting vs refactoring has been written at length across the internet, you can read more about it &lt;a href=&quot;https://herbcaudill.com/words/20190219-rewrite-refactor-reinvent&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The trade-offs of rewriting need to be properly weighed and balanced. It must take into consideration:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;How much engineering bandwidth goes into the rewrite?&lt;/li&gt;
+  &lt;li&gt;What is the complexity of the rewrite?&lt;/li&gt;
+  &lt;li&gt;What tangible benefits are brought about by the rewrite?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Rewriting a system solely for the purpose of “rewriting it in Rust” is not a strong enough business justification.&lt;/p&gt;
+
+&lt;p&gt;A legitimate concern was the steep learning curve of Rust, coupled with the risk of having only one team member proficient in the language, which would make its adoption unsustainable.&lt;/p&gt;
+
+&lt;p&gt;Therefore, we established a set of guidelines to follow when identifying a suitable system for a potential rewrite:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The system must be “simple” enough in functionality. For example, it has one or two main functionalities that can be rewritten in a reasonable amount of time and have its complexity constrained.&lt;/li&gt;
+  &lt;li&gt;The system targeted should have large enough traffic such that cost savings brought about by adopting Rust is something tangible when balanced against the effort.&lt;/li&gt;
+  &lt;li&gt;The members of the team must be comfortable and willing to pick up the language and achieve a certain level of familiarity to make maintaining the service sustainable.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;finding-the-right-service&quot;&gt;Finding the right service&lt;/h2&gt;
+
+&lt;p&gt;The ideal service should have a sufficiently large infrastructure footprint to justify the potential cost savings, while also being straightforward in functionality to minimise time spent on handling edge cases and complex business logic.&lt;/p&gt;
+
+&lt;p&gt;Looking across the stack of microservices in Integrity, &lt;a href=&quot;/using-grabs-trust-counter-service-to-detect-fraud-successfully&quot;&gt;Counter Service&lt;/a&gt; stands out. As its name implies, Counter Service is a service that “counts” and serves the counters for ML models and fraud rules. The original service has two primary functionalities:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Consuming from streams, counting events and &lt;strong&gt;writing&lt;/strong&gt; to &lt;a href=&quot;/seamless-migration&quot;&gt;Scylla&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;Exposing Google Remote Procedure Call (GRPC) endpoints to query from Scylla (and Redis) and return counts of events based on query keys. For example, &lt;strong&gt;BatchRead&lt;/strong&gt;. BatchRead’s functionality of Counter Service serves up to tens of thousands of QPS at peak and is fairly constrained in functionality. Hence, it fulfilled our target criteria of being “simple” in functionality yet serving a large enough amount of traffic that justifies the ROI of a rewrite.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/rust-blog/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: BatchRead flow of Counter Service, reading data from Scylla, DynamoDB, Redis, MySQL and serving the counters through GRPC.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;rewrite-approach&quot;&gt;Rewrite approach&lt;/h3&gt;
+
+&lt;p&gt;There are a few ways to approach a rewrite in another language. One popular way is to convert your code line by line. If the languages are close enough, it might even be possible to programmatically convert your code like &lt;a href=&quot;https://github.com/immunant/c2rust&quot;&gt;C2Rust&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;We decided not to use such an approach for our rewrite. The major reason is that idiomatic Golang was not necessarily idiomatic Rust. We wanted to approach this rewrite with a fresh perspective and treat this as a true rewrite.&lt;/p&gt;
+
+&lt;p&gt;We treated the application like a black box, with the interfaces well defined, like GRPC endpoints and contracts. Similar to a function, you could call the API and get a deterministic result, and we had the data that was stored in Scylla.&lt;/p&gt;
+
+&lt;p&gt;Based on how we understood the application to work based on its specs and contract, we chose to rewrite the application logic from scratch to meet the API contract and to get as close as identical outputs from the new black box.&lt;/p&gt;
+
+&lt;h3 id=&quot;oss-library-support&quot;&gt;OSS library support&lt;/h3&gt;
+
+&lt;p&gt;We started out by mapping out the key external dependencies and checking how well they were supported in the Rust ecosystem and in open source. 
+&lt;br /&gt;&lt;/p&gt;
+&lt;div style=&quot;&quot; align=&quot;middle&quot;&gt;
+&lt;b&gt;Table 1: List of libraries and their star ratings&lt;/b&gt;
+&lt;/div&gt;
+&lt;table class=&quot;table&quot; style=&quot;&quot; align=&quot;middle&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Functionality&lt;/th&gt;
+      &lt;th&gt;Library&lt;/th&gt;
+      &lt;th&gt;Stars (as of Nov 24) &lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Datadog (Statsd Client)&lt;/td&gt;
+      &lt;td&gt; &lt;a href=&quot;https://github.com/56quarters/cadence&quot;&gt;https://github.com/56quarters/cadence&lt;/a&gt; &lt;/td&gt;
+      &lt;td&gt;&amp;lt; 500&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+    &lt;td&gt; Lightstep (OpenTelemetry) &lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://github.com/open-telemetry/opentelemetry-rust&quot;&gt;https://github.com/56quarters/cadence&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt; &amp;gt; 1000&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+    &lt;td&gt; GRPC Server  &lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://github.com/hyperium/tonic&quot;&gt;https://github.com/hyperium/tonic&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt;  &amp;gt; 500&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+    &lt;td&gt; Web Server   &lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://github.com/actix/actix-web&quot;&gt;https://github.com/actix/actix-web&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt; &amp;gt; 20,000&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+    &lt;td&gt; Redis Client  &lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://github.com/aembke/fred.rs&quot;&gt;https://github.com/aembke/fred.rs&lt;/a&gt; (Async Redis Library + Client pool)&lt;/td&gt;
+      &lt;td&gt; &amp;gt; 5000&lt;/td&gt;
+    &lt;/tr&gt;
+     &lt;tr&gt; 
+    &lt;td&gt; Redis Client  &lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://github.com/redis-rs/redis-rs&quot;&gt;https://github.com/redis-rs/redis-rs&lt;/a&gt; (“Official” redis client, initially picked but discarded)&lt;/td&gt;
+      &lt;td&gt; &amp;gt; 3000&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+    &lt;td&gt; Scylla Client  &lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://github.com/scylladb/scylla-rust-driver&quot;&gt;https://github.com/scylladb/scylla-rust-driver&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt; ~500 &lt;/td&gt;
+    &lt;/tr&gt;
+   &lt;tr&gt;
+    &lt;td&gt; Kafka Client &lt;/td&gt;
+      &lt;td&gt;&lt;a href=&quot;https://github.com/kafka-rust/kafka-rust&quot;&gt;https://github.com/kafka-rust/kafka-rust&lt;/a&gt;&lt;/td&gt;
+      &lt;td&gt; &amp;gt;1000 &lt;/td&gt;
+    &lt;/tr&gt;
+ &lt;/tbody&gt;  
+&lt;/table&gt;
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;p&gt;All the functionality we need is available through libraries in the Rust ecosystem. However, we found that some libraries are not particularly “popular,” as indicated by their relatively low number of GitHub stars.&lt;/p&gt;
+
+&lt;p&gt;The practical concern with using less “popular” libraries is the risk of limited community support or potential abandonment over time. That said, if an “unpopular” library is officially maintained by the associated open-source project—for instance, the Scylla driver has only about 500 stars but is officially provided by the Scylla project—we would need to ensure confidence that it will continue to receive active support.&lt;/p&gt;
+
+&lt;p&gt;Out of the list of libraries above, the “unpopular” and unofficial libraries can be narrowed down to two libraries:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Datadog - Cadence&lt;/li&gt;
+  &lt;li&gt;Redis - Fred&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For Datadog, there is no “official” Datadog Rust client. Yet, we picked Cadence as the API looked intuitive and the features we needed were already supported.&lt;/p&gt;
+
+&lt;p&gt;In regards to Redis, after testing it, we discovered that the support was not up to par with our requirements. We then opted for a newer and less popular library, fred.rs that seemed to be actively being developed by the community.&lt;/p&gt;
+
+&lt;h3 id=&quot;company-specific-internal-libraries&quot;&gt;Company specific internal libraries&lt;/h3&gt;
+
+&lt;p&gt;With the vast majority of microservices being written in Golang, most internal libraries are also written in Golang. Opting to rewrite a service in Rust means we are not able to use these internal libraries.&lt;/p&gt;
+
+&lt;p&gt;Examples include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;An internal configuration library that utilises Go Templates to template configurations for different environments (staging and production).&lt;/li&gt;
+  &lt;li&gt;The internal configuration library has its own wrappers and injectors to pull and render secrets.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To overcome this gap and re-use Go Templates and configuration language, we decided to write a simple wrapper and parser using the &lt;a href=&quot;https://github.com/rust-bakery/nom&quot;&gt;nom parser combinator&lt;/a&gt; to parse the templates and render the config.&lt;/p&gt;
+
+&lt;p&gt;Nom poses a steep learning curve. But once familiarised, it is flexible and performant enough to build an equivalent to the internal library. Parser combinators are an interesting subset of tooling that allows you to create some fairly elegant parsers.&lt;/p&gt;
+
+&lt;h2 id=&quot;road-bumps&quot;&gt;Road bumps&lt;/h2&gt;
+
+&lt;h3 id=&quot;the-borrow-checker&quot;&gt;The borrow checker&lt;/h3&gt;
+
+&lt;p&gt;One of the most striking paradigm shifts for developers transitioning to Rust is adapting to the strict rules of the borrow checker, which enforces that variables cannot be reused multiple times unless explicitly cloned or borrowed.&lt;/p&gt;
+
+&lt;p&gt;Interestingly, the borrow checker was not the biggest hurdle for new developers. The key is to avoid introducing lifetimes too early in the development process, as this can lead to premature code optimisation.&lt;/p&gt;
+
+&lt;p&gt;In many cases, adding a few clones (and occasionally Arcs) can help new developers get up to speed and iterate more quickly during development. The resulting code is usually “fast” enough for initial purposes. After that, the code can be revisited to eliminate unnecessary clones for improved performance. An efficient approach to this can be taken by using Flamegraph to profile your code and identify memory allocation bottlenecks.&lt;/p&gt;
+
+&lt;h3 id=&quot;async-gotchas&quot;&gt;Async gotchas&lt;/h3&gt;
+
+&lt;p&gt;When rewriting Golang logic in Rust, there are fundamental differences in how they treat concurrency and parallelism.&lt;/p&gt;
+
+&lt;p&gt;One of Golang’s most remarkable strengths is its ability to deliver high-performance concurrency while preserving simplicity.&lt;/p&gt;
+
+&lt;p&gt;There are two fundamental approaches to concurrency in programming languages, namely:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Preemptive scheduling (stackful coroutines).&lt;/li&gt;
+  &lt;li&gt;Cooperative scheduling (stackless coroutines).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Preemptive vs cooperative scheduling is an in-depth topic with the gist of it being, Golang uses preemptive scheduling and each “Goroutine” has a stack that needs a runtime. The Golang scheduler has the power to “preempt” and “freeze” functions and switch to another stack like stackful coroutine. This is a gross oversimplification of the nuances. For more details, this is a good &lt;a href=&quot;https://medium.com/a-journey-with-go/go-asynchronous-preemption-b5194227371c&quot;&gt;introduction&lt;/a&gt; to the topic.&lt;/p&gt;
+
+&lt;p&gt;Rust opts for cooperative scheduling whereby it has no runtime and each coroutine does not maintain a stack. Hence, it has no ability to “freeze” a function and swap context. This allows Rust to be more efficient in terms of memory and resources, as it maintains a state machine. However, the consequence is that this moves the complexity up the stack to the programming language itself. Similar to Javascript, functions are “coloured”, and the developer has to explicitly annotate their functions to be async or sync. Await points need to be explicitly called and control needs to be “yielded” (i.e. cooperative and stackless) so the Rust program knows when it is allowed to stop and swap between coroutines. To read more on this, refer to &lt;a href=&quot;https://tokio.rs/blog/2019-10-scheduler&quot;&gt;this&lt;/a&gt; and &lt;a href=&quot;https://without.boats/blog/why-async-rust/&quot;&gt;this&lt;/a&gt; article for the history of async Rust.&lt;/p&gt;
+
+&lt;p&gt;Needing to annotate a function is a classic complaint that is addressed in the article “&lt;a href=&quot;https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/&quot;&gt;What Colour is Your Function&lt;/a&gt;” that highlights developers’ responsibility to explicitly colour their function and consciously think about &lt;a href=&quot;https://ryhl.io/blog/async-what-is-blocking/&quot;&gt;blocking vs non-blocking code&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Contrast this with Golang, where you simply need to add the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;go&lt;/code&gt; keyword without thinking about which code might block the execution and use channels to communicate across Goroutines. Golang allows the developer to achieve high performance without much cognitive overhead.&lt;/p&gt;
+
+&lt;p&gt;This is especially important for developers new to Rust. As the lack of experience in async and blocking code can be somewhat of a footgun. In the initial rewrite of Rust, we made an amateur mistake of using a synchronous Redis function to call the Redis cache. It resulted in the application performing poorly until we corrected it with the non-blocking asynchronous version using the Fred redis library.&lt;/p&gt;
+
+&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
+
+&lt;p&gt;Following the eventful process of rewriting the service from the ground up in Rust, the outcomes proved to be quite intriguing.&lt;/p&gt;
+
+&lt;p&gt;Shadowing traffic to both services as seen in Figure 2, the P99 latency is similar (or perhaps even slightly worse) in the Rust service compared to the original Golang one.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/rust-blog/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: P99 latency comparison between the Golang service (purple) and Rust service (blue). 
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Normalising the QPS and resource consumption, we see from Table 2 that Rust consumes ~20% of the resources of the original Golang application, resulting in 5x savings in terms of resource consumption.
+&lt;br /&gt;&lt;/p&gt;
+&lt;div style=&quot;&quot; align=&quot;middle&quot;&gt;
+&lt;b&gt;Table 2: Comparison of resource consumption between Rust and Golang service.&lt;/b&gt;
+&lt;/div&gt;
+&lt;table class=&quot;table&quot; style=&quot;&quot; align=&quot;middle&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Service&lt;/th&gt;
+      &lt;th&gt;Indicative QPS&lt;/th&gt;
+      &lt;th&gt;Resources &lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Original Golang Service&lt;/td&gt;
+      &lt;td&gt;1,000&lt;/td&gt;
+      &lt;td&gt;20 Cores&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+    &lt;td&gt; New Rust Service&lt;/td&gt;
+      &lt;td&gt;1,000&lt;/td&gt;
+      &lt;td&gt;4.5 Cores&lt;/td&gt;
+    &lt;/tr&gt;
+ &lt;/tbody&gt;   
+&lt;/table&gt;
+&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;learnings-and-conclusion&quot;&gt;Learnings and conclusion&lt;/h2&gt;
+
+&lt;p&gt;The outcomes and insights from this rewrite have been eye-opening, debunking certain myths while also validating others.&lt;/p&gt;
+
+&lt;h3 id=&quot;myth-1-rust-is-blazingly-fast-faster-than-golang&quot;&gt;Myth 1: Rust is blazingly fast! Faster than Golang!&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Verdict&lt;/strong&gt;: Disproved.
+Golang is “fast enough” for most use cases. It’s a mature language built with concurrency at its core, and it performs exceptionally well in its intended domain. While Rust can outperform Golang due to its higher performance ceiling and finer-grained control, rewriting a Golang service in Rust solely for performance improvements is unlikely to yield significant benefits.&lt;/p&gt;
+
+&lt;h3 id=&quot;myth-2-rust-is-more-efficient-than-golang&quot;&gt;Myth 2: Rust is more efficient than Golang&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Verdict&lt;/strong&gt;: True.
+Rewriting a Golang service in Rust will probably give you 50% savings in compute. Rust does fulfill its promise of being memory safe without garbage collection, allowing it to be one of the more efficient languages out there. This is in line with &lt;a href=&quot;https://aws.amazon.com/blogs/opensource/sustainability-with-rust/&quot;&gt;other discoveries&lt;/a&gt; in the market.&lt;/p&gt;
+
+&lt;h3 id=&quot;myth-3-the-learning-curve-of-rust-is-too-high&quot;&gt;Myth 3: The learning curve of Rust is too high&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Verdict&lt;/strong&gt;: It depends.
+Pure synchronous Rust is fine. As long as you don’t overcomplicate the code and only clone what is needed, it is mostly true. The language is easy enough to pick up for most experienced developers. Even with cloning sprinkled in, the code is usually “fast enough”. The compiler is a good teacher, the compiler error messages are amazing, and if your code compiles, it probably works. Also, the Clippy linter is amazing.&lt;/p&gt;
+
+&lt;p&gt;However, introducing async can be challenging. Async is something quite different from what you would encounter in other languages like Go. Improper use of blocking code in async code can result in nuanced bugs that can catch inexperienced Rust developers off-guard.&lt;/p&gt;
+
+&lt;h2 id=&quot;evaluating-the-worth-of-the-rewrite&quot;&gt;Evaluating the worth of the rewrite&lt;/h2&gt;
+
+&lt;p&gt;Yes, the effort was worth it for this service. The trade-off between development effort spent and the cost savings were justified.&lt;/p&gt;
+
+&lt;p&gt;As a side effect, the service is 80% cheaper and probably more bug free, as Rust eliminates a class of common Golang errors like Null pointers and concurrent map writes by virtue of the design of the language. If your code compiles, you usually have the confidence that it will work as you expect due to the language being more explicit.&lt;/p&gt;
+
+&lt;p&gt;Would we encourage choosing Rust over Golang for new microservices? Absolutely, as the resulting service is likely to be at least 50% more efficient than its Go counterpart. However, this decision presents an important and exciting opportunity for management and leaders to invest in empowering their engineers by equipping them with the skills to master Rust’s unique concepts, such as Async and Lifetimes. While the initial development pace might be slower as the team builds proficiency, this investment can unlock long-term benefits. Once the workforce is skilled in Rust, development speed should align with expectations, and the resulting systems are likely to be more stable and secure, thanks to Rust’s inherent safety features.&lt;/p&gt;
+
+&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 20 Jun 2025 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust</link>
+        <guid isPermaLink="true">https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust</guid>
+        
+        <category>Database</category>
+        
+        <category>Rust</category>
+        
+        <category>Data</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>The complete stream processing journey on FlinkSQL</title>
@@ -2152,196 +2442,6 @@ Now, let’s see how the service calculates the total count for the incoming req
         <category>Engineering</category>
         
         <category>Data Analytics</category>
-        
-      </item>
-    
-      <item>
-        <title>TechDocs at Grab: Cultivating a culture of quality documentation</title>
-        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
-
-&lt;p&gt;Changing how a company approaches writing and documentation is a complex task. It’s not just about the tools and processes—it’s about shifting the mindset of the people who create and use documentation. Building a strong documentation culture means ensuring everyone takes ownership of producing high-quality content, while making the tools easy to use for everyone involved.&lt;/p&gt;
-
-&lt;p&gt;At Grab, our first significant step was adopting the &lt;strong&gt;Docs-as-Code&lt;/strong&gt; approach, which we’ve covered in the blog &lt;a href=&quot;https://engineering.grab.com/doc-as-code&quot;&gt;Embracing a Docs-as-Code approach&lt;/a&gt;. This method integrated documentation into the engineering workflow, allowing teams to create and update content effortlessly.&lt;/p&gt;
-
-&lt;p&gt;Since then, the TechDocs working group — a collaboration between Tech Learning and the internal development team — has focused not just on improving tools, but on fostering a mindset where documentation is an essential part of everyday work. In this post, let us dive into how we’ve continued to embed high-quality documentation into the core of Grab’s engineering culture.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-is-techdocs&quot;&gt;What is TechDocs?&lt;/h2&gt;
-
-&lt;p&gt;Helix is Grab’s engineering platform designed to unify infrastructure, tooling, services, and documentation into a single, consistent user interface. It serves as a central hub for managing various engineering tasks and resources within Grab. Helix provides a comprehensive set of guides and tools for users.&lt;/p&gt;
-
-&lt;p&gt;TechDocs is an internal documentation platform built on Helix and integrates with our Docs-as-Code approach. It allows engineering teams to create, manage, and access technical content seamlessly within their workflows. TechDocs makes it easier for teams to maintain up-to-date, high-quality documentation with customised features for notification and editing.&lt;/p&gt;
-
-&lt;h1 id=&quot;how-to-create-a-healthy-documentation-culture&quot;&gt;How to create a healthy documentation culture&lt;/h1&gt;
-
-&lt;p&gt;Over a span of 2 to 3 years, the TechDocs team executed these key steps in quarterly chunks to influence Grab’s documentation culture as seen in figure 1.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/TechDocs-at-Grab/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: Key steps in influencing documentation culture in Grab&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;a href=&quot;#take-inventory-of-existing-internal-processes-and-tools-portals-understand-user-behaviour&quot;&gt;&lt;strong&gt;Take inventory&lt;/strong&gt;&lt;/a&gt;: Assess current internal processes, tools, and user behaviour.&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;#finalise-a-suitable-policy-and-begin-enforcing-it-collect-feedback-and-reiterate&quot;&gt;&lt;strong&gt;Finalise policy&lt;/strong&gt;&lt;/a&gt;: Establish a clear policy, enforce it, and iterate based on feedback.&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;#empower-creators-and-maintainers-to-self-serve-documentation-upkeep&quot;&gt;&lt;strong&gt;Empower teams&lt;/strong&gt;&lt;/a&gt;: Equip creators and maintainers with tools to manage their documentation.&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;#track-metrics&quot;&gt;&lt;strong&gt;Track metrics, celebrate wins&lt;/strong&gt;&lt;/a&gt;: Recognise and reward teams that follow best practices. Repeat regularly.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Now let’s look at each of these steps in detail.&lt;/p&gt;
-
-&lt;h2 id=&quot;take-inventory-of-existing-internal-processes-and-tools-portals-understand-user-behaviour&quot;&gt;Take inventory: Assess existing internal processes and tools/portals and understand user behaviour&lt;/h2&gt;
-
-&lt;h4 id=&quot;understanding-the-current-culture&quot;&gt;Understanding the current culture&lt;/h4&gt;
-
-&lt;p&gt;To shift the documentation culture at a company, you need to first understand what that culture is. At Grab, with its diverse business units, tech teams, and varied documentation practices, just grasping this was a big step. We needed to look at it from two angles: how teams and business units approach documentation, and what portals hold what kinds of resources.&lt;/p&gt;
-
-&lt;p&gt;Here are a few observations that apply not just to Grab but to most tech companies:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;People default to the easiest way to get information, either by asking someone or searching familiar places. If they can’t find a document quickly, they assume it doesn’t exist.&lt;/li&gt;
-  &lt;li&gt;Different teams use different documentation tools, leading to scattered, hard-to-maintain content. Without a unified search, finding the right document is a challenge.&lt;/li&gt;
-  &lt;li&gt;Documentation is often created during development but rarely maintained, resulting in outdated or duplicate content over time.&lt;/li&gt;
-  &lt;li&gt;Lack of clear ownership and governance causes inconsistencies, making it harder to trust or rely on documentation.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;conducting-extensive-user-research&quot;&gt;Conducting extensive user research&lt;/h4&gt;
-
-&lt;p&gt;The insights on understanding the culture of documentation were obtained from conducting extensive feedback-gathering activities. We adopted two separate strategies for user research:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The first focused on gathering feedback from as many people as possible. We scaled this approach to reach a wide audience across multiple teams and departments. To manage this volume, we used closed-ended questions with multiple-choice options, allowing us to collect broad, organisation-wide insights on user needs and preferences.&lt;/li&gt;
-  &lt;li&gt;The second approach was more in-depth and personal. We conducted 1:1 sessions where we observed how users interacted with tools, asked open-ended questions, and dug into the reasons behind their behaviors. This helped us understand not just what users did, but why and how they did it.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;From the first approach, we were able to gather that users frequently browse for &lt;strong&gt;Runbooks, how-to’s, and FAQs&lt;/strong&gt; when it comes to technical documentation. They emphasise structure, ease of navigation, and up-to-date content when it comes to quality.&lt;/p&gt;
-
-&lt;p&gt;Based on the feedback, only 2% of engineers (1 out of 56) reported that 80-100% of on-call engineering questions were resolved using technical documentation. In contrast, 29% of engineers indicated that 40-60% of their questions were addressed through documentation, while 25% stated that 20-40% were resolved in this manner.&lt;/p&gt;
-
-&lt;p&gt;To improve the documentation and &lt;strong&gt;Docs-as-Code&lt;/strong&gt; workflows for seamless integration of documentation into the engineering process, we built the &lt;strong&gt;TechDocs Editor&lt;/strong&gt; on the Helix platform. This rich text editor allowed teams to write and maintain their documents more effectively. However, while many engineers appreciated the new features, they highlighted areas for improvement for a smoother experience. Key suggestions included enhancing the creation of merge requests (MRs), resolving conflicts more efficiently, and offering an auto-approval process. They also wanted a way to preview content before MR approval, capabilities like bulk migration, and integration options such as plugins for &lt;strong&gt;Jira&lt;/strong&gt; and &lt;em&gt;*Confluence wiki&lt;/em&gt;. Additionally, there was a call to increase clarity on what content should belong in TechDocs versus the Wiki.&lt;/p&gt;
-
-&lt;h4 id=&quot;rooting-techdocs-tools-improvements-in-the-users-feedback&quot;&gt;Rooting TechDocs tool’s improvements in the user’s feedback&lt;/h4&gt;
-
-&lt;p&gt;Based on the feedback received from the extensive user research, the TechDocs tool’s new features were planned and lined up based on a priority mapping that was entirely rooted in the feedback from user research and interviews. While not all feedback was directly implementable in terms of tool improvements, a significant amount was. For issues that couldn’t be resolved through tools, cultural changes and learning best practices became key to addressing the challenges.&lt;/p&gt;
-
-&lt;p&gt;Here are insights from the 1-1 user research that helped us enhance the TechDocs tools and processes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Search experience is average&lt;/strong&gt;. The search experience on the TechDocs portal has room for improvement, with a CSAT score of 58.57%. Some users prefer using a more centralised search option, as it searches across multiple platforms and offers more relevant results, especially considering gaps in documentation on the internal TechDocs portal.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Documentation landing page needs improvement&lt;/strong&gt;. The Documentation landing page scored 10.71% CSAT, highlighting its need for better design and categorisation. Users found the page cluttered, and the categorisation was seen as random and confusing.&lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Reading experience is positive&lt;/strong&gt;. Overall, users are satisfied with reading documentation on Helix, with an 88.31% CSAT for reading experience. Users appreciated the navigation’s organisation and structure. Suggestions for further improvement include:&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;Better table content display&lt;/li&gt;
-      &lt;li&gt;Maximising content space&lt;/li&gt;
-      &lt;li&gt;Enhancing color contrast&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;TechDocs adoption still faces challenges&lt;/strong&gt;. Although TechDocs adoption has grown, several challenges remain:
-    &lt;ul&gt;
-      &lt;li&gt;&lt;strong&gt;Migration efforts&lt;/strong&gt;: The migration process requires significant effort, and without support or a clear push, some employees do not see the need to migrate.&lt;/li&gt;
-      &lt;li&gt;&lt;strong&gt;Cultural factors&lt;/strong&gt;: Users continue using familiar platforms and are looking for incentives, such as unique Helix features, to consider making the move.&lt;/li&gt;
-      &lt;li&gt;&lt;strong&gt;Accessibility&lt;/strong&gt;: VPN access is required for some features.&lt;/li&gt;
-      &lt;li&gt;&lt;strong&gt;Awareness&lt;/strong&gt;: Many users are unaware of Helix TechDocs’ full range of features, such as the different search options, available search filters, and commenting capabilities.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Cross-team collaboration challenges&lt;/strong&gt;: Users reported difficulties in collaborating with non-engineering roles. While engineers are comfortable with the Docs-as-Code approach, which allows for more flexibility and simplicity, some find the TechDocs editor useful for initial document creation or small edits.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Using this feedback, the product roadmap was set for the year to focus on addressing the top user complaints and improving the TechDocs tools accordingly.&lt;/p&gt;
-
-&lt;h2 id=&quot;finalise-a-suitable-policy-and-begin-enforcing-it-collect-feedback-and-reiterate&quot;&gt;Finalise a suitable policy and begin enforcing it. Collect feedback and reiterate&lt;/h2&gt;
-
-&lt;p&gt;To improve discoverability and maintain consistency, we established a structured policy for organising documents. This policy ensures that documentation is stored in the right place based on its purpose and usage, making it easier for Grabbers to find what they need. The key guidelines are as follows:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Markdown for ‘create and publish’ type content:&lt;/strong&gt; Documentation related to platforms, products, or services that don’t require frequent updates should be in markdown format and stored in GitLab. These documents were rendered in Helix.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Collaborative portals for collaborative docs:&lt;/strong&gt; Time-sensitive and collaborative documents—such as postmortems, RFCs, design docs, and project plans— are not compatible with docs-as-code and hence should reside in portals that offer collaboration features, like easy commenting and multi-user editing. Dedicated spaces within Confluence Wiki are ideal for this purpose.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Separation of internal data:&lt;/strong&gt; Internal documents meant only for specific teams should not mix with general engineering resources for end users. These can be stored in portals with less stringent review processes, as they don’t require the same level of quality or accuracy checks. Team-specific spaces on Confluence Wiki can serve this need effectively.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;empower-creators-and-maintainers-to-self-serve-documentation-upkeep&quot;&gt;Empower creators and maintainers to self-serve documentation upkeep&lt;/h2&gt;
-
-&lt;h4 id=&quot;more-documentation-doesnt-mean-good-documentation&quot;&gt;More documentation doesn’t mean good documentation&lt;/h4&gt;
-
-&lt;p&gt;Getting people to create documentation is one thing, but getting them to maintain and update it is a whole different challenge. One major issue is the lack of accountability. Without a clear owning team or point of contact (PIC) for a document, everyone assumes someone else will handle updates. This leads to stale, outdated information because no one takes responsibility. To address this, the TechDocs team introduced features like showing the “last updated” date on each page and flagging documents that hadn’t been updated in over three months. This approach helped in two ways:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Readers could quickly gauge how up-to-date the information was.&lt;/li&gt;
-  &lt;li&gt;Content owners were reminded when their documents needed attention.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Another key strategy was requiring every document to have a dedicated PIC at the time of creation. This ensured:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Clear accountability for maintaining the document.&lt;/li&gt;
-  &lt;li&gt;The PIC would receive notifications about outdated documents and any comments from readers, making it easier to address issues.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;what-about-docs-that-are-not-really-meant-to-be-updated-that-frequently&quot;&gt;What about docs that are not really meant to be updated that frequently?&lt;/h4&gt;
-
-&lt;p&gt;When building any feature, it’s important to consider different use cases. While flagging outdated documents helped maintainers keep track of their content, it could also frustrate those responsible for more static documents that don’t require frequent updates.&lt;/p&gt;
-
-&lt;p&gt;To make the “last updated” feature more relevant, we introduced an option for users to mark documents as “verified.” This allowed maintainers to turn off the “your doc is outdated” flag if they felt the information was still accurate. While this feature could be misused in an extremely large organisation, it worked well at Grab where internal products and employees generally rely on mutual trust and respect for maintaining simple systems and policies.&lt;/p&gt;
-
-&lt;h4 id=&quot;training-and-info-typing-workshops&quot;&gt;Training and info-typing workshops&lt;/h4&gt;
-
-&lt;p&gt;The TechDocs team had a unique advantage in influencing the quality of internal product and platform documentation. Many of the creators and maintainers of these documents belonged to the same organisation, which allowed for smoother collaboration.&lt;/p&gt;
-
-&lt;p&gt;To elevate the quality of TechDocs, we recognised that improving the drafts produced by platform engineers was essential. This realisation led us to create self-paced training materials focused on information typing guidelines and writing best practices specifically designed for these engineers, which included:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Info-typing guidelines&lt;/strong&gt;: Helping engineers categorise information for better clarity.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Writing best practices&lt;/strong&gt;: Teaching techniques to enhance readability and engagement.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Building on the positive feedback from the training course, we launched interactive workshops. In these sessions, participants brought their own team’s user-facing documentation, and with the guidance of expert Tech Content Developers (TCDs), they made significant, live updates to their documents using the info-typing principles they had learned. This process enabled participants to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Revise their documents&lt;/strong&gt;: Make real-time improvements during the workshop.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Receive expert feedback&lt;/strong&gt;: Gain insights from TCDs on enhancing document quality.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The workshops received outstanding feedback and were further refined to cater to the specific needs of each team, ensuring that the training remained relevant and effective for the different documentation sets they managed. By focusing on collaboration and practical learning, we were able to foster a culture of continuous improvement in our documentation practices.&lt;/p&gt;
-
-&lt;h2 id=&quot;track-metrics&quot;&gt;Track metrics, celebrate wins. Recognise and repeat.&lt;/h2&gt;
-
-&lt;p&gt;Recognising teams and individuals who follow best practices is key to sustaining momentum. We celebrated these wins by publicly acknowledging contributions in newsletters and internal communications, along with offering swag and rewards. Additionally, we tracked the accuracy of responses from oncall-bots, which use documentation to auto-respond to user queries on our internal communicator. By analysing whether these automated responses were accurate, we could assess the quality of the docs being referenced. Teams that kept their documentation up-to-date and adhered to our internal TechDocs policy were rewarded, further reinforcing these good practices.&lt;/p&gt;
-
-&lt;p&gt;Celebrating wins wasn’t a one-off—it became a regular practice, helping to solidify desired behaviors and create a cycle of continuous improvement.&lt;/p&gt;
-
-&lt;h1 id=&quot;whats-next&quot;&gt;What’s next&lt;/h1&gt;
-
-&lt;p&gt;Looking ahead, we have some exciting goals to push the documentation culture even further:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Boost documentation quality&lt;/strong&gt;: We’re aiming to improve the quality of platform docs by a significant percentage, which will help reduce support tickets and inquiries to the automated tech support bot.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Expand training&lt;/strong&gt;: We’re ramping up training for more engineers, helping them sharpen their tech writing skills and aiming for top CSAT ratings.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Launch improved TechDocs portal&lt;/strong&gt;: Our goal is to build better and more intuitive navigation and categorisation of content for an improved user experience.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;User interviews and engagement&lt;/strong&gt;: We’ll be working closely with champions and users across tech families to create an open feedback loop.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Enhance doc creation and editing workflows&lt;/strong&gt;: We’ll streamline the process of creating and editing content using templates and native tools with consistent Markdown flavour usage.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/4iiEHoX&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 27 Feb 2025 08:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/techdocs-at-grab-cultivating-a-culture-of-quality-documentation</link>
-        <guid isPermaLink="true">https://engineering.grab.com/techdocs-at-grab-cultivating-a-culture-of-quality-documentation</guid>
-        
-        <category>Blog</category>
-        
-        <category>TechDocs</category>
-        
-        <category>Helix</category>
-        
-        <category>Engineering</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     

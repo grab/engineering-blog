@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Counter Service: How we rewrote it in Rust</title>
+    <meta name="description" content="The Integrity Data Platform team at Grab rewrote a QPS-heavy Golang microservice in Rust, achieving 70% infrastructure savings while maintaining similar performance. This initiative explored the ROI of adopting Rust for production services, balancing efficiency gains against challenges like Rust’s steep learning curve and the risks of rewriting legacy systems. The blog delves into the selection process, approach, pitfalls, and the ultimate business value of the rewrite.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust">
+    <meta property="og:title" content="Counter Service: How we rewrote it in Rust">
+    <meta property="og:description" content="The Integrity Data Platform team at Grab rewrote a QPS-heavy Golang microservice in Rust, achieving 70% infrastructure savings while maintaining similar performance. This initiative explored the ROI of adopting Rust for production services, balancing efficiency gains against challenges like Rust’s steep learning curve and the risks of rewriting legacy systems. The blog delves into the selection process, approach, pitfalls, and the ultimate business value of the rewrite.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/rust-blog/banner-design.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/rust-blog/banner-design.png" class="post-cover-photo" alt="Counter Service: How we rewrote it in Rust cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Counter Service: How we rewrote it in Rust</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/jialong-loh.jpg">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/pu-li.jpeg">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/muqi-li.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/moinuddin-sharif-riyadh.jpeg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#jialong-loh">Jia Long Loh</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#pu-li">Pu Li</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#muqi-li">Muqi Li</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#moinuddin-sharif-riyadh">Moinuddin Sharif Riyadh</a>
+                  
+                
+              </span>
+              <span class="post-date-large">20 Jun 2025 | 13 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="abstract">Abstract</h2>
+
+<p>The Integrity Data Platform (IDP) team decided to rewrite one of our heavy Queries Per Second (QPS) Golang microservices in Rust. It resulted in 70% infrastructure savings at a similar performance, but was not without its pitfalls. This article will elaborate on:</p>
+
+<ul>
+  <li>How we picked what to rewrite in Rust.</li>
+  <li>Approach taken to tackle the rewrite.</li>
+  <li>The pitfalls and speed bumps along the way.</li>
+  <li>Was it worthwhile?</li>
+</ul>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>Grab is predominantly based on a microservice architecture, with the vast majority of microservices being hosted in a monorepo and written in Golang. It has served the company well so far, as the “simplicity” of Golang allows developers to ramp up and iterate quickly.</p>
+
+<p>However, Rust has seen some gradual adoption across the company. Starting with a few minor <a href="/how-we-reduced-our-ci-yaml">CLIs</a>, which then progressed to notable success with a Rust-based reverse proxy in <a href="/catwalk-serving-machine-learning-models-at-scale">Catwalk</a> for model serving. Additionally, a growing community of Rust enthusiasts within the organisation has expressed interest in advocating for and expanding the adoption of Rust more proactively.</p>
+
+<p>After achieving success with several projects on the ML platform and addressing concerns about Rust’s ability to handle traffic at scale, the next logical step was to assess the Return on Investment (ROI) of rewriting a Golang microservice in Rust.</p>
+
+<h2 id="background">Background</h2>
+
+<p>Rust has the reputation of being <a href="https://dl.acm.org/doi/10.1145/3136014.3136031">highly efficient</a> yet poses a steep learning curve. Rust is often touted to perform close to C, doing away with garbage collection while remaining memory safe through strict compile checks and the borrow checker. It is loved by developers for having rich features like being multi-paradigm (supporting both functional and OOP style), having a rich type system, and doing away with nil pointers and errors.</p>
+
+<p>However, regardless of how well regarded a certain language is in the industry, rewrites of any system should always be considered very carefully. When it comes to “legacy software”, there is a prevalent assumption that rewriting legacy software is a solution to eliminate technical debt and phase out legacy systems. The reality is often more nuanced.</p>
+
+<p>Legacy code occurs when the developers who originally wrote the code are no longer working on the project. There are often business logic and edge-cases baked into complex legacy codebases of which the context has been lost over time. In practice, rewrites frequently take longer than anticipated and tend to reintroduce bugs and edge cases that must be identified and resolved all over again.</p>
+
+<p>Rewriting vs refactoring has been written at length across the internet, you can read more about it <a href="https://herbcaudill.com/words/20190219-rewrite-refactor-reinvent">here</a>.</p>
+
+<p>The trade-offs of rewriting need to be properly weighed and balanced. It must take into consideration:</p>
+
+<ul>
+  <li>How much engineering bandwidth goes into the rewrite?</li>
+  <li>What is the complexity of the rewrite?</li>
+  <li>What tangible benefits are brought about by the rewrite?</li>
+</ul>
+
+<p>Rewriting a system solely for the purpose of “rewriting it in Rust” is not a strong enough business justification.</p>
+
+<p>A legitimate concern was the steep learning curve of Rust, coupled with the risk of having only one team member proficient in the language, which would make its adoption unsustainable.</p>
+
+<p>Therefore, we established a set of guidelines to follow when identifying a suitable system for a potential rewrite:</p>
+
+<ul>
+  <li>The system must be “simple” enough in functionality. For example, it has one or two main functionalities that can be rewritten in a reasonable amount of time and have its complexity constrained.</li>
+  <li>The system targeted should have large enough traffic such that cost savings brought about by adopting Rust is something tangible when balanced against the effort.</li>
+  <li>The members of the team must be comfortable and willing to pick up the language and achieve a certain level of familiarity to make maintaining the service sustainable.</li>
+</ul>
+
+<h2 id="finding-the-right-service">Finding the right service</h2>
+
+<p>The ideal service should have a sufficiently large infrastructure footprint to justify the potential cost savings, while also being straightforward in functionality to minimise time spent on handling edge cases and complex business logic.</p>
+
+<p>Looking across the stack of microservices in Integrity, <a href="/using-grabs-trust-counter-service-to-detect-fraud-successfully">Counter Service</a> stands out. As its name implies, Counter Service is a service that “counts” and serves the counters for ML models and fraud rules. The original service has two primary functionalities:</p>
+
+<ul>
+  <li>Consuming from streams, counting events and <strong>writing</strong> to <a href="/seamless-migration">Scylla</a>.</li>
+  <li>Exposing Google Remote Procedure Call (GRPC) endpoints to query from Scylla (and Redis) and return counts of events based on query keys. For example, <strong>BatchRead</strong>. BatchRead’s functionality of Counter Service serves up to tens of thousands of QPS at peak and is fairly constrained in functionality. Hence, it fulfilled our target criteria of being “simple” in functionality yet serving a large enough amount of traffic that justifies the ROI of a rewrite.</li>
+</ul>
+
+<div class="post-image-section"><figure>
+  <img src="/img/rust-blog/figure-1.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1: BatchRead flow of Counter Service, reading data from Scylla, DynamoDB, Redis, MySQL and serving the counters through GRPC.</figcaption>
+  </figure>
+</div>
+
+<h3 id="rewrite-approach">Rewrite approach</h3>
+
+<p>There are a few ways to approach a rewrite in another language. One popular way is to convert your code line by line. If the languages are close enough, it might even be possible to programmatically convert your code like <a href="https://github.com/immunant/c2rust">C2Rust</a>.</p>
+
+<p>We decided not to use such an approach for our rewrite. The major reason is that idiomatic Golang was not necessarily idiomatic Rust. We wanted to approach this rewrite with a fresh perspective and treat this as a true rewrite.</p>
+
+<p>We treated the application like a black box, with the interfaces well defined, like GRPC endpoints and contracts. Similar to a function, you could call the API and get a deterministic result, and we had the data that was stored in Scylla.</p>
+
+<p>Based on how we understood the application to work based on its specs and contract, we chose to rewrite the application logic from scratch to meet the API contract and to get as close as identical outputs from the new black box.</p>
+
+<h3 id="oss-library-support">OSS library support</h3>
+
+<p>We started out by mapping out the key external dependencies and checking how well they were supported in the Rust ecosystem and in open source. 
+<br /></p>
+<div style="" align="middle">
+<b>Table 1: List of libraries and their star ratings</b>
+</div>
+<table class="table" style="" align="middle">
+  <thead>
+    <tr>
+      <th>Functionality</th>
+      <th>Library</th>
+      <th>Stars (as of Nov 24) </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Datadog (Statsd Client)</td>
+      <td> <a href="https://github.com/56quarters/cadence">https://github.com/56quarters/cadence</a> </td>
+      <td>&lt; 500</td>
+    </tr>
+    <tr>
+    <td> Lightstep (OpenTelemetry) </td>
+      <td><a href="https://github.com/open-telemetry/opentelemetry-rust">https://github.com/56quarters/cadence</a></td>
+      <td> &gt; 1000</td>
+    </tr>
+    <tr>
+    <td> GRPC Server  </td>
+      <td><a href="https://github.com/hyperium/tonic">https://github.com/hyperium/tonic</a></td>
+      <td>  &gt; 500</td>
+    </tr>
+    <tr>
+    <td> Web Server   </td>
+      <td><a href="https://github.com/actix/actix-web">https://github.com/actix/actix-web</a></td>
+      <td> &gt; 20,000</td>
+    </tr>
+    <tr>
+    <td> Redis Client  </td>
+      <td><a href="https://github.com/aembke/fred.rs">https://github.com/aembke/fred.rs</a> (Async Redis Library + Client pool)</td>
+      <td> &gt; 5000</td>
+    </tr>
+     <tr> 
+    <td> Redis Client  </td>
+      <td><a href="https://github.com/redis-rs/redis-rs">https://github.com/redis-rs/redis-rs</a> (“Official” redis client, initially picked but discarded)</td>
+      <td> &gt; 3000</td>
+    </tr>
+    <tr>
+    <td> Scylla Client  </td>
+      <td><a href="https://github.com/scylladb/scylla-rust-driver">https://github.com/scylladb/scylla-rust-driver</a></td>
+      <td> ~500 </td>
+    </tr>
+   <tr>
+    <td> Kafka Client </td>
+      <td><a href="https://github.com/kafka-rust/kafka-rust">https://github.com/kafka-rust/kafka-rust</a></td>
+      <td> &gt;1000 </td>
+    </tr>
+ </tbody>  
+</table>
+<p><br /></p>
+
+<p>All the functionality we need is available through libraries in the Rust ecosystem. However, we found that some libraries are not particularly “popular,” as indicated by their relatively low number of GitHub stars.</p>
+
+<p>The practical concern with using less “popular” libraries is the risk of limited community support or potential abandonment over time. That said, if an “unpopular” library is officially maintained by the associated open-source project—for instance, the Scylla driver has only about 500 stars but is officially provided by the Scylla project—we would need to ensure confidence that it will continue to receive active support.</p>
+
+<p>Out of the list of libraries above, the “unpopular” and unofficial libraries can be narrowed down to two libraries:</p>
+
+<ul>
+  <li>Datadog - Cadence</li>
+  <li>Redis - Fred</li>
+</ul>
+
+<p>For Datadog, there is no “official” Datadog Rust client. Yet, we picked Cadence as the API looked intuitive and the features we needed were already supported.</p>
+
+<p>In regards to Redis, after testing it, we discovered that the support was not up to par with our requirements. We then opted for a newer and less popular library, fred.rs that seemed to be actively being developed by the community.</p>
+
+<h3 id="company-specific-internal-libraries">Company specific internal libraries</h3>
+
+<p>With the vast majority of microservices being written in Golang, most internal libraries are also written in Golang. Opting to rewrite a service in Rust means we are not able to use these internal libraries.</p>
+
+<p>Examples include:</p>
+
+<ul>
+  <li>An internal configuration library that utilises Go Templates to template configurations for different environments (staging and production).</li>
+  <li>The internal configuration library has its own wrappers and injectors to pull and render secrets.</li>
+</ul>
+
+<p>To overcome this gap and re-use Go Templates and configuration language, we decided to write a simple wrapper and parser using the <a href="https://github.com/rust-bakery/nom">nom parser combinator</a> to parse the templates and render the config.</p>
+
+<p>Nom poses a steep learning curve. But once familiarised, it is flexible and performant enough to build an equivalent to the internal library. Parser combinators are an interesting subset of tooling that allows you to create some fairly elegant parsers.</p>
+
+<h2 id="road-bumps">Road bumps</h2>
+
+<h3 id="the-borrow-checker">The borrow checker</h3>
+
+<p>One of the most striking paradigm shifts for developers transitioning to Rust is adapting to the strict rules of the borrow checker, which enforces that variables cannot be reused multiple times unless explicitly cloned or borrowed.</p>
+
+<p>Interestingly, the borrow checker was not the biggest hurdle for new developers. The key is to avoid introducing lifetimes too early in the development process, as this can lead to premature code optimisation.</p>
+
+<p>In many cases, adding a few clones (and occasionally Arcs) can help new developers get up to speed and iterate more quickly during development. The resulting code is usually “fast” enough for initial purposes. After that, the code can be revisited to eliminate unnecessary clones for improved performance. An efficient approach to this can be taken by using Flamegraph to profile your code and identify memory allocation bottlenecks.</p>
+
+<h3 id="async-gotchas">Async gotchas</h3>
+
+<p>When rewriting Golang logic in Rust, there are fundamental differences in how they treat concurrency and parallelism.</p>
+
+<p>One of Golang’s most remarkable strengths is its ability to deliver high-performance concurrency while preserving simplicity.</p>
+
+<p>There are two fundamental approaches to concurrency in programming languages, namely:</p>
+
+<ul>
+  <li>Preemptive scheduling (stackful coroutines).</li>
+  <li>Cooperative scheduling (stackless coroutines).</li>
+</ul>
+
+<p>Preemptive vs cooperative scheduling is an in-depth topic with the gist of it being, Golang uses preemptive scheduling and each “Goroutine” has a stack that needs a runtime. The Golang scheduler has the power to “preempt” and “freeze” functions and switch to another stack like stackful coroutine. This is a gross oversimplification of the nuances. For more details, this is a good <a href="https://medium.com/a-journey-with-go/go-asynchronous-preemption-b5194227371c">introduction</a> to the topic.</p>
+
+<p>Rust opts for cooperative scheduling whereby it has no runtime and each coroutine does not maintain a stack. Hence, it has no ability to “freeze” a function and swap context. This allows Rust to be more efficient in terms of memory and resources, as it maintains a state machine. However, the consequence is that this moves the complexity up the stack to the programming language itself. Similar to Javascript, functions are “coloured”, and the developer has to explicitly annotate their functions to be async or sync. Await points need to be explicitly called and control needs to be “yielded” (i.e. cooperative and stackless) so the Rust program knows when it is allowed to stop and swap between coroutines. To read more on this, refer to <a href="https://tokio.rs/blog/2019-10-scheduler">this</a> and <a href="https://without.boats/blog/why-async-rust/">this</a> article for the history of async Rust.</p>
+
+<p>Needing to annotate a function is a classic complaint that is addressed in the article “<a href="https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/">What Colour is Your Function</a>” that highlights developers’ responsibility to explicitly colour their function and consciously think about <a href="https://ryhl.io/blog/async-what-is-blocking/">blocking vs non-blocking code</a>.</p>
+
+<p>Contrast this with Golang, where you simply need to add the <code class="language-plaintext highlighter-rouge">go</code> keyword without thinking about which code might block the execution and use channels to communicate across Goroutines. Golang allows the developer to achieve high performance without much cognitive overhead.</p>
+
+<p>This is especially important for developers new to Rust. As the lack of experience in async and blocking code can be somewhat of a footgun. In the initial rewrite of Rust, we made an amateur mistake of using a synchronous Redis function to call the Redis cache. It resulted in the application performing poorly until we corrected it with the non-blocking asynchronous version using the Fred redis library.</p>
+
+<h2 id="impact">Impact</h2>
+
+<p>Following the eventful process of rewriting the service from the ground up in Rust, the outcomes proved to be quite intriguing.</p>
+
+<p>Shadowing traffic to both services as seen in Figure 2, the P99 latency is similar (or perhaps even slightly worse) in the Rust service compared to the original Golang one.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/rust-blog/figure-2.png" alt="" style="width:80%" /><figcaption align="middle">Figure 2: P99 latency comparison between the Golang service (purple) and Rust service (blue). 
+</figcaption>
+  </figure>
+</div>
+
+<p>Normalising the QPS and resource consumption, we see from Table 2 that Rust consumes ~20% of the resources of the original Golang application, resulting in 5x savings in terms of resource consumption.
+<br /></p>
+<div style="" align="middle">
+<b>Table 2: Comparison of resource consumption between Rust and Golang service.</b>
+</div>
+<table class="table" style="" align="middle">
+  <thead>
+    <tr>
+      <th>Service</th>
+      <th>Indicative QPS</th>
+      <th>Resources </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Original Golang Service</td>
+      <td>1,000</td>
+      <td>20 Cores</td>
+    </tr>
+    <tr>
+    <td> New Rust Service</td>
+      <td>1,000</td>
+      <td>4.5 Cores</td>
+    </tr>
+ </tbody>   
+</table>
+<p><br /></p>
+
+<h2 id="learnings-and-conclusion">Learnings and conclusion</h2>
+
+<p>The outcomes and insights from this rewrite have been eye-opening, debunking certain myths while also validating others.</p>
+
+<h3 id="myth-1-rust-is-blazingly-fast-faster-than-golang">Myth 1: Rust is blazingly fast! Faster than Golang!</h3>
+
+<p><strong>Verdict</strong>: Disproved.
+Golang is “fast enough” for most use cases. It’s a mature language built with concurrency at its core, and it performs exceptionally well in its intended domain. While Rust can outperform Golang due to its higher performance ceiling and finer-grained control, rewriting a Golang service in Rust solely for performance improvements is unlikely to yield significant benefits.</p>
+
+<h3 id="myth-2-rust-is-more-efficient-than-golang">Myth 2: Rust is more efficient than Golang</h3>
+
+<p><strong>Verdict</strong>: True.
+Rewriting a Golang service in Rust will probably give you 50% savings in compute. Rust does fulfill its promise of being memory safe without garbage collection, allowing it to be one of the more efficient languages out there. This is in line with <a href="https://aws.amazon.com/blogs/opensource/sustainability-with-rust/">other discoveries</a> in the market.</p>
+
+<h3 id="myth-3-the-learning-curve-of-rust-is-too-high">Myth 3: The learning curve of Rust is too high</h3>
+
+<p><strong>Verdict</strong>: It depends.
+Pure synchronous Rust is fine. As long as you don’t overcomplicate the code and only clone what is needed, it is mostly true. The language is easy enough to pick up for most experienced developers. Even with cloning sprinkled in, the code is usually “fast enough”. The compiler is a good teacher, the compiler error messages are amazing, and if your code compiles, it probably works. Also, the Clippy linter is amazing.</p>
+
+<p>However, introducing async can be challenging. Async is something quite different from what you would encounter in other languages like Go. Improper use of blocking code in async code can result in nuanced bugs that can catch inexperienced Rust developers off-guard.</p>
+
+<h2 id="evaluating-the-worth-of-the-rewrite">Evaluating the worth of the rewrite</h2>
+
+<p>Yes, the effort was worth it for this service. The trade-off between development effort spent and the cost savings were justified.</p>
+
+<p>As a side effect, the service is 80% cheaper and probably more bug free, as Rust eliminates a class of common Golang errors like Null pointers and concurrent map writes by virtue of the design of the language. If your code compiles, you usually have the confidence that it will work as you expect due to the language being more explicit.</p>
+
+<p>Would we encourage choosing Rust over Golang for new microservices? Absolutely, as the resulting service is likely to be at least 50% more efficient than its Go counterpart. However, this decision presents an important and exciting opportunity for management and leaders to invest in empowering their engineers by equipping them with the skills to master Rust’s unique concepts, such as Async and Lifetimes. While the initial development pace might be slower as the team builds proficiency, this investment can unlock long-term benefits. Once the workforce is skilled in Rust, development speed should align with expectations, and the resulting systems are likely to be more stable and secure, thanks to Rust’s inherent safety features.</p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://www.grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#database" class="label tags-label">Database</a>
+  
+    <a href="/tags#rust" class="label tags-label">Rust</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Counter Service: How we rewrote it in Rust&url=https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust&title=Counter Service: How we rewrote it in Rust
+&summary=The Integrity Data Platform team at Grab rewrote a QPS-heavy Golang microservice in Rust, achieving 70% infrastructure savings while maintaining similar performance. This initiative explored the ROI of adopting Rust for production services, balancing efficiency gains against challenges like Rust’s steep learning curve and the risks of rewriting legacy systems. The blog delves into the selection process, approach, pitfalls, and the ultimate business value of the rewrite.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/counter-service-how-we-rewrote-it-in-rust';
+    this.page.identifier = '/counter-service-how-we-rewrote-it-in-rust';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
