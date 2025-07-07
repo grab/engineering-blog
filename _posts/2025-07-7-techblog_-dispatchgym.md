@@ -81,7 +81,7 @@ A major hurdle in applying RL to dispatch problems modeled as MDP is ensuring th
 
 DispatchGym’s architecture focuses on reliability, cost-effectiveness, and user empowerment. Its simulation is designed to capture critical metrics and reflect real-world trends (directional accuracy), while its Python-based modular design enhanced by Numba enables easy prototyping. Researchers can adjust the environment locally before deploying changes seamlessly via a command-line interface, avoiding infrastructure overhead. These design decisions and capabilities empower data scientists to refine contextual bandit approaches for optimizing dispatch hyperparameters and explore innovative RL applications in the dispatch process.
 
-<small class="credits">We would like to thank Chongyu Zhou, Guowei Wong and Roman Kotelnikov for their collaboration in developing the RL-based optimizer. </small>
+<small class="credits">We would like to thank Chongyu Zhou, Guowei Wong, and Roman Kotelnikov for their collaboration in developing the RL-based optimizer. </small>
 
 ## Join us
 
