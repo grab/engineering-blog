@@ -73,7 +73,7 @@ The service mesh landscape is constantly evolving, and we're excited to be part 
 
 We're also working on enhancing our operational capabilities through automated testing and validation, improved monitoring and alerting, and better debugging tools. As we progress, we're committed to sharing our experiences with the community through open source contributions, conference participation, and technical blogs.
 
-## Join the journey
+## Shape the future with us
 
 We're not just implementing a service mesh—we're architecting the backbone of Grab's microservices future. Every decision prioritizes reliability, scalability, and maintainability, ensuring we build something that will stand the test of time.
 
