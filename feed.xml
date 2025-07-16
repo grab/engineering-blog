@@ -6,9 +6,108 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 08 Jul 2025 00:52:25 +0000</pubDate>
-    <lastBuildDate>Tue, 08 Jul 2025 00:52:25 +0000</lastBuildDate>
+    <pubDate>Wed, 16 Jul 2025 06:51:05 +0000</pubDate>
+    <lastBuildDate>Wed, 16 Jul 2025 06:51:05 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Grab&apos;s service mesh evolution: From Consul to Istio</title>
+        <description>&lt;h2 id=&quot;the-challenge-when-good-enough-isnt-good-enough&quot;&gt;The challenge: When good enough isn’t good enough&lt;/h2&gt;
+
+&lt;p&gt;Picture this: It’s 2024, and Grab’s microservices ecosystem is thriving with over 1000 services running in different infrastructure. But behind the scenes, our service mesh setup is showing its age. We’re running Consul with a fallback mechanism called Catcher - a setup that has  served us well but is starting to feel like wearing a winter coat in Singapore’s heat.&lt;/p&gt;
+
+&lt;p&gt;The challenges we faced were becoming increasingly apparent. A single Consul server issue could trigger a fleet-wide impact, affecting critical services like food delivery and ride-hailing. Our fallback solution, while necessary, added complexity and limited our ability to implement advanced features like circuit breaking and retry policies. As we expanded our presence across Southeast Asia, the need for robust multi-cluster support became more critical than ever. The existing setup struggled with modern requirements like advanced traffic management and fine-grained security controls, while the growing complexity of our microservices architecture demanded better traffic management capabilities.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-complexity-of-grabs-infrastructure&quot;&gt;The complexity of Grab’s infrastructure&lt;/h2&gt;
+
+&lt;p&gt;Our infrastructure landscape is as diverse as the Southeast Asian markets we serve. We operate a complex hybrid environment encompassing services on traditional VMs and EKS clusters with diverse infrastructure provisioning and deployment approaches. This diversity isn’t merely about deployment models—it’s about meeting the unique needs of different business units and regulatory requirements across the region.&lt;/p&gt;
+
+&lt;p&gt;The complexity doesn’t stop there. We handle dual traffic protocols (HTTP and &lt;a href=&quot;https://en.wikipedia.org/wiki/GRPC&quot;&gt;gRPC&lt;/a&gt;) across our entire service ecosystem. Our services communicate across cloud providers between AWS and GCP. Within AWS alone, we maintain multiple organizations to segregate different Grab entities, each operating in its own isolated network. This multi-cloud, multi-protocol, multi-organization setup presented unique challenges for our service mesh implementation.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-quest-for-a-better-solution&quot;&gt;The quest for a better solution&lt;/h2&gt;
+
+&lt;p&gt;Like any good tech team, we didn’t just jump to conclusions. We embarked on a thorough evaluation of service mesh solutions, considering various options including Application Load Balancer (&lt;a href=&quot;https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html&quot;&gt;ALB&lt;/a&gt;), &lt;a href=&quot;https://istio.io/&quot;&gt;Istio&lt;/a&gt;, &lt;a href=&quot;https://aws.amazon.com/vpc/lattice/&quot;&gt;AWS Lattice&lt;/a&gt;, and &lt;a href=&quot;https://linkerd.io/&quot;&gt;Linkerd&lt;/a&gt;. Our evaluation process was comprehensive and focused on real-world needs, examining everything from stability under high load to the performance impact on service-to-service communication.&lt;/p&gt;
+
+&lt;p&gt;We needed a solution that could handle our distributed architecture while maintaining operational simplicity. The ideal service mesh would need to integrate seamlessly with our existing infrastructure landscape while offering the flexibility to scale with our growing needs. After careful consideration, Istio emerged as the clear winner, offering robust multi-cluster support with flexible deployment models and a comprehensive set of features for traffic management, security, and observability.&lt;/p&gt;
+
+&lt;p&gt;What really sealed the deal was Istio’s strong Kubernetes integration and native support, combined with active community backing. The rich ecosystem of tools and integrations meant we wouldn’t be building everything from scratch, while the flexible deployment options could accommodate our unique requirements.&lt;/p&gt;
+
+&lt;h2 id=&quot;designing-our-istio-architecture&quot;&gt;Designing our Istio architecture&lt;/h2&gt;
+
+&lt;p&gt;When it came to designing our Istio implementation, we took a slightly unconventional approach. Instead of following the traditional “one control plane per cluster” pattern, we designed a more resilient architecture that would better suit our needs. We implemented multiple control planes running on dedicated Kubernetes clusters for better isolation and scalability, with active-active pairs ensuring high availability.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/service-mesh-evolution/external-control-planes.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. External control planes and Kubernetes API servers - Endpoints discovery&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/service-mesh-evolution/istio-proxy.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Istio proxy to Istio control plane - xDS flow&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Our architecture needed to support high-throughput service-to-service communication while enabling complex routing rules for A/B testing and canary deployments. We implemented custom resource definitions for service mesh configuration and integrated with our existing monitoring and alerting systems. The organization-based mesh boundaries we designed would support our multi-tenant architecture, while our solution for cross-cluster endpoint discovery would ensure reliable service communication across our distributed system.&lt;/p&gt;
+
+&lt;p&gt;This design wasn’t just about following best practices - it was about learning from our past experiences with etcd and Consul. We wanted a setup that could handle Grab’s scale while maintaining simplicity and reliability. The architecture needed to support everything from high-throughput service-to-service communication to complex routing rules for A/B testing and canary deployments, all while maintaining fine-grained security policies and comprehensive observability.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-migration-journey-begins&quot;&gt;The migration journey begins&lt;/h2&gt;
+
+&lt;p&gt;In Q4 2024, we kicked off our migration journey with a clear plan. While our initial strategy focused on gRPC traffic migration, real-world priorities led us down a different path. Our first major milestone was the GCP to AWS migration, a cross-cloud initiative that would test our service mesh capabilities in a complex, multi-cloud environment.&lt;/p&gt;
+
+&lt;p&gt;This cross-cloud migration was a significant undertaking, requiring careful coordination between teams and careful consideration of network policies, security requirements, and service dependencies. We had to ensure seamless communication between services running in different cloud providers while maintaining security and performance standards.&lt;/p&gt;
+
+&lt;p&gt;Alongside our ongoing cloud migration efforts, we launched parallel initiatives focused on gRPC and HTTP traffic migration with cross-mesh connectivity requirements. This phase introduced distinct challenges, as it involved migrating business-critical services while implementing gradual traffic shifting capabilities and quick rollback mechanisms to ensure zero-downtime migrations. We also maintained close monitoring of performance metrics throughout the process.&lt;/p&gt;
+
+&lt;p&gt;Additionally, we needed to ensure seamless compatibility between different service mesh implementations and navigate the complexities of cross-mesh communication. The insights and experience gained from our cloud migration phase have proven invaluable in informing our approach and execution strategy for this critical migration effort.&lt;/p&gt;
+
+&lt;p&gt;The journey hasn’t been without its challenges. We’ve had to balance migration speed with stability while coordinating across multiple teams and organizations. Handling both gRPC and HTTP traffic patterns required careful planning and execution. We’ve had to deal with legacy systems and technical debt while training and supporting teams through the transition. Maintaining service continuity during these transitions has been our top priority.&lt;/p&gt;
+
+&lt;h2 id=&quot;lessons-learned&quot;&gt;Lessons learned&lt;/h2&gt;
+
+&lt;p&gt;This journey has taught us several valuable lessons. We’ve learned that sometimes the standard approach isn’t the best fit, and innovation often comes from questioning assumptions. We’ve discovered the importance of balancing innovation with stability, taking calculated risks while building capability for a quick mitigation.&lt;/p&gt;
+
+&lt;p&gt;Keeping the bigger picture in mind has been crucial, considering long-term implications and planning for scale and growth. We’ve learned to document challenges and solutions, sharing knowledge across teams to avoid repeating mistakes. Most importantly, we’ve learned to stay flexible and adapt to changing needs, being ready to pivot when necessary while keeping an eye on emerging technologies.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next?&lt;/h2&gt;
+
+&lt;p&gt;The service mesh landscape is constantly evolving, and we’re excited to be part of this journey. Our next steps include continuing our migration efforts with a focus on stability while exploring mesh features like advanced traffic management, and enhanced security policies.&lt;/p&gt;
+
+&lt;p&gt;We’re also working on enhancing our operational capabilities through automated testing and validation, improved monitoring and alerting, and better debugging tools. As we progress, we’re committed to sharing our experiences with the community through open source contributions, conference participation, and technical blogs.&lt;/p&gt;
+
+&lt;h2 id=&quot;shape-the-future-with-us&quot;&gt;Shape the future with us&lt;/h2&gt;
+
+&lt;p&gt;We’re not just implementing a service mesh—we’re architecting the backbone of Grab’s microservices future. Every decision prioritizes reliability, scalability, and maintainability, ensuring we build something that will stand the test of time.&lt;/p&gt;
+
+&lt;p&gt;The journey continues, and we’re excited about what lies ahead. Follow our progress for real-world insights that might shape your own service mesh evolution.&lt;/p&gt;
+
+&lt;p&gt;Want to help us build the future? We have exciting &lt;a href=&quot;https://jobs.smartrecruiters.com/Grab/744000061741882-infra-engineer-manager-service-mesh&quot;&gt;opportunities&lt;/a&gt; waiting for you.&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Credits to the Service Mesh team: Aashif Bari, Hilman Kurniawan, Hofid Mashudi, Jingshan Pang, Kaitong Guo, Mikko Turpeinen, Sok Ann Yap, Jesse Nguyen, and Xing Yii. &lt;/small&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 16 Jul 2025 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/service-mesh-evolution</link>
+        <guid isPermaLink="true">https://engineering.grab.com/service-mesh-evolution</guid>
+        
+        <category>Microservice</category>
+        
+        <category>Service mesh</category>
+        
+        <category>Kubernetes</category>
+        
+        <category>AWS</category>
+        
+        <category>GCP</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>DispatchGym: Grab’s reinforcement learning research framework</title>
@@ -1639,173 +1738,6 @@ Now, let’s see how the service calculates the total count for the incoming req
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Improving Hugo stability and addressing oncall challenges through automation</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Hugo plays a pivotal role in enabling data ingestion for Grab’s data lake, managing over 4,000 pipelines onboarded by users. The stability of Hugo pipelines is contingent upon the health of both the data sources and various Hugo components. Given the complexity of this system, pipeline failures occasionally occur, necessitating user intervention when retry mechanisms prove insufficient. These incidents present challenges such as:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Limited user visibility into pipeline issues.&lt;/li&gt;
-  &lt;li&gt;Uncertainty about resolution steps due to extensive documentation.&lt;/li&gt;
-  &lt;li&gt;An overwhelmed Hugo on-call team dealing with ad-hoc requests and growing infrastructure dependencies.&lt;/li&gt;
-  &lt;li&gt;Raised Data Production Issues (DPIs) lacking clear Root Cause Analysis (RCA), hindering effective management.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Such challenges ultimately increase data downtime due to prolonged issue triage and resolution times.&lt;/p&gt;
-
-&lt;p&gt;To address these problems, we conducted a thorough analysis of failure modes and the efforts required to resolve them. Based on our findings, we propose a comprehensive automation solution.&lt;/p&gt;
-
-&lt;p&gt;This blog outlines the architecture and implementation of our proposed solution, consisting of modules like Signal, Diagnosis, RCA Table, Auto-resolution, Data Health API, and Data Health WorkBench, each with a specific function to enhance Hugo’s monitoring, diagnosis, and resolution capabilities.&lt;/p&gt;
-
-&lt;p&gt;The blog further details the impact of these automated features, such as enhanced data visibility, reduced on-call workload, and concludes with our next steps, which focus on advancing auto-resolution strategies, enriching the Data Health Workbench, and broadening diagnostics to include more infrastructure components, like Flink, for comprehensive coverage.&lt;/p&gt;
-
-&lt;h2 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h2&gt;
-
-&lt;p&gt;We designed the solution based on these principles:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Identify different failure modes based on past issues and analysis from first principles.&lt;/li&gt;
-  &lt;li&gt;Analyse temporal relationships of pipeline execution steps to diagnose issues to failure modes.&lt;/li&gt;
-  &lt;li&gt;Focus on auto-resolution, and add additional features to cover gaps which can’t be immediately addressed by auto-resolution or diagnosis.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;The following diagram shows the solution we proposed.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/improving-hugo-stability/architecture.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Architecture&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The architecture consists of five core modules, each with a specific function:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Signal module&lt;/strong&gt;: This module is responsible for collecting signals. It gathers three different types of signals that collectively define the health status of the data lake table. The signals include:
-    &lt;ul&gt;
-      &lt;li&gt;Failure callback signal: This indicates whether the pipeline runs involving this data lake table are successful or not.&lt;/li&gt;
-      &lt;li&gt;SLA alert signal: This indicates whether the pipeline execution involving this data lake table meets the Service Level Agreement (SLA). For an hourly batch job, the expectation is to complete within one hour.&lt;/li&gt;
-      &lt;li&gt;Data quality test failure signal: This represents various types of completeness checks to ensure that data lake tables are consistent with the source tables based on their pipeline strategies.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Diagnosis module:&lt;/strong&gt; This is the core module responsible for diagnosing the root cause of 3 types of failures collected in the Signal module. It determines:
-    &lt;ul&gt;
-      &lt;li&gt;The root cause of the failure.&lt;/li&gt;
-      &lt;li&gt;The assignee responsible for fixing the error.&lt;/li&gt;
-      &lt;li&gt;The auto-resolution method to fix the issue.&lt;/li&gt;
-      &lt;li&gt;Manual resolution steps if the auto-resolution fails.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;RCA table:&lt;/strong&gt; This module stores the following information:
-    &lt;ul&gt;
-      &lt;li&gt;Signals&lt;/li&gt;
-      &lt;li&gt;Assignee information&lt;/li&gt;
-      &lt;li&gt;Diagnosis results&lt;/li&gt;
-      &lt;li&gt;Auto-resolution methods&lt;/li&gt;
-      &lt;li&gt;Manual resolution steps&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Auto-resolution module:&lt;/strong&gt; This module executes the auto-resolution methods to resolve issues automatically.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Data health API:&lt;/strong&gt; This module provides API access to other platforms. External platforms or pipelines that rely on Hugo onboarded tables can subscribe to the health status and investigate the root cause when a table is deemed unhealthy.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Hugo pipeline health dashboard:&lt;/strong&gt; A centralised dashboard for Hugo users to visualise the health status of tables, auto resolution status, and manual fix button.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;By leveraging these modules, the architecture ensures robust monitoring, diagnosis, and resolution of issues, leading to improved data health and operational efficiency.&lt;/p&gt;
-
-&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;/h2&gt;
-
-&lt;h3 id=&quot;signal-module&quot;&gt;Signal module&lt;/h3&gt;
-
-&lt;p&gt;There are two methods for generating these three signals. The failure signal is generated through an airflow callback, while the SLA miss and data completeness test signals are produced by Genchi. Genchi is a data quality observability platform at Grab that performs data quality checks and acts as a crucial enabler for the enforcement of data contracts.&lt;/p&gt;
-
-&lt;h3 id=&quot;diagnosis-module&quot;&gt;Diagnosis module&lt;/h3&gt;
-
-&lt;p&gt;As soon as an alert is created, the diagnosis begins. To avoid lengthy diagnosis times, Hugo has developed an innovative approach that eliminates the requirement for parsing extensive logs, such as Spark executor logs or Airflow logs. Instead, it gathers signals transmitted by the computation engine or Grab’s internal platforms.&lt;/p&gt;
-
-&lt;p&gt;The diagnosis process can be time-consuming, even with efforts to reduce the time it takes. For example, the SLA diagnoser uses multiple analysers that run sequentially, and some of these analysers (like the Airflow analyser) make API calls that can take a significant amount of time. The more analysers that are involved in the diagnosis process, the longer it can take.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/improving-hugo-stability/diagnosis.gif&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Diagnosis process&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Parallelism in diagnosis serves as a solution to lower the overall latency when there is a surge in error traffic. The degree of parallelism differs based on the type of signal. For example, the failure signal diagnosis can be executed in thousands of processes at once, while for SLA miss and data quality test failures signals, the parallelism is determined by the number of partitions in the Kafka topic since these signals are received from Kafka.&lt;/p&gt;
-
-&lt;h3 id=&quot;auto-resolution-module&quot;&gt;Auto-resolution module&lt;/h3&gt;
-
-&lt;p&gt;Auto-resolution is a flexible framework that enables the implementation of custom handlers for various types of failures. One of the common handlers employs a retry mechanism with backoff for transient errors. For instance, if Hugo receives a failure callback indicating that the root cause is a database replica lag, it would wait for an hour before re-triggering the job. This auto-resolution process runs asynchronously with the diagnosis process.&lt;/p&gt;
-
-&lt;h3 id=&quot;data-health-api&quot;&gt;Data health API&lt;/h3&gt;
-
-&lt;p&gt;The data health information includes a unique identifier, current status, error details, and the time of the last health check, providing a comprehensive snapshot of the dataset’s health.&lt;/p&gt;
-
-&lt;p&gt;Hugo converts the detailed information available in its internal data health API to the data health API specification format to be consumed by Kinabalu, our internal system designed to automate and streamline incident management processes by integrating with multiple systems such as Slack, Jira, Splunk on-call, and Datadog.&lt;/p&gt;
-
-&lt;h3 id=&quot;hugo-pipeline-health-dashboard&quot;&gt;Hugo pipeline health dashboard&lt;/h3&gt;
-
-&lt;p&gt;The Data Health Workbench is a centralised dashboard for Hugo users to visualise the health status of tables, auto-resolution status, and manual fix buttons. It provides a comprehensive view of data health and facilitates efficient issue resolution.&lt;/p&gt;
-
-&lt;p&gt;The key features are as follows:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Health status visualisation:&lt;/strong&gt; Displays the current health status of tables, making it easy to identify unhealthy tables.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Assignee information:&lt;/strong&gt; Indicates the assignee responsible for fixing the issue, ensuring clear accountability.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;How-to-fix guide:&lt;/strong&gt; Provides step-by-step instructions on how to resolve the issue, empowering users to take immediate action.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Action:&lt;/strong&gt; Offers an action button to initiate the resolution process with a single click, streamlining issue resolution.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Admin feature with detailed diagnosis information:&lt;/strong&gt; Provides admins supplementary information, including the reasoning behind the root cause identification and assignee determination, which allows for a deeper understanding of the root cause of issues.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;By leveraging the Data Health Workbench, Hugo users can efficiently monitor and manage data health, ensuring data integrity and operational efficiency.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/improving-hugo-stability/data-health-workbench.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Data Health Workbench&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
-
-&lt;p&gt;The implementation of Hugo’s auto-healing and diagnosis features has resulted in significant improvements in stability and operational efficiency for our data pipelines. Here are some key outcomes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Enhanced data visibility&lt;/strong&gt;: We’ve improved the visibility into the health of datasets, allowing for quick identification of issues and more informed decision-making.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Timely resolution of data issues&lt;/strong&gt;: With automated diagnostic and resolution processes, we ensure that data issues are addressed promptly, minimising data downtime and enhancing overall data availability.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Reduced on-call workload&lt;/strong&gt;: By automating many of the common failure resolutions, the workload on Hugo on-call teams has been significantly reduced. This allows teams to focus on more complex and impactful tasks.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Scalable solution for managing complexity&lt;/strong&gt;: The auto-resolution framework is well-equipped to handle the increasing complexity of data infrastructure, offering scalable solutions for transient errors through custom handlers and retry mechanisms.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Improved data contract management&lt;/strong&gt;: By providing detailed pipeline health information via the Data Health API, we enable precise and accurate DPIs, complete with root cause analysis and assignee information, enhancing the management and resolution of data contract breaches.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Valuable reference for other platforms&lt;/strong&gt;: The insights and methodologies developed through this initiative provide a valuable reference for other platform teams at Grab looking to implement similar automation and diagnostic capabilities.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Support for Grab’s success&lt;/strong&gt;: These enhancements support Grabbers by ensuring easy access to the datasets they need and contribute to the overall success of Grab through reliable data availability.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;next-steps&quot;&gt;Next steps&lt;/h2&gt;
-
-&lt;p&gt;Our next steps involve advancing auto-resolution strategies by focusing on complex solutions like pipeline runtime optimisation to boost efficiency and minimise processing delays. We will enrich the Data Health Workbench with detailed information, enabling users to visualise and understand pipeline health more effectively and make informed corrective actions. Additionally, we plan to broaden our diagnosis capabilities by integrating more infrastructure components, such as Flink health information, to ensure a comprehensive and holistic monitoring approach for all engines within Hugo.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebhugo&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 20 Mar 2025 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/improving-hugo-stability</link>
-        <guid isPermaLink="true">https://engineering.grab.com/improving-hugo-stability</guid>
-        
-        <category>Data Pipeline</category>
-        
-        <category>Data reliability</category>
-        
-        <category>Data observability</category>
-        
-        <category>Platform</category>
-        
-        <category>System Architecture</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Analytics</category>
         
       </item>
     
