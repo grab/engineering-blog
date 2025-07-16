@@ -2,7 +2,7 @@
 layout: post
 id: 2025-07-16-service-mesh-evolution
 title: "Grab's service mesh evolution: From Consul to Istio"
-date: 2025-07-16 07:23:00
+date: 2025-07-16 00:00:10
 authors: [hilman-kurniawan, jay-chin, shiyu-chen, sokann-yap]
 categories: [Engineering]
 tags: [Microservice, Service mesh, Kubernetes, AWS, GCP]
@@ -81,7 +81,7 @@ The journey continues, and we're excited about what lies ahead. Follow our progr
 
 Want to help us build the future? We have exciting [opportunities](https://jobs.smartrecruiters.com/Grab/744000061741882-infra-engineer-manager-service-mesh) waiting for you.
 
-<small class="credits">Credits to the Service Mesh team: Aashif Bari, Hilman Kurniawan, Hofid Mashudi, Jingshan Pang, Kaitong Guo, Mikko Turpeinen, Sok Ann Yap, Tuanvu Nguyen, and Xing Yii. </small>
+<small class="credits">Credits to the Service Mesh team: Aashif Bari, Hilman Kurniawan, Hofid Mashudi, Jingshan Pang, Kaitong Guo, Mikko Turpeinen, Sok Ann Yap, Jesse Nguyen, and Xing Yii. </small>
 
 ## Join us
 
