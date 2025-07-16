@@ -19,7 +19,7 @@ The challenges we faced were becoming increasingly apparent. A single Consul ser
 
 ## The complexity of Grab's infrastructure
 
-Our infrastructure landscape is as diverse as the Southeast Asian markets we serve. We operate a complex hybrid environment that includes services running on traditional VMs, EKS Cluster with managed, and self-managed nodes. This diversity isn't just about deployment models - it's about meeting the unique needs of different business units and regulatory requirements across the region.
+Our infrastructure landscape is as diverse as the Southeast Asian markets we serve. We operate a complex hybrid environment that includes services running on traditional VMs and EKS clusters utilizing both managed and self-managed nodes. Managed nodes follow a “paved road” approach by the Managed EKS team ensuring standardized deployment and management practices while self-managed nodes are customized EKS clusters deployed and maintained by other teams. This diversity isn't just about deployment models - it's about meeting the unique needs of different business units and regulatory requirements across the region.
 
 The complexity doesn't stop there. We handle dual traffic protocols (HTTP and [gRPC](https://en.wikipedia.org/wiki/GRPC)) across our entire service ecosystem. Our services communicate across cloud providers between AWS and GCP. Within AWS alone, we maintain multiple organizations to segregate different Grab entities, each operating in its own isolated network. This multi-cloud, multi-protocol, multi-organization setup presented unique challenges for our service mesh implementation.
 
