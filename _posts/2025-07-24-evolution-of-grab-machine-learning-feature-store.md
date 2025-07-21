@@ -70,7 +70,7 @@ The data ingestion process in Amphawa was meticulously crafted to ensure efficie
 * **Landing feature table in the data lake**: Data scientists use SQL or Python on Spark to build ML pipelines that output data lake tables. These tables and metadata for version control are stored as Parquet objects in Amazon S3.  
 * **Register collection summary**: A “collection summary” consists of a group of feature tables to be served and other related metadata regarding customised individual tables. In this step, our registry will validate the table's schema and ensure the customisations are defined correctly.
 * **Deploy collection summary**: Data scientists send another request to our registry to deploy a collection summary.
-* **Pre-ingestion validation**: The schema is validated to ensure compatibility with the target online machine-learning models. This process ensures consistency and compatibility across feature updates.  
+* **Pre-ingestion validation**: The schema is validated to ensure compatibility with the target online ML models. This process ensures consistency and compatibility across feature updates.  
 * **Ingestion**: The ingestion mechanism is a classic reverse ETL where the data from S3 is loaded into our Aurora Postgres tables.  
 * **Post-ingestion warm-up**: To avoid cold-start latency spikes, shadow reading duplicates a part of the ongoing reading queries to the new tables for a period before the final switch.
 
