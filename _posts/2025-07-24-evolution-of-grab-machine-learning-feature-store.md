@@ -92,7 +92,7 @@ In our quest to optimise our ML infrastructure, we strategically decided to use 
 AWS Aurora is a fully managed relational database service that combines the speed and reliability of high-end commercial databases with the simplicity and cost-effectiveness of open-source databases. A key differentiator is Aurora’s distributed storage architecture.
 
 <div class="post-image-section"><figure>
-  <img src="/img/grab-ml-store/figure3.png" alt="" style="width:80%"><figcaption align="middle">Figure 3: AWS Aurora storage architecture</figcaption>
+  <img src="/img/grab-ml-store/figure3.png" alt="" style="width:80%"><figcaption align="middle">Figure 3: AWS Aurora storage architecture.</figcaption>
   </figure>
 </div>
 
