@@ -51,7 +51,7 @@ To meet the functional requirements, we landed on the concept of a “feature ta
 | The only index is on the data key. | A user defines their own indexes for their tables, based on their access pattern. |
 
 <div class="post-image-section"><figure>
-<figcaption align="middle">Table 1: Comparison between new feature table and Amphawa</figcaption>
+<figcaption align="middle">Table 1: Comparison between Amphawa and the new feature table.</figcaption>
   </figure></div>
 
 Our feature tables are not just a storage solution but a critical component of our ML infrastructure. They enable us to simplify our feature management, efficiently handle the model lifecycle, and enhance our ML models' performance. This has allowed us to provide a better experience for our platform users and dramatically improve the quality of our ML models based on our A/B testing results.
