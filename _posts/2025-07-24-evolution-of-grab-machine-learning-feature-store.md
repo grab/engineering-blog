@@ -106,7 +106,7 @@ The independent scaling of reader and writer nodes allows us to maintain high pe
 
 To facilitate the seamless scaling up and down of the writer node, Aurora also allows a cluster to have a mixture of [Serverless](https://aws.amazon.com/rds/aurora/serverless/) and Provisioned nodes. The key difference between the two is that with Serverless, the Aurora service manages the capacity of a single node and adjusts accordingly as the load increases and decreases. In our context, we’re using Serverless for our writer node to quickly scale up when heavy data ingestion starts and scale down automatically once the ingestion is done. We then use Provisioned nodes for the reader nodes since read traffic is more consistent.
 
-In addition to cost and performance benefits, AWS Aurora simplifies our database management tasks. As a fully managed service, Aurora takes care of time-consuming database administration tasks such as hardware provisioning, software patching, setup, configuration, or backups, allowing our team to focus on optimising our machine learning models.
+In addition to cost and performance benefits, AWS Aurora simplifies our database management tasks. As a fully managed service, Aurora takes care of time-consuming database administration tasks such as hardware provisioning, software patching, setup, configuration, or backups, allowing our team to focus on optimising our ML models.
 
 ## Accessing the data through our SDK
 
