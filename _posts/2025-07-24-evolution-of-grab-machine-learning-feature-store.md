@@ -87,7 +87,7 @@ Do take note that a feature table can only be used for data that can be represen
 
 ## Leveraging AWS Aurora for Postgres to meet our non-functional requirements
 
-In our quest to optimise our machine learning infrastructure, we strategically decided to use [Amazon Web Services (AWS) Aurora for PostgreSQL](https://aws.amazon.com/rds/aurora/) to meet our non-functional requirements. Aurora's unique features and capabilities, which align perfectly with our operational needs, drove this decision.
+In our quest to optimise our ML infrastructure, we strategically decided to use [Amazon Web Services (AWS) Aurora for PostgreSQL](https://aws.amazon.com/rds/aurora/) to meet our non-functional requirements. Aurora's unique features and capabilities, which aligned perfectly with our operational needs, drove this decision.
 
 AWS Aurora is a fully managed relational database service that combines the speed and reliability of high-end commercial databases with the simplicity and cost-effectiveness of open-source databases. A key differentiator is Aurora’s distributed storage architecture.
 
