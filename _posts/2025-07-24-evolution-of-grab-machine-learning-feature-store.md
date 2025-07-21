@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Database, AWS]
 comments: true
 cover_photo: /img/grab-ml-store/banner-figure-1.png
-excerpt: "Explore how Grab is revolutionising its machine learning capabilities with a sophisticated feature store design. This article delves into the transition from Amphawa to a feature table-centric approach, leveraging AWS Aurora for Postgres to meet complex data management needs. Discover the strategic shift towards decentralised deployments, enhancing performance and user experience while addressing challenges like atomic updates and the noisy neighbor problem."
+excerpt: "Learn how Grab is modernising its machine learning platform with a feature table-centric architecture powered by AWS Aurora for Postgres. This shift from a legacy feature fetching system to decentralised deployments enhances performance and user experience, while solving challenges like atomic updates and noisy neighbor issues."
 ---
 
 
