@@ -22,7 +22,7 @@ We landed on the concept of feature tables: a set of data lake tables for ML fea
 
 ## From feature store to data serving
 
-A feature store is a repository that stores, serves, and manages machine learning features. It provides a unified platform where data scientists can access and share features, reducing redundancy and ensuring consistency across different models.
+A feature store is a repository that stores, serves, and manages ML features. It provides a unified platform where data scientists can access and share features, reducing redundancy and ensuring consistency across different models.
 
 <div class="post-image-section"><figure>
   <img src="/img/grab-ml-store/figure1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: The high-level architecture of our centralised feature platform.</figcaption>
