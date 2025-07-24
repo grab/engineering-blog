@@ -6,9 +6,169 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 17 Jul 2025 09:00:58 +0000</pubDate>
-    <lastBuildDate>Thu, 17 Jul 2025 09:00:58 +0000</lastBuildDate>
+    <pubDate>Thu, 24 Jul 2025 05:31:19 +0000</pubDate>
+    <lastBuildDate>Thu, 24 Jul 2025 05:31:19 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>The evolution of Grab&apos;s machine learning feature store</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;In this post, we outline how we transformed the way we serve data for our machine learning (ML) models and why we chose Amazon Aurora Postgres as the storage layer for our new feature store. At Grab, we have always been at the forefront of leveraging technology to enhance our services and provide the best possible experience for our platform users. This journey has led us to transition from a traditional approach to a more sophisticated and efficient ML feature store.&lt;/p&gt;
+
+&lt;p&gt;Over the years, ML at Grab has progressed from being used for specific, tactical purposes to being utilised to create long-term business value. As the complexity of our systems and ML models increased, requiring richer amounts of data over time, our platforms faced new challenges in managing more complex features such as a large number of feature keys (high-cardinality) and high-dimensional data or vectors. This evolution necessitated a shift in our data processing and management strategy. We needed a system to store and manage these complex features efficiently. In November 2023, this brought us back to the drawing board to evolve from Amphawa, our initial feature store.&lt;/p&gt;
+
+&lt;p&gt;We landed on the concept of feature tables: a set of data lake tables for ML features that are automatically and atomically ingested into our serving layer. While this concept is not new to the industry, as other platforms like Databricks and &lt;a href=&quot;https://docs.tecton.ai/docs/defining-features/feature-tables&quot;&gt;Tecton&lt;/a&gt; have evolved towards it, our approach is focused on atomicity and reproducibility. The rationale is that ensuring consistency and reliability during the serving lifecycle has become more critical, which has made it more challenging to manage within the model serving layer itself.&lt;/p&gt;
+
+&lt;h2 id=&quot;from-feature-store-to-data-serving&quot;&gt;From feature store to data serving&lt;/h2&gt;
+
+&lt;p&gt;A feature store is a repository that stores, serves, and manages ML features. It provides a unified platform where data scientists can access and share features, reducing redundancy and ensuring consistency across different models.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/grab-ml-store/figure1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: The high-level architecture of our centralised feature platform.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Our feature data is a key-value dataset. The key identifies a specific entity, such as a consumer ID, which is a known value in the incoming request. A composite key is supported by concatenating two or more entity identifiers. For example, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(key = consumer_id + restaurant_id)&lt;/code&gt;. The value is a binary that encodes the feature value and its type. Whenever a new value for a given entity needs to be updated, we write a new key-value pair for that entity.&lt;/p&gt;
+
+&lt;h2 id=&quot;new-functional-requirements&quot;&gt;New functional requirements&lt;/h2&gt;
+
+&lt;p&gt;As our users designed and deployed increasingly complex ML solutions, new essential functional requirements were requested by our users:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Ability to retrieve the features given in the composite keys (contextual retrieval):&lt;/strong&gt; The ML models in an upstream service might need to fetch all matching entities to form complete contextual information in order to make the recommendation. We build that context inside our ML orchestration layer before calling the model. This was previously not possible due to the design of composite keys in our initial approach.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Ability to update not just one entity atomically, but all the entities in a collection (atomic updates):&lt;/strong&gt; This requirement concerns reducing the complexity of operations, such as rolling out new models and switching between versions of feature data. In Amphawa, newly ingested data is visible to consumer systems immediately after it’s written. As changes to the data may be ingested over a long period of time, users are responsible for ensuring the models or services don’t break while the new and old data coexist during ingestion, especially during potentially breaking changes to data. This complexity translates into quite complex code, which is hard to refactor over time. With the new approach, all feature changes will only become visible through atomic updates once the entire operation finishes successfully. This eases users’ pain of maintaining compatibility across versions.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Isolation of reading and writing capacity:&lt;/strong&gt; The noisy-neighbor effect is one of the significant issues in our centralised feature store. Different readers could compete for read capacity. For some storage systems, write traffic could consume I/O capacity and affect reading latency. While reading capacity can be adjusted by scaling the storage, the competition between reading and writing capacity is highly dependent on the choice of storage. Hence, from the beginning, one of the top requirements of our second-generation feature store design was isolating reads from writes.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;feature-table&quot;&gt;Feature table&lt;/h2&gt;
+
+&lt;p&gt;To meet the functional requirements, we landed on the concept of a “feature table,” where users define and manage the schema and data on a per-table basis. Feature consumers can customise their tables based on their needs. Working with a table format directly makes it easier for data scientists to work with complex tabular data that needs to be retrieved in different ways depending on the context of the request. Moreover, it’s more manageable for us, on the platform side, because it’s closer to the actual format in the storage layer.&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Amphawa (feature-centric)&lt;/th&gt;
+      &lt;th&gt;New design (feature-table centric)&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;A user defines individual features and their types. Grouping into the table is storage layer is implicit.&lt;/td&gt;
+      &lt;td&gt;A user defines their tables with compatibility with data-lake tools such as Spark.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;The only index is on the data key.&lt;/td&gt;
+      &lt;td&gt;A user defines their own indexes for their tables, based on their access pattern.&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+&lt;figcaption align=&quot;middle&quot;&gt;Table 1: Comparison between Amphawa and the new feature table.&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/div&gt;
+
+&lt;p&gt;Our feature tables are not just a storage solution but a critical component of our ML infrastructure. They enable us to simplify our feature management, efficiently handle the model lifecycle, and enhance our ML models’ performance. This has allowed us to provide a better experience for our platform users and dramatically improve the quality of our ML models based on our A/B testing results.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-data-servings-ingestion-workflow&quot;&gt;The data serving’s ingestion workflow&lt;/h2&gt;
+
+&lt;p&gt;We designed an ingestion framework to address the atomicity requirements from the ground up.&lt;/p&gt;
+
+&lt;p&gt;The data ingestion process in Amphawa was meticulously crafted to ensure efficiency and reduce the pressure on the key-value store. Conversely, our priority has shifted to atomicity (all or nothing) to serve our feature tables and simplify version compatibility.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/grab-ml-store/figure2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Ingestion workflow.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Landing feature table in the data lake&lt;/strong&gt;: Data scientists use SQL or Python on Spark to build ML pipelines that output data lake tables. These tables and metadata for version control are stored as Parquet objects in Amazon S3.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Register collection summary&lt;/strong&gt;: A “collection summary” consists of a group of feature tables to be served and other related metadata regarding customised individual tables. In this step, our registry will validate the table’s schema and ensure the customisations are defined correctly.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Deploy collection summary&lt;/strong&gt;: Data scientists send another request to our registry to deploy a collection summary.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pre-ingestion validation&lt;/strong&gt;: The schema is validated to ensure compatibility with the target online ML models. This process ensures consistency and compatibility across feature updates.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Ingestion&lt;/strong&gt;: The ingestion mechanism is a classic reverse ETL where the data from S3 is loaded into our Aurora Postgres tables.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Post-ingestion warm-up&lt;/strong&gt;: To avoid cold-start latency spikes, shadow reading duplicates a part of the ongoing reading queries to the new tables for a period before the final switch.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;One of the core propositions of feature tables is to offer a simplified interface for writing. Compared to writing directly to a database or providing SDKs for different processing frameworks, we provide a single, common interface for writing, independent of the actual choice of database. This allows us to evolve or even integrate feature tables with other data stores without requiring our users to modify their pipelines. We can decide how the data is represented in the database at a specific isolation level while guaranteeing total transparency for writes and reducing the complexity of read operations.&lt;/p&gt;
+
+&lt;p&gt;However, if a producer has access to S3 and can write in a columnar format, they can always write feature tables. This also means they can access samples from the data lake and use other tools for data validation, as well as tools for data discovery.&lt;/p&gt;
+
+&lt;p&gt;Do take note that a feature table can only be used for data that can be represented in tabular format and requires a minimum of one index to be present in the data. In this initial phase, we support the following data types:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Atomic types (int, long, boolean, string, float, double)&lt;/li&gt;
+  &lt;li&gt;List of atomic types (List[atomic])&lt;/li&gt;
+  &lt;li&gt;List of list of atomic types (2d array)&lt;/li&gt;
+  &lt;li&gt;Dictionary with strict types of keys and values&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;leveraging-aws-aurora-for-postgres-to-meet-our-non-functional-requirements&quot;&gt;Leveraging AWS Aurora for Postgres to meet our non-functional requirements&lt;/h2&gt;
+
+&lt;p&gt;In our quest to optimise our ML infrastructure, we strategically decided to use &lt;a href=&quot;https://aws.amazon.com/rds/aurora/&quot;&gt;Amazon Web Services (AWS) Aurora for PostgreSQL&lt;/a&gt; to meet our non-functional requirements. Aurora’s unique features and capabilities, which aligned perfectly with our operational needs, drove this decision.&lt;/p&gt;
+
+&lt;p&gt;AWS Aurora is a fully managed relational database service that combines the speed and reliability of high-end commercial databases with the simplicity and cost-effectiveness of open-source databases. A key differentiator is Aurora’s distributed storage architecture.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/grab-ml-store/figure3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3: AWS Aurora storage architecture.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;architecture-breakdown&quot;&gt;Architecture breakdown&lt;/h3&gt;
+
+&lt;p&gt;The cluster volume consists of copies of the data across three “Availability Zones” in a single AWS Region. Since each database instance in the cluster reads from the distributed storage, this allows for minimal replication lag and ease of scaling out read replicas to meet performance requirements as traffic patterns change.&lt;/p&gt;
+
+&lt;p&gt;The separation between readers and writers also allows us to scale each independently. This is a crucial feature as our traffic is predominantly read-heavy. Most of our data-writes occur once a day. Using a serverless instance class with the writer node being scaled down during idle time significantly reduces our overall operational costs.&lt;/p&gt;
+
+&lt;p&gt;The independent scaling of reader and writer nodes allows us to maintain high performance and availability of our feature store. During peak read times, we can scale out the reader nodes to handle the increased load, ensuring that our ML models have uninterrupted access to the features they need. Conversely, during periods of heavy data ingestion, we can scale up the writer nodes to ensure efficient data storage.&lt;/p&gt;
+
+&lt;p&gt;To facilitate the seamless scaling up and down of the writer node, Aurora also allows a cluster to have a mixture of &lt;a href=&quot;https://aws.amazon.com/rds/aurora/serverless/&quot;&gt;Serverless&lt;/a&gt; and Provisioned nodes. The key difference between the two is that with Serverless, the Aurora service manages the capacity of a single node and adjusts accordingly as the load increases and decreases. In our context, we’re using Serverless for our writer node to quickly scale up when heavy data ingestion starts and scale down automatically once the ingestion is done. We then use Provisioned nodes for the reader nodes since read traffic is more consistent.&lt;/p&gt;
+
+&lt;p&gt;In addition to cost and performance benefits, AWS Aurora simplifies our database management tasks. As a fully managed service, Aurora takes care of time-consuming database administration tasks such as hardware provisioning, software patching, setup, configuration, or backups, allowing our team to focus on optimising our ML models.&lt;/p&gt;
+
+&lt;h2 id=&quot;accessing-the-data-through-our-sdk&quot;&gt;Accessing the data through our SDK&lt;/h2&gt;
+
+&lt;p&gt;With the goal of providing a high-performing and highly available data serving SDK design, we’ve moved on from the centralised API design of Amphawa to a decentralised access architecture in Data Serving. Each data serving deployment is a self-contained system with a cluster and feature catalogue stored within the cluster as additional metadata tables. This minimises dependency, which improves the availability of the system.&lt;/p&gt;
+
+&lt;p&gt;The data serving SDK is designed to be a thin wrapper around the database driver to optimise performance. The SDK contains only a set of utility functions that load user configuration from the &lt;a href=&quot;https://engineering.grab.com/catwalk-evolution&quot;&gt;Catwalk platform&lt;/a&gt; and a query builder to translate user queries to SQL. No additional data validation is performed in the query code path, as all validation is done during feature table generation and ingestion. Therefore, the database handles most of the heavy lifting.&lt;/p&gt;
+
+&lt;h2 id=&quot;decentralised-deployments-a-strategic-shift-in-our-infrastructure&quot;&gt;Decentralised deployments: A strategic shift in our infrastructure&lt;/h2&gt;
+
+&lt;p&gt;We also investigated the difference between centralised and decentralised deployments. We have been exploring these options in the context of our ML feature store, specifically with our Amphawa service and Catwalk orchestrators.&lt;/p&gt;
+
+&lt;p&gt;Our original feature store was deployed as a standalone service where different model-serving applications can connect to it. On the other hand, a decentralised deployment is integrated within a model-serving orchestrator, and a specific orchestrator is bound to a set of pods.&lt;/p&gt;
+
+&lt;p&gt;After extensive discussions and evaluations, we concluded that a decentralised deployment for data serving would better align with our operational needs and objectives. Below is the list of factors we compared that led us to this decision:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Version control&lt;/strong&gt;: Centralised deployments simplify version control but risk accumulating technical debt due to backward compatibility requirements. Decentralised deployments, while needing robust tracking, offer more flexibility.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Deployment strategies&lt;/strong&gt;: Decentralised deployments enabled seamless use of Blue-green and Rolling Deployment strategies. They allow multiple versions to coexist and easy rollbacks, reducing client mismatch issues.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Noisy neighbour problem&lt;/strong&gt;: Centralised deployments struggle with the noisy neighbour issue, which requires complex rate limiting. Decentralised setups mitigate this problem by isolating services.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Caching efficiency&lt;/strong&gt;: Centralised deployments often suffer low cache hits, whereas decentralised deployments improve caching efficiency by better fitting data into the cache.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;In conclusion, leveraging AWS Aurora for Postgres has enabled us to create a robust, scalable, and cost-effective feature store that supports our complex ML infrastructure. This is a testament to our commitment to using cutting-edge technology to enhance our services and provide the best possible experience for our users. Our shift towards decentralised deployments represents our dedication to optimising our infrastructure to support our ML models effectively. By aligning our deployment strategy with our operational needs, we aim to enhance the performance of our services and provide the best possible experience for our users.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 24 Jul 2025 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/evolution-of-grab-machine-learning-feature-store</link>
+        <guid isPermaLink="true">https://engineering.grab.com/evolution-of-grab-machine-learning-feature-store</guid>
+        
+        <category>Database</category>
+        
+        <category>AWS</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Grab&apos;s service mesh evolution: From Consul to Istio</title>
@@ -1535,206 +1695,6 @@ Now, let’s see how the service calculates the total count for the incoming req
         <category>Optimisation</category>
         
         <category>Redis</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Facilitating Docs-as-Code implementation for users unfamiliar with Markdown</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Although Grab is a tech company, not everyone is an engineer. Many team members don’t use GitLab daily, and Markdown’s quirks can be challenging for them. This made adopting the Docs-as-Code culture a hurdle, particularly for non-engineering teams responsible for key engineering-facing documents. In this article, we’ll discuss how we’ve streamlined the Docs-as-Code process for technical contributors, specifically non-engineers, who are not very familiar with GitLab and might face challenges with Markdown. For more on the benefits of the Docs-as-Code approach, check out &lt;a href=&quot;https://engineering.grab.com/doc-as-code&quot;&gt;this blog&lt;/a&gt; on the subject.&lt;/p&gt;
-
-&lt;p&gt;As part of our ongoing efforts to enhance the TechDocs experience, we’ve introduced a rich text editor for those who prefer a &lt;a href=&quot;https://en.wikipedia.org/wiki/WYSIWYG&quot;&gt;WYSIWYG (What You See Is What You Get)&lt;/a&gt; interface on top of a Git workflow, helping to simplify authoring. We’ll also cover how we plan to improve the workflow for non-engineering teams contributing to service and standalone documentation.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-need-for-a-rich-text-editor&quot;&gt;The need for a rich text editor&lt;/h2&gt;
-
-&lt;p&gt;Ask any developer today, and they’ll likely tell you that Markdown is the go-to format for documentation. Due to its simplicity, whether it’s GitHub, GitLab, Bitbucket, or other platforms, Markdown has become the default choice, even for issue tracking. It’s also integrated into most text editors, like IntelliJ, VS Code, Vim, and Emacs, with handy plugins for syntax highlighting and previewing.&lt;/p&gt;
-
-&lt;p&gt;Engineers are gradually embracing the Docs-as-Code approach and enjoying the benefits of writing the documentation in Markdown format directly in their IDEs and pushing them out as merge requests (MR). However, non-engineers face the nuance of writing in Markdown and going through the Git workflow. This is when the call for a &lt;strong&gt;WYSIWYG (What You See Is What You Get)&lt;/strong&gt; editor aka TechDocs editor came about. This solution brought about several benefits to non-engineers. It provides a familiar, UI-based experience for editing, but it still aligns with the Docs-as-Code model. This tool allows users to edit documentation via a simple UI in the Backstage portal without having to deal with the complexities of MkDocs, entity catalogs, or Markdown syntax. In the context Backstage, “entities” refer to services, platforms, tools, or libraries, and documentation is often tied to these entities to provide context sensitivity. The goal was to make it easy for people to focus on content, not the tools, and enable quick updates without the technical overhead.&lt;/p&gt;
-
-&lt;p&gt;We’ve kept GitLab as the central storage system, but now, with the TechDocs editor, non-engineers can contribute with ease. Figure 1 highlights our editor’s features:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Reordering&lt;/li&gt;
-  &lt;li&gt;Renaming&lt;/li&gt;
-  &lt;li&gt;Deleting pages&lt;/li&gt;
-  &lt;li&gt;Switching between normal and Markdown views&lt;/li&gt;
-  &lt;li&gt;Formatting text with titles, bullets, numbering&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/Facilitating-Docs-as-Code/figure-1.gif&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: TechDocs editor in Helix TechDocs portal&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Our goal for our editor is to make it more flexible, performant, and user-friendly. Based on user feedback, key priorities include customisation, extensibility for non-standard Markdown elements, and long-term maintainability.&lt;/p&gt;
-
-&lt;p&gt;To achieve this, we selected the &lt;strong&gt;Lexical framework&lt;/strong&gt;. Compared to other Markdown-based tools like Toast UI, Lexical offers greater extensibility, allowing us to implement advanced features such as autocomplete and support for non-standard Markdown elements like Kroki diagrams.&lt;/p&gt;
-
-&lt;p&gt;The following flowchart illustrates how Markdown content is imported and exported within the Lexical editor, ensuring seamless integration with TechDocs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/Facilitating-Docs-as-Code/figure-6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Lexical Markdown transformer flow chart &lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;By continuously iterating based on user needs, we aim to make Docs-as-Code accessible not just for engineers but for anyone contributing to documentation at Grab.&lt;/p&gt;
-
-&lt;h1 id=&quot;user-journeys&quot;&gt;User journeys&lt;/h1&gt;
-
-&lt;p&gt;We explored various workflows to streamline the documentation lifecycle, focusing on both creation and editing processes. By integrating these workflows into the developer portal, we ensured that users can easily create and edit documentation, enhancing overall efficiency and collaboration.&lt;/p&gt;
-
-&lt;p&gt;Here are the three key user journeys we focused on addressing:&lt;/p&gt;
-
-&lt;h3 id=&quot;journey-1-edit-existing-techdocs&quot;&gt;Journey 1: Edit existing TechDocs&lt;/h3&gt;
-
-&lt;h4 id=&quot;high-level-workflow-definition&quot;&gt;High level workflow definition:&lt;/h4&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Toggle to ‘edit’ mode&lt;/strong&gt;: The user switches to the edit mode to start making changes to the TechDocs.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;User starts editing TechDocs&lt;/strong&gt;: The user begins the process of editing the documentation and clicks save.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;User gets redirected to GitLab&lt;/strong&gt;: If not authenticated, they are redirected to GitLab for authentication. Once authenticated, a merge request is created to update the entity YAML file and add the new TechDocs.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Access check&lt;/strong&gt;: The system checks if the user has access to the TechDocs file repository. If not, they are prompted to request access.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/Facilitating-Docs-as-Code/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3: User journey 1&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;journey-2-create-stand-alone-techdocs-from-documentation-page&quot;&gt;Journey 2: Create stand-alone TechDocs from “Documentation” page&lt;/h3&gt;
-
-&lt;h4 id=&quot;high-level-workflow-definition-1&quot;&gt;High level workflow definition:&lt;/h4&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;User authentication&lt;/strong&gt;:
-    &lt;ul&gt;
-      &lt;li&gt;If the user is not authenticated, they are redirected to GitLab for authentication.&lt;/li&gt;
-      &lt;li&gt;If the user is already authenticated, the process skips to the next step.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Registering merge requests&lt;/strong&gt;:
-    &lt;ul&gt;
-      &lt;li&gt;The MR is registered to a scheduler job to automatically register a new entity catalog when it detects that the MR has been merged.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;This workflow ensures that users are authenticated via GitLab before proceeding and that new entity catalogs are automatically registered upon the merging of MRs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/Facilitating-Docs-as-Code/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4: User journey 2&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;journey-3-create-techdocs-from-docs-tab-on-entity-page&quot;&gt;Journey 3: Create TechDocs from “Docs” tab on entity page&lt;/h3&gt;
-
-&lt;h4 id=&quot;high-level-workflow-definition-2&quot;&gt;High level workflow definition:&lt;/h4&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Start creating TechDocs&lt;/strong&gt;:
-    &lt;ul&gt;
-      &lt;li&gt;User selects ‘create TechDocs’ on the ‘Docs’ tab in the Helix TechDocs portal UI.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Save and redirect&lt;/strong&gt;:
-    &lt;ul&gt;
-      &lt;li&gt;User clicks ‘save’ and is redirected to GitLab with a merge request (MR) created to update the entity YAML file and add new TechDocs.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Access check and MR registration&lt;/strong&gt;:
-    &lt;ul&gt;
-      &lt;li&gt;If the user has access to the entity YAML file repository, proceed with the MR. If not, prompt the user to get access.&lt;/li&gt;
-      &lt;li&gt;Register the MR to a scheduler job to automatically refresh the entity catalog when it detects the MR as merged.&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/Facilitating-Docs-as-Code/figure-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5: User journey 3&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;phased-rollout&quot;&gt;Phased rollout&lt;/h2&gt;
-
-&lt;p&gt;We phased the rollout of our Markdown editor to ensure a smooth transition, allowing users to gradually adapt while we gathered feedback and iterated on features. This approach helped us address challenges early, refine usability, and deliver meaningful improvements with each phase.&lt;/p&gt;
-
-&lt;h3 id=&quot;phase-1-initial-markdown-editor-for-developer-portal&quot;&gt;Phase 1: Initial Markdown editor for developer portal&lt;/h3&gt;
-
-&lt;p&gt;In Phase 1, we built a basic editor aligned with our documentation standards. Users can create and edit TechDocs for different entity catalogs, with support for basic Markdown and image previews for both absolute and relative paths. The editor tracks concurrent editing sessions and shows pending merge requests. It also includes Markdown configuration options to add, rename, reorganise, or delete pages. Additionally, our GitLab integration consolidates changes into a single commit and opens a merge request.&lt;/p&gt;
-
-&lt;h3 id=&quot;phase-2-independent-documentation-creation&quot;&gt;Phase 2: Independent documentation creation&lt;/h3&gt;
-
-&lt;p&gt;Phase 2 includes expanded functionality to support independent documentation creation and related features, such as:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;HTML preview and image uploads (relative paths).&lt;/li&gt;
-  &lt;li&gt;Save drafts locally in the browser.&lt;/li&gt;
-  &lt;li&gt;Pending MRs listed in the editor.&lt;/li&gt;
-  &lt;li&gt;Draw.io and Excalidraw integration for diagrams.&lt;/li&gt;
-  &lt;li&gt;MkDocs updates: change site name.&lt;/li&gt;
-  &lt;li&gt;Auto-registeration of new entity catalogs when MRs are merged.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;phase-3-advanced-editor-capabilities&quot;&gt;Phase 3: Advanced editor capabilities&lt;/h3&gt;
-
-&lt;p&gt;Phase 3 introduced additional features, such as:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Support for Kroki / Mermaid diagrams.&lt;/li&gt;
-  &lt;li&gt;Display concurrent edit sessions for better collaboration.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Each phase improved the editor, enhancing TechDocs at Grab with seamless GitLab integration and user-friendly features.&lt;/p&gt;
-
-&lt;h2 id=&quot;integrating-the-ability-to-do-a-live-preview&quot;&gt;Integrating the ability to do a live preview&lt;/h2&gt;
-
-&lt;p&gt;While syntax highlighting in the TechDocs editor is helpful, it can’t fully predict how the final Markdown document will appear once rendered due to Markdown flavour inconsistencies. This is especially true for elements like images, tables, and diagrams, where visual verification is crucial. To minimise these risks, the TechDocs editor includes a live preview feature, allowing users to see the fully rendered document alongside the editor in a split-screen view. This lets users verify their work as they go, preventing the need to switch back and forth between the editor and the final document, saving time and reducing potential formatting errors.&lt;/p&gt;
-
-&lt;p&gt;However, like most live preview features, performance challenges can arise. For larger documents, the process of continuously converting Markdown to HTML can slow down editing. External resources such as images that need to be re-rendered, can cause visual glitches or delays in the preview. Running scripts or using plugins with extended grammar also adds to the performance load, requiring frequent re-execution and potentially slowing down the experience.&lt;/p&gt;
-
-&lt;p&gt;To mitigate these issues, the TechDocs editor uses an inbuilt preview feature that shows users exactly how their changes are going to appear on the portal once their changes are merged. This ensures that users can confidently make adjustments and understand the final presentation before committing their updates. Additionally, the live preview feature enables more efficient collaboration by providing real-time feedback on content and formatting, further enhancing the overall documentation workflow.&lt;/p&gt;
-
-&lt;h2 id=&quot;gitlab-integration-strategy&quot;&gt;GitLab integration strategy&lt;/h2&gt;
-
-&lt;p&gt;The TechDocs editor integrates seamlessly with GitLab, allowing users to make changes effortlessly through OAuth2 authentication. When users log into the editor, they simply click the “Connect with GitLab” button, which provides access via the OAuth 2.0 protocol. Once connected, all modifications made within the editor are executed using the user’s GitLab credentials, streamlining the documentation process and ensuring a smooth experience for users as they update their documentation directly within the TechDocs framework.&lt;/p&gt;
-
-&lt;p&gt;To minimise Git conflicts, we considered and implemented some of these approaches:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Display pending merge requests at the top of the editor to alert users of existing changes.&lt;/li&gt;
-  &lt;li&gt;Show who else is editing the same TechDocs to help users coordinate and avoid conflicts.&lt;/li&gt;
-  &lt;li&gt;Include tools to automatically or semi-automatically resolve Git conflicts.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Bringing Docs-as-Code to a broader audience at Grab meant addressing the challenges faced by non-engineering contributors. With the introduction of a WYSIWYG editor, seamless GitLab integration, and a live preview feature, we’ve made it easier for everyone to contribute without needing deep Markdown expertise.&lt;/p&gt;
-
-&lt;p&gt;As we continue to improve the TechDocs editor, our focus remains on removing barriers to documentation, enhancing collaboration, and ensuring that our docs evolve alongside our fast-moving engineering teams.&lt;/p&gt;
-
-&lt;p&gt;Docs-as-Code isn’t just about engineers writing documentation—it’s about making documentation a natural and frictionless part of the development process for everyone.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebmarkdown&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 04 Apr 2025 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/facilitating-docs-as-code-with-markdown</link>
-        <guid isPermaLink="true">https://engineering.grab.com/facilitating-docs-as-code-with-markdown</guid>
-        
-        <category>Blog</category>
-        
-        <category>TechDocs</category>
-        
-        <category>Helix</category>
-        
-        <category>Engineering</category>
         
         
         <category>Engineering</category>
