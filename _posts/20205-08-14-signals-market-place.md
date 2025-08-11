@@ -1,14 +1,14 @@
 ---
 layout: post
 id: 20205-08-14-signals-market-place
-title: 'Data Mesh at Grab part I: Building trust through certification'
+title: 'Data mesh at Grab part I: Building trust through certification'
 date: 2025-08-14 00:23:00
 authors: [chunrong-phang, satarupa-seal, gladys-chia, jerome-tong]
 categories: [Engineering]
 tags: [Data, Database, Engineering]
 comments: true
 cover_photo: /img/data-mesh-at-grab-part-1/cover.png
-excerpt: "Grab has embarked on a transformative journey to overhaul its enterprise data ecosystem, addressing challenges posed by the rapid growth of its business spanning ride-hailing, food delivery, and financial services. With the increasing complexity of its data landscape, Grab transitioned from a centralised data warehouse model to a data mesh architecture, a decentralised approach treating data as a product owned by domain-specific teams. The article shares the motivations behind the change, the factors and steps taken to make it a success, and results."
+excerpt: "Grab has embarked on a transformative journey to overhaul its enterprise data ecosystem, addressing challenges posed by the rapid growth of its business spanning across ride-hailing, food delivery, and financial services. With the increasing complexity of its data landscape, Grab transitioned from a centralised data warehouse model to a data mesh architecture, a decentralised approach treating data as a product owned by domain-specific teams. The article shares the motivations behind the change, the factors and steps taken to make it a success, and results."
 ---
 
 ## Introduction
@@ -17,7 +17,7 @@ At Grab, our journey towards a more robust and scalable data ecosystem has been 
 
 Considering the size of our data lake and complexity of our ecosystem, with businesses spanning across ride hailing, food delivery, and financial services, we have been long past the point where a single centrally managed data warehouse could serve all these data needs. Over its first decade, Grab experienced dramatic growth. Like most growing businesses, teams in Grab prioritised delivering new features to meet the demands of their users. This meant that the task of data maintenance had to take a back seat so that development and stabilisation works can be focused to keep up with the growth. However, to prepare Grab for the next 10 years, especially for a future where AI is likely to play an important role, our leadership understood the need for high quality data foundation and gave a mandate to our data teams to uplevel our entire enterprise data ecosystem.
 
-Acknowledging the rising need for data-driven insights and the continuous expansion of our data repository, we initiated our Data Mesh journey, named the Signals Marketplace, in 2024.
+Acknowledging the rising need for data-driven insights and the continuous expansion of our data repository, we initiated our data mesh journey, named the Signals Marketplace, in 2024.
 
 However, this journey was far from simple. We encountered several critical challenges that required a significant transformation in our approach to data management. Some of the challenges encountered include:
 
@@ -68,10 +68,12 @@ To drive the adoption of data certification and the principles of data mesh acro
 
 ### Operationalisation
 
-Operationalisation: The successful operationalisation of our data mesh and certification efforts relied on several key factors:
+The successful operationalisation of our data mesh and certification efforts relied on several key factors listed below:
 
 * **Executive buy-in**: Strong leadership support was crucial in driving this organisational change and emphasising the importance of data as a product.  
-* **Organisation-wide push with clear measurable reporting**: We implemented an organisation-wide initiative with clearly defined goals and measurable targets for data certification. Progress is tracked and reported to ensure accountability and drive momentum.  
+
+* **Organisation-wide push with clear measurable reporting**: We implemented an organisation-wide initiative with clearly defined goals and measurable targets for data certification. Progress is tracked and reported to ensure accountability and drive momentum. 
+
 * **Dashboard to guide Grabbers target most used tables**: Dashboards and tooling likely within Hubble, provided visibility into data usage patterns, guiding teams to prioritise the certification of their most popular and impactful datasets.
 
 ### Outcomes
@@ -79,7 +81,9 @@ Operationalisation: The successful operationalisation of our data mesh and certi
 As a result of these efforts, we have observed significant positive outcomes:
 
 * **75% of Grab queries hitting certified assets**: We achieved a significant milestone with 75% of Grab's data queries now targeting certified assets. This indicates a strong adoption of certified data products and a growing trust in their reliability.  
+
 * **Active deprecation of assets**: The focus on data ownership and the push for certification has also led to increased visibility into our data landscape, allowing us to identify and actively deprecate redundant and duplicated data assets. Deprecated tables increases 400% year over year (YoY). This not only improves efficiency but also reduces the complexity and cost of maintaining our data infrastructure.  
+
 * **Accelerated innovation and cross-domain reusability**: Prior to data mesh, every team often resorted to building their own data sources which leads to lower quality outcomes and slower turn around time. Today, internet of things datasets (IoT) like weather data collected by one team can now be reused by another team to optimise marketplace decisions — a practical step toward a more connected data ecosystem.
 
 Beyond these individual instances, we observe a convergence across Grab towards most used datasets, with the number of P80 datasets (the top 80% of Grab’s most used data) reducing by over 58% since the start of the campaign.
