@@ -90,7 +90,7 @@ Beyond these individual instances, we observe a convergence across Grab towards 
 
 ## What’s next
 
-While we have made significant strides in our data mesh journey, we recognise that this is an ongoing evolution. This progress wouldn’t be as smooth sailing without the platforms we build for data management and observability. In our next article, we will be delving into the enhancements for crucial tooling and platforms like Genchi and Hubble, that underpin our data mesh vision and enable greater data reliability and reusability.  
+While we have made significant strides in our data mesh journey, we recognise that this is an ongoing evolution. This progress wouldn’t be as smooth sailing without the platforms we build for data management and observability. In our next article, we will be delving into the enhancements for crucial tooling and platforms like Genchi and Hubble, which underpin our data mesh vision and enable greater data reliability and reusability.  
 
 <small class="credits">Massive credits to Grab's leadership, Mohan Krishnan and Nikhil Dwarakanath, as well as Data owners on driving this grab-wide effort to build strong data foundations in Grab. Grab's data mesh would not have been possible without the commitment of all data owners to certify and curate their data products.</small>
 
