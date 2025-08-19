@@ -64,7 +64,7 @@ To further enhance accountability and ensure adherence to data contracts, we imp
 
 To drive the adoption of data certification and the principles of data mesh across Grab, we focused on the following north star metric: **percentage of queries hitting certified assets (%)**. This metric serves as a direct indicator of the reusability and trust in our certified data products. It also helps teams prioritise their certification efforts towards the most frequently used tables. It essentially pushes every data team in two synergistic directions:  
 1. To certify their most used datasets.
-2. To query only certified datasets as much as possible. 
+* To query only certified datasets as much as possible. 
 
 ### Operationalisation
 
