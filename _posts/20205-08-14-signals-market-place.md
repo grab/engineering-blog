@@ -31,7 +31,7 @@ However, this journey was far from simple. We encountered several critical chall
 
 * **No single source of truth**: While we did have a central data warehouse, it still left a lot of data gaps across Grab’s many business lines. Teams would struggle to identify the correct data definitions and reliable sources of truth.
 
-* **Varied sophistication of data practitioners:** Different teams have different levels of expertise in regards to data. Some teams had dedicated data engineers, but many didn’t.
+* **Varied sophistication of data practitioners**: Different teams have different levels of expertise in regards to data. Some teams had dedicated data engineers, but many didn’t.
 
 To address these challenges, we made a strategic decision to adopt a data mesh architecture. Data mesh is a decentralised approach to data management that treats data as a product, owned and served by domain specific teams. This paradigm shift empowers teams closest to the data to take responsibility for its quality, reliability, and accessibility.
 
