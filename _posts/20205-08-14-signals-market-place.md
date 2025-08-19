@@ -27,7 +27,7 @@ However, this journey was far from simple. We encountered several critical chall
 
 * **Unscalable reliance on central Data Engineering (DE) team**: Our traditional reliance on a central DE team to curate and serve all data needs was becoming a bottleneck. This centralised model struggled to keep pace with the distributed nature of data creation and consumption across various product and engineering teams. 
 
-* **Lack of communication between data consumers and producers:** Data producers are unaware of downstream dependencies of their data which led to several instances of critical pipelines breaking because of upstream changes.  
+* **Lack of communication between data consumers and producers**: Data producers are unaware of downstream dependencies of their data which led to several instances of critical pipelines breaking because of upstream changes.  
 
 * **No single source of truth**: While we did have a central data warehouse, it still left a lot of data gaps across Grab’s many business lines. Teams would struggle to identify the correct data definitions and reliable sources of truth.
 
