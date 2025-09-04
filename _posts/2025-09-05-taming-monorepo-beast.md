@@ -23,7 +23,7 @@ Here's how it works:
 - **Replication**: Data is replicated to **secondary** nodes.
 - **Read operations**: Secondary nodes handle read operations, such as clones and fetches, effectively distributing the load across the cluster.
 - **Failover**: If the primary node fails, a secondary node can take over.
-For the system to function effectively, replication must be nearly instantaneous. When secondary nodes experience significant delays syncing with the primary—a condition called **replication lag**-—GitLab stops routing read requests to the secondary nodes to ensure data consistency. This forces all traffic back to the primary node, eliminating the benefits of our distributed setup. Figure 1 illustrates the replication architecture of Gitaly nodes.
+For the system to function effectively, replication must be nearly instantaneous. When secondary nodes experience significant delays syncing with the primary—a condition called **replication lag**—GitLab stops routing read requests to the secondary nodes to ensure data consistency. This forces all traffic back to the primary node, eliminating the benefits of our distributed setup. Figure 1 illustrates the replication architecture of Gitaly nodes.
 
 <div class="post-image-section"><figure>
   <img src="/img/taming-monorepo-beast/replication-architecture-gitaly.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: The replication architecture of Gitaly nodes in a high-availability setup.</figcaption>
@@ -31,7 +31,7 @@ For the system to function effectively, replication must be nearly instantaneous
 </div>
 
 ## The scale of our problem
-Our Go monorepo started as a simple repository 11 years ago but ballooned as Grab grew. A Git analysis using [git-sizer](https://github.com/github/git-sizer) utility in early 2025 revealed the shocking scale:
+Our Go monorepo started as a simple repository 11 years ago but ballooned as Grab grew. A Git analysis using the [git-sizer](https://github.com/github/git-sizer) utility in early 2025 revealed the shocking scale:
 
 - **12.7 million commits** accumulated over a decade.
 - **22.1 million Git trees** consuming 73GB of metadata.
@@ -40,7 +40,7 @@ Our Go monorepo started as a simple repository 11 years ago but ballooned as Gra
 - **429,000 commits deep** on some branches.
 - **444,000 files** in the latest checkout.
 
-This massive size wasn't just a number—-it was crippling our daily operations.
+This massive size wasn't just a number—it was crippling our daily operations.
 
 ### Infrastructure problems
 
@@ -58,20 +58,20 @@ The key issues here are:
 
 ### Developer experience issues
 
-The growing size of the monorepo directly impacts developer workflows:
+The growing size of the monorepo directly impacted developer workflows:
 
 - **Slow clones**: 8+ minutes even on fast networks.
 - **Painful Git operations**: Every commit, diff, and blame had to process millions of objects.
-- **CI pipeline overhead**: Repository cloning adds up 5-8 minutes to every CI job.
+- **CI pipeline overhead**: Repository cloning added up 5-8 minutes to every CI job.
 - **Frustrated developers**: "Why is this repo so slow?" became a common question.
 
 ### Operational challenges
 
-The repository’s scale introduces significant operational hurdles:
+The repository’s scale introduced significant operational hurdles:
 
 - **Storage issues**: 250GB of Git data made backups and maintenance cumbersome.
-- **GitLab UI timeouts**: The web interface struggles to handle millions of commits and refs, frequently timing out.
-- **Limited CI scalability**: Adding more CI runners overloads the single working node.
+- **GitLab UI timeouts**: The web interface struggled to handle millions of commits and refs, frequently timing out.
+- **Limited CI scalability**: Adding more CI runners overloaded the single working node.
 
 All these factors were dragging down developer productivity. It was clear that **continuing to let the monorepo grow unchecked was not sustainable**. We needed to make the repository leaner and faster, without losing the important history that teams relied on.
 
@@ -79,7 +79,7 @@ All these factors were dragging down developer productivity. It was clear that *
 
 ### Proof of concept: Validating the theory
 
-Before making any changes, we needed to answer a critical question: Would trimming repository history solve our replication issues? Without proof, committing to such a major change felt risky. So we set out to test the idea.
+Before making any changes, we needed to answer a critical question: "Would trimming repository history solve our replication issues?" Without proof, committing to such a major change felt risky. So we set out to test the idea.
 
 **The test setup**:
 
@@ -103,8 +103,7 @@ This proof of concept gave us confidence that history trimming was the right app
 
 ### Initial strategy: Time-based approach (1-2 years)
 
-Initially, we wanted to keep commits from the last 1-2 years and archive everything else, as this seemed like a reasonable balance between recent history and size reduction.
-However, when we developed our custom migration script, we discovered it could only process **100 commits per hour**, approximately 2,400 commits per day. With millions of commits in the original repository, even keeping 1-2 years of history would take months.
+Initially, we wanted to keep commits from the last 1-2 years and archive everything else, as this seemed like a reasonable balance between recent history and size reduction. However, when we developed our custom migration script, we discovered it could only process **100 commits per hour**, approximately 2,400 commits per day. With millions of commits in the original repository, even keeping 1-2 years of history would take months.
 
 - We can only process ~100 commits per hour in batches of 20 to avoid memory limits on GitLab runners.
 - Each batch takes 2 minutes to process, but requires 10 minutes of cleanup (`git gc`, `git reflog expire`) to prevent local disk and memory exhaustion.
@@ -191,7 +190,7 @@ In this phase, the script focuses on reconstructing history based on critical ta
   - Embed the original commit hash in the commit message for traceability.
   - Gracefully handle LFS checkout failures.
 
-  Push the processed batch of 20 commits to the destination repository, with LFS tolerance.
+  Then, push the processed batch of 20 commits to the destination repository, with LFS tolerance.
 4. **Cleanup and continue**: Perform cleanup operations after each batch and proceed to the next.
 
 **Phase 2: Delta migration**
@@ -206,7 +205,7 @@ This phase integrates recent commits after the cutoff date.
   - Embed the original commit hash for resumption tracking in case of interruptions.
   - Gracefully handle LFS checkout failures.
 
-  Push the processed batch of commits to the destination repository, with LFS tolerance.
+  Then, push the processed batch of commits to the destination repository, with LFS tolerance.
 
 3. **Tag mapping**: Map tags to their corresponding new commit hashes.
 4. **Push tags**: Push related tags pointing to the correct new commits.
@@ -256,7 +255,7 @@ The migration was executed in two carefully planned phases.
 - **Phase 1** - Bulk migration: Migrated 95% of tags while keeping the old repo live.
 - **Phase 2** - Delta migration: Performed final synchronization during a maintenance window to migrate recent changes.
 
-## Results and discussion
+## Results and impact
 
 ### Infrastructure transformation
 
@@ -356,7 +355,7 @@ Such a large-scale migration was not without its hiccups and lessons. Here are s
 
 ### Git LFS woes
 
-Initially, GitLab rejected some commits due to missing LFS objects, even old commits that we weren’t keeping. This happened because GitLab’s push hook expected the content of LFS pointers, even if the files weren’t required. To fix this, we had to allow incomplete pushes and skip LFS download errors. We also wrote logic to **selectively fetch LFS objects** for commits we were keeping. This ensured that any binary assets needed by tagged commits were present in the new repo. The takeaway is that **LFS adds complexity to history rewrites** – plan for it by adjusting Git LFS settings (e.g., lfs.allowincompletepush) and verifying important large files are carried over.
+Initially, GitLab rejected some commits due to missing LFS objects, even old commits that we weren’t keeping. This happened because GitLab’s push hook expected the content of LFS pointers, even if the files weren’t required. To fix this, we had to allow incomplete pushes and skip LFS download errors. We also wrote logic to **selectively fetch LFS objects** for commits we were keeping. This ensured that any binary assets needed by tagged commits were present in the new repo. The takeaway is that **LFS adds complexity to history rewrites** – plan for it by adjusting Git LFS settings (e.g., `lfs.allowincompletepush`) and verifying important large files are carried over.
 
 ### Pipeline token scoping
 
