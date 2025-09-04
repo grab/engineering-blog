@@ -40,7 +40,7 @@ Our Go monorepo started as a simple repository 11 years ago but ballooned as Gra
 - **429,000 commits deep** on some branches.
 - **444,000 files** in the latest checkout.
 
-This massive size wasn't just a number—it was crippling our daily operations.
+This massive size wasn’t just a number—it was crippling our daily operations.
 
 ### Infrastructure problems
 
@@ -73,7 +73,7 @@ The repository’s scale introduced significant operational hurdles:
 - **GitLab UI timeouts**: The web interface struggled to handle millions of commits and refs, frequently timing out.
 - **Limited CI scalability**: Adding more CI runners overloaded the single working node.
 
-All these factors were dragging down developer productivity. It was clear that **continuing to let the monorepo grow unchecked was not sustainable**. We needed to make the repository leaner and faster, without losing the important history that teams relied on.
+All these factors were dragging down developer productivity. It was clear that **continuing to let the monorepo grow unchecked wasn’t sustainable**. We needed to make the repository leaner and faster, without losing the important history that teams relied on.
 
 ## Our solution journey
 
@@ -110,7 +110,7 @@ Initially, we wanted to keep commits from the last 1-2 years and archive everyth
 - This means each batch takes 12 minutes, allowing only 5 batches per hour (60 ÷ 12 = 5), totaling to 100 commits per hour (5 × 20 = 100).
 - Larger batches increased cleanup time and skipping cleanup caused jobs to crash after 200-300 commits.
 
-The bottleneck was not just the number of commits, it was the 10-minute cleanup process.
+The bottleneck wasn’t just the number of commits, it was the 10-minute cleanup process.
 
 **Additional constraints discovered**:
 
@@ -351,7 +351,7 @@ The following table summarizes the key repository metrics, comparing the state o
 
 ## Key challenges and lessons learned
 
-Such a large-scale migration was not without its hiccups and lessons. Here are some challenges we faced and what we learned:
+Such a large-scale migration wasn’t without its hiccups and lessons. Here are some challenges we faced and what we learned:
 
 ### Git LFS woes
 
