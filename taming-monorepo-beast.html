@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Taming the monorepo beast: Our journey to a leaner, faster GitLab repo</title>
+    <meta name="description" content="At Grab, our decade-old Go monorepo had become a 214GB monster with 13 million commits, causing 4-minute replication delays and crippling developer productivity. Through custom migration tooling and strategic history pruning, we achieved a 99.9% reduction in commits while preserving all critical functionality. The result? 36% faster clones, eliminated single points of failure, and a 99.4% improvement in replication performance—transforming our biggest infrastructure bottleneck into a development enabler.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/taming-monorepo-beast">
+    <meta property="og:title" content="Taming the monorepo beast: Our journey to a leaner, faster GitLab repo">
+    <meta property="og:description" content="At Grab, our decade-old Go monorepo had become a 214GB monster with 13 million commits, causing 4-minute replication delays and crippling developer productivity. Through custom migration tooling and strategic history pruning, we achieved a 99.9% reduction in commits while preserving all critical functionality. The result? 36% faster clones, eliminated single points of failure, and a 99.4% improvement in replication performance—transforming our biggest infrastructure bottleneck into a development enabler.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/taming-monorepo-beast/cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/taming-monorepo-beast">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/taming-monorepo-beast/cover.png" class="post-cover-photo" alt="Taming the monorepo beast: Our journey to a leaner, faster GitLab repo cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Taming the monorepo beast: Our journey to a leaner, faster GitLab repo</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/nagendra-gangwar.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/saurabh-vajpayee.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/dan-low.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/athar-hameed.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/akshay-misra.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#nagendra-gangwar">Nagendra Gangwar</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#saurabh-vajpayee">Saurabh Vajpayee</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#dan-low">Dan Low</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#athar-hameed">Athar Hameed</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#akshay-misra">Akshay Misra</a>
+                  
+                
+              </span>
+              <span class="post-date-large">16 Sep 2025 | 17 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p>At Grab, our engineering teams rely on a massive Go monorepo that serves as the backbone for a large portion of our backend services. This repository has been our development foundation for over a decade, but age brought complexity, and size brought sluggishness. What was once a source of unified code became a bottleneck that was slowing down our developers and straining our infrastructure.</p>
+
+<h2 id="a-primer-on-gitlab-gitaly-and-replication">A primer on GitLab, Gitaly, and replication</h2>
+
+<p>To understand our core problem, it’s helpful to know how GitLab handles repositories at scale. GitLab uses <strong>Gitaly</strong>, its Git RPC service, to manage all Git operations. In a high-availability setup like ours, we use a <strong>Gitaly Cluster</strong> with multiple nodes.</p>
+
+<p>Here’s how it works:</p>
+
+<ul>
+  <li><strong>Write operations</strong>: A <strong>primary</strong> Gitaly node handles all write operations.</li>
+  <li><strong>Replication</strong>: Data is replicated to <strong>secondary</strong> nodes.</li>
+  <li><strong>Read operations</strong>: Secondary nodes handle read operations, such as clones and fetches, effectively distributing the load across the cluster.</li>
+  <li><strong>Failover</strong>: If the primary node fails, a secondary node can take over.
+For the system to function effectively, replication must be nearly instantaneous. When secondary nodes experience significant delays syncing with the primary—a condition called <strong>replication lag</strong>—GitLab stops routing read requests to the secondary nodes to ensure data consistency. This forces all traffic back to the primary node, eliminating the benefits of our distributed setup. Figure 1 illustrates the replication architecture of Gitaly nodes.</li>
+</ul>
+
+<div class="post-image-section"><figure>
+  <img src="/img/taming-monorepo-beast/replication-architecture-gitaly.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1: The replication architecture of Gitaly nodes in a high-availability setup.</figcaption>
+  </figure>
+</div>
+
+<h2 id="the-scale-of-our-problem">The scale of our problem</h2>
+<p>Our Go monorepo started as a simple repository 11 years ago but ballooned as Grab grew. A Git analysis using the <a href="https://github.com/github/git-sizer">git-sizer</a> utility in early 2025 revealed the shocking scale:</p>
+
+<ul>
+  <li><strong>12.7 million commits</strong> accumulated over a decade.</li>
+  <li><strong>22.1 million Git trees</strong> consuming 73GB of metadata.</li>
+  <li><strong>5.16 million blob objects</strong> totaling 176GB.</li>
+  <li><strong>12 million references</strong>, mostly leftovers from automated processes.</li>
+  <li><strong>429,000 commits deep</strong> on some branches.</li>
+  <li><strong>444,000 files</strong> in the latest checkout.</li>
+</ul>
+
+<p>This massive size wasn’t just a number—it was crippling our daily operations.</p>
+
+<h3 id="infrastructure-problems">Infrastructure problems</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/taming-monorepo-beast/replication-delays.png" alt="" style="width:80%" /><figcaption align="middle">Figure 2: Replication delays of up to four minutes during peak working hours.</figcaption>
+  </figure>
+</div>
+
+<p>In high-availability setups, replication is critical for distributing workloads and ensuring system reliability. However, when replication delays occur, they can severely impact infrastructure performance and create bottlenecks. Figure 2 illustrates replication delays of up to four minutes which caused both secondary nodes, <strong>Gitaly S1 (orange)</strong> and <strong>Gitaly S2 (blue)</strong>, to lag behind the primary node, <strong>Gitaly P (green)</strong>. As a result, all requests were routed exclusively to the primary node, creating significant performance challenges.</p>
+
+<p>The key issues here are:</p>
+
+<ul>
+  <li><strong>Single point of failure</strong>: Only one of our three Gitaly nodes could handle the load, creating a bottleneck.</li>
+  <li><strong>Throttled throughput</strong>: The system limits the read capacity to just one-third of the cluster’s potential.</li>
+</ul>
+
+<h3 id="developer-experience-issues">Developer experience issues</h3>
+
+<p>The growing size of the monorepo directly impacted developer workflows:</p>
+
+<ul>
+  <li><strong>Slow clones</strong>: 8+ minutes even on fast networks.</li>
+  <li><strong>Painful Git operations</strong>: Every commit, diff, and blame had to process millions of objects.</li>
+  <li><strong>CI pipeline overhead</strong>: Repository cloning added up 5-8 minutes to every CI job.</li>
+  <li><strong>Frustrated developers</strong>: “Why is this repo so slow?” became a common question.</li>
+</ul>
+
+<h3 id="operational-challenges">Operational challenges</h3>
+
+<p>The repository’s scale introduced significant operational hurdles:</p>
+
+<ul>
+  <li><strong>Storage issues</strong>: 250GB of Git data made backups and maintenance cumbersome.</li>
+  <li><strong>GitLab UI timeouts</strong>: The web interface struggled to handle millions of commits and refs, frequently timing out.</li>
+  <li><strong>Limited CI scalability</strong>: Adding more CI runners overloaded the single working node.</li>
+</ul>
+
+<p>All these factors were dragging down developer productivity. It was clear that <strong>continuing to let the monorepo grow unchecked wasn’t sustainable</strong>. We needed to make the repository leaner and faster, without losing the important history that teams relied on.</p>
+
+<h2 id="our-solution-journey">Our solution journey</h2>
+
+<h3 id="proof-of-concept-validating-the-theory">Proof of concept: Validating the theory</h3>
+
+<p>Before making any changes, we needed to answer a critical question: “Would trimming repository history solve our replication issues?” Without proof, committing to such a major change felt risky. So we set out to test the idea.</p>
+
+<p><strong>The test setup</strong>:</p>
+
+<p>We designed a simple experiment. In our staging environment, we created two repositories:</p>
+
+<ul>
+  <li>Full history repository: This repository mirrored the original repository with full history.</li>
+  <li>Shallow history repository: This repository contained only a single commit history.</li>
+</ul>
+
+<p>Both repositories contained the same number of files and directories. We then simulated production-like load on both of the repositories.</p>
+
+<p><strong>The results</strong>:</p>
+
+<ul>
+  <li>Full history repository: <strong>160-240 seconds</strong> replication delay.</li>
+  <li>Shallow history repository: <strong>1-2.5 seconds</strong> replication delay.</li>
+</ul>
+
+<p>This was nearly a <strong>100x improvement</strong> in replication performance.</p>
+
+<p>This proof of concept gave us confidence that history trimming was the right approach and provided baseline performance expectations.</p>
+
+<h2 id="content-preservation-strategies-what-to-keep">Content preservation strategies: What to keep</h2>
+
+<h3 id="initial-strategy-time-based-approach-1-2-years">Initial strategy: Time-based approach (1-2 years)</h3>
+
+<p>Initially, we wanted to keep commits from the last 1-2 years and archive everything else, as this seemed like a reasonable balance between recent history and size reduction. However, when we developed our custom migration script, we discovered it could only process <strong>100 commits per hour</strong>, approximately 2,400 commits per day. With millions of commits in the original repository, even keeping 1-2 years of history would take months.</p>
+
+<ul>
+  <li>We can only process ~100 commits per hour in batches of 20 to avoid memory limits on GitLab runners.</li>
+  <li>Each batch takes 2 minutes to process, but requires 10 minutes of cleanup (<code class="language-plaintext highlighter-rouge">git gc</code>, <code class="language-plaintext highlighter-rouge">git reflog expire</code>) to prevent local disk and memory exhaustion.</li>
+  <li>This means each batch takes 12 minutes, allowing only 5 batches per hour (60 ÷ 12 = 5), totaling to 100 commits per hour (5 × 20 = 100).</li>
+  <li>Larger batches increased cleanup time and skipping cleanup caused jobs to crash after 200-300 commits.</li>
+</ul>
+
+<p>The bottleneck wasn’t just the number of commits, it was the 10-minute cleanup process.</p>
+
+<p><strong>Additional constraints discovered</strong>:</p>
+
+<p>As we dug deeper, we discovered more obstacles.</p>
+
+<ul>
+  <li>Critical dependencies extended beyond two years. Some Go module tags from six years ago were still actively used.</li>
+  <li>A pure time-based cut would break existing build pipelines.</li>
+  <li>Development teams needed some recent history for troubleshooting and daily operations.</li>
+</ul>
+
+<h3 id="revised-strategy-tag-based--recent-history">Revised strategy: Tag-based + recent history</h3>
+
+<p>Given the processing speed constraint of 100 commits per hour, we needed to drastically reduce the number of commits while preserving essential functionality. After careful evaluation, we settled on a tag-based approach combined with recent history.</p>
+
+<p><strong>What we decided to keep</strong>:</p>
+
+<ul>
+  <li><strong>Critical tags</strong>: All commits reachable by 2,000+ identified tags, ensuring semantic importance for releases and dependencies.</li>
+  <li><strong>Recent history</strong>: Complete commit history for the last month only addressing stakeholder needs within processing constraints.</li>
+  <li><strong>Simplified merge commits</strong>: Converted complex merge commits into single commits to further reduce processing time.</li>
+</ul>
+
+<p><strong>Why this approach worked</strong>:</p>
+
+<ul>
+  <li><strong>Time-feasible</strong>: Reduced processing time from months to weeks.</li>
+  <li><strong>Functionally complete</strong>: Preserved all tagged releases and recent development context.</li>
+  <li><strong>Stakeholder satisfaction</strong>: Met development teams’ need for recent history.</li>
+  <li><strong>Massive size reduction</strong>: Achieved 99.9% fewer commits while keeping what matters.</li>
+</ul>
+
+<p><strong>The trade-off</strong>:</p>
+
+<p>We sacrificed deep historical browsing of 1 to 2 years for practical migration feasibility, while ensuring no critical functionality was lost.</p>
+
+<h2 id="technical-implementation-methods-how-to-execute">Technical implementation methods: How to execute</h2>
+
+<h3 id="method-1-git-filter-repo-failed">Method 1: <a href="https://github.com/newren/git-filter-repo/blob/main/Documentation/examples-from-user-filed-issues.md#Remove-commits-older-than-N-days">git filter-repo</a> (Failed)</h3>
+
+<p><strong>The approach</strong>: Use Git’s filter-repo tool with <code class="language-plaintext highlighter-rouge">git replace --graft</code> to remove commits older than a specified criteria.</p>
+
+<p><strong>Why it failed</strong>:</p>
+
+<ul>
+  <li><strong>Complex history</strong>: Our repository’s highly non-linear history, with multiple branches and merges, made this approach impractical.</li>
+  <li><strong>Workflow complexity</strong>: The process required numerous <code class="language-plaintext highlighter-rouge">git replace --graft</code> commands to account for various branches and dependencies, significantly complicating the workflow.</li>
+  <li><strong>Risk of inconsistencies</strong>: The complexity introduced a high risk of errors and inconsistencies, making this method unsuitable.</li>
+</ul>
+
+<h3 id="method-2-git-rebase-onto-failed">Method 2: <a href="https://git-scm.com/book/en/v2/Git-Tools-Replace">git rebase –onto</a> (Failed)</h3>
+
+<p><strong>The approach</strong>: Use <code class="language-plaintext highlighter-rouge">git rebase --onto</code> to preserve selected commits while pruning unwanted history.</p>
+
+<p><strong>Why it failed</strong>:</p>
+
+<ul>
+  <li><strong>Scale issues</strong>: The repository size overwhelmed the rebase process.</li>
+  <li><strong>Conflict resolution</strong>: High number of unexpected conflicts that couldn’t be resolved automatically.</li>
+  <li><strong>Technical limitations</strong>: Batch processing couldn’t solve the performance issues; Git’s internal mechanisms struggled with the scale.</li>
+</ul>
+
+<h3 id="method-3-patch-based-implementation-failed">Method 3: <a href="https://www.gitkraken.com/learn/git/git-patch">Patch-based</a> implementation (Failed)</h3>
+
+<p><strong>The approach</strong>: Create and apply patches for each commit individually to preserve repository history.</p>
+
+<p><strong>Why it failed</strong>:</p>
+
+<ul>
+  <li><strong>Merge commit complexity</strong>: Couldn’t maintain correct parent-child relationships for merge commits.</li>
+  <li><strong>History integrity</strong>: Resulted in linear sequence instead of preserving original merge structure.</li>
+  <li><strong>Missing commits</strong>: Important merge commits were lost or incorrectly applied.</li>
+</ul>
+
+<h3 id="method-4-custom-migration-script-success">Method 4: Custom migration script (Success!)</h3>
+
+<p><strong>The breakthrough</strong>: A sophisticated custom script that could handle our specific requirements and processing constraints. Unlike traditional Git history rewriting tools, our script implements a two-phase chronological processing approach that efficiently handles large-scale repositories.</p>
+
+<p><strong>Phase 1: Bulk migration</strong></p>
+
+<p>In this phase, the script focuses on reconstructing history based on critical tags.</p>
+
+<ol>
+  <li><strong>Fetch tags chronologically</strong>: Retrieve all tags in the order they were created.</li>
+  <li><strong>Pre-fetch Large File Storage (LFS) objects</strong>: Collect LFS objects for tag-related commits before processing.</li>
+  <li><strong>Batch processing</strong>: Process tags in batches of 20 to optimize memory and network usage. For each tag:
+    <ul>
+      <li>Check for associated LFS objects.</li>
+      <li>Perform selective LFS fetch if required.</li>
+      <li>Create a new commit using the original tree hash and metadata.</li>
+      <li>Embed the original commit hash in the commit message for traceability.</li>
+      <li>Gracefully handle LFS checkout failures.</li>
+    </ul>
+  </li>
+</ol>
+
+<p>Then, push the processed batch of 20 commits to the destination repository, with LFS tolerance.</p>
+<ol>
+  <li><strong>Cleanup and continue</strong>: Perform cleanup operations after each batch and proceed to the next.</li>
+</ol>
+
+<p><strong>Phase 2: Delta migration</strong></p>
+
+<p>This phase integrates recent commits after the cutoff date.</p>
+
+<ol>
+  <li><strong>Fetch recent commits</strong>: Retrieve all commits created after the cutoff date in chronological order.</li>
+  <li><strong>Batch processing</strong>: Process commits in batches of 20 for efficiency. For each commit:
+    <ul>
+      <li>Check for associated LFS objects.</li>
+      <li>Perform selective LFS fetch if required.</li>
+      <li>Recreate the commit with its original metadata.</li>
+      <li>Embed the original commit hash for resumption tracking in case of interruptions.</li>
+      <li>Gracefully handle LFS checkout failures.</li>
+    </ul>
+  </li>
+</ol>
+
+<p>Then, push the processed batch of commits to the destination repository, with LFS tolerance.</p>
+
+<ol>
+  <li><strong>Tag mapping</strong>: Map tags to their corresponding new commit hashes.</li>
+  <li><strong>Push tags</strong>: Push related tags pointing to the correct new commits.</li>
+  <li><strong>Final validation</strong>: Validate all LFS objects to ensure completeness.</li>
+</ol>
+
+<p><strong>LFS handling</strong></p>
+
+<p>The script incorporates robust mechanisms to handle Git LFS efficiently.</p>
+<ul>
+  <li>Configure LFS for incomplete pushes.</li>
+  <li>Skip LFS download errors when possible.</li>
+  <li>Retry checkout with LFS smudge skip.</li>
+  <li>Perform selective LFS object fetching.</li>
+  <li>Gracefully degrade processing for missing LFS objects.</li>
+</ul>
+
+<p><strong>Key features</strong>:</p>
+
+<ul>
+  <li>Sequential processing of tags and commits in chronological order.</li>
+  <li>Resumable operations that could restart from the last processed item if interrupted.</li>
+  <li>Batch processing to manage memory and network resources efficiently.</li>
+  <li>Robust error handling for network issues and Git complications.</li>
+  <li>Maintains repository integrity while simplifying complex merge structures.</li>
+  <li>Optimized for our specific preservation strategy (tags + recent history).</li>
+</ul>
+
+<h2 id="implementation-executing-the-migration">Implementation: Executing the migration</h2>
+
+<p>With our strategy defined (tags + last month), we executed the migration using our custom script. This process involved careful planning, smart processing techniques, and overcoming technical challenges.</p>
+
+<h3 id="smart-processing-approach">Smart processing approach</h3>
+
+<p>Our custom script employed several key strategies to ensure efficient and reliable migration:</p>
+
+<ul>
+  <li><strong>Sequential tag processing</strong>: Replay tags chronologically to maintain logical history.</li>
+  <li><strong>Resumable operations</strong>: The migration could restart from the last processed item if interrupted.</li>
+  <li><strong>Batch processing</strong>: Handle items in manageable groups to prevent resource exhaustion.</li>
+  <li><strong>Progress tracking</strong>: Monitor processing rate and estimated completion time.</li>
+</ul>
+
+<h3 id="technical-challenges-solved">Technical challenges solved</h3>
+<p>The migration addressed several critical technical hurdles.</p>
+
+<ul>
+  <li><strong>Large file support</strong>: Handled Git LFS objects with incomplete push allowances.</li>
+  <li><strong>Error handling</strong>: Robust retry logic for network issues and Git errors.</li>
+  <li><strong>Merge commit simplification</strong>: Converted complex merge structures to linear commits.</li>
+</ul>
+
+<h3 id="two-phase-migration-strategy">Two-phase migration strategy</h3>
+<p>The migration was executed in two carefully planned phases.</p>
+
+<ul>
+  <li><strong>Phase 1</strong> - Bulk migration: Migrated 95% of tags while keeping the old repo live.</li>
+  <li><strong>Phase 2</strong> - Delta migration: Performed final synchronization during a maintenance window to migrate recent changes.</li>
+</ul>
+
+<h2 id="results-and-impact">Results and impact</h2>
+
+<h3 id="infrastructure-transformation">Infrastructure transformation</h3>
+
+<p>Replication delay, or the time required to sync across all Gitaly nodes, improved by 99.4% following the pruning process. As illustrated in Figures 3 and 4, the new pruned monorepo achieves replication in under ~1.5 seconds on average, compared to ~240 seconds for the old repository. This transformation eliminated the previous single-node bottleneck, enabling read requests to be distributed evenly across all three storage nodes, significantly enhancing system reliability and performance.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/taming-monorepo-beast/new-replication-delays.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3: In the new pruned monorepo, replication delay ranges from 200 - 2,000 ms.</figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="/img/taming-monorepo-beast/old-replication-delays.png" alt="" style="width:80%" /><figcaption align="middle">Figure 4: In the old monorepo, replication delay ranged from 16,000 - 28,000 ms.</figcaption>
+  </figure>
+</div>
+
+<p>The migration significantly improved load distribution across Gitaly nodes. As shown in Figure 5, the new monorepo leverages all three Gitaly nodes to serve requests, effectively tripling read capacity. Additionally, the migration eliminated the single point of failure that existed in the old monorepo, ensuring greater reliability and scalability.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/taming-monorepo-beast/new-request-distributed.png" alt="" style="width:80%" /><figcaption align="middle">Figure 5: In the new monorepo, requests are evenly distributed across all three servers, demonstrating improved performance and replication across nodes.</figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="/img/taming-monorepo-beast/old-request-distributed.png" alt="" style="width:80%" /><figcaption align="middle">Figure 6: In the old monorepo, requests were served only by a single server during working hours, creating a single point of failure.</figcaption>
+  </figure>
+</div>
+
+<h3 id="performance-improvements">Performance improvements</h3>
+<p>The migration resulted in significant improvements across multiple areas.</p>
+
+<ul>
+  <li><strong>Clone time</strong>: Reduced from 7.9 minutes to 5.1 minutes, achieving a 36% improvement, making repository cloning faster and more efficient.</li>
+  <li><strong>Commit count</strong>: Achieved a 99.9% reduction, trimming the repository from 13 million commits to just 15.8 thousand commits, drastically simplifying its structure.</li>
+  <li><strong>References</strong>: Reduced by 99.9%, going from 12 million to 9.8 thousand refs, streamlining repository metadata.</li>
+  <li><strong>Storage</strong>: Reduced by 59%, shrinking storage requirements from 214GB to 87GB, optimizing resource usage.</li>
+</ul>
+
+<h3 id="developer-experience">Developer experience</h3>
+<p>The migration also transformed the developer experience.</p>
+
+<ul>
+  <li><strong>Faster Git operations</strong>: Commits, diffs, and history commands are noticeably snappier.</li>
+  <li><strong>Responsive GitLab UI</strong>: Web interface no longer times out.</li>
+  <li><strong>Scalable CI</strong>: The system can now safely run 3x more concurrent jobs.</li>
+</ul>
+
+<p>The following table summarizes the key repository metrics, comparing the state of the repository before and after the migration:</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Old Monorepo</th>
+      <th>New Monorepo</th>
+      <th>Reduction</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Commits</td>
+      <td>~13,000,000</td>
+      <td>~15,800</td>
+      <td>−99.9% (histories squashed)</td>
+    </tr>
+    <tr>
+      <td>Git trees</td>
+      <td>~23,600,000</td>
+      <td>~2,080,000</td>
+      <td>−91% (pruned)</td>
+    </tr>
+    <tr>
+      <td>Git references</td>
+      <td>~12,200,000</td>
+      <td>9,860</td>
+      <td>−99.9% (cleaned)</td>
+    </tr>
+    <tr>
+      <td>Blob storage</td>
+      <td>214 GiB</td>
+      <td>86.8 GiB</td>
+      <td>−59% (smaller packs)</td>
+    </tr>
+    <tr>
+      <td>Files in checkout</td>
+      <td>~444,000</td>
+      <td>~444,000</td>
+      <td>~0% (no change)</td>
+    </tr>
+    <tr>
+      <td>Latest code size</td>
+      <td>~9.9 GiB</td>
+      <td>~8.4 GiB</td>
+      <td>~−15% (slightly leaner)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="key-challenges-and-lessons-learned">Key challenges and lessons learned</h2>
+
+<p>Such a large-scale migration wasn’t without its hiccups and lessons. Here are some challenges we faced and what we learned:</p>
+
+<h3 id="git-lfs-woes">Git LFS woes</h3>
+
+<p>Initially, GitLab rejected some commits due to missing LFS objects, even old commits that we weren’t keeping. This happened because GitLab’s push hook expected the content of LFS pointers, even if the files weren’t required. To fix this, we had to allow incomplete pushes and skip LFS download errors. We also wrote logic to <strong>selectively fetch LFS objects</strong> for commits we were keeping. This ensured that any binary assets needed by tagged commits were present in the new repo. The takeaway is that <strong>LFS adds complexity to history rewrites</strong> – plan for it by adjusting Git LFS settings (e.g., <code class="language-plaintext highlighter-rouge">lfs.allowincompletepush</code>) and verifying important large files are carried over.</p>
+
+<h3 id="pipeline-token-scoping">Pipeline token scoping</h3>
+
+<p>Right after the cutover, some CI pipelines failed to access resources. We discovered a GitLab CI/CD pipeline token issue – our new repo’s ID wasn’t in the <a href="https://docs.gitlab.com/ci/jobs/ci_job_token/#add-a-group-or-project-to-the-job-token-allowlist">allowed list</a> for certain secure token scopes. We quickly updated the settings to include the new project, resolving the authorization error. If your CI jobs interact with other projects or use project-scoped tokens, remember to update those references when you migrate repositories.</p>
+
+<h3 id="commit-hash-references-broke">Commit hash references broke</h3>
+
+<p>One of our internal tools was using commit SHA-1 hashes to track deployed versions. Since rewriting history means changing <strong>all commit hashes</strong>, the tool couldn’t find the expected commits. The solution was to map old hashes to new ones for the tagged releases, or better, to modify the tool to use tag names instead of raw hashes going forward. We learned to <strong>communicate early with teams</strong> that have any dependency on Git commit IDs or history assumptions. In our case, providing a mapping of old tag→new tag (which were mostly 1-to-1 except for the commit SHA) helped them adjust. In hindsight, using stable identifiers like semantic version tags, is much more robust than relying on commit hashes, which are ephemeral in a rewritten history.</p>
+
+<h3 id="developer-concerns-wheres-my-history">Developer concerns: <strong>“Where’s my history?”</strong></h3>
+
+<p>A few engineers were concerned when they noticed that the git log in the new repo only showed two years of history. From their perspective, useful historical context seemed gone. We addressed this by pointing them to the <strong>archived full-history repo</strong>. In fact, we kept the old repository read-only in our GitLab, so anyone can still search the old history if needed (just not in the main repo). Additionally, we received suggestions on making the archive easily accessible or even automate a way to query old commits on demand. From this we learned, if you prune history, ensure there’s a plan to <strong>access legacy information</strong> for those rare times it’s needed – whether that’s an archive repo, a Git bundle, or a read-only mirror.</p>
+
+<h3 id="office-network-bottleneck">Office network bottleneck</h3>
+
+<p>Interestingly, after the migration, a few developers in certain offices didn’t feel a huge speed improvement in clones. It turned out their corporate network/VPN was the limiting factor – cloning 8 GiB vs 10 GiB over a slow link is not a night and day difference. This highlighted that we should continue to work with the IT team on improving network performance. The repo is faster, but the environment matters too. We’re using this as an opportunity to improve our office VPN throughput so that the 36% clone improvement is realized by everyone, not just CI machines.</p>
+
+<h3 id="automation-and-hardcoded-ids">Automation and hardcoded IDs</h3>
+
+<p>We had a lot of automation around the monorepo (scripts, webhooks, integrations). Most of these referenced the project by name, which remained the same, so they were fine. However, a few used the project’s numeric ID in the GitLab API, which changed when we created a new repo. Those broke. We had to scan and update some configs to use the new project ID. Our learning here is to <strong>audit all external references</strong> such as CI configs, deploy scripts, and monitor jobs when migrating repositories. Ideally, use identifiable names instead of IDs, or ensure you’re prepared to update them during the cutover.</p>
+
+<h3 id="adjusting-to-new-boundaries">Adjusting to new boundaries</h3>
+
+<p>Some teams had to adjust their workflows after the prune. For instance, one team was in the habit of digging into 3 to 5 year old commit logs to debug issues. Post-migration, git log doesn’t go back that far in the main repo; they have to consult the archive for that. It’s a cultural shift to not have all history at your fingertips. We held a short information session to explain how to access the archived repo and emphasized the benefits (faster operations) that come with the lean history. After a while, teams embraced the new normal, appreciating the speed and rarely needing the older commits anyway.</p>
+
+<p>In the end, we had zero data loss – all actual code and tags were preserved – and only some minor inconveniences that were resolved within a day or two. The challenges reinforced the importance of thorough testing (our staging dry-runs caught many issues) and cross-team communication when making such a change.</p>
+
+<h2 id="impact-and-next-steps">Impact and next steps</h2>
+
+<p>This migration transformed our development infrastructure from a bottleneck into a performance enabler. We eliminated the single point of failure, restored confidence in our Git operations, and created a foundation that can support our growing engineering team.</p>
+
+<p>As the next step, we plan to generalize our pruning script to apply the same optimization techniques to other repositories, ensuring consistency and scalability across our infrastructure. Additionally, we will implement continuous performance monitoring to track repository health and proactively address any emerging issues. To prevent future repository bloat, we aim to establish clear best practices and guidelines, empowering teams to maintain efficiency while supporting the growth of our engineering operations.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>What started as a performance crisis became one of our most successful infrastructure projects. By focusing on the right problems—infrastructure reliability and performance rather than just size—we achieved dramatic improvements that benefit every developer daily.</p>
+
+<p>The key takeaway is that sometimes the biggest technical challenges require custom solutions, careful planning, and willingness to iterate until you find what works. Our 99% improvement in replication performance is just the beginning of what’s possible when you tackle infrastructure problems systematically.</p>
+
+<p><small class="credits">This migration was completed by Grab Tech Infra DevTools team, involving months of analysis, custom tooling development, and careful production migration of critical infrastructure serving thousands of developers across multiple time zones.</small></p>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://www.grab.careers/en/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#go" class="label tags-label">Go</a>
+  
+    <a href="/tags#infrastructure" class="label tags-label">Infrastructure</a>
+  
+    <a href="/tags#monorepo" class="label tags-label">Monorepo</a>
+  
+    <a href="/tags#performance" class="label tags-label">Performance</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Taming the monorepo beast: Our journey to a leaner, faster GitLab repo&url=https://engineering.grab.com/taming-monorepo-beast&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/taming-monorepo-beast" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/taming-monorepo-beast&title=Taming the monorepo beast: Our journey to a leaner, faster GitLab repo
+&summary=At Grab, our decade-old Go monorepo had become a 214GB monster with 13 million commits, causing 4-minute replication delays and crippling developer productivity. Through custom migration tooling and strategic history pruning, we achieved a 99.9% reduction in commits while preserving all critical functionality. The result? 36% faster clones, eliminated single points of failure, and a 99.4% improvement in replication performance—transforming our biggest infrastructure bottleneck into a development enabler.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/taming-monorepo-beast';
+    this.page.identifier = '/taming-monorepo-beast';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>

@@ -6,9 +6,478 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 20 Aug 2025 02:14:47 +0000</pubDate>
-    <lastBuildDate>Wed, 20 Aug 2025 02:14:47 +0000</lastBuildDate>
+    <pubDate>Tue, 16 Sep 2025 05:53:04 +0000</pubDate>
+    <lastBuildDate>Tue, 16 Sep 2025 05:53:04 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Taming the monorepo beast: Our journey to a leaner, faster GitLab repo</title>
+        <description>&lt;p&gt;At Grab, our engineering teams rely on a massive Go monorepo that serves as the backbone for a large portion of our backend services. This repository has been our development foundation for over a decade, but age brought complexity, and size brought sluggishness. What was once a source of unified code became a bottleneck that was slowing down our developers and straining our infrastructure.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-primer-on-gitlab-gitaly-and-replication&quot;&gt;A primer on GitLab, Gitaly, and replication&lt;/h2&gt;
+
+&lt;p&gt;To understand our core problem, it’s helpful to know how GitLab handles repositories at scale. GitLab uses &lt;strong&gt;Gitaly&lt;/strong&gt;, its Git RPC service, to manage all Git operations. In a high-availability setup like ours, we use a &lt;strong&gt;Gitaly Cluster&lt;/strong&gt; with multiple nodes.&lt;/p&gt;
+
+&lt;p&gt;Here’s how it works:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Write operations&lt;/strong&gt;: A &lt;strong&gt;primary&lt;/strong&gt; Gitaly node handles all write operations.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Replication&lt;/strong&gt;: Data is replicated to &lt;strong&gt;secondary&lt;/strong&gt; nodes.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Read operations&lt;/strong&gt;: Secondary nodes handle read operations, such as clones and fetches, effectively distributing the load across the cluster.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Failover&lt;/strong&gt;: If the primary node fails, a secondary node can take over.
+For the system to function effectively, replication must be nearly instantaneous. When secondary nodes experience significant delays syncing with the primary—a condition called &lt;strong&gt;replication lag&lt;/strong&gt;—GitLab stops routing read requests to the secondary nodes to ensure data consistency. This forces all traffic back to the primary node, eliminating the benefits of our distributed setup. Figure 1 illustrates the replication architecture of Gitaly nodes.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/taming-monorepo-beast/replication-architecture-gitaly.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: The replication architecture of Gitaly nodes in a high-availability setup.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;the-scale-of-our-problem&quot;&gt;The scale of our problem&lt;/h2&gt;
+&lt;p&gt;Our Go monorepo started as a simple repository 11 years ago but ballooned as Grab grew. A Git analysis using the &lt;a href=&quot;https://github.com/github/git-sizer&quot;&gt;git-sizer&lt;/a&gt; utility in early 2025 revealed the shocking scale:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;12.7 million commits&lt;/strong&gt; accumulated over a decade.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;22.1 million Git trees&lt;/strong&gt; consuming 73GB of metadata.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;5.16 million blob objects&lt;/strong&gt; totaling 176GB.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;12 million references&lt;/strong&gt;, mostly leftovers from automated processes.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;429,000 commits deep&lt;/strong&gt; on some branches.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;444,000 files&lt;/strong&gt; in the latest checkout.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This massive size wasn’t just a number—it was crippling our daily operations.&lt;/p&gt;
+
+&lt;h3 id=&quot;infrastructure-problems&quot;&gt;Infrastructure problems&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/taming-monorepo-beast/replication-delays.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Replication delays of up to four minutes during peak working hours.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In high-availability setups, replication is critical for distributing workloads and ensuring system reliability. However, when replication delays occur, they can severely impact infrastructure performance and create bottlenecks. Figure 2 illustrates replication delays of up to four minutes which caused both secondary nodes, &lt;strong&gt;Gitaly S1 (orange)&lt;/strong&gt; and &lt;strong&gt;Gitaly S2 (blue)&lt;/strong&gt;, to lag behind the primary node, &lt;strong&gt;Gitaly P (green)&lt;/strong&gt;. As a result, all requests were routed exclusively to the primary node, creating significant performance challenges.&lt;/p&gt;
+
+&lt;p&gt;The key issues here are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Single point of failure&lt;/strong&gt;: Only one of our three Gitaly nodes could handle the load, creating a bottleneck.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Throttled throughput&lt;/strong&gt;: The system limits the read capacity to just one-third of the cluster’s potential.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;developer-experience-issues&quot;&gt;Developer experience issues&lt;/h3&gt;
+
+&lt;p&gt;The growing size of the monorepo directly impacted developer workflows:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Slow clones&lt;/strong&gt;: 8+ minutes even on fast networks.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Painful Git operations&lt;/strong&gt;: Every commit, diff, and blame had to process millions of objects.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;CI pipeline overhead&lt;/strong&gt;: Repository cloning added up 5-8 minutes to every CI job.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Frustrated developers&lt;/strong&gt;: “Why is this repo so slow?” became a common question.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;operational-challenges&quot;&gt;Operational challenges&lt;/h3&gt;
+
+&lt;p&gt;The repository’s scale introduced significant operational hurdles:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Storage issues&lt;/strong&gt;: 250GB of Git data made backups and maintenance cumbersome.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;GitLab UI timeouts&lt;/strong&gt;: The web interface struggled to handle millions of commits and refs, frequently timing out.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Limited CI scalability&lt;/strong&gt;: Adding more CI runners overloaded the single working node.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;All these factors were dragging down developer productivity. It was clear that &lt;strong&gt;continuing to let the monorepo grow unchecked wasn’t sustainable&lt;/strong&gt;. We needed to make the repository leaner and faster, without losing the important history that teams relied on.&lt;/p&gt;
+
+&lt;h2 id=&quot;our-solution-journey&quot;&gt;Our solution journey&lt;/h2&gt;
+
+&lt;h3 id=&quot;proof-of-concept-validating-the-theory&quot;&gt;Proof of concept: Validating the theory&lt;/h3&gt;
+
+&lt;p&gt;Before making any changes, we needed to answer a critical question: “Would trimming repository history solve our replication issues?” Without proof, committing to such a major change felt risky. So we set out to test the idea.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;The test setup&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;We designed a simple experiment. In our staging environment, we created two repositories:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Full history repository: This repository mirrored the original repository with full history.&lt;/li&gt;
+  &lt;li&gt;Shallow history repository: This repository contained only a single commit history.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Both repositories contained the same number of files and directories. We then simulated production-like load on both of the repositories.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;The results&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Full history repository: &lt;strong&gt;160-240 seconds&lt;/strong&gt; replication delay.&lt;/li&gt;
+  &lt;li&gt;Shallow history repository: &lt;strong&gt;1-2.5 seconds&lt;/strong&gt; replication delay.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This was nearly a &lt;strong&gt;100x improvement&lt;/strong&gt; in replication performance.&lt;/p&gt;
+
+&lt;p&gt;This proof of concept gave us confidence that history trimming was the right approach and provided baseline performance expectations.&lt;/p&gt;
+
+&lt;h2 id=&quot;content-preservation-strategies-what-to-keep&quot;&gt;Content preservation strategies: What to keep&lt;/h2&gt;
+
+&lt;h3 id=&quot;initial-strategy-time-based-approach-1-2-years&quot;&gt;Initial strategy: Time-based approach (1-2 years)&lt;/h3&gt;
+
+&lt;p&gt;Initially, we wanted to keep commits from the last 1-2 years and archive everything else, as this seemed like a reasonable balance between recent history and size reduction. However, when we developed our custom migration script, we discovered it could only process &lt;strong&gt;100 commits per hour&lt;/strong&gt;, approximately 2,400 commits per day. With millions of commits in the original repository, even keeping 1-2 years of history would take months.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;We can only process ~100 commits per hour in batches of 20 to avoid memory limits on GitLab runners.&lt;/li&gt;
+  &lt;li&gt;Each batch takes 2 minutes to process, but requires 10 minutes of cleanup (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git gc&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git reflog expire&lt;/code&gt;) to prevent local disk and memory exhaustion.&lt;/li&gt;
+  &lt;li&gt;This means each batch takes 12 minutes, allowing only 5 batches per hour (60 ÷ 12 = 5), totaling to 100 commits per hour (5 × 20 = 100).&lt;/li&gt;
+  &lt;li&gt;Larger batches increased cleanup time and skipping cleanup caused jobs to crash after 200-300 commits.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The bottleneck wasn’t just the number of commits, it was the 10-minute cleanup process.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Additional constraints discovered&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;As we dug deeper, we discovered more obstacles.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Critical dependencies extended beyond two years. Some Go module tags from six years ago were still actively used.&lt;/li&gt;
+  &lt;li&gt;A pure time-based cut would break existing build pipelines.&lt;/li&gt;
+  &lt;li&gt;Development teams needed some recent history for troubleshooting and daily operations.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;revised-strategy-tag-based--recent-history&quot;&gt;Revised strategy: Tag-based + recent history&lt;/h3&gt;
+
+&lt;p&gt;Given the processing speed constraint of 100 commits per hour, we needed to drastically reduce the number of commits while preserving essential functionality. After careful evaluation, we settled on a tag-based approach combined with recent history.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;What we decided to keep&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Critical tags&lt;/strong&gt;: All commits reachable by 2,000+ identified tags, ensuring semantic importance for releases and dependencies.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Recent history&lt;/strong&gt;: Complete commit history for the last month only addressing stakeholder needs within processing constraints.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Simplified merge commits&lt;/strong&gt;: Converted complex merge commits into single commits to further reduce processing time.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Why this approach worked&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Time-feasible&lt;/strong&gt;: Reduced processing time from months to weeks.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Functionally complete&lt;/strong&gt;: Preserved all tagged releases and recent development context.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Stakeholder satisfaction&lt;/strong&gt;: Met development teams’ need for recent history.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Massive size reduction&lt;/strong&gt;: Achieved 99.9% fewer commits while keeping what matters.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;The trade-off&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;We sacrificed deep historical browsing of 1 to 2 years for practical migration feasibility, while ensuring no critical functionality was lost.&lt;/p&gt;
+
+&lt;h2 id=&quot;technical-implementation-methods-how-to-execute&quot;&gt;Technical implementation methods: How to execute&lt;/h2&gt;
+
+&lt;h3 id=&quot;method-1-git-filter-repo-failed&quot;&gt;Method 1: &lt;a href=&quot;https://github.com/newren/git-filter-repo/blob/main/Documentation/examples-from-user-filed-issues.md#Remove-commits-older-than-N-days&quot;&gt;git filter-repo&lt;/a&gt; (Failed)&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;The approach&lt;/strong&gt;: Use Git’s filter-repo tool with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git replace --graft&lt;/code&gt; to remove commits older than a specified criteria.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Why it failed&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Complex history&lt;/strong&gt;: Our repository’s highly non-linear history, with multiple branches and merges, made this approach impractical.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Workflow complexity&lt;/strong&gt;: The process required numerous &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git replace --graft&lt;/code&gt; commands to account for various branches and dependencies, significantly complicating the workflow.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Risk of inconsistencies&lt;/strong&gt;: The complexity introduced a high risk of errors and inconsistencies, making this method unsuitable.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;method-2-git-rebase-onto-failed&quot;&gt;Method 2: &lt;a href=&quot;https://git-scm.com/book/en/v2/Git-Tools-Replace&quot;&gt;git rebase –onto&lt;/a&gt; (Failed)&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;The approach&lt;/strong&gt;: Use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git rebase --onto&lt;/code&gt; to preserve selected commits while pruning unwanted history.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Why it failed&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Scale issues&lt;/strong&gt;: The repository size overwhelmed the rebase process.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Conflict resolution&lt;/strong&gt;: High number of unexpected conflicts that couldn’t be resolved automatically.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Technical limitations&lt;/strong&gt;: Batch processing couldn’t solve the performance issues; Git’s internal mechanisms struggled with the scale.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;method-3-patch-based-implementation-failed&quot;&gt;Method 3: &lt;a href=&quot;https://www.gitkraken.com/learn/git/git-patch&quot;&gt;Patch-based&lt;/a&gt; implementation (Failed)&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;The approach&lt;/strong&gt;: Create and apply patches for each commit individually to preserve repository history.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Why it failed&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Merge commit complexity&lt;/strong&gt;: Couldn’t maintain correct parent-child relationships for merge commits.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;History integrity&lt;/strong&gt;: Resulted in linear sequence instead of preserving original merge structure.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Missing commits&lt;/strong&gt;: Important merge commits were lost or incorrectly applied.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;method-4-custom-migration-script-success&quot;&gt;Method 4: Custom migration script (Success!)&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;The breakthrough&lt;/strong&gt;: A sophisticated custom script that could handle our specific requirements and processing constraints. Unlike traditional Git history rewriting tools, our script implements a two-phase chronological processing approach that efficiently handles large-scale repositories.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Phase 1: Bulk migration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;In this phase, the script focuses on reconstructing history based on critical tags.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Fetch tags chronologically&lt;/strong&gt;: Retrieve all tags in the order they were created.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pre-fetch Large File Storage (LFS) objects&lt;/strong&gt;: Collect LFS objects for tag-related commits before processing.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Batch processing&lt;/strong&gt;: Process tags in batches of 20 to optimize memory and network usage. For each tag:
+    &lt;ul&gt;
+      &lt;li&gt;Check for associated LFS objects.&lt;/li&gt;
+      &lt;li&gt;Perform selective LFS fetch if required.&lt;/li&gt;
+      &lt;li&gt;Create a new commit using the original tree hash and metadata.&lt;/li&gt;
+      &lt;li&gt;Embed the original commit hash in the commit message for traceability.&lt;/li&gt;
+      &lt;li&gt;Gracefully handle LFS checkout failures.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Then, push the processed batch of 20 commits to the destination repository, with LFS tolerance.&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Cleanup and continue&lt;/strong&gt;: Perform cleanup operations after each batch and proceed to the next.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Phase 2: Delta migration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;This phase integrates recent commits after the cutoff date.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Fetch recent commits&lt;/strong&gt;: Retrieve all commits created after the cutoff date in chronological order.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Batch processing&lt;/strong&gt;: Process commits in batches of 20 for efficiency. For each commit:
+    &lt;ul&gt;
+      &lt;li&gt;Check for associated LFS objects.&lt;/li&gt;
+      &lt;li&gt;Perform selective LFS fetch if required.&lt;/li&gt;
+      &lt;li&gt;Recreate the commit with its original metadata.&lt;/li&gt;
+      &lt;li&gt;Embed the original commit hash for resumption tracking in case of interruptions.&lt;/li&gt;
+      &lt;li&gt;Gracefully handle LFS checkout failures.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Then, push the processed batch of commits to the destination repository, with LFS tolerance.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Tag mapping&lt;/strong&gt;: Map tags to their corresponding new commit hashes.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Push tags&lt;/strong&gt;: Push related tags pointing to the correct new commits.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Final validation&lt;/strong&gt;: Validate all LFS objects to ensure completeness.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;LFS handling&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;The script incorporates robust mechanisms to handle Git LFS efficiently.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Configure LFS for incomplete pushes.&lt;/li&gt;
+  &lt;li&gt;Skip LFS download errors when possible.&lt;/li&gt;
+  &lt;li&gt;Retry checkout with LFS smudge skip.&lt;/li&gt;
+  &lt;li&gt;Perform selective LFS object fetching.&lt;/li&gt;
+  &lt;li&gt;Gracefully degrade processing for missing LFS objects.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Key features&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Sequential processing of tags and commits in chronological order.&lt;/li&gt;
+  &lt;li&gt;Resumable operations that could restart from the last processed item if interrupted.&lt;/li&gt;
+  &lt;li&gt;Batch processing to manage memory and network resources efficiently.&lt;/li&gt;
+  &lt;li&gt;Robust error handling for network issues and Git complications.&lt;/li&gt;
+  &lt;li&gt;Maintains repository integrity while simplifying complex merge structures.&lt;/li&gt;
+  &lt;li&gt;Optimized for our specific preservation strategy (tags + recent history).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;implementation-executing-the-migration&quot;&gt;Implementation: Executing the migration&lt;/h2&gt;
+
+&lt;p&gt;With our strategy defined (tags + last month), we executed the migration using our custom script. This process involved careful planning, smart processing techniques, and overcoming technical challenges.&lt;/p&gt;
+
+&lt;h3 id=&quot;smart-processing-approach&quot;&gt;Smart processing approach&lt;/h3&gt;
+
+&lt;p&gt;Our custom script employed several key strategies to ensure efficient and reliable migration:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Sequential tag processing&lt;/strong&gt;: Replay tags chronologically to maintain logical history.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Resumable operations&lt;/strong&gt;: The migration could restart from the last processed item if interrupted.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Batch processing&lt;/strong&gt;: Handle items in manageable groups to prevent resource exhaustion.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Progress tracking&lt;/strong&gt;: Monitor processing rate and estimated completion time.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;technical-challenges-solved&quot;&gt;Technical challenges solved&lt;/h3&gt;
+&lt;p&gt;The migration addressed several critical technical hurdles.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Large file support&lt;/strong&gt;: Handled Git LFS objects with incomplete push allowances.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Error handling&lt;/strong&gt;: Robust retry logic for network issues and Git errors.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Merge commit simplification&lt;/strong&gt;: Converted complex merge structures to linear commits.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;two-phase-migration-strategy&quot;&gt;Two-phase migration strategy&lt;/h3&gt;
+&lt;p&gt;The migration was executed in two carefully planned phases.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Phase 1&lt;/strong&gt; - Bulk migration: Migrated 95% of tags while keeping the old repo live.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Phase 2&lt;/strong&gt; - Delta migration: Performed final synchronization during a maintenance window to migrate recent changes.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;results-and-impact&quot;&gt;Results and impact&lt;/h2&gt;
+
+&lt;h3 id=&quot;infrastructure-transformation&quot;&gt;Infrastructure transformation&lt;/h3&gt;
+
+&lt;p&gt;Replication delay, or the time required to sync across all Gitaly nodes, improved by 99.4% following the pruning process. As illustrated in Figures 3 and 4, the new pruned monorepo achieves replication in under ~1.5 seconds on average, compared to ~240 seconds for the old repository. This transformation eliminated the previous single-node bottleneck, enabling read requests to be distributed evenly across all three storage nodes, significantly enhancing system reliability and performance.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/taming-monorepo-beast/new-replication-delays.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3: In the new pruned monorepo, replication delay ranges from 200 - 2,000 ms.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/taming-monorepo-beast/old-replication-delays.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4: In the old monorepo, replication delay ranged from 16,000 - 28,000 ms.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The migration significantly improved load distribution across Gitaly nodes. As shown in Figure 5, the new monorepo leverages all three Gitaly nodes to serve requests, effectively tripling read capacity. Additionally, the migration eliminated the single point of failure that existed in the old monorepo, ensuring greater reliability and scalability.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/taming-monorepo-beast/new-request-distributed.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5: In the new monorepo, requests are evenly distributed across all three servers, demonstrating improved performance and replication across nodes.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/taming-monorepo-beast/old-request-distributed.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6: In the old monorepo, requests were served only by a single server during working hours, creating a single point of failure.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;performance-improvements&quot;&gt;Performance improvements&lt;/h3&gt;
+&lt;p&gt;The migration resulted in significant improvements across multiple areas.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Clone time&lt;/strong&gt;: Reduced from 7.9 minutes to 5.1 minutes, achieving a 36% improvement, making repository cloning faster and more efficient.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Commit count&lt;/strong&gt;: Achieved a 99.9% reduction, trimming the repository from 13 million commits to just 15.8 thousand commits, drastically simplifying its structure.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;References&lt;/strong&gt;: Reduced by 99.9%, going from 12 million to 9.8 thousand refs, streamlining repository metadata.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Storage&lt;/strong&gt;: Reduced by 59%, shrinking storage requirements from 214GB to 87GB, optimizing resource usage.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;developer-experience&quot;&gt;Developer experience&lt;/h3&gt;
+&lt;p&gt;The migration also transformed the developer experience.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Faster Git operations&lt;/strong&gt;: Commits, diffs, and history commands are noticeably snappier.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Responsive GitLab UI&lt;/strong&gt;: Web interface no longer times out.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scalable CI&lt;/strong&gt;: The system can now safely run 3x more concurrent jobs.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The following table summarizes the key repository metrics, comparing the state of the repository before and after the migration:&lt;/p&gt;
+
+&lt;table class=&quot;table&quot;&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Metric&lt;/th&gt;
+      &lt;th&gt;Old Monorepo&lt;/th&gt;
+      &lt;th&gt;New Monorepo&lt;/th&gt;
+      &lt;th&gt;Reduction&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Commits&lt;/td&gt;
+      &lt;td&gt;~13,000,000&lt;/td&gt;
+      &lt;td&gt;~15,800&lt;/td&gt;
+      &lt;td&gt;−99.9% (histories squashed)&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Git trees&lt;/td&gt;
+      &lt;td&gt;~23,600,000&lt;/td&gt;
+      &lt;td&gt;~2,080,000&lt;/td&gt;
+      &lt;td&gt;−91% (pruned)&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Git references&lt;/td&gt;
+      &lt;td&gt;~12,200,000&lt;/td&gt;
+      &lt;td&gt;9,860&lt;/td&gt;
+      &lt;td&gt;−99.9% (cleaned)&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Blob storage&lt;/td&gt;
+      &lt;td&gt;214 GiB&lt;/td&gt;
+      &lt;td&gt;86.8 GiB&lt;/td&gt;
+      &lt;td&gt;−59% (smaller packs)&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Files in checkout&lt;/td&gt;
+      &lt;td&gt;~444,000&lt;/td&gt;
+      &lt;td&gt;~444,000&lt;/td&gt;
+      &lt;td&gt;~0% (no change)&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Latest code size&lt;/td&gt;
+      &lt;td&gt;~9.9 GiB&lt;/td&gt;
+      &lt;td&gt;~8.4 GiB&lt;/td&gt;
+      &lt;td&gt;~−15% (slightly leaner)&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;key-challenges-and-lessons-learned&quot;&gt;Key challenges and lessons learned&lt;/h2&gt;
+
+&lt;p&gt;Such a large-scale migration wasn’t without its hiccups and lessons. Here are some challenges we faced and what we learned:&lt;/p&gt;
+
+&lt;h3 id=&quot;git-lfs-woes&quot;&gt;Git LFS woes&lt;/h3&gt;
+
+&lt;p&gt;Initially, GitLab rejected some commits due to missing LFS objects, even old commits that we weren’t keeping. This happened because GitLab’s push hook expected the content of LFS pointers, even if the files weren’t required. To fix this, we had to allow incomplete pushes and skip LFS download errors. We also wrote logic to &lt;strong&gt;selectively fetch LFS objects&lt;/strong&gt; for commits we were keeping. This ensured that any binary assets needed by tagged commits were present in the new repo. The takeaway is that &lt;strong&gt;LFS adds complexity to history rewrites&lt;/strong&gt; – plan for it by adjusting Git LFS settings (e.g., &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;lfs.allowincompletepush&lt;/code&gt;) and verifying important large files are carried over.&lt;/p&gt;
+
+&lt;h3 id=&quot;pipeline-token-scoping&quot;&gt;Pipeline token scoping&lt;/h3&gt;
+
+&lt;p&gt;Right after the cutover, some CI pipelines failed to access resources. We discovered a GitLab CI/CD pipeline token issue – our new repo’s ID wasn’t in the &lt;a href=&quot;https://docs.gitlab.com/ci/jobs/ci_job_token/#add-a-group-or-project-to-the-job-token-allowlist&quot;&gt;allowed list&lt;/a&gt; for certain secure token scopes. We quickly updated the settings to include the new project, resolving the authorization error. If your CI jobs interact with other projects or use project-scoped tokens, remember to update those references when you migrate repositories.&lt;/p&gt;
+
+&lt;h3 id=&quot;commit-hash-references-broke&quot;&gt;Commit hash references broke&lt;/h3&gt;
+
+&lt;p&gt;One of our internal tools was using commit SHA-1 hashes to track deployed versions. Since rewriting history means changing &lt;strong&gt;all commit hashes&lt;/strong&gt;, the tool couldn’t find the expected commits. The solution was to map old hashes to new ones for the tagged releases, or better, to modify the tool to use tag names instead of raw hashes going forward. We learned to &lt;strong&gt;communicate early with teams&lt;/strong&gt; that have any dependency on Git commit IDs or history assumptions. In our case, providing a mapping of old tag→new tag (which were mostly 1-to-1 except for the commit SHA) helped them adjust. In hindsight, using stable identifiers like semantic version tags, is much more robust than relying on commit hashes, which are ephemeral in a rewritten history.&lt;/p&gt;
+
+&lt;h3 id=&quot;developer-concerns-wheres-my-history&quot;&gt;Developer concerns: &lt;strong&gt;“Where’s my history?”&lt;/strong&gt;&lt;/h3&gt;
+
+&lt;p&gt;A few engineers were concerned when they noticed that the git log in the new repo only showed two years of history. From their perspective, useful historical context seemed gone. We addressed this by pointing them to the &lt;strong&gt;archived full-history repo&lt;/strong&gt;. In fact, we kept the old repository read-only in our GitLab, so anyone can still search the old history if needed (just not in the main repo). Additionally, we received suggestions on making the archive easily accessible or even automate a way to query old commits on demand. From this we learned, if you prune history, ensure there’s a plan to &lt;strong&gt;access legacy information&lt;/strong&gt; for those rare times it’s needed – whether that’s an archive repo, a Git bundle, or a read-only mirror.&lt;/p&gt;
+
+&lt;h3 id=&quot;office-network-bottleneck&quot;&gt;Office network bottleneck&lt;/h3&gt;
+
+&lt;p&gt;Interestingly, after the migration, a few developers in certain offices didn’t feel a huge speed improvement in clones. It turned out their corporate network/VPN was the limiting factor – cloning 8 GiB vs 10 GiB over a slow link is not a night and day difference. This highlighted that we should continue to work with the IT team on improving network performance. The repo is faster, but the environment matters too. We’re using this as an opportunity to improve our office VPN throughput so that the 36% clone improvement is realized by everyone, not just CI machines.&lt;/p&gt;
+
+&lt;h3 id=&quot;automation-and-hardcoded-ids&quot;&gt;Automation and hardcoded IDs&lt;/h3&gt;
+
+&lt;p&gt;We had a lot of automation around the monorepo (scripts, webhooks, integrations). Most of these referenced the project by name, which remained the same, so they were fine. However, a few used the project’s numeric ID in the GitLab API, which changed when we created a new repo. Those broke. We had to scan and update some configs to use the new project ID. Our learning here is to &lt;strong&gt;audit all external references&lt;/strong&gt; such as CI configs, deploy scripts, and monitor jobs when migrating repositories. Ideally, use identifiable names instead of IDs, or ensure you’re prepared to update them during the cutover.&lt;/p&gt;
+
+&lt;h3 id=&quot;adjusting-to-new-boundaries&quot;&gt;Adjusting to new boundaries&lt;/h3&gt;
+
+&lt;p&gt;Some teams had to adjust their workflows after the prune. For instance, one team was in the habit of digging into 3 to 5 year old commit logs to debug issues. Post-migration, git log doesn’t go back that far in the main repo; they have to consult the archive for that. It’s a cultural shift to not have all history at your fingertips. We held a short information session to explain how to access the archived repo and emphasized the benefits (faster operations) that come with the lean history. After a while, teams embraced the new normal, appreciating the speed and rarely needing the older commits anyway.&lt;/p&gt;
+
+&lt;p&gt;In the end, we had zero data loss – all actual code and tags were preserved – and only some minor inconveniences that were resolved within a day or two. The challenges reinforced the importance of thorough testing (our staging dry-runs caught many issues) and cross-team communication when making such a change.&lt;/p&gt;
+
+&lt;h2 id=&quot;impact-and-next-steps&quot;&gt;Impact and next steps&lt;/h2&gt;
+
+&lt;p&gt;This migration transformed our development infrastructure from a bottleneck into a performance enabler. We eliminated the single point of failure, restored confidence in our Git operations, and created a foundation that can support our growing engineering team.&lt;/p&gt;
+
+&lt;p&gt;As the next step, we plan to generalize our pruning script to apply the same optimization techniques to other repositories, ensuring consistency and scalability across our infrastructure. Additionally, we will implement continuous performance monitoring to track repository health and proactively address any emerging issues. To prevent future repository bloat, we aim to establish clear best practices and guidelines, empowering teams to maintain efficiency while supporting the growth of our engineering operations.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;What started as a performance crisis became one of our most successful infrastructure projects. By focusing on the right problems—infrastructure reliability and performance rather than just size—we achieved dramatic improvements that benefit every developer daily.&lt;/p&gt;
+
+&lt;p&gt;The key takeaway is that sometimes the biggest technical challenges require custom solutions, careful planning, and willingness to iterate until you find what works. Our 99% improvement in replication performance is just the beginning of what’s possible when you tackle infrastructure problems systematically.&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;This migration was completed by Grab Tech Infra DevTools team, involving months of analysis, custom tooling development, and careful production migration of critical infrastructure serving thousands of developers across multiple time zones.&lt;/small&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 16 Sep 2025 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/taming-monorepo-beast</link>
+        <guid isPermaLink="true">https://engineering.grab.com/taming-monorepo-beast</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Monorepo</category>
+        
+        <category>Go</category>
+        
+        <category>Infrastructure</category>
+        
+        <category>Performance</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Data mesh at Grab part I: Building trust through certification</title>
@@ -1296,93 +1765,6 @@ Pure synchronous Rust is fine. As long as you don’t overcomplicate the code an
         <pubDate>Thu, 08 May 2025 00:00:10 +0000</pubDate>
         <link>https://engineering.grab.com/streamlining-riskops-with-sop</link>
         <guid isPermaLink="true">https://engineering.grab.com/streamlining-riskops-with-sop</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Generative AI</category>
-        
-        <category>LLM</category>
-        
-        <category>Experiment</category>
-        
-        <category>Machine learning</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data Analytics</category>
-        
-        <category>Data Science</category>
-        
-      </item>
-    
-      <item>
-        <title>Introducing the SOP-driven LLM agent frameworks</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;We’re excited to introduce an innovative Large Language Model (LLM) agent framework that reimagines how enterprises can harness the power of AI to streamline operations and boost productivity. At its core, this framework leverages Standard Operating Procedures (SOPs) to guide AI-driven execution, ensuring reliability and consistency in complex processes. Initial evaluations have shown remarkable results, with over 99.8% accuracy in real-world use cases. For example, the framework has powered solutions like the Account Takeover Investigations (ATI) bot, which achieved a 0 false rate while reducing investigation time from 23 minutes to just 3, automating 87% of cases. The fraud investigation use case also reduced the average handling time (AHT) by 45%, saving over 300 man-hours monthly with a 0 false rate, demonstrating its potential to transform even the most intricate enterprise operations with a high degree of accuracy.&lt;/p&gt;
-
-&lt;p&gt;The framework’s capabilities extend far beyond just accuracy, it offers a versatile suite of tools that revolutionise automation and app development, enabling AI-powered solutions up to 10 times faster than traditional methods.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-power-of-sops-in-ai-automation&quot;&gt;The power of SOPs in AI automation&lt;/h2&gt;
-
-&lt;p&gt;Traditional agent-based applications often use LLMs as the core controller to navigate through standard operating procedure (SOPs). However, this approach faces several challenges. LLMs may make incorrect decisions or invent non-existent steps due to hallucination. As generative models, they struggle to consistently produce results in a fixed format. Moreover, navigating complex SOPs with multiple branching pathways is particularly challenging for LLMs. These issues can lead to inefficiencies and inaccuracies in implementing business operations, especially when dealing with intricate, multi-step procedures.&lt;/p&gt;
-
-&lt;p&gt;Our framework addresses these challenges head-on by leveraging the structure and reliability of SOPs. We represent SOPs as a tree, with nodes encapsulating individual actions or decision points. This structure supports both sequential and conditional branching operations, mirroring the hierarchical nature of real-world business processes.&lt;/p&gt;
-
-&lt;p&gt;To make this powerful tool accessible to all, we’ve developed an intuitive SOP editor that allows non-technical users to easily define and visualise complex workflows. These visual representations are then converted into a structured, indented format that our system can interpret and execute efficiently.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/sop-llm-agent-framework-img/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: SOP editor in our framework&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The example above demonstrates how our framework transforms the customer support process by mirroring manual workflows while leveraging advanced automation. The SOP is written in natural language using an indentation format, making it easy for users to define and understand. The @function_name (@get_order_detail) notation clearly identifies where external calls are made within the process, highlighting the integration points between the SOP-driven LLM agent framework and existing systems or databases.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-magic-behind-the-scenes&quot;&gt;The magic behind the scenes&lt;/h2&gt;
-
-&lt;p&gt;The framework’s strength lies in the synergy between three key components: the planner module, LLM-powered worker agent, and user agent. This intelligent trio works in harmony to deliver a seamless, efficient, and adaptable automation experience.&lt;/p&gt;
-
-&lt;p&gt;The planner module employs a Depth-First Search (DFS) algorithm to navigate the SOP tree, ensuring thorough execution with step-by-step prompt generation and sophisticated backtracking mechanisms. The LLM-powered worker agent dynamically updates its understanding and makes decisions based on the most current information. Our approach tackles hallucination and improves efficiency through context compression and strategic limitation of available Application Programming Interface tools (APIs). The framework’s dynamic branching capability allows for adaptive navigation based on real-time data and analysis.&lt;/p&gt;
-
-&lt;p&gt;Serving as the primary user interface, the user agent offers multilingual interaction, accurate intent identification, and seamless handling of out-of-order scenarios.&lt;/p&gt;
-
-&lt;p&gt;By combining structured SOPs with flexible LLM-powered agents and advanced algorithmic approaches, our framework adeptly handles complex, real-world scenarios while maintaining reliability and consistency. This innovative architecture effectively mitigates common LLM challenges, resulting in a robust system capable of navigating intricate business processes with high accuracy and adaptability.&lt;/p&gt;
-
-&lt;h2 id=&quot;beyond-sops-a-suite-of-powerful-features&quot;&gt;Beyond SOPs: A suite of powerful features&lt;/h2&gt;
-
-&lt;p&gt;While SOPs form the backbone of our framework, we’ve incorporated several other cutting-edge features to create a truly comprehensive solution. Our Graph Retrieval-Augmented Generation (GRAG) pipeline enhances information retrieval and content generation tasks, allowing for more accurate and context-aware responses. The workflow feature enables chaining multiple plugins together to handle complex processes effortlessly, improving efficiency across various departments.&lt;/p&gt;
-
-&lt;p&gt;Our plugin system seamlessly integrates with various technologies such as API, Python, and SQL, providing the flexibility to meet diverse needs. Whether you’re an engineer coding in Python, a data analyst working with SQL, or a risk operations specialist, our plugin system adapts to your preferred tools. Additionally, our playground feature allows users to develop, test, and refine LLM applications easily in an interactive environment, supporting the latest multi-modal APIs for accelerated innovation.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/sop-llm-agent-framework-img/figure-2.gif&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Workflow builder feature in our framework&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;empowering-teams-through-versatility-and-accessibility&quot;&gt;Empowering teams through versatility and accessibility&lt;/h2&gt;
-
-&lt;p&gt;Our framework is designed to empower teams across the organisation. The multilingual capabilities of our user agent ensure that language barriers don’t hinder adoption or efficiency. For scenarios requiring human intervention, we’ve implemented a state stack that allows for pausing and resuming execution seamlessly. This feature ensures that complex processes can be handled with the right balance of automation and human oversight.&lt;/p&gt;
-
-&lt;h2 id=&quot;security-and-transparency-at-the-forefront&quot;&gt;Security and transparency at the forefront&lt;/h2&gt;
-
-&lt;p&gt;In an era where data security and process transparency are paramount, our framework doesn’t fall short. It’s designed with a security-first approach, ensuring granular access control so that users only access information they’re authorised to see. Additionally, we provide detailed logging and visualisation of each execution, offering complete explainability of the automation process. This level of transparency not only aids in troubleshooting but also helps in building trust in the AI-driven processes across the organisation.&lt;/p&gt;
-
-&lt;h2 id=&quot;looking-ahead&quot;&gt;Looking ahead&lt;/h2&gt;
-
-&lt;p&gt;As we continue to refine and expand this LLM agent framework, we’re excited to explore its potential across different industries. We’ll be sharing more about each of these features in the future and showcase how they can be leveraged to solve specific business challenges and explore real-world applications.&lt;/p&gt;
-
-&lt;p&gt;Look forward to more in-depth explorations of the framework’s capabilities, use cases, and technical innovations. With this revolutionary approach, you’re not just automating tasks – you’re transforming the way your enterprise operates, unleashing the true power of LLM in your organisation.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebllmagent&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 25 Apr 2025 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/introducing-the-sop-drive-llm-agent-framework</link>
-        <guid isPermaLink="true">https://engineering.grab.com/introducing-the-sop-drive-llm-agent-framework</guid>
         
         <category>Engineering</category>
         
