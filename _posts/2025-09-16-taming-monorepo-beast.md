@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2025-09-05-taming-monorepo-beast.md
+id: 2025-09-16-taming-monorepo-beast.md
 title: 'Taming the monorepo beast: Our journey to a leaner, faster GitLab repo'
-date: 2025-09-05 00:23:00
+date: 2025-09-16 00:23:00
 authors: [nagendra-gangwar, saurabh-vajpayee, dan-low, athar-hameed, akshay-misra]
 categories: [Engineering]
 tags: [Engineering, Monorepo, Go, Infrastructure, Performance]
