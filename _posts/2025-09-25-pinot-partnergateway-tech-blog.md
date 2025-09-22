@@ -2,7 +2,7 @@
 layout: post
 id: 2025-09-25-pinot-partnergateway-tech-blog.md
 title: "Powering Partner Gateway metrics with Apache Pinot"
-date: 2025-09-25 00:00:10
+date: 2025-09-23 00:00:10
 authors: [alvis-chew, wei-hern-jason-lee]
 categories: [Engineering]
 tags: [Database, Data, Apache]
