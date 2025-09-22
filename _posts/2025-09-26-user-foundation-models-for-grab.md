@@ -2,7 +2,7 @@
 layout: post
 id: 2025-09-25-user-foundation-models-for-grab
 title: "User foundation models for Grab"
-date: 2025-09-08 00:00:10
+date: 2025-09-25 00:00:10
 authors: [abhinav-rai, boonping-chong, chongyu-zhou, jenny-kang, nick-buhrer, sneha-krishnaswamy, son-phat-tran, zulfikar-layuardi]
 categories: [Engineering]
 tags: [ai, artificial-intelligence, machine-learning, llm]
