@@ -7,7 +7,7 @@ authors: [alvis-chew, wei-hern-jason-lee]
 categories: [Engineering]
 tags: [Database, Data, Apache]
 comments: true
-cover_photo: /img/partner-gateway/banner-2.png
+cover_photo: /img/partner-gateway/banner-1.png
 excerpt: "Partner Gateway serves as Grab's secure interface for exposing APIs to third-party entities, facilitating seamless interactions between Grab's hosted services and external consumers. This blog delves into the implementation of Apache Pinot within Partner Gateway for advanced metrics tracking. Discover the challenges, trade-offs, and solutions the team navigated to optimize performance and ensure reliability in this innovative integration."
 ---
 
