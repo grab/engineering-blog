@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Powering Partner Gateway metrics with Apache Pinot</title>
+    <meta name="description" content="Partner Gateway serves as Grab's secure interface for exposing APIs to third-party entities, facilitating seamless interactions between Grab's hosted services and external consumers. This blog delves into the implementation of Apache Pinot within Partner Gateway for advanced metrics tracking. Discover the challenges, trade-offs, and solutions the team navigated to optimize performance and ensure reliability in this innovative integration.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/pinot-partnergateway-tech-blog">
+    <meta property="og:title" content="Powering Partner Gateway metrics with Apache Pinot">
+    <meta property="og:description" content="Partner Gateway serves as Grab's secure interface for exposing APIs to third-party entities, facilitating seamless interactions between Grab's hosted services and external consumers. This blog delves into the implementation of Apache Pinot within Partner Gateway for advanced metrics tracking. Discover the challenges, trade-offs, and solutions the team navigated to optimize performance and ensure reliability in this innovative integration.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/partner-gateway/banner-1.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/pinot-partnergateway-tech-blog">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/partner-gateway/banner-1.png" class="post-cover-photo" alt="Powering Partner Gateway metrics with Apache Pinot cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Powering Partner Gateway metrics with Apache Pinot</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/alvis-chew.jpg">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/jason-lee.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#alvis-chew">Alvis Chew</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#wei-hern-jason-lee">Wei Hern Jason Lee</a>
+                  
+                
+              </span>
+              <span class="post-date-large">23 Sep 2025 | 13 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>Grab operates as a dynamic ecosystem involving partners and various service providers, necessitating real-time intelligence and decision-making for seamless integration and service delivery. To facilitate this, <a href="http://developer.grab.com/"><strong>GrabDeveloper</strong></a> serves as Grab’s centralized platform for developers and partners. It supports API integration, partner onboarding, and product management. It also provides tech support through staging and production portals with detailed documentation.</p>
+
+<p>Working alongside Developer Home, <strong>Partner Gateway</strong> acts as Grab’s secure interface for exposing APIs to third-party entities. It enables seamless interactions between Grab’s hosted services and external consumers, such as mobile apps, web browsers, and partners. Partner Gateway enhances the experience by offering advanced metrics tracking through time-series charts and dashboards. Partner Gateway delivers actionable insights that ensure high performance, reliability, and user satisfaction in application integrations with Grab services.</p>
+
+<h2 id="use-cases">Use cases</h2>
+
+<p>Let’s explore GrabDeveloper integration use cases with one of our partners, whom we’ll refer to as “Alpha.” Alpha is a company that specializes in producing and distributing a diverse range of perishable goods. To optimize their operations, time-series charts tracking API traffic request status codes and average API response times play a crucial role.</p>
+
+<h3 id="api-traffic-request-service-status-codes-chart">API traffic request service status codes chart</h3>
+
+<p>Time-series charts tracking API traffic request status codes offer valuable insights into the performance and reliability of APIs used for managing supply chain logistics, customer orders, and distribution networks. By monitoring these status codes, Alpha can promptly detect and resolve disruptions or failures in their digital systems, ensuring seamless operations and minimizing downtime.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/figure-1.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1: API traffic chart from 5th Jan 2025 to 4th Mar 2025.</figcaption>
+  </figure>
+</div>
+
+<h3 id="api-average-response-times-chart">API average response times chart</h3>
+
+<p>Analyzing average response times helps the company maintain efficient communication between various systems, enhancing the speed and reliability of transactions and data exchanges. This proactive monitoring supports Alpha in delivering consistent, high-quality service to customers and partners, ultimately contributing to improved operational efficiency and customer satisfaction.</p>
+
+<p>Analyzing average response times enables a company to ensure efficient communication across various systems, enhancing transaction speed and data exchange reliability. Proactive monitoring helps Alpha deliver consistent, high-quality service to customers and partners, boosting operational efficiency and customer satisfaction.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/figure-2.png" alt="" style="width:80%" /><figcaption align="middle">Figure 2: Average response time chart from 12 Mar 2025 3am to 12 Mar 2025 3pm (Endpoints are mocked for security purposes).</figcaption>
+  </figure>
+</div>
+
+<h3 id="endpoint-status-dashboard">Endpoint status dashboard</h3>
+
+<p>For Alpha, the endpoint status dashboard delivers real-time insights into API performance, enabling swift issue resolution and seamless integration with the company’s systems. The dashboard enhances service reliability, supports business operations, and ensures uninterrupted data exchange, all of which are critical for Alpha’s business processes and customer satisfaction. Furthermore, the transparency and reliability provided by the dashboard strengthens trust in the partnership, ensuring Alpha to confidently rely on the integration to drive their digital initiatives and operational goals.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/figure-3.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3: Endpoint status dashboard of express API for company Alpha. *Endpoints are mocked for security purposes.</figcaption>
+  </figure>
+</div>
+
+<h2 id="why-choose-apache-pinot-and-what-is-it">Why choose Apache Pinot and what is it?</h2>
+
+<p>To accommodate these use cases, we need a backend storage system engineered for low-latency queries across a wide range of temporal intervals, spanning from one-hour snapshots to 30-day retrospective analyses, whereby it could contain up to ~6.8 billion rows of data in a 30 day period for a particular dataset. This led us to choose Apache Pinot for these use cases, a distributed Online Analytical Processing (OLAP) system designed for low-latency analytical queries on large-scale data with millisecond query latencies.</p>
+
+<p>Apache Pinot is a real-time distributed OLAP datastore designed to deliver low-latency analytics on large-scale data. It is optimized for high-throughput ingestion and real-time query processing making it ideal for scenarios such as user-facing analytics, dashboards, and anomaly detection. Apache Pinot supports complex queries, including aggregations and filtering. It delivers sub-second response times by leveraging techniques like columnar storage, indexing, and data partitioning to achieve efficient query execution.</p>
+
+<h3 id="data-ingestion-process">Data ingestion process</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/figure-4.png" alt="" style="width:80%" /><figcaption align="middle">Figure 4: Data ingestion process.</figcaption>
+  </figure>
+</div>
+
+<ol>
+  <li><strong>API call initiation</strong>: An API call is made on the partner application and routed through the Partner Gateway.</li>
+  <li><strong>Metric tracking</strong>: Dimensions such as client ID, partner ID, status code, endpoint, metric name, timestamp, and value (which is the metric) are tracked and uploaded to Datadog, a cloud-based monitoring platform.</li>
+  <li><strong>Kafka message transformation</strong>: Within the partner gateway code, an Apache Kafka Producer converts these metrics into Kafka messages and stores them in a Kafka Topic. Grab utilizes Protobuf for serialization and deserialization of Kafka messages. Since Grab’s Golang Kafka ecosystem does not use the Confluent Schema Registry, Kafka messages must be serialized with a magic byte which indicates that they are using Confluent’s Schema Registry, followed by the Schema ID.</li>
+  <li><strong>Serialization via Apache Flink</strong>: Serialization is managed using Apache Flink, an open-source stream processing framework. This ensures compatibility with the Confluent Schema Registry Protobuf Decoder plugin on Apache Pinot. The messages are then written to a separate Kafka Topic.</li>
+  <li><strong>Ingestion to Apache Pinot</strong>: Messages from the Kafka Topic containing the magic byte are ingested directly into Pinot, which references the Confluent Schema Registry to accurately deserialize the messages.</li>
+  <li><strong>Query execution</strong>: Queries on the Pinot table can be executed via the Pinot Rest Proxy API.</li>
+  <li><strong>Data visualization</strong>: Users can view their project charts and dashboards on the GrabDeveloper Home UI, where data points are retrieved from queries executed in step 6.</li>
+</ol>
+
+<h2 id="challenges-faced">Challenges faced</h2>
+
+<p>During the initial setup, we encountered significant performance challenges when executing aggregation queries on large datasets exceeding 150GB. Specifically, attempts to retrieve and process data for periods ranging from 20 to 30 days resulted in frequent timeout issues as the queries took longer than 10 seconds. This was particularly concerning as it compromised our ability to meet our Service Level Agreement (SLA) of delivering query results within 300 milliseconds. The existing query infrastructure struggled to efficiently manage the volume and complexity of data within the required timeframe, necessitating optimization efforts to improve performance and reliability.</p>
+
+<h2 id="solution">Solution</h2>
+
+<p>Drawing from the insights gained on the limitations of our initial solutions, we implemented these strategic optimizations to significantly enhance our table’s performance.</p>
+
+<h3 id="partitioning-by-metric-name">Partitioning by metric name</h3>
+
+<ul>
+  <li><strong>Improved data locality</strong>: Partitioning the Kafka Topic by metric name ensures that related data is grouped together. When a query filters on a specific metric, Pinot can directly access the relevant partitions, minimizing the need to scan unrelated data. This significantly reduces I/O overhead and processing time.</li>
+  <li><strong>Efficient query pruning</strong>: By physically partitioning data, only the servers holding the relevant partitions are queried. This leads to more efficient query pruning, as irrelevant data is excluded early in the process, further optimizing performance.</li>
+  <li><strong>Enhanced parallel processing</strong>: Partitioning enables Pinot to distribute queries across multiple nodes, allowing different metrics to be processed in parallel. This leverages distributed computing resources, accelerating query execution and improving scalability for large datasets.</li>
+</ul>
+
+<h3 id="column-based-on-aggregation-intervals">Column based on aggregation intervals</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/table-1.png" alt="" style="width:80%" /><figcaption align="middle">Table 1</figcaption>
+  </figure>
+</div>
+
+<ul>
+  <li><strong>Facilitates time-based aggregations</strong>: Rounded time columns (e.g., Timestamp_1h for hourly intervals) group data into coarser time buckets, enabling efficient aggregations such as hourly or daily metrics. This simplifies indexing and optimizes storage by precomputing aggregates for specific time intervals.</li>
+  <li><strong>Efficient data filtering</strong>: Rounded time columns allow for precise filtering of data within specific aggregation intervals. For example, the query <code class="language-plaintext highlighter-rouge">SELECT SUM(Value) FROM Table WHERE Timestamp_1h = '2025-01-20 01:00:00'</code> can exclude irrelevant columns (e.g., column 2) and focus only on rows within the specified time interval, further enhancing query efficiency.</li>
+</ul>
+
+<h3 id="utilizing-the-star-tree-index-in-apache-pinot">Utilizing the Star-tree index in Apache Pinot</h3>
+
+<p>The <a href="https://docs.pinot.apache.org/basics/indexing/star-tree-index">Star-tree Index</a> in Apache Pinot is an advanced indexing structure that enhances query performance by pre-aggregating data across multiple dimensions (e.g., D1, D2). It features a hierarchical tree with a root node, leaf nodes (holding up to T records), and non-leaf nodes that split into child nodes when exceeding T records. Special star nodes store pre-aggregated records by omitting the splitting dimension. The tree is constructed based on a dimensionSplitOrder, dictating node splitting at each level.</p>
+
+<h4 id="sample-table-configuration-for-star-tree-index">Sample table configuration for Star-tree index:</h4>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"tableIndexConfig": {
+  "starTreeIndexConfigs": [{
+    "dimensionsSplitOrder": [
+      "Metric",
+      "Endpoint",
+      "Timestamp_1h"
+    ],
+    "skipStarNodeCreationForDimensions": [
+    ],
+    "functionColumnPairs": [
+      "AVG__Value"
+    ],
+    "maxLeafRecords": 1
+  }],
+  ...
+}
+</code></pre></div></div>
+
+<h4 id="configuration-explanation">Configuration explanation:</h4>
+
+<ul>
+  <li><strong>dimensionsSplitOrder</strong>: This specifies the order in which dimensions are split at each level of the tree. The order is “Metric”, “Endpoint”, “Timestamp_1h”. This means the tree will first split by Metric, then by Endpoint, and finally by Timestamp_1h.</li>
+  <li><strong>skipStarNodeCreationForDimensions</strong>: This array is empty, indicating that star nodes will be created for all dimensions specified in the split order. No dimensions are omitted from star node creation.</li>
+  <li><strong>functionColumnPairs</strong>: This specifies the aggregation functions to be applied to columns when creating star nodes. The configuration includes “AVG__Value”, meaning the average of the “Value” column will be calculated and stored in star nodes.</li>
+  <li><strong>maxLeafRecords</strong>: This is set to 1, indicating that each leaf node will contain only one record. If a node exceeds this number, it will split into child nodes.</li>
+</ul>
+
+<h4 id="star-tree-diagram">Star-tree diagram</h4>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/figure-5.png" alt="" style="width:80%" /><figcaption align="middle">Figure 5: Star-tree Index Structure.</figcaption>
+  </figure>
+</div>
+
+<p><strong>Components:</strong></p>
+
+<ul>
+  <li><strong>Root node (orange)</strong>: This is the starting point for traversing the tree structure.</li>
+  <li><strong>Leaf node (blue)</strong>: These nodes contain up to a configurable number of records, denoted by T. In this configuration, maxLeafRecords is set to 1, meaning each leaf node will contain a maximum of one record.</li>
+  <li><strong>Non-leaf node (green)</strong>: These nodes will split into child nodes if they exceed the maxLeafRecords threshold. Since maxLeafRecords is set to 1, any node with more than one record will split.</li>
+  <li><strong>Star-node (yellow)</strong>: These nodes store pre-aggregated records by omitting the dimension used for splitting at that level. This helps in reducing the data size and improving query performance.</li>
+</ul>
+
+<p><strong>Example</strong>:</p>
+
+<p>A practical explanation of the start-tree diagram would be to display the star-tree documents in a table format along with the sample queries used to retrieve the data.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/table-2.png" alt="" style="width:80%" /><figcaption align="middle">Table 2: Star-tree documents table</figcaption>
+  </figure>
+</div>
+
+<p><strong>Sample queries</strong>:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">Select</span> <span class="k">SUM</span><span class="p">(</span><span class="n">Value</span><span class="p">)</span> <span class="k">FROM</span> <span class="k">Table</span><span class="p">:</span>
+<span class="k">With</span> <span class="k">no</span> <span class="k">group</span><span class="o">-</span><span class="k">by</span> <span class="n">clause</span><span class="p">,</span> <span class="k">select</span> <span class="n">the</span> <span class="n">Star</span><span class="o">-</span><span class="n">Node</span> <span class="k">for</span> <span class="k">all</span> <span class="n">dimensions</span> <span class="p">(</span><span class="n">document</span> <span class="mi">19</span><span class="p">)</span> <span class="k">to</span> <span class="n">quickly</span> <span class="n">obtain</span> <span class="n">the</span> <span class="n">aggregated</span> <span class="k">result</span> <span class="k">of</span> <span class="mi">250</span> <span class="k">by</span> <span class="n">processing</span> <span class="n">just</span> <span class="n">this</span> <span class="n">document</span><span class="p">.</span>
+
+<span class="k">Select</span> <span class="k">SUM</span><span class="p">(</span><span class="n">Value</span><span class="p">)</span> <span class="k">FROM</span> <span class="k">Table</span> <span class="k">WHERE</span> <span class="n">Metric</span> <span class="o">=</span> <span class="s1">'XYZ_Req_Count'</span><span class="p">:</span>
+<span class="k">Select</span> <span class="n">the</span> <span class="n">node</span> <span class="k">with</span> <span class="n">XYZ_Req_Count</span> <span class="k">for</span> <span class="n">Metric</span><span class="p">,</span> <span class="k">and</span> <span class="n">the</span> <span class="n">Star</span><span class="o">-</span><span class="n">Node</span> <span class="k">for</span> <span class="n">Endpoint</span> <span class="k">and</span> <span class="n">Timestamp_1h</span> <span class="p">(</span><span class="n">document</span> <span class="mi">12</span><span class="p">).</span> <span class="n">This</span> <span class="n">reduces</span> <span class="n">processing</span> <span class="k">to</span> <span class="n">one</span> <span class="n">document</span><span class="p">,</span> <span class="n">returning</span> <span class="n">an</span> <span class="n">aggregated</span> <span class="k">result</span> <span class="k">of</span> <span class="mi">130</span><span class="p">,</span> <span class="k">instead</span> <span class="k">of</span> <span class="n">filtering</span> <span class="k">and</span> <span class="n">aggregating</span> <span class="n">three</span> <span class="n">documents</span> <span class="p">(</span><span class="n">documents</span> <span class="mi">7</span><span class="p">,</span><span class="mi">8</span> <span class="mi">9</span><span class="p">)</span>
+
+<span class="k">SELECT</span> <span class="k">SUM</span><span class="p">(</span><span class="n">Value</span><span class="p">)</span> <span class="k">FROM</span> <span class="k">Table</span> <span class="k">WHERE</span> <span class="n">Timestamp_1h</span> <span class="o">=</span> <span class="s1">'2025-01-20 00:00:00'</span><span class="p">:</span>
+<span class="k">Select</span> <span class="n">the</span> <span class="n">Star</span><span class="o">-</span><span class="n">Node</span> <span class="k">for</span> <span class="n">Metric</span> <span class="k">and</span> <span class="n">Endpoint</span><span class="p">,</span> <span class="k">and</span> <span class="n">the</span> <span class="n">node</span> <span class="k">with</span> <span class="s1">'2025-01-20 00:00:00'</span> <span class="k">for</span> <span class="n">Timestamp_1h</span> <span class="p">(</span><span class="n">document</span> <span class="mi">16</span><span class="p">).</span> <span class="n">This</span> <span class="n">allows</span> <span class="n">aggregation</span> <span class="k">from</span> <span class="n">a</span> <span class="n">single</span> <span class="n">document</span><span class="p">,</span> <span class="n">yielding</span> <span class="n">a</span> <span class="k">result</span> <span class="k">of</span> <span class="mi">40</span><span class="p">.</span>
+
+<span class="k">SELECT</span> <span class="k">SUM</span><span class="p">(</span><span class="n">Value</span><span class="p">)</span> <span class="k">FROM</span> <span class="k">Table</span> <span class="k">GROUP</span> <span class="k">BY</span> <span class="n">Endpoint</span><span class="p">:</span>
+<span class="k">With</span> <span class="n">a</span> <span class="k">group</span><span class="o">-</span><span class="k">by</span> <span class="k">on</span> <span class="n">Endpoint</span><span class="p">,</span> <span class="k">select</span> <span class="n">the</span> <span class="n">Star</span><span class="o">-</span><span class="n">Node</span> <span class="k">for</span> <span class="n">Metric</span> <span class="k">and</span> <span class="n">Timestamp_1h</span><span class="p">,</span> <span class="k">and</span> <span class="k">all</span> <span class="n">non</span> <span class="n">Star</span><span class="o">-</span><span class="n">Node</span> <span class="k">for</span> <span class="n">Endpoint</span> <span class="p">(</span><span class="n">documents</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">15</span><span class="p">).</span> <span class="n">Process</span> <span class="n">one</span> <span class="n">document</span> <span class="n">per</span> <span class="k">group</span> <span class="k">to</span> <span class="n">obtain</span> <span class="n">the</span> <span class="k">group</span><span class="o">-</span><span class="k">by</span> <span class="n">results</span> <span class="n">efficiently</span><span class="p">.</span>
+</code></pre></div></div>
+
+<h2 id="comparing-performance-after-the-optimization">Comparing performance after the optimization</h2>
+
+<div class="post-image-section"><figure>
+  <img src="/img/partner-gateway/figure-6.png" alt="" style="width:80%" /><figcaption align="middle">Figure 6: Chart of query latency with and without optimization.</figcaption>
+  </figure>
+</div>
+
+<p>The graph above in Figure 6, provides a comparison analysis of query performance, showcasing the significant improvements achieved through the implemented optimization solutions. The query execution times are significantly reduced, as evidenced by the logarithmic scale values.</p>
+
+<p>For the first query which calculates the latency for a particular aggregation interval, the log scale indicates a reduction from 4.64 to 2.32, translating to a decrease in query latency from 43,713 to 209 milliseconds.</p>
+
+<p>Similarly, the second query, which aggregates the sum of the latency based on the tags for a particular metric, shows a log scale reduction from 3.71 to 1.54, with query latency improving from 5,072 to 35 milliseconds. These results underscore the efficacy of optimization in enhancing query performance, enabling faster data retrieval and processing</p>
+
+<h2 id="tradeoffs">Tradeoffs</h2>
+
+<p>Star-tree indexes in Apache Pinot are designed to significantly enhance query performance by pre-computing aggregations. This approach allows for rapid query execution by utilizing pre-calculated results, rather than computing aggregations on-the-fly. However, this performance boost comes with a tradeoff in terms of storage space.</p>
+
+<p>Before implementing the Star-tree index, the total storage size for 30 days of data was approximately 192GB. With the Star-tree index, this increased to 373GB, nearly doubling the storage requirements. Despite the increase in storage, the performance benefits substantially outweigh the costs associated with additional storage.</p>
+
+<p>The cost impact is relatively minor. We utilize <a href="https://aws.amazon.com/ebs/pricing/">AWS gp3 EBS</a> volumes, which roughly cost $14.48 USD monthly for the extra table (calculated as 0.08 USD x 181 GB). This cost is considered insignificant when compared to the substantial gains in query performance. Alternatively, precomputing the metrics via an ETL job is also feasible; however, it is less cost-effective due to the additional expenses required to maintain the pipeline.</p>
+
+<p>The decision to use Star-tree indexes is justified by the dramatic improvement in query speed, which enhances user experience and efficiency. The modest increase in storage costs is a worthwhile investment for achieving optimal performance.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>In conclusion, Grab’s integration of Apache Pinot as a backend solution within the Partner Gateway represents a forward-thinking strategy to meet the evolving demands of real-time analytics. Apache Pinot’s ability to deliver low-latency queries empowers our partners with immediate, actionable insights into API performance that enhances their integration experience and operational efficiency. This is crucial for partners who require rapid data access to make informed decisions and optimize their services.</p>
+
+<p>The adoption of Star-tree indexing within Pinot further refines our analytics infrastructure by strategically balancing the trade-offs between query latency and storage costs. This optimization ensures Partner Gateway can support a diverse range of use cases with subsecond query latencies while maintaining high performance and reliability in service delivery reinforcing Grab’s commitment to delivering superior performance across its ecosystem.</p>
+
+<p>Ultimately, the integration of Apache Pinot enhances Grab’s real-time analytics capabilities while empowering the company to drive innovation and consistently deliver exceptional service to both partners and users.</p>
+
+<p><small class="credits">Credits to Manh Nguyen from the Coban Infrastructure Team, Michael Wengle from the Midas Team and Yuqi Wang from the DevHome team.</small></p>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://www.grab.careers/en/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#apache" class="label tags-label">Apache</a>
+  
+    <a href="/tags#data" class="label tags-label">Data</a>
+  
+    <a href="/tags#database" class="label tags-label">Database</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Powering Partner Gateway metrics with Apache Pinot&url=https://engineering.grab.com/pinot-partnergateway-tech-blog&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/pinot-partnergateway-tech-blog" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/pinot-partnergateway-tech-blog&title=Powering Partner Gateway metrics with Apache Pinot
+&summary=Partner Gateway serves as Grab's secure interface for exposing APIs to third-party entities, facilitating seamless interactions between Grab's hosted services and external consumers. This blog delves into the implementation of Apache Pinot within Partner Gateway for advanced metrics tracking. Discover the challenges, trade-offs, and solutions the team navigated to optimize performance and ensure reliability in this innovative integration.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/pinot-partnergateway-tech-blog';
+    this.page.identifier = '/pinot-partnergateway-tech-blog';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
