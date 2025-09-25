@@ -141,7 +141,7 @@ To pre-train our model on tabular and time-series data, we combine masked langua
 
 This ambiguity means the model faces a complex challenge: it's not enough to predict *which* item a user might choose; it must first predict the *type* of interaction they will even initiate. Therefore, to capture the full complexity of user intent, our model performs a dual prediction that directly mirrors our `key:value` token structure:
 
-1. It predicts the **type of the next action**, such as `click_restaurant`, `book_ride`, or `search_mart`.  
+- It predicts the **type of the next action**, such as `click_restaurant`, `book_ride`, or `search_mart`.  
 
 2. It predicts the **value associated with that action**, like the specific restaurant ID, the destination coordinates, or the text of the search query.
 
