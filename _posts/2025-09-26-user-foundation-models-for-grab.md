@@ -82,7 +82,7 @@ A traditional, siloed model would treat the ride and the food search as two inde
   </figure>
 </div>
 
-**Figure 3** displays Grab's transformer architecture, enabling joint pre-training on tabular and time-series data with different modalities. Grab's foundation model is built on a transformer architecture specifically designed to tackle four fundamental challenges inherent to Grab's super app ecosystem:
+**Figure 3** displays Grab's transformer architecture, enabling joint pre-training on tabular and time-series data with different modalities. Grab's foundation model is built on a transformer architecture specifically designed to tackle four fundamental challenges inherent to Grab's superapp ecosystem:
 
 1. **Jointly training on tabular and time-series data:** A core requirement is to unify column order invariant tabular data (e.g. user attributes) with order-dependent time-series data (e.g. a sequence of user actions) within a single, coherent model.
 
