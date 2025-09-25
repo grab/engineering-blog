@@ -40,7 +40,7 @@ Moreover, this rich data exists in two distinct forms: tabular data that capture
   </figure>
 </div>
 
-The success of foundation models hinges on the quality and diversity of the datasets used for training. Grab identified two essential sources of data for building user embeddings as shown in **Figure 2**. Tabular data provides general attributes and long-term behaviour. Time-series data reflects how the user uses the app and captures the evolution of user preferences.
+The success of foundation models hinges on the quality and diversity of the datasets used for training. Grab identified two essential sources of data for building user embeddings as shown in **Figure 2**. Tabular data provides general attributes and long-term behavior. Time-series data reflects how the user uses the app and captures the evolution of user preferences.
 
 
 * **Tabular data**: This classic data source provides general user attributes and insights into long-term behavior. For example, this includes attributes like a user's age and saved locations, along with aggregated behavioral data such as their average monthly spending or most frequently used service.
