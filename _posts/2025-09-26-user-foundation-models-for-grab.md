@@ -222,7 +222,7 @@ This foundational approach fundamentally accelerates AI development across the o
 
 ## Our vision for the future
 
-Our work on this foundation model is just the beginning. The ultimate goal is to deliver "embeddings as a product". A stable, reliable, and powerful basis for any AI-driven application at Grab. While our initial embeddings for users, drivers, and merchants have already proven their value, our vision extends to becoming the central provider for all fundamental entities within our ecosystem, including Locations, Bookings, Marketplace items, and more.
+Our work on this foundation model is just the beginning. The ultimate goal is to deliver "embeddings as a product". A stable, reliable, and powerful basis for any AI-driven application at Grab. While our initial embeddings for users, driver-partners, and merchant-partners have already proven their value, our vision extends to becoming the central provider for all fundamental entities within our ecosystem, including Locations, Bookings, Marketplace items, and more.
 
 To realise this vision, we are focused on a path of continuous improvement across several key areas:
 
