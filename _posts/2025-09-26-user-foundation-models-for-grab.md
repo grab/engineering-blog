@@ -78,7 +78,7 @@ A traditional, siloed model would treat the ride and the food search as two inde
 ## Model architecture
 
 <div class="post-image-section"><figure>
-  <img src="/img/user-found-model-img/img-3.png" alt="" style="width:80%"><figcaption align="middle">Figure 3: Transformer architecture</figcaption>
+  <img src="/img/user-found-model-img/img-3.png" alt="" style="width:80%"><figcaption align="middle">Figure 3. Transformer architecture</figcaption>
   </figure>
 </div>
 
