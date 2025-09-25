@@ -196,7 +196,7 @@ To meet these challenges, we built upon the **Ray framework**, an open-source st
 
 ## Core principle: A unified architecture for heterogeneous workloads
 
-As our architecture diagram illustrates, both our training and inference pipelines share a fundamental workflow: they begin with a complex Central Processing Unit (CPU) intensive data preprocessing stage (tokenisation), which is followed by a Graphics Processing Unit (GPU) intensive neural network computation.
+As illustrated by the Ray framework. both our training and inference pipelines share a fundamental workflow: they begin with a complex Central Processing Unit (CPU) intensive data preprocessing stage (tokenisation), which is followed by a Graphics Processing Unit (GPU) intensive neural network computation.
 
 A naive approach would bundle these tasks together, forcing expensive GPU resources to sit idle while the CPU handles data preparation. Our core architectural principle is to decouple these workloads. Using Ray's native ability to manage heterogeneous hardware, we create distinct, independently scalable pools of CPU and GPU workers.
 
@@ -208,7 +208,7 @@ Applying this core principle, our training pipeline efficiently processes teraby
 
 #### Efficient and scalable daily inference
 
-This same efficient architecture is mirrored for our daily inference task. To generate fresh embeddings for millions of users, we leverage **Ray Data** to execute a distributed batch inference pipeline. The process seamlessly orchestrates our CPU workers for tokenisation and our GPU workers for model application.
+This same efficient architecture is mirrored for our daily inference task. To generate fresh embeddings for millions of users, we leverage Ray Data—an open-source library used for data processing in AI and Machine Learning (ML) workload, to execute a distributed batch inference pipeline. The process seamlessly orchestrates our CPU workers for tokenisation and our GPU workers for model application.
 
 This batch-oriented approach is the key to our efficiency, allowing us to process thousands of users' data simultaneously and maximise throughput. This robust and scalable inference setup ensures that our dozens of downstream systems are always equipped with fresh, high-quality embeddings, enabling the timely and personalised experiences our users expect.
 
