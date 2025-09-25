@@ -107,7 +107,7 @@ Traditional approaches often process these data types separately or attempt to f
 
 Our solution begins with a novel tokenisation strategy. We define a universal token structure as a **`key:value`** pair.
 
-* For **tabular data**, the `key` is the column name (e.g. `online_hours`) and the `value` is the user's attribute (e.g., `4`).  
+* For **tabular data**, the `key` is the column name (e.g. `online_hours`) and the `value` is the user's attribute (e.g. `4`).  
 
 * For **time-series data**, the `key` is the event type (e.g. `view_merchant`) and the `value` is the specific entity involved (e.g. `merchant_id_114`).
 
