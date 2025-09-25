@@ -182,7 +182,7 @@ The short-term embedding is designed to capture a user's immediate context and c
 ## Scaling the foundation: From terabytes of data to millions of daily embeddings
 
 <div class="post-image-section"><figure>
-  <img src="/img/user-found-model-img/img-6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6: Ray framework</figcaption>
+  <img src="/img/user-found-model-img/img-6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. Ray framework</figcaption>
   </figure>
 </div>
 
