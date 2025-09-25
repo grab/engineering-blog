@@ -190,7 +190,7 @@ Building a foundation model of this magnitude introduces monumental engineering 
 
 - **Massive-scale training:** Pre-training our model involves processing terabytes of diverse, multimodal data. This requires a distributed computing framework that is not only powerful but also flexible enough to handle our unique data processing needs efficiently.  
 
-2. **High-throughput inference:** To keep our user understanding current, we must regenerate embeddings for millions of active users daily. This demands a highly efficient, scalable, and reliable batch processing system.
+- **High-throughput inference:** To keep our user understanding current, we must regenerate embeddings for millions of active users daily. This demands a highly efficient, scalable, and reliable batch processing system.
 
 To meet these challenges, we built upon the **Ray framework**, an open-source standard for scalable computing. This choice allows us to manage both training and inference within a unified ecosystem, tailored to our specific needs.
 
