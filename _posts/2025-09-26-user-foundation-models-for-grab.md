@@ -97,7 +97,7 @@ In the following section, we highlight how we tackled each challenge.
 ## 1. Unifying tabular and time-series data 
 
 <div class="post-image-section"><figure>
-  <img src="/img/user-found-model-img/img-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4: Differences between tabular data and time-series data</figcaption>
+  <img src="/img/user-found-model-img/img-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Differences between tabular data and time-series data</figcaption>
   </figure>
 </div>
 
