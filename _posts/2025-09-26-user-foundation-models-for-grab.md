@@ -57,7 +57,7 @@ To illustrate the breadth of data, consider these examples across different moda
 
 * **Text:** This includes user-provided information such as search queries within GrabFood or GrabMart ("chicken rice," "fresh milk") and reviews or ratings for drivers and restaurants. For merchants, this could encompass the restaurant's name, menu descriptions, and promotional texts.  
 
-* **Numerical:** This modality is rich with data points such as the price of a food order, the fare for a ride, the distance of a delivery, the waiting time for a driver, and the commission earned by a driver-partner. User behaviour can also be quantified through numerical data, such as the frequency of app usage or average spending over a month.  
+* **Numerical:** This modality is rich with data points such as the price of a food order, the fare for a ride, the distance of a delivery, the waiting time for a driver, and the commission earned by a driver-partner. User behavior can also be quantified through numerical data, such as the frequency of app usage or average spending over a month.  
 
 * **Merchant/User/Driver ID:** These categorical identifiers are central to the platform. A `user_id` tracks an individual's activity across all of Grab's services. A `merchant_id` represents a specific restaurant or store, linking to its menu, location, and order history. A `driver_id` corresponds to a driver-partner, associated with their vehicle type, service area, and performance metrics.  
 
