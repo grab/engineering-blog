@@ -20,7 +20,7 @@ Traditionally, these models have relied on hundreds to thousands of manually eng
 With advancements in learning from tabular and sequential data, Grab has developed a foundation model that addresses these limitations. By simultaneously learning from user interactions (clickstream data) and tabular data (e.g. transaction data), the model generates user embeddings that capture app behaviour in a more holistic and generalised manner. These embeddings, represented as numerical values, serve as input features for downstream recommender models, enabling higher levels of personalisation and improved performance. Unlike manually engineered features, they generalise effectively across a wide range of tasks, including advertisement optimisation, dual app prediction, fraud detection, and churn probability, among others.
 
 <div class="post-image-section"><figure>
-  <img src="/img/user-found-model-img/img-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1: Steps in building foundational model</figcaption>
+  <img src="/img/user-found-model-img/img-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. The process of building a foundation model involves three steps.</figcaption>
   </figure>
 </div>
 
