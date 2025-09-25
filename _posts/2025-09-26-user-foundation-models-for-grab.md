@@ -162,7 +162,7 @@ To overcome this, we employ **hierarchical classification**. Instead of predicti
 
 Once our foundation model is pre-trained on the vast and diverse data within the Grab ecosystem, it becomes a powerful engine for driving business value. There are two primary pathways to harness its capabilities: fine-tuning and embedding extraction.
 
-The first pathway involves fine-tuning the entire model on a labelled dataset for a specific downstream task, such as churn probability or fraud detection, to create a highly specialised and performant predictor.
+The first pathway involves fine-tuning the entire model on a labeled dataset for a specific downstream task, such as churn probability or fraud detection, to create a highly specialised and performant predictor.
 
 The second, more flexible pathway is to utilise the model to generate powerful pre-trained embeddings. These embeddings serve as rich, general-purpose features that can support a wide range of separate downstream models. The remainder of this section will focus on this second pathway, exploring the types of embeddings we extract and how they empower our applications.
 
