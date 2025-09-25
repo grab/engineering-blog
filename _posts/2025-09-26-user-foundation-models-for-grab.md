@@ -196,7 +196,7 @@ To meet these challenges, we built upon the **Ray framework**, an open-source st
 
 ## Core principle: A unified architecture for heterogeneous workloads
 
-As illustrated by the Ray framework. both our training and inference pipelines share a fundamental workflow: they begin with a complex Central Processing Unit (CPU) intensive data preprocessing stage (tokenisation), which is followed by a Graphics Processing Unit (GPU) intensive neural network computation.
+As illustrated by the Ray framework, both our training and inference pipelines share a fundamental workflow: they begin with a complex Central Processing Unit (CPU) intensive data preprocessing stage (tokenisation), which is followed by a Graphics Processing Unit (GPU) intensive neural network computation.
 
 A naive approach would bundle these tasks together, forcing expensive GPU resources to sit idle while the CPU handles data preparation. Our core architectural principle is to decouple these workloads. Using Ray's native ability to manage heterogeneous hardware, we create distinct, independently scalable pools of CPU and GPU workers.
 
