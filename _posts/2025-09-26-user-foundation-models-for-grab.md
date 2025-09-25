@@ -143,7 +143,7 @@ This ambiguity means the model faces a complex challenge: it's not enough to pre
 
 - It predicts the **type of the next action**, such as `click_restaurant`, `book_ride`, or `search_mart`.  
 
-2. It predicts the **value associated with that action**, like the specific restaurant ID, the destination coordinates, or the text of the search query.
+- It predicts the **value associated with that action**, like the specific restaurant ID, the destination coordinates, or the text of the search query.
 
 This dual-prediction task forces the model to learn the intricate patterns of user behavior, creating a powerful foundation that can be extended across our entire platform. To handle these predictions, where the output could be of any modality (an ID, a location, text, etc.), we employ modality-specific reconstruction heads. Each head is designed for a particular data type and uses a tailored loss function (e.g., Cross-Entropy for categorical IDs, Mean Squared Error for numerical values) to accurately evaluate the model's predictions.
 
