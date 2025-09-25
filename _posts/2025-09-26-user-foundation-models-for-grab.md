@@ -36,7 +36,7 @@ Moreover, this rich data exists in two distinct forms: tabular data that capture
 ## The importance of data
 
 <div class="post-image-section"><figure>
-  <img src="/img/user-found-model-img/img-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2: Data sources</figcaption>
+  <img src="/img/user-found-model-img/img-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. We use tabular and time-series data to build user embeddings.</figcaption>
   </figure>
 </div>
 
