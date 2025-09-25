@@ -164,7 +164,7 @@ Once our foundation model is pre-trained on the vast and diverse data within the
 
 The first pathway involves fine-tuning the entire model on a labeled dataset for a specific downstream task, such as churn probability or fraud detection, to create a highly specialised and performant predictor.
 
-The second, more flexible pathway is to utilise the model to generate powerful pre-trained embeddings. These embeddings serve as rich, general-purpose features that can support a wide range of separate downstream models. The remainder of this section will focus on this second pathway, exploring the types of embeddings we extract and how they empower our applications.
+The second, more flexible pathway is to use the model to generate powerful pre-trained embeddings. These embeddings serve as rich, general-purpose features that can support a wide range of separate downstream models. The remainder of this section will focus on this second pathway, exploring the types of embeddings we extract and how they empower our applications.
 
 
 ## The dual-embedding strategy: Long-term and short-term memory
