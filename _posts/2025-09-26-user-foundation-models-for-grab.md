@@ -156,7 +156,7 @@ To overcome this, we employ **hierarchical classification**. Instead of predicti
 ## Extracting value from our foundation model
 
 <div class="post-image-section"><figure>
-  <img src="/img/user-found-model-img/img-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5: Foundation model</figcaption>
+  <img src="/img/user-found-model-img/img-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Our foundation model is pre-trained with tabular and time-series data.</figcaption>
   </figure>
 </div>
 
