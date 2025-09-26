@@ -41,21 +41,21 @@ Do note that although consistency is not critical for this use case, we will bui
 * Highly consistent updates of the counter values in memory during high concurrency.  
 * Consistent flushing of the counter values to the storage layer for persistence.
 
-Simple Golang code for writing an in-memory counter may look like the code sample shown in **Figure 1**.
+Simple GoLang code for writing an in-memory counter may look like the code sample shown in **Figure 1**.
 
 <div class="post-image-section"><figure>
   <img src="/img/memory-counter-golang/code-base-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. In-memory counter code snippet.</figcaption>
   </figure>
 </div>
 
-The code has a map declared globally, and the `do` function increments the counter value against the key. However, this code fails to work when multiple Goroutines (Golang version of threads) try to access this `do` function concurrently. This will result in the following error, as shown in **Figure 2**.
+The code has a map declared globally, and the `do` function increments the counter value against the key. However, this code fails to work when multiple Goroutines (GoLang version of threads) try to access this `do` function concurrently. This will result in the following error, as shown in **Figure 2**.
 
 <div class="post-image-section"><figure>
   <img src="/img/memory-counter-golang/code-base-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. Code error sample.</figcaption>
   </figure>
 </div>
 
-Maps in Golang are not thread safe and need to be locked when being accessed concurrently. The Golang sync package has Mutex, which serves this locking purpose. The code changes are shown in **Figure 3**. The `sync.RWMutex` object is declared globally and every time the `do` function is called, the lock is obtained first. Then the map is mutated, followed by releasing the lock at the end. This code works as intended even when multiple go routines try to access it concurrently.
+Maps in GoLang are not thread safe and need to be locked when being accessed concurrently. The GoLang sync package has Mutex, which serves this locking purpose. The code changes are shown in **Figure 3**. The `sync.RWMutex` object is declared globally and every time the `do` function is called, the lock is obtained first. Then the map is mutated, followed by releasing the lock at the end. This code works as intended even when multiple go routines try to access it concurrently.
 
 <div class="post-image-section"><figure>
   <img src="/img/memory-counter-golang/code-base-3.png" alt="" style="width:80%"><figcaption align="middle">Figure 3. Implementing sync.RWMutex for locking purpose.</figcaption>
@@ -73,7 +73,7 @@ Assuming that this design is a success, every 200 milliseconds, a background job
 
 ## Can we do something better?
 
-Yes, `Sync.Map` is the synchronised version of `map` in Golang. This can be used to get rid of the explicit locking overheads.
+Yes, `Sync.Map` is the synchronised version of `map` in GoLang. This can be used to get rid of the explicit locking overheads.
 
 Powerful features of the `Sync.Map`:
 
