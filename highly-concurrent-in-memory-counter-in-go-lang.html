@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Highly concurrent in-memory counter in GoLang</title>
+    <meta name="description" content="Dive into the chaos and triumph of real-time optimisation in the face of high database utilisation! This article recounts a developer's adrenaline-fueled journey of transforming crisis into innovation—optimising campaign usage count tracking through highly concurrent in-memory caching and periodic database updates. Embrace the madness, thrive in the challenge, and discover a bold approach to tackling database bottlenecks head-on!">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang">
+    <meta property="og:title" content="Highly concurrent in-memory counter in GoLang">
+    <meta property="og:description" content="Dive into the chaos and triumph of real-time optimisation in the face of high database utilisation! This article recounts a developer's adrenaline-fueled journey of transforming crisis into innovation—optimising campaign usage count tracking through highly concurrent in-memory caching and periodic database updates. Embrace the madness, thrive in the challenge, and discover a bold approach to tackling database bottlenecks head-on!">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/memory-counter-golang/banner-1.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/memory-counter-golang/banner-1.png" class="post-cover-photo" alt="Highly concurrent in-memory counter in GoLang cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Highly concurrent in-memory counter in GoLang</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/naveen-kumar.jpg">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#naveen-kumar">Naveen Kumar Jakuva Premkumar</a>
+                  
+                
+              </span>
+              <span class="post-date-large">6 Oct 2025 | 8 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>Ah, the familiar <em>beep beep beep</em> but don’t worry, it’s not your alarm coaxing you out of bed. No, this is far worse: the dreaded PagerDuty on-call alert! What’s the crisis this time? There appears to be an issue with high database CPU utilisation, overwhelmed by a flood of heavy traffic. If you’re a developer, chances are you’ve faced this scenario at least once. The very moment when you question every life decision while desperately searching for answers at 3 AM.</p>
+
+<p>This article was born of one such heart-pounding, adrenaline-fuelled incident. Picture this: the database was struggling, the traffic was relentless, and the team was caught in the crossfire. The seemingly obvious solution was to migrate from SQL to NoSQL—a straightforward fix, or so it seemed. Instead of taking the easy way out, we stepped back, rolled up our sleeves, and tackled the problem head-on, embarking on a bold journey of optimisation.</p>
+
+<p>What followed was a rollercoaster of trial, error, and a few “why did we even try this” moments. Yet, isn’t that the beauty of being a developer? Embracing the chaos, thriving in the madness, and eventually emerging victorious with a story worth sharing.</p>
+
+<p>Real-time usage count tracking is a common use case that can be found across many applications, like Instagram’s post like count, YouTube’s watch count, or a marketing campaign usage count, which is used in monitoring and measuring the performance of marketing campaigns to assess effectiveness. These counts don’t have to be highly accurate, but rather an approximation in most use cases. This meant that in an occurrence of an event, instead of immediately updating the count in the database, the count is cached in the application server and later updated in batches to reduce the database Queries Per Second (QPS) and Central Processing Unit (CPU) utilisation.</p>
+
+<p>This article shares one such use case where we optimised the campaign usage count tracking with highly concurrent in-memory caching that flushes to the database at periodic intervals.</p>
+
+<h2 id="background">Background</h2>
+
+<p>Marketing campaigns are configured to deliver push notifications, emails, and award rewards and points to Grab users. Total usage as well as daily usage needs to be tracked for display purposes to give a sense of how the campaign is performing. In this use case, accuracy is not a top priority. This release in constraint helps us to reduce write traffic by incrementing the counter in-memory and flushing the disk at periodic intervals for persistence.</p>
+
+<p>In this section, let’s break down the process of designing a highly concurrent in-memory counter with data persistence.</p>
+
+<h3 id="functional-requirements">Functional requirements</h3>
+
+<ul>
+  <li>Upsert the counter value for the given key.</li>
+  <li>Periodically flush the counter value to the storage layer for persistence.</li>
+</ul>
+
+<h3 id="non-functional-requirements">Non-functional requirements</h3>
+
+<p>Do note that although consistency is not critical for this use case, we will build a generic in-memory counter with the following guarantees, which can be reused for other use cases:</p>
+
+<ul>
+  <li>Highly consistent updates of the counter values in memory during high concurrency.</li>
+  <li>Consistent flushing of the counter values to the storage layer for persistence.</li>
+</ul>
+
+<p>Simple GoLang code for writing an in-memory counter may look like the code sample shown in <strong>Figure 1</strong>.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-1.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1. In-memory counter code snippet.</figcaption>
+  </figure>
+</div>
+
+<p>The code has a map declared globally, and the <code class="language-plaintext highlighter-rouge">do</code> function increments the counter value against the key. However, this code fails to work when multiple Goroutines (GoLang version of threads) try to access this <code class="language-plaintext highlighter-rouge">do</code> function concurrently. This will result in the following error, as shown in <strong>Figure 2</strong>.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-2.png" alt="" style="width:80%" /><figcaption align="middle">Figure 2. Code error sample.</figcaption>
+  </figure>
+</div>
+
+<p>Maps in GoLang are not thread safe and need to be locked when being accessed concurrently. The GoLang sync package has Mutex, which serves this locking purpose. The code changes are shown in <strong>Figure 3</strong>. The <code class="language-plaintext highlighter-rouge">sync.RWMutex</code> object is declared globally and every time the <code class="language-plaintext highlighter-rouge">do</code> function is called, the lock is obtained first. Then the map is mutated, followed by releasing the lock at the end. This code works as intended even when multiple go routines try to access it concurrently.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-3.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3. Implementing sync.RWMutex for locking purpose.</figcaption>
+  </figure>
+</div>
+
+<p>The code for the functional requirement of periodically flushing the counter value to the storage layer is shown in <strong>Figure 4</strong>.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-4.png" alt="" style="width:60%" /><figcaption align="middle">Figure 4. Code snippet of flushing counter value to storage function. </figcaption>
+  </figure>
+</div>
+
+<p>Assuming that this design is a success, every 200 milliseconds, a background job acquires a global map lock, iterates over all keys, writes each entry to the storage layer asynchronously, then deletes it from the map. After that, a flush is executed where counter increments are blocked until the lock is released.</p>
+
+<h2 id="can-we-do-something-better">Can we do something better?</h2>
+
+<p>Yes, <code class="language-plaintext highlighter-rouge">Sync.Map</code> is the synchronised version of <code class="language-plaintext highlighter-rouge">map</code> in GoLang. This can be used to get rid of the explicit locking overheads.</p>
+
+<p>Powerful features of the <code class="language-plaintext highlighter-rouge">Sync.Map</code>:</p>
+
+<ul>
+  <li>
+    <p><strong>LoadOrStore</strong>: Retrieves the existing value for a key if present, or stores and returns a new value if the key is absent. Ensuring atomic operation and preventing race conditions.</p>
+  </li>
+  <li>
+    <p><strong>CompareAndSwap</strong>: Atomically compares a variable’s current value to an expected value. If they match, it is swapped with a new value, ensuring thread-safe updates.</p>
+  </li>
+  <li>
+    <p><strong>LoadAndDelete</strong>: Atomically retrieves and removes the value of a given key, returning the value and a boolean indicating if the key was present.</p>
+  </li>
+</ul>
+
+<p>When combined, these <code class="language-plaintext highlighter-rouge">Sync.Map</code> features produce the <code class="language-plaintext highlighter-rouge">do</code> function shown in <strong>Figure 5</strong>. When the <code class="language-plaintext highlighter-rouge">do</code> function is called, the <code class="language-plaintext highlighter-rouge">LoadOrStore</code> function tries to atomically store the key in the map if the key is absent. Otherwise, it returns the current value for the key with the <code class="language-plaintext highlighter-rouge">isLoaded</code> variable set to true. If the key is already present, a new value is created by summing up the increment value with the current value and setting it as the new value in the map using the <code class="language-plaintext highlighter-rouge">CompareAndSwap</code> function. The <code class="language-plaintext highlighter-rouge">compareAndSwap</code> function successfully sets the new value to the key only if the existing value in the map matches the current value. During high concurrency, this can fail, so we recursively retry until the <code class="language-plaintext highlighter-rouge">CompareAndSwap</code> replaces the current value with the new value.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-5.png" alt="" style="width:80%" /><figcaption align="middle">Figure 5. Sync.Map features in do function. </figcaption>
+  </figure>
+</div>
+
+<p>The code example for periodically flushing the counter value to the storage layer is shown in <strong>Figure 6</strong>. In the previous version of the code, it obtained the lock on the entire map and flushed the counter to the storage layer before releasing the lock. However, there is no locking during this flushing operation. Instead, we rely on the <code class="language-plaintext highlighter-rouge">LoadAndDelete</code> function to atomically remove a key from the map. This also returns the latest value for the key, which is updated into the storage layer async.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-6.png" alt="" style="width:60%" /><figcaption align="middle">Figure 6. Code snippet of LoadAndDelete function. </figcaption>
+  </figure>
+</div>
+
+<h2 id="benchmarking">Benchmarking</h2>
+
+<p>An experiment was conducted on an Apple M1 16 GB RAM machine to test a use case of spawning a maximum of 200 million concurrent Goroutines to increment the counter of 40 keys. The results are:</p>
+
+<ul>
+  <li>
+    <p>The approach of using a map with Mutex-based locking took 1 minute and 50 seconds across 5 runs.</p>
+  </li>
+  <li>
+    <p>The approach of using <code class="language-plaintext highlighter-rouge">Sync.Map</code> with atomic updates took 1 minute and 20 seconds across 5 runs.</p>
+  </li>
+</ul>
+
+<p>In summary, getting rid of explicit locking with <code class="language-plaintext highlighter-rouge">Sync.Map</code> is ~30% faster than using Mutex to make the map thread safe.</p>
+
+<h2 id="approach-comparison">Approach comparison</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Map with Mutex</th>
+      <th style="text-align: left">Synchronised map (Sync.Map)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Locks are explicitly taken.</td>
+      <td style="text-align: left">Implicit locks.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Experiment running averaged over 5 runs: 1 minute and 50 seconds</td>
+      <td style="text-align: left">Experiment running averaged over 5 runs: 1 minute and 20 seconds</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Time for operation increases linearly with more keys trying to update the counter, as the entire map is locked during update and flush operations.</td>
+      <td style="text-align: left">Time for operation remains almost constant as the map is not locked.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>We implemented the <code class="language-plaintext highlighter-rouge">Sync.Map</code> approach for our in-memory counter that periodically flushes the campaign usage count in the database. This implementation resulted in the following efficiency improvements:</p>
+
+<ul>
+  <li>
+    <p>68% decrease in usage tracking update queries, nose-diving from 140 QPS to just 45 QPS!</p>
+  </li>
+  <li>
+    <p>Master database experienced a significant reduction in CPU utilisation, decreasing by 48.5%—from 35% to just 18%, alleviating considerable strain on its resources.</p>
+  </li>
+  <li>
+    <p>Replica databases benefited from a 37% decrease in CPU utilisation, dropping from 19% to a more manageable 12%.</p>
+  </li>
+</ul>
+
+<p>Through this optimisation journey, we successfully overcame the challenging database CPU bottlenecks while avoiding the substantial effort and complexity of migrating from SQL to NoSQL. Who would have thought that a calculated leap of faith could save us so much time, effort, and countless sleepless nights? At times, the most effective solutions arise from taking a step back and approaching the problem with a fresh perspective, rather than rushing towards an immediate fix.</p>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://www.grab.careers/en/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#database" class="label tags-label">Database</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Highly concurrent in-memory counter in GoLang&url=https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang&title=Highly concurrent in-memory counter in GoLang
+&summary=Dive into the chaos and triumph of real-time optimisation in the face of high database utilisation! This article recounts a developer's adrenaline-fueled journey of transforming crisis into innovation—optimising campaign usage count tracking through highly concurrent in-memory caching and periodic database updates. Embrace the madness, thrive in the challenge, and discover a bold approach to tackling database bottlenecks head-on!&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang';
+    this.page.identifier = '/highly-concurrent-in-memory-counter-in-go-lang';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>

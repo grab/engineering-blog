@@ -6,9 +6,182 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 06 Oct 2025 00:44:21 +0000</pubDate>
-    <lastBuildDate>Mon, 06 Oct 2025 00:44:21 +0000</lastBuildDate>
+    <pubDate>Mon, 06 Oct 2025 01:44:48 +0000</pubDate>
+    <lastBuildDate>Mon, 06 Oct 2025 01:44:48 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Highly concurrent in-memory counter in GoLang</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Ah, the familiar &lt;em&gt;beep beep beep&lt;/em&gt; but don’t worry, it’s not your alarm coaxing you out of bed. No, this is far worse: the dreaded PagerDuty on-call alert! What’s the crisis this time? There appears to be an issue with high database CPU utilisation, overwhelmed by a flood of heavy traffic. If you’re a developer, chances are you’ve faced this scenario at least once. The very moment when you question every life decision while desperately searching for answers at 3 AM.&lt;/p&gt;
+
+&lt;p&gt;This article was born of one such heart-pounding, adrenaline-fuelled incident. Picture this: the database was struggling, the traffic was relentless, and the team was caught in the crossfire. The seemingly obvious solution was to migrate from SQL to NoSQL—a straightforward fix, or so it seemed. Instead of taking the easy way out, we stepped back, rolled up our sleeves, and tackled the problem head-on, embarking on a bold journey of optimisation.&lt;/p&gt;
+
+&lt;p&gt;What followed was a rollercoaster of trial, error, and a few “why did we even try this” moments. Yet, isn’t that the beauty of being a developer? Embracing the chaos, thriving in the madness, and eventually emerging victorious with a story worth sharing.&lt;/p&gt;
+
+&lt;p&gt;Real-time usage count tracking is a common use case that can be found across many applications, like Instagram’s post like count, YouTube’s watch count, or a marketing campaign usage count, which is used in monitoring and measuring the performance of marketing campaigns to assess effectiveness. These counts don’t have to be highly accurate, but rather an approximation in most use cases. This meant that in an occurrence of an event, instead of immediately updating the count in the database, the count is cached in the application server and later updated in batches to reduce the database Queries Per Second (QPS) and Central Processing Unit (CPU) utilisation.&lt;/p&gt;
+
+&lt;p&gt;This article shares one such use case where we optimised the campaign usage count tracking with highly concurrent in-memory caching that flushes to the database at periodic intervals.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Marketing campaigns are configured to deliver push notifications, emails, and award rewards and points to Grab users. Total usage as well as daily usage needs to be tracked for display purposes to give a sense of how the campaign is performing. In this use case, accuracy is not a top priority. This release in constraint helps us to reduce write traffic by incrementing the counter in-memory and flushing the disk at periodic intervals for persistence.&lt;/p&gt;
+
+&lt;p&gt;In this section, let’s break down the process of designing a highly concurrent in-memory counter with data persistence.&lt;/p&gt;
+
+&lt;h3 id=&quot;functional-requirements&quot;&gt;Functional requirements&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Upsert the counter value for the given key.&lt;/li&gt;
+  &lt;li&gt;Periodically flush the counter value to the storage layer for persistence.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;non-functional-requirements&quot;&gt;Non-functional requirements&lt;/h3&gt;
+
+&lt;p&gt;Do note that although consistency is not critical for this use case, we will build a generic in-memory counter with the following guarantees, which can be reused for other use cases:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Highly consistent updates of the counter values in memory during high concurrency.&lt;/li&gt;
+  &lt;li&gt;Consistent flushing of the counter values to the storage layer for persistence.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Simple GoLang code for writing an in-memory counter may look like the code sample shown in &lt;strong&gt;Figure 1&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. In-memory counter code snippet.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The code has a map declared globally, and the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function increments the counter value against the key. However, this code fails to work when multiple Goroutines (GoLang version of threads) try to access this &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function concurrently. This will result in the following error, as shown in &lt;strong&gt;Figure 2&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Code error sample.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Maps in GoLang are not thread safe and need to be locked when being accessed concurrently. The GoLang sync package has Mutex, which serves this locking purpose. The code changes are shown in &lt;strong&gt;Figure 3&lt;/strong&gt;. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sync.RWMutex&lt;/code&gt; object is declared globally and every time the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function is called, the lock is obtained first. Then the map is mutated, followed by releasing the lock at the end. This code works as intended even when multiple go routines try to access it concurrently.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Implementing sync.RWMutex for locking purpose.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The code for the functional requirement of periodically flushing the counter value to the storage layer is shown in &lt;strong&gt;Figure 4&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-4.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Code snippet of flushing counter value to storage function. &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Assuming that this design is a success, every 200 milliseconds, a background job acquires a global map lock, iterates over all keys, writes each entry to the storage layer asynchronously, then deletes it from the map. After that, a flush is executed where counter increments are blocked until the lock is released.&lt;/p&gt;
+
+&lt;h2 id=&quot;can-we-do-something-better&quot;&gt;Can we do something better?&lt;/h2&gt;
+
+&lt;p&gt;Yes, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; is the synchronised version of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;map&lt;/code&gt; in GoLang. This can be used to get rid of the explicit locking overheads.&lt;/p&gt;
+
+&lt;p&gt;Powerful features of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;LoadOrStore&lt;/strong&gt;: Retrieves the existing value for a key if present, or stores and returns a new value if the key is absent. Ensuring atomic operation and preventing race conditions.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;CompareAndSwap&lt;/strong&gt;: Atomically compares a variable’s current value to an expected value. If they match, it is swapped with a new value, ensuring thread-safe updates.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;LoadAndDelete&lt;/strong&gt;: Atomically retrieves and removes the value of a given key, returning the value and a boolean indicating if the key was present.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When combined, these &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; features produce the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function shown in &lt;strong&gt;Figure 5&lt;/strong&gt;. When the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function is called, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LoadOrStore&lt;/code&gt; function tries to atomically store the key in the map if the key is absent. Otherwise, it returns the current value for the key with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;isLoaded&lt;/code&gt; variable set to true. If the key is already present, a new value is created by summing up the increment value with the current value and setting it as the new value in the map using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CompareAndSwap&lt;/code&gt; function. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;compareAndSwap&lt;/code&gt; function successfully sets the new value to the key only if the existing value in the map matches the current value. During high concurrency, this can fail, so we recursively retry until the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CompareAndSwap&lt;/code&gt; replaces the current value with the new value.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Sync.Map features in do function. &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The code example for periodically flushing the counter value to the storage layer is shown in &lt;strong&gt;Figure 6&lt;/strong&gt;. In the previous version of the code, it obtained the lock on the entire map and flushed the counter to the storage layer before releasing the lock. However, there is no locking during this flushing operation. Instead, we rely on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LoadAndDelete&lt;/code&gt; function to atomically remove a key from the map. This also returns the latest value for the key, which is updated into the storage layer async.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-6.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Code snippet of LoadAndDelete function. &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;benchmarking&quot;&gt;Benchmarking&lt;/h2&gt;
+
+&lt;p&gt;An experiment was conducted on an Apple M1 16 GB RAM machine to test a use case of spawning a maximum of 200 million concurrent Goroutines to increment the counter of 40 keys. The results are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;The approach of using a map with Mutex-based locking took 1 minute and 50 seconds across 5 runs.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;The approach of using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; with atomic updates took 1 minute and 20 seconds across 5 runs.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In summary, getting rid of explicit locking with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; is ~30% faster than using Mutex to make the map thread safe.&lt;/p&gt;
+
+&lt;h2 id=&quot;approach-comparison&quot;&gt;Approach comparison&lt;/h2&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Map with Mutex&lt;/th&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Synchronised map (Sync.Map)&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Locks are explicitly taken.&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Implicit locks.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Experiment running averaged over 5 runs: 1 minute and 50 seconds&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Experiment running averaged over 5 runs: 1 minute and 20 seconds&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Time for operation increases linearly with more keys trying to update the counter, as the entire map is locked during update and flush operations.&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Time for operation remains almost constant as the map is not locked.&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;We implemented the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; approach for our in-memory counter that periodically flushes the campaign usage count in the database. This implementation resulted in the following efficiency improvements:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;68% decrease in usage tracking update queries, nose-diving from 140 QPS to just 45 QPS!&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Master database experienced a significant reduction in CPU utilisation, decreasing by 48.5%—from 35% to just 18%, alleviating considerable strain on its resources.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Replica databases benefited from a 37% decrease in CPU utilisation, dropping from 19% to a more manageable 12%.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Through this optimisation journey, we successfully overcame the challenging database CPU bottlenecks while avoiding the substantial effort and complexity of migrating from SQL to NoSQL. Who would have thought that a calculated leap of faith could save us so much time, effort, and countless sleepless nights? At times, the most effective solutions arise from taking a step back and approaching the problem with a fresh perspective, rather than rushing towards an immediate fix.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 06 Oct 2025 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang</link>
+        <guid isPermaLink="true">https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang</guid>
+        
+        <category>Database</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>User foundation models for Grab</title>
@@ -1905,199 +2078,6 @@ Pure synchronous Rust is fine. As long as you don’t overcomplicate the code an
         <category>Database</category>
         
         <category>FlinkSQL</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Effortless enterprise authentication at Grab: Dex in action</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Grab, Southeast Asia’s leading superapp, has created many internal applications to support its diverse range of internal and external business needs. Authentication&lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; and authorisation&lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;2&lt;/a&gt;&lt;/sup&gt; serve as fundamental components of application development, as robust identity and access management are essential for all systems.&lt;/p&gt;
-
-&lt;p&gt;We recognised the need for a centralised internal system to manage access, authentication, and authorisation. This system would streamline access management, ensure compliance with audit requirements, enhance developer velocity, and simplify authentication and authorisation processes for both developers and business operations.&lt;/p&gt;
-
-&lt;p&gt;Grab created Concedo to fulfill this requirement by providing a mechanism for services to configure their access control based on their specific role to permission matrix (R2PM)&lt;sup id=&quot;fnref:5&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;. This allows for quick and easy integration with Concedo, enabling developers to expedite the shipping of their systems without investing excessive time in building the authentication and authorisation module.&lt;/p&gt;
-
-&lt;p&gt;The authentication mechanism, based on Google’s OAuth2.0&lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;, includes custom features that enhance identity for service integration. However, this customisation isn’t standard, creating integration challenges with external platforms like Databricks and Datadog. These platforms then use their own authentication and authorisation, resulting in a fragmented and undesirable sign-on experience for users.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/undesired-sign-on-experience.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Undesired user sign-on experience due to fragmented authentication approaches.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The inconsistency in user experience also resulted in complications. The lack of standardisation led to difficulties in establishing authentication and authorisation for individual applications. Additionally, it created substantial administrative overhead due to the necessity of managing multiple identities. The absence of standardisation also hindered transparency in access control across all applications.&lt;/p&gt;
-
-&lt;p&gt;This led us to inquire how a standardised protocol could be established to function seamlessly across all applications, regardless of whether they were developed internally or sourced from external platforms.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/desired-state.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Desired state, having something in between the different identity providers (IdP).&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;choosing-among-industry-standards&quot;&gt;Choosing among industry standards&lt;/h2&gt;
-
-&lt;p&gt;We wanted to build a platform to serve both authentication and authorisation, providing a seamless integration and user sign-on experience. We then asked ourselves, “What are the current industry standards we can leverage on?”.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Security Assertion Markup Language (SAML)&lt;/strong&gt;: An authentication protocol which leverages heavily on session cookies to manage each authentication session.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Open Authorisation (OAuth)&lt;/strong&gt;: An authorisation protocol which focuses on granting access for particular details rather than providing user identity information.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;OpenID Connect (OIDC)&lt;sup id=&quot;fnref:4&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot; role=&quot;doc-noteref&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;&lt;/strong&gt;: An authentication protocol built on OAuth 2.0, enabling single sign-on (SSO). OIDC unifies and standardises user authentication, making it a solution for organisations with numerous applications.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;OIDC enhances user experience by redirecting them to an identity provider (IdP) like Google or Microsoft for authentication when accessing an application. Upon successful verification, the IdP sends a secure token with the user’s identity information back to the application, granting access without the need for additional credentials.&lt;/p&gt;
-
-&lt;p&gt;With OIDC, authentication and authorisation are fully implemented, enabling seamless integration across platforms, including mobile, API, and browser-based applications, while also providing SSO functionality.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/desired-state-protocol.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Desired state with the protocol decided.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;OIDC seemed like an ideal solution, but it came with potential drawbacks:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;OIDC relies on trusting a third-party authentication service. Any disruption to this service could result in downtime.&lt;/li&gt;
-  &lt;li&gt;Compromised credentials could affect access to multiple services.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;In the following section, we will explore our strategies in mitigating these challenges effectively.&lt;/p&gt;
-
-&lt;h2 id=&quot;implementing-the-chosen-standard&quot;&gt;Implementing the chosen standard&lt;/h2&gt;
-
-&lt;p&gt;With OIDC chosen as the standard, the focus shifted to implementation.&lt;/p&gt;
-
-&lt;p&gt;We have always been a supporter of open source projects. Rather than building a platform from the ground up, we leveraged existing solutions while seeking opportunities to contribute back to the open source community.&lt;/p&gt;
-
-&lt;p&gt;The team explored Cloud Native Computing Foundation (CNCF) projects and discovered &lt;a href=&quot;https://dexidp.io/&quot;&gt;Dex&lt;/a&gt; - A federated OpenID connect provider that aims to allow integration of any IdP into an application using OIDC. Dex was selected as our open-source platform of choice due to its alignment with our high-level objectives.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/desired-state-platform.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Desired state with Dex as the platform foundation.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;how-dex-works&quot;&gt;How Dex works&lt;/h3&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/dex-work.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. High level architecture of Dex. Source: https://dexidp.io/docs/&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;When a user or machine tries to access a protected application or service, they are redirected to Dex for authentication. Dex acts as a middleman (identity aggregator) between the user and various IdPs to establish an authenticated session.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/sequence-diagram-dex-auth.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Simplified sequence diagram of how authentication works for Dex.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Dex’s key features include enabling SSO experiences, allowing users to access multiple applications after authenticating through a single provider. Dex also supports multiple IdP use cases and provides standardised OIDC authentication tokens.&lt;/p&gt;
-
-&lt;p&gt;Dex implementation separated application authentication concerns, established a single source of truth for identity, enabled new IdP additions, ensured adherence to security best practices, and provided scalability for deployments of all sizes.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-dex-is-streamlining-authentication-and-authorisation&quot;&gt;How Dex is streamlining authentication and authorisation&lt;/h2&gt;
-
-&lt;h3 id=&quot;token-delegation&quot;&gt;Token delegation&lt;/h3&gt;
-
-&lt;p&gt;When services communicate with each other, one service often assigns an identity to ensure that authorisation can be carried out on a specific service. For example, in figure 7, a service account or robot account is typically used as an identity so that service B can identify the caller.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/service-identification.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Service identification through service account.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Although service accounts are the recommended approach for enabling Service B to identify the caller, they come with challenges that must be addressed:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Service account compromise&lt;/strong&gt;: Service accounts often have high-level privileges and typically broad access to Service B. If compromised, they pose a significant security risk, making careful management essential.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Access control issue&lt;/strong&gt;: The other approach creates unnecessary complexity by requiring Service A to handle user-level permissions for Service B. This violates the principle of separation of concerns.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To address this issue, Dex introduced a &lt;a href=&quot;https://dexidp.io/docs/guides/token-exchange/&quot;&gt;token exchange&lt;/a&gt; feature.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/token-exchange.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8. Token exchange example with trusted peers established.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The token exchange process involves two main components; token minting and trust relationship.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Token minting&lt;/strong&gt;&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;The user (Alice) logs into Service A.&lt;/li&gt;
-  &lt;li&gt;Service A, acting as a trusted peer, is authorised to mint tokens.&lt;/li&gt;
-  &lt;li&gt;Service A generates a token valid for both Service A and Service B. This is reflected in the token’s “aud” (audience) field: “aud”: “serviceA serviceB”&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Trust relationship&lt;/strong&gt;&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;Service B must be configured to trust Service A as a peer.&lt;/li&gt;
-  &lt;li&gt;Service B accepts tokens minted by Service A.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;This approach differs from the service account-based scenario by using a trust-based peer relationship. Service A is authorised to mint tokens for Service B providing a more sophisticated but preferred method. The token is properly scoped for both services, ensuring a clear audit trail of token issuance, while reducing token manipulation risks.&lt;/p&gt;
-
-&lt;h3 id=&quot;kill-switch&quot;&gt;Kill switch&lt;/h3&gt;
-
-&lt;p&gt;As highlighted earlier,&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;OIDC relies on trusting a third-party authentication service. Any disruption to this service could result in downtime.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;Dex’s ability to support multiple IdPs enables traffic to be shifted to a different IdP if one, such as Google, experiences an outage. This “kill switch” mechanism ensures that integrated services are not disrupted and do not require any changes to mitigate the issue. It is only triggered during specific IdP outages.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/dex-in-action/killswitch.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 9. Trigger kill switch without having other services changing from their end.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;looking-forward&quot;&gt;Looking forward&lt;/h2&gt;
-
-&lt;p&gt;Following the successful implementation of Dex as the unified authentication provider, the next phase in enhancing our identity and access management infrastructure is to leverage this robust identity foundation to establish a unified and simplified authorisation model. This initiative is driven by the recognition that the current authorisation landscape remains fragmented and complex, leading to potential inefficiencies and security vulnerabilities.&lt;/p&gt;
-
-&lt;p&gt;By centralising authorisation and aligning it with the unified identity provided by Dex, we can streamline access control, improve user experience, and strengthen security across our applications and services. This will involve consolidating authorisation policies, standardising access control mechanisms, and simplifying the management of user permissions.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Shoutout to the awesome Concedo team for driving Dex integration and to our leadership for steering the way toward a simpler, unified authentication and authorisation journey! Special recognition to Arun Ravi for his invaluable contributions to the project—his work on Dex within the Data Tech platform laid the foundation for what eventually evolved into the Concedo Dex.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebdex&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-
-&lt;h3 id=&quot;definition-of-terms&quot;&gt;Definition of terms&lt;/h3&gt;
-
-&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
-  &lt;ol&gt;
-    &lt;li id=&quot;fn:1&quot;&gt;
-      &lt;p&gt;Authentication: Who you are. Making sure you are who you say you are by verifying your identity. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:2&quot;&gt;
-      &lt;p&gt;Authorisation: What you can do. Defining the resources or actions you are allowed to access or perform after your identity has been verified. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:5&quot;&gt;
-      &lt;p&gt;Role-to-Permission Matrix (R2PM): A structured framework used to map roles within an organisation to the permissions or access rights each role has in a system, application, or process. This matrix serves as a critical component in access control and identity management, ensuring that users have appropriate access based on their roles while minimising the risk of unauthorised access. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:3&quot;&gt;
-      &lt;p&gt;Open Authorisation (OAuth 2.0): Protocol for authorisation. For example, Google Login on third-party portals allows your identity to remain with Google, but third-party portals can obtain limited access to specific data such as your profile photo. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-    &lt;li id=&quot;fn:4&quot;&gt;
-      &lt;p&gt;OpenID Connect (OIDC): Identity protocol built on top of OAuth 2.0. On top of authorisation provided by OAuth 2.0, it verifies and provides a trusted identity. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;/ol&gt;
-&lt;/div&gt;
-</description>
-        <pubDate>Fri, 23 May 2025 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/dex-in-action</link>
-        <guid isPermaLink="true">https://engineering.grab.com/dex-in-action</guid>
-        
-        <category>Access control</category>
-        
-        <category>Engineering</category>
-        
-        <category>Security</category>
         
         
         <category>Engineering</category>
