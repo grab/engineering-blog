@@ -103,6 +103,8 @@ The code example for periodically flushing the counter value to the storage laye
 
 ## Benchmarking
 
+In an experiment conducted with an Apple M4 24 GB RAM machine, using the test case of spawning up to millions of concurrent Go routines to increment the counter of 2000 keys.
+
 ```
 go test -bench . -benchmem -benchtime=80s -v inmemory_counter_test.go
 goos: darwin
@@ -114,25 +116,28 @@ Benchmark2_SyncMap_2000Keys
 Benchmark2_SyncMap_2000Keys-14          1000000000              59.89 ns/op           88 B/op          4 allocs/op
 ```
 
-In an experiment conducted with an Apple M4 24 GB RAM machine, using the test case of spawning up to millions of concurrent Go routines to increment the counter of 2000 keys.
-
 | Metric | Mutex | Sync.Map |
-| :---- | :---- |  :---- |
+| :----: | :----: |  :----: |
 | Average latency | 159 ns/op | 53 ns/op |
 | Speed advantage | - | 3.0x faster |
 | Throughput (60s) | 466M ops | 1B ops |
 | Memory/op | 0 B | 88 B |
-| Allocations/op | 0 | 4|
+| Allocations/op | 0 | 4 |
 
 In summary, getting rid of explicit locking with Sync.Map is 3 times faster than using map with Mutex.
 
-## Why is Sync.Map is faster than map and Mutex?
+## Why is Sync.Map is faster than map with Mutex in our case?
+
+Acknowledging the factual information on Sync.Map:
+
+* Sync.Map is optimized for the ready heavy workloads.
+* Sync.Map maintains two maps internally: read map and dirty map and has additional overheads in internal management.
 
 In the actual production environment, there are roughly a few thousand keys in the map (campaignIDs) and at high QPS. Go routines update the same keys concurrently (tracking the usage by incrementing internal value).
 
 Looking into the internal implementation of Sync.Map. Each key holds a pointer to a struct named entry, which holds the unsafe pointer to the actual value. Whenever a key is accessed and the key is present in the internal read map, the pointer to the struct is returned, and CompareAndSwap (CAS) is then used to atomically replace the pointer to the new value present in the struct in case of update. This strategy is lock free, but there is contention by CAS operation. 
 
-When a key already exists in the internal read map, the value pointer is updated atomically without acquiring a lock—the fast path. In our case, the same finite set of keys is accessed across Go routines over time, so we hit the fast path about 99% of the time. Compared with using a regular map protected by a Mutex that locks on every update, Sync.Map is typically faster for this access pattern. 
+When a key already exists in the internal read map, the value pointer is updated atomically without acquiring a lock—the fast path. The dirty map is only involved when the key is missing from the read map or has been marked for deletion—the slow path. In our case, the same finite set of keys is accessed across Go routines over time, so we hit the fast path about 99% of the time. Compared with using a regular map protected by a Mutex that locks on every update, Sync.Map is typically faster for this access pattern. 
 
 As we have an estimate of 2000 entries in the map, the total memory occupied by Sync.Map will be roughly around 150KB~200KB in memory, including the overheads.
 
