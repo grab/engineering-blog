@@ -69,11 +69,11 @@ The code for the functional requirement of periodically flushing the counter val
   </figure>
 </div>
 
-Assuming that this design is a success, every 200 milliseconds, a background job acquires a global map lock, iterates over all keys, writes each entry to the storage layer asynchronously, then deletes it from the map. After that, a flush is executed where counter increments are blocked until the lock is released.
+Assuming that this design is a success, every 200 milliseconds, a background job acquires a global map lock, iterates over all keys, writes each entry to the storage layer asynchronously, then deletes it from the map. After that, a flush is executed where counter increments are blocked until the lock is released. We can further optimise the flushing process by acquiring the lock, handing the old map to the flusher, swapping in a fresh map to handle new traffic, and then releasing the lock.
 
 ## Can we do something better?
 
-Yes, `Sync.Map` is the synchronised version of `map` in GoLang. This can be used to get rid of the explicit locking overheads.
+Yes, `Sync.Map` is the synchronised version of `map` in GoLang. This can be used to get rid of the explicit locking overheads. This works well when the keys accessed are disjoint and the map has a finite set of keys accessed frequently.
 
 Powerful features of the `Sync.Map`:
 
@@ -99,23 +99,53 @@ The code example for periodically flushing the counter value to the storage laye
   </figure>
 </div>
 
+*Note: In production, we run flushKeys less frequently, trading a risk of data loss for lower database usage and, consequently, improved database performance.*
+
 ## Benchmarking
 
-An experiment was conducted on an Apple M1 16 GB RAM machine to test a use case of spawning a maximum of 200 million concurrent Goroutines to increment the counter of 40 keys. The results are:
+```
+go test -bench . -benchmem -benchtime=80s -v inmemory_counter_test.go
+goos: darwin
+goarch: arm64
+cpu: Apple M4 Pro
+Benchmark1_Mutex_2000Keys
+Benchmark1_Mutex_2000Keys-14            588503698              161.5 ns/op             0 B/op          0 allocs/op
+Benchmark2_SyncMap_2000Keys
+Benchmark2_SyncMap_2000Keys-14          1000000000              59.89 ns/op           88 B/op          4 allocs/op
+```
 
-* The approach of using a map with Mutex-based locking took 1 minute and 50 seconds across 5 runs.
+In an experiment conducted with an Apple M4 24 GB RAM machine, using the test case of spawning up to millions of concurrent Go routines to increment the counter of 2000 keys.
 
-* The approach of using `Sync.Map` with atomic updates took 1 minute and 20 seconds across 5 runs.
+| Metric | Mutex | Sync.Map |
+| :---- | :---- |  :---- |
+| Average latency | 159 ns/op | 53 ns/op |
+| Speed advantage | - | 3.0x faster |
+| Throughput (60s) | 466M ops | 1B ops |
+| Memory/op | 0 B | 88 B |
+| Allocations/op | 0 | 4|
 
-In summary, getting rid of explicit locking with `Sync.Map` is ~30% faster than using Mutex to make the map thread safe.
+In summary, getting rid of explicit locking with Sync.Map is 3 times faster than using map with Mutex.
+
+## Why is Sync.Map is faster than map and Mutex?
+
+In the actual production environment, there are roughly a few thousand keys in the map (campaignIDs) and at high QPS. Go routines update the same keys concurrently (tracking the usage by incrementing internal value).
+
+Looking into the internal implementation of Sync.Map. Each key holds a pointer to a struct named entry, which holds the unsafe pointer to the actual value. Whenever a key is accessed and the key is present in the internal read map, the pointer to the struct is returned, and CompareAndSwap (CAS) is then used to atomically replace the pointer to the new value present in the struct in case of update. This strategy is lock free, but there is contention by CAS operation. 
+
+When a key already exists in the internal read map, the value pointer is updated atomically without acquiring a lock—the fast path. The dirty map is only involved when the key is missing from the read map or has been marked for deletion—the slow path. In our case, the same finite set of keys is accessed across Go routines over time, so we hit the fast path about 99% of the time. Compared with using a regular map protected by a Mutex that locks on every update, Sync.Map is typically faster for this access pattern. 
+
+As we have an estimate of 2000 entries in the map, the total memory occupied by Sync.Map will be roughly around 150KB~200KB in memory, including the overheads.
+
+Performance varies by case. Benchmarking is necessary to determine the optimal strategy for our specific use case. It is important to take note that Sync.Map performance may degrade if there are frequent insertions or deletions. In our use case, insertion of keys happens occasionally when a new campaign starts. The deletion of keys is triggered by the flush keys job.
 
 ## Approach comparison
 
 | Map with Mutex | Synchronised map (Sync.Map) |
 | :---- | :---- |
 | Locks are explicitly taken. | Implicit locks. |
-| Experiment running averaged over 5 runs: 1 minute and 50 seconds | Experiment running averaged over 5 runs: 1 minute and 20 seconds |
-| Time for operation increases linearly with more keys trying to update the counter, as the entire map is locked during update and flush operations. | Time for operation remains almost constant as the map is not locked. |
+| Locks serialises every update operation though different keys are accessed. | Atomic operations on different keys happen in parallel when keys are present in the read map. |
+| Benchmark running over 80 seconds with 2000 keys in map, each operation took 160ns on avg with total throughput of 466million operations. | Benchmark running over 80 seconds with 2000 keys in map, each operation took 53ns on avg with total throughput of 1billion operations. |
+
 
 ## Conclusion
 
