@@ -168,7 +168,7 @@
                   
                 
               </span>
-              <span class="post-date-large">6 Oct 2025 | 10 min read</span>
+              <span class="post-date-large">6 Oct 2025 | 11 min read</span>
             </div>
           </div>
         </div>
@@ -277,6 +277,8 @@
 
 <h2 id="benchmarking">Benchmarking</h2>
 
+<p>In an experiment conducted with an Apple M4 24 GB RAM machine, using the test case of spawning up to millions of concurrent Go routines to increment the counter of 2000 keys.</p>
+
 <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>go test -bench . -benchmem -benchtime=80s -v inmemory_counter_test.go
 goos: darwin
 goarch: arm64
@@ -287,54 +289,59 @@ Benchmark2_SyncMap_2000Keys
 Benchmark2_SyncMap_2000Keys-14          1000000000              59.89 ns/op           88 B/op          4 allocs/op
 </code></pre></div></div>
 
-<p>In an experiment conducted with an Apple M4 24 GB RAM machine, using the test case of spawning up to millions of concurrent Go routines to increment the counter of 2000 keys.</p>
-
 <table>
   <thead>
     <tr>
-      <th style="text-align: left">Metric</th>
-      <th style="text-align: left">Mutex</th>
-      <th style="text-align: left">Sync.Map</th>
+      <th style="text-align: center">Metric</th>
+      <th style="text-align: center">Mutex</th>
+      <th style="text-align: center">Sync.Map</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td style="text-align: left">Average latency</td>
-      <td style="text-align: left">159 ns/op</td>
-      <td style="text-align: left">53 ns/op</td>
+      <td style="text-align: center">Average latency</td>
+      <td style="text-align: center">159 ns/op</td>
+      <td style="text-align: center">53 ns/op</td>
     </tr>
     <tr>
-      <td style="text-align: left">Speed advantage</td>
-      <td style="text-align: left">-</td>
-      <td style="text-align: left">3.0x faster</td>
+      <td style="text-align: center">Speed advantage</td>
+      <td style="text-align: center">-</td>
+      <td style="text-align: center">3.0x faster</td>
     </tr>
     <tr>
-      <td style="text-align: left">Throughput (60s)</td>
-      <td style="text-align: left">466M ops</td>
-      <td style="text-align: left">1B ops</td>
+      <td style="text-align: center">Throughput (60s)</td>
+      <td style="text-align: center">466M ops</td>
+      <td style="text-align: center">1B ops</td>
     </tr>
     <tr>
-      <td style="text-align: left">Memory/op</td>
-      <td style="text-align: left">0 B</td>
-      <td style="text-align: left">88 B</td>
+      <td style="text-align: center">Memory/op</td>
+      <td style="text-align: center">0 B</td>
+      <td style="text-align: center">88 B</td>
     </tr>
     <tr>
-      <td style="text-align: left">Allocations/op</td>
-      <td style="text-align: left">0</td>
-      <td style="text-align: left">4</td>
+      <td style="text-align: center">Allocations/op</td>
+      <td style="text-align: center">0</td>
+      <td style="text-align: center">4</td>
     </tr>
   </tbody>
 </table>
 
 <p>In summary, getting rid of explicit locking with Sync.Map is 3 times faster than using map with Mutex.</p>
 
-<h2 id="why-is-syncmap-is-faster-than-map-and-mutex">Why is Sync.Map is faster than map and Mutex?</h2>
+<h2 id="why-is-syncmap-is-faster-than-map-with-mutex-in-our-case">Why is Sync.Map is faster than map with Mutex in our case?</h2>
+
+<p>Acknowledging the factual information on Sync.Map:</p>
+
+<ul>
+  <li>Sync.Map is optimized for the ready heavy workloads.</li>
+  <li>Sync.Map maintains two maps internally: read map and dirty map and has additional overheads in internal management.</li>
+</ul>
 
 <p>In the actual production environment, there are roughly a few thousand keys in the map (campaignIDs) and at high QPS. Go routines update the same keys concurrently (tracking the usage by incrementing internal value).</p>
 
 <p>Looking into the internal implementation of Sync.Map. Each key holds a pointer to a struct named entry, which holds the unsafe pointer to the actual value. Whenever a key is accessed and the key is present in the internal read map, the pointer to the struct is returned, and CompareAndSwap (CAS) is then used to atomically replace the pointer to the new value present in the struct in case of update. This strategy is lock free, but there is contention by CAS operation.</p>
 
-<p>When a key already exists in the internal read map, the value pointer is updated atomically without acquiring a lock—the fast path. In our case, the same finite set of keys is accessed across Go routines over time, so we hit the fast path about 99% of the time. Compared with using a regular map protected by a Mutex that locks on every update, Sync.Map is typically faster for this access pattern.</p>
+<p>When a key already exists in the internal read map, the value pointer is updated atomically without acquiring a lock—the fast path. The dirty map is only involved when the key is missing from the read map or has been marked for deletion—the slow path. In our case, the same finite set of keys is accessed across Go routines over time, so we hit the fast path about 99% of the time. Compared with using a regular map protected by a Mutex that locks on every update, Sync.Map is typically faster for this access pattern.</p>
 
 <p>As we have an estimate of 2000 entries in the map, the total memory occupied by Sync.Map will be roughly around 150KB~200KB in memory, including the overheads.</p>
 
