@@ -23,7 +23,7 @@ After evaluating other industry-leading model serving platforms and studying bes
 
 * **Multi-framework support**: Compatibility with major machine learning frameworks, including ONNX, PyTorch, and TensorFlow, ensuring versatility and broad applicability.  
 
-* **Unified inference interface**: Provides a single, consistent API for various Machine Learning (ML) frameworks, simplifying user interaction and reducing overhead when switching between models or frameworks.  
+* **Unified inference interface**: Provides a single, consistent API for various ML frameworks, simplifying user interaction and reducing overhead when switching between models or frameworks.  
 
 * **Hardware optimisation**: Optimised for NVIDIA GPUs, Triton delivers strong performance on CPU-only environments and specialised instances like AWS Inferentia.  
 
