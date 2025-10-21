@@ -74,7 +74,7 @@ Triton proxy provides backward compatibility to the existing clients. It hosts e
 
 Finally, a special mode in the Triton server manager is implemented to allow the Triton Inference Server (TIS) to be backward compatible with the command line interface of the existing ONNX runtime server used in Catwalk.
 
-We plan to enhance the Triton Manager to ensure backward compatibility with other machine learning frameworks, as part of our efforts to onboard additional frameworks seamlessly.
+We plan to enhance the Triton Manager to ensure backward compatibility with other ML frameworks, as part of our efforts to onboard additional frameworks seamlessly.
 
 ## Rollout result
 
