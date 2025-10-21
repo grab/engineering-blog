@@ -42,7 +42,7 @@ In this blog, we aim to share our journey of adopting Triton. From initial bench
 We conducted rigorous testing of Triton against our existing ONNX server under varying levels of request traffic.
 
 <div class="post-image-section"><figure>
-  <img src="/img/nvida-triton/table-1.png" alt="" style="width:80%"><figcaption align="middle">Table 1: Benchmark results of Triton against Catwalk ONNX server.</figcaption>
+  <img src="/img/nvida-triton/table-1.png" alt="" style="width:70%"><figcaption align="middle">Table 1: Benchmark results of Triton against Catwalk ONNX server.</figcaption>
   </figure>
 </div>
 
