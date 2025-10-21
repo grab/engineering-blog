@@ -8,7 +8,7 @@ categories: [Engineering, Data]
 tags: [engineering, performance, data-science]
 comments: true
 cover_photo: /img/nvida-triton/banner.png
-excerpt: "Discover how Grab embraced Triton Inference Server (TIS) to tackle performance challenges in one of its core models. This blog takes you through our journey—from initial exploratory benchmarks to the creation of the “Triton Server Manager,” a seamless integration component designed to minimise user friction. Learn how we successfully migrated over 50% of online deployments to Triton without a hitch and achieved a remarkable 50% improvement in tail latency for critical systems. Dive into the details of this transformative optimisation!"
+excerpt: "Dive into Grab’s engineering journey to optimise a core ML model. Learn how we built the Triton Server Manager and used Triton Inference Server (TIS) to achieve a 50% reduction in tail latency and seamlessly migrate over 50% of online deployments."
 ---
 
 
