@@ -6,9 +6,143 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 07 Oct 2025 09:18:03 +0000</pubDate>
-    <lastBuildDate>Tue, 07 Oct 2025 09:18:03 +0000</lastBuildDate>
+    <pubDate>Tue, 21 Oct 2025 04:04:39 +0000</pubDate>
+    <lastBuildDate>Tue, 21 Oct 2025 04:04:39 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Modernising Grab’s model serving platform with NVIDIA Triton Inference Server</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://engineering.grab.com/catwalk-evolution&quot;&gt;Catwalk&lt;/a&gt; is Grab’s machine learning (ML) model serving platform, designed to enable data scientists and engineers in deploying production-ready inference APIs. Currently, Catwalk powers hundreds of ML models and online deployments. To accommodate this growth, the platform has adapted to the rapidly evolving machine learning technology landscape. This involved progressively integrating support for multiple frameworks such as ONNX, PyTorch, TensorFlow, and vLLM. While this approach initially worked for a limited number of frameworks, it soon became unsustainable as maintaining various inference engines, ensuring backward compatibility, and managing deprecated legacy components (such as the ONNX server) introduced significant technical debt. Over time, this resulted in degraded platform performance: with increased latency, reduced throughput, and escalating costs. These issues began to impact users, as larger models could no longer be served efficiently or cost-effectively by legacy components. Recognising the need for change, the team revisited the platform’s design to address these challenges.&lt;/p&gt;
+
+&lt;h2 id=&quot;evaluation-and-implementation&quot;&gt;Evaluation and implementation&lt;/h2&gt;
+
+&lt;p&gt;After evaluating other industry-leading model serving platforms and studying best practices, we decided to conduct an in-depth analysis of NVIDIA Triton. Triton offers significant advantages as an inference engine, including:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Multi-framework support&lt;/strong&gt;: Compatibility with major ML frameworks, including ONNX, PyTorch, and TensorFlow, ensuring versatility and broad applicability.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Unified inference interface&lt;/strong&gt;: Provides a single, consistent API for various ML frameworks, simplifying user interaction and reducing overhead when switching between models or frameworks.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Hardware optimisation&lt;/strong&gt;: Optimised for NVIDIA GPUs, Triton delivers strong performance on CPU-only environments and specialised instances like AWS Inferentia.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Up-to-date support&lt;/strong&gt;: Continuously updated by upstream to support the latest optimisation and features from upstream ML frameworks, ensuring access to cutting-edge capabilities.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Advanced inference features&lt;/strong&gt;: Includes capabilities like dynamic batching and model ensembling (model pipelining), which enhances throughput and efficiency for complex ML workflows.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Our extensive benchmarking demonstrated that NVIDIA Triton delivers substantial enhancements in both performance and service stability compared to our existing solutions.&lt;/p&gt;
+
+&lt;p&gt;We are now working towards consolidating the various inference engines we manage into a unified, all-in-one Triton engine, beginning with ONNX adoption as the first phase of implementation.&lt;/p&gt;
+
+&lt;p&gt;In this blog, we aim to share our journey of adopting Triton. From initial benchmarking results on one of Grab’s core models facing performance challenges, to the development of the “Triton manager”, a component designed to integrate Triton into our platform seamlessly and with minimal user disruption. Ultimately, more than 50% of online deployments were successfully migrated to Triton, with some of our critical systems achieving a 50% improvement in tail latency.&lt;/p&gt;
+
+&lt;h2 id=&quot;exploratory-benchmark-results&quot;&gt;Exploratory benchmark results&lt;/h2&gt;
+
+&lt;p&gt;We conducted rigorous testing of Triton against our existing ONNX server under varying levels of request traffic.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/nvida-triton/table-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Table 1: Benchmark results of Triton against Catwalk ONNX server.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;During testing with a transformer-based model, Triton demonstrated the ability to handle at least 5 times the traffic while maintaining excellent latency. Additionally, its performance was further enhanced with features like batching enabled, and there is potential for even greater optimisation by converting the model to TensorRT, leveraging GPU support.&lt;/p&gt;
+
+&lt;p&gt;Through profiling, we learned that a handful of ONNX Runtime knobs have an outsized impact on throughput. One low-effort, high-return tweak is to set the intra-op thread count to match the number of physical CPU cores. In most cases, this single change yields a healthy performance lift, sparing us from time-consuming, model-by-model micro-optimisation.&lt;/p&gt;
+
+&lt;h2 id=&quot;adopting-triton-at-scale&quot;&gt;Adopting Triton at scale&lt;/h2&gt;
+
+&lt;p&gt;While the benchmark results clearly demonstrate Triton’s advantages, the primary challenge was ensuring a seamless migration, ideally with minimal user reactions. Given the high frequency of migrations within our company, even exceptional performance improvements are often insufficient to fully motivate internal users to adopt new systems. From our point of view, a successful migration required:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Maintaining API compatibility with existing systems.&lt;/li&gt;
+  &lt;li&gt;Ensuring zero-downtime.&lt;/li&gt;
+  &lt;li&gt;Preserving all existing functionality while adding new capabilities.&lt;/li&gt;
+  &lt;li&gt;Minimising disruption to downstream services and users.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To streamline the migration process, we opted to manage it centrally within our platform, rather than relying on individual users to address the details themselves.&lt;/p&gt;
+
+&lt;p&gt;We landed on the idea of offering Triton to our users as a drop-in replacement for the old server, with the help of a new component, “Triton manager”. The Triton manager is a critical component that glues Triton to the Catwalk ecosystem. It consists of two major components: Triton server manager and Triton proxy.&lt;/p&gt;
+
+&lt;p&gt;Triton server manager is designed as the entry point of our Catwalk Triton. It downloads the model from remote storage, runs verification on the model files, prepares per-model configurations based on users’ customisation, and lastly it launches the Triton server. It also periodically checks the server’s health and provides observability overlooking the server’s status.&lt;/p&gt;
+
+&lt;p&gt;Triton proxy provides backward compatibility to the existing clients. It hosts endpoints that translate requests from the older API and forward them to the Triton server. The proxy layer plays a crucial role in facilitating a seamless transition from our legacy servers, eliminating the need for user code changes. The conversion logic is designed to prioritise performance, ensuring minimal overhead. Extensive benchmarks were conducted during development to validate and optimise its efficiency.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/nvida-triton/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: High-level architecture for Triton Inference Server (TIS) deployment at Catwalk.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Finally, a special mode in the Triton server manager is implemented to allow the Triton Inference Server (TIS) to be backward compatible with the command line interface of the existing ONNX runtime server used in Catwalk.&lt;/p&gt;
+
+&lt;p&gt;We plan to enhance the Triton Manager to ensure backward compatibility with other ML frameworks, as part of our efforts to onboard additional frameworks seamlessly.&lt;/p&gt;
+
+&lt;h2 id=&quot;rollout-result&quot;&gt;Rollout result&lt;/h2&gt;
+
+&lt;p&gt;Within just 10 days of Triton’s availability, we successfully rolled it out to over 50% of our online model deployments. Thanks to rigorous testing for backward compatibility, the rollout was seamless, with most users unaware of the transition while benefiting from the improved performance.&lt;/p&gt;
+
+&lt;h2 id=&quot;tritons-impacts-on-critical-models&quot;&gt;Triton’s impacts on critical models&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/nvida-triton/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Latency before and after rollout in ms. Blue line: XGBoost-based model. Orange line: transformer-based model. Solid line: average. Dashed line: p99&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;We’ve observed significant performance improvements in our business-critical models that have high demands for stability. Latency improvements were consistently observed in all models, especially in the models that suffered from highly volatile request traffic. For some larger transformer models, the p90 latency decreased dramatically from 120ms to 20ms, and the average latency remained steady at 4ms. Smaller XGBoost models maintained their average latency at 2ms across regions.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/nvida-triton/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt; Figure 3: Number of pods, before (blue line) and after (purple line) rollout in another model.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Triton has delivered significant cost savings for certain models, with some achieving over 90% reductions due to its advanced optimisations. These improvements have come alongside enhanced performance and reliability.&lt;/p&gt;
+
+&lt;p&gt;It is worth noting that Triton was initially rolled out with limited capabilities to prioritise backward compatibility and ensure a seamless migration. However, we’ve noticed that higher tail latency still remains an issue when facing request spikes for larger models in production. To address this, we are working on enabling batching through Triton to minimise tail latency during traffic surges. This effort will involve close collaboration with model owners to optimise the capacity of each Triton instance further.&lt;/p&gt;
+
+&lt;h2 id=&quot;early-cost-impact-of-the-migration&quot;&gt;Early cost impact of the migration&lt;/h2&gt;
+
+&lt;p&gt;To gauge the financial upside of migrating to Triton, we took a snapshot of 11 production ML services that had already completed the migration. For every ML service, we compared its infrastructure spend over the 14 days before the cut-over with the 14 days after.&lt;/p&gt;
+
+&lt;p&gt;Despite the staggered migration dates, the trend was uniform: average spend fell by ~ 20% across this small cohort within 14 days. As more models and applications migrate, we expect the absolute dollar savings to scale proportionally.&lt;/p&gt;
+
+&lt;h2 id=&quot;takeaways&quot;&gt;Takeaways&lt;/h2&gt;
+
+&lt;p&gt;Initial results are aligned with our benchmarks for the Triton migration. With improved performance and cost reduction, we expect model owners to either upgrade their model sizes or allow for higher Queries Per Second (QPS). While making further progress with the overall Triton migration, the model serving platform team will continue to monitor cost differences and provide consultation to model owners who seek further optimisation for their deployments.&lt;/p&gt;
+
+&lt;p&gt;Another key takeaway is the painless migration of Triton for our internal users. Rather than asking internal users to make necessary code changes, our team dedicated significant time to providing Triton as a drop-in inference engine to minimise any inconvenience of migration.&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Big appreciation to Shengwei Pang from the Geo team, Khai Hung Do, Nhat Minh Nguyen, and Siddharth Pandey from the Catwalk team, along with Richard Ryu from the PM team and Padarn George Wilson for the sponsorship. &lt;/small&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 21 Oct 2025 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/modernising-grab-model-serving-platform</link>
+        <guid isPermaLink="true">https://engineering.grab.com/modernising-grab-model-serving-platform</guid>
+        
+        <category>engineering</category>
+        
+        <category>performance</category>
+        
+        <category>data-science</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data</category>
+        
+      </item>
     
       <item>
         <title>Highly concurrent in-memory counter in GoLang</title>
@@ -1998,145 +2132,6 @@ Pure synchronous Rust is fine. As long as you don’t overcomplicate the code an
         <category>Rust</category>
         
         <category>Data</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>The complete stream processing journey on FlinkSQL</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In the fast-paced world of data analytics, real-time processing has become a necessity. Modern businesses require insights not just quickly, but in real-time to make informed decisions and stay ahead of the competition. &lt;strong&gt;Apache Flink&lt;/strong&gt; has emerged as a powerful tool in this domain, offering state-of-the-art stream processing capabilities. In this blog, we introduce our FlinkSQL interactive solution in accompanying productionising automation, and enhancing our users’ stream processing development journey.&lt;/p&gt;
-
-&lt;h2 id=&quot;preface&quot;&gt;Preface&lt;/h2&gt;
-
-&lt;p&gt;Last year, we introduced Zeppelin notebooks for Flink, as detailed in our previous post &lt;a href=&quot;https://engineering.grab.com/rethinking-streaming-processing-data-exploration&quot;&gt;Rethinking Stream Processing: Data Exploration&lt;/a&gt; in an effort to enhance data exploration for downstream data users. However, as our use cases evolved over time, we quickly hit a few technical roadblocks.&lt;/p&gt;
-
-&lt;h3 id=&quot;flink-version-maintenance&quot;&gt;Flink version maintenance&lt;/h3&gt;
-
-&lt;p&gt;Zeppelin notebook source code is maintained by a community separate from Flink’s community. As of writing, the latest Flink version supported is 1.17, whilst the latest Flink is already on version 1.20. This discrepancy in version support hinders our Flink upgrading efforts.&lt;/p&gt;
-
-&lt;h3 id=&quot;cluster-start-up-time&quot;&gt;Cluster start up time&lt;/h3&gt;
-
-&lt;p&gt;Our design to spin up a Zeppelin cluster per user on demand invokes a cold start delay, taking roughly around 5 minutes for the notebook to be ready. This delay is not suitable for use cases that require quick insights from production data. We quickly noticed that the user uptake of this solution was not as high as we expected.&lt;/p&gt;
-
-&lt;h3 id=&quot;integration-challenges&quot;&gt;Integration challenges&lt;/h3&gt;
-
-&lt;p&gt;Whilst Zeppelin notebooks were useful for serving individual developers, we experienced difficulty integrating it with other internal platforms. We designed Zeppelin to empower solo data explorers, but other internal platforms like dashboards or automated pipelines needed a way to aggregate data from Kafka and Zeppelin just couldn’t keep up. The notebook setup was too isolated, requiring a workaround to share insights or plug into existing tools. For instance, if a team wanted to pull aggregated real-time metrics into a monitoring system, they had to export data manually, which is far from seamless access that we aimed for.&lt;/p&gt;
-
-&lt;h2 id=&quot;introducing-flinksql-interactive&quot;&gt;Introducing FlinkSQL interactive&lt;/h2&gt;
-
-&lt;p&gt;With those considerations in mind, we decided to swap out our Zeppelin cluster with a shared &lt;a href=&quot;https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/dev/table/sql-gateway/overview/&quot;&gt;FlinkSQL gateway&lt;/a&gt; cluster. We simplified our solution by removing some features our notebooks offered, focusing only on features that promote data democratisation.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/flink-sql/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: Shared FlinkSQL gateway architecture&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We split our solution into 3 layers:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Compute layer&lt;/li&gt;
-  &lt;li&gt;Integration layer&lt;/li&gt;
-  &lt;li&gt;Query layer&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Users first interact with our platform portal to submit queries for data from Kafka online store using SQL (1). Upon submission, our backend orchestrator then creates a session for the user (2) and submits the SQL query to our FlinkSQL gateway using their inbuilt REST API (3). The FlinkSQL gateway then packages the SQL query into a Flink job to be submitted to our Flink session cluster (4) before collating its results. The subsequent results would be polled from the query layer to be displayed back to the user.&lt;/p&gt;
-
-&lt;h3 id=&quot;compute-layer&quot;&gt;Compute layer&lt;/h3&gt;
-
-&lt;p&gt;With FlinkSQL gateway acting as the main compute engine for ad-hoc queries, it is now more straightforward to perform Flink version upgrades along with our solution, since the FlinkSQL gateway is packaged along with the main Flink distribution. We do not need to maintain Flink shims for each version as adapters between the Flink compute cluster and Zeppelin notebook cluster.&lt;/p&gt;
-
-&lt;p&gt;Another advantage of using the shared FlinkSQL gateway was the reduced cold start time for each ad-hoc queries. Since all users share the same FlinkSQL cluster instead of having their own Zeppelin cluster, there was no need to wait for cluster startup during initialisation of their sessions. This brought the lead time to the first results displayed down from 5 minutes to 1 minute. There was still lead time involved as the tool provisions task managers on an ad-hoc basis to balance availability of such developer tools and the associated cost.&lt;/p&gt;
-
-&lt;h3 id=&quot;integration-layer&quot;&gt;Integration layer&lt;/h3&gt;
-
-&lt;p&gt;The Integration layer serves as the glue between the user-facing query layer and the underlying compute layer, ensuring seamless communication and security across our ecosystem. With the shift to a shared FlinkSQL gateway, we recognised the need for an intermediary that could handle authentication, authorisation, orchestration, and integration with internal platforms - all while abstracting the complexities of Flink’s native REST API.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/flink-sql/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: FlinkSQL gateway&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The FlinkSQL gateway’s built-in REST API gets the job done for basic query submission, but it falls short in areas like session management, requiring multiple POST requests just to fetch results. To address this, we extended a custom control plane with its own set of REST APIs, layered on top of the gateway.&lt;/p&gt;
-
-&lt;p&gt;We then extend these sessions and integrate them to our inhouse authentication and authorisation platform. For each query made, the control plane authenticates the user, spins up lightweight sessions and manages the communication between the caller and the Flink Session Cluster. If you are interested, check out our previous blog post, &lt;a href=&quot;https://engineering.grab.com/an-elegant-platform&quot;&gt;An elegant platform&lt;/a&gt;, for more details on the above mentioned streaming platform and its control plane.&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl --location &apos;https://example.com/v1/flink/flinksql/interactive&apos; \
---header &apos;Content-Type: application/json&apos; \
---header &apos;Authorization: Bearer ...&apos; \
---data &apos;{
-    &quot;environment&quot; : &quot;prd&quot;,
-    &quot;namespace&quot; : &quot;flink&quot;,
-    &quot;sql&quot; : &quot;SELECT * FROM titanicstream&quot;}&apos;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;em&gt;Example API request for running a FlinkSQL query&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;The integration layer also caters to B2B needs via our Headless APIs. By exposing the endpoints, developers are able to integrate real-time processing into their own tools. To run a query, programs can simply make a POST request with the SQL query and an operation ID would be returned. This operation ID could then be used in subsequent GET requests to fetch the paginated results of the unbounded query. This setup is ideal for internal platforms that need to query Kafka data programmatically. By abstracting these complexities, it ensures that users, whether individual analysts or internal platforms—can tap into Kafka data without wrestling with Flink’s raw interfaces.&lt;/p&gt;
-
-&lt;h3 id=&quot;query-layer&quot;&gt;Query layer&lt;/h3&gt;
-
-&lt;p&gt;We then proceed to pair our APIs developed with an Interactive UI to build a Query layer that serves both human workflows. This is where users meet our platform.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/flink-sql/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3: Flink query layer’s user flow&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Through our platform portal, users land in a clean SQL editor. We used a Hive Metastore (HMS) catalog that translates Kafka topics into tables. Users don’t need to decode stream internals; they can jump straight into it by simply selecting a table to query on. Once a query is submitted, it is then handled by the integration layer which routes it through the control plane to the gateway. Results are then streamed back, appearing in the UI within one minute, a significant improvement from the five minute Zeppelin cold starts.&lt;/p&gt;
-
-&lt;p&gt;This all crystalises into the user flow demonstrated in Figure 3, where we can easily retrieve Titanic data from a Kafka stream with a short command:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;SELECT COUNT(*) FROM titanicstream WHERE kafkaEventTime &amp;gt; NOW() - INTERVAL &apos;1&apos; HOUR.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This setup enables a few use cases for our teams, such as:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Fraud analysts using the real-time data to debug and spot patterns in fraudulent transactions.&lt;/li&gt;
-  &lt;li&gt;Data scientists querying live signals to validate their prediction models.&lt;/li&gt;
-  &lt;li&gt;Engineers validating the messages sent from their system to confirm they are properly structured and accurately delivered.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;productionising-flinksql&quot;&gt;Productionising FlinkSQL&lt;/h2&gt;
-
-&lt;p&gt;With data being democratised, we see more users building use cases around our online data store and utilising the above tools to build new stream processing pipelines expressed as SQL queries. To simplify the last step of the software development lifecycle of deployment, we have also developed a tool to create a configuration based stream processing pipeline, with the business logic expressed as a SQL statement.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/flink-sql/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4: Portal for FlinkSQL pipeline creation&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We host connectors for users to connect to other platforms within Grab, such as Kafka and our internal feature stores. Users could simply use them off-the-shelf and configure according to their needs before deploying their stream processing pipeline.&lt;/p&gt;
-
-&lt;p&gt;Users would then proceed to submit their streaming logic as a SQL statement. In the example illustrated in the diagram, the logic expressed is a simple filter on a Kafka stream for sinking the filtered events into a separate Kafka stream.&lt;/p&gt;
-
-&lt;p&gt;Users have the ability to then define the parallelism and associated resources they want to run their Flink jobs with. Upon submission, the associated resources would be provisioned and the Flink pipeline would be automatically deployed. Behind the scenes, we manage the application JAR file that is being used to run the job that dynamically parses these configurations and translates them into a proper Flink job graph to be submitted to the Flink cluster.&lt;/p&gt;
-
-&lt;p&gt;Within 10 minutes, users would have completed deploying their stream processing pipeline to production.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;With our full suite of solutions for low code development via FlinkSQL, from exploration and design, to development and then deployment, we have simplified the journey for developing business use cases off online streaming stores. By offering both a user-friendly interface for low-code users and a robust API for developers, these tools empower businesses to harness the full potential of real-time data processing. Whether you are a data analyst looking for quick insights or a developer integrating real-time analytics into your applications, our tools are able to lower the barrier of entry to utilising real-time data.&lt;/p&gt;
-
-&lt;p&gt;After we released these solutions, we quickly saw an uptick in pipelines created as well as the number of interactive queries fired. This result was encouraging and we hope that this would gradually bring upon a paradigm shift, enabling Grab to make data-driven operational decisions on real-time signals, empowering us with the ability to react to ever-changing market conditions in the most efficient manner.&lt;/p&gt;
-
-&lt;h1 id=&quot;join-us&quot;&gt;Join us&lt;/h1&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebflinksql&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 12 Jun 2025 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/the-complete-stream-processing-journey-on-flinksql</link>
-        <guid isPermaLink="true">https://engineering.grab.com/the-complete-stream-processing-journey-on-flinksql</guid>
-        
-        <category>Database</category>
-        
-        <category>FlinkSQL</category>
         
         
         <category>Engineering</category>
