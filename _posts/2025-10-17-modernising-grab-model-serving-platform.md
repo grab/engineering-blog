@@ -21,7 +21,7 @@ excerpt: "Discover how Grab embraced Triton Inference Server (TIS) to tackle per
 
 After evaluating other industry-leading model serving platforms and studying best practices, we decided to conduct an in-depth analysis of NVIDIA Triton. Triton offers significant advantages as an inference engine, including:
 
-* **Multi-framework support**: Compatibility with major machine learning frameworks, including ONNX, PyTorch, and TensorFlow, ensuring versatility and broad applicability.  
+* **Multi-framework support**: Compatibility with major ML frameworks, including ONNX, PyTorch, and TensorFlow, ensuring versatility and broad applicability.  
 
 * **Unified inference interface**: Provides a single, consistent API for various ML frameworks, simplifying user interaction and reducing overhead when switching between models or frameworks.  
 
