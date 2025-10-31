@@ -58,7 +58,7 @@ We benchmarked Qwen2VL and miniCPM on Grab's dataset. Our initial findings showe
 
 ### Synthetic OCR dataset
 
-We extracted the SEA languages text content from a large online text corpus—[Common Crawl](https://commoncrawl.org/) (internet dataset). Then, we used an in-house synthetic data pipeline to generate text images by rendering SEA text contents in various fonts, backgrounds and argumentations. 
+We extracted the SEA languages text content from a large online text corpus—[Common Crawl](https://commoncrawl.org/) (internet dataset). Then, we used an in-house synthetic data pipeline to generate text images by rendering SEA text contents in various fonts, backgrounds and augmentations. 
 
 The dataset contains text in Bahasa Indonesia, Thai, Vietnamese, and English. Each image has a paragraph of random sentences extracted from the dataset as shown in Figure 3.
 
