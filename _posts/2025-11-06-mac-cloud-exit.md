@@ -13,7 +13,7 @@ excerpt: "Discover how our transition from cloud-based Mac hardware infrastructu
 
 ## Introduction
 
-In our mission to optimize continuous integration and delivery (CI/CD), we've taken a bold step by relocating our infrastructure from a cloud vendor in the US to a colocation cluster within Southeast Asia, closer to our Git server infrastructure. This change has dramatically improved the performance of our macOS builds, primarily by reducing the network traffic delays associated with distant data centers. By bringing our infrastructure closer to home, we've not only accelerated CI/CD job completion times but also massively slashed operational costs. 
+In our mission to optimize continuous integration and delivery (CI/CD), we have taken a bold step by relocating our infrastructure from a cloud vendor in the US to a colocation cluster within Southeast Asia, closer to our Git server infrastructure. This change has dramatically improved the performance of our macOS builds, primarily by reducing the network traffic delays associated with distant data centers. By bringing our infrastructure closer to home, we have not only accelerated CI/CD job completion times but also massively slashed operational costs. 
 
 Join us as we delve into the Mac Cloud Exit journey and the significant improvements it has brought to our workflows.
 
@@ -245,7 +245,7 @@ The following table provides an overview of the layout of our new Mac mini clust
 
 Zero-touch provisioning is a streamlined method for setting up and configuring devices with minimal manual intervention. This section outlines the process and benefits of zero-touch provisioning using Jamf for Mac minis.  
 
-We have a setup that enables these machines to start accepting jobs once they are racked up and connected (Power and network cables). Here is how it works 
+We have a setup that enables these machines to start accepting jobs once they are racked up and connected (Power and network cables). Here is how it works: 
 
 #### MDM configuration and Automated Device Enrollment (ADE) 
 
@@ -291,7 +291,7 @@ We ultimately opted for an allocated kW commitment, a phased approach based on c
 
 ## Conclusion
 
-The Mac Cloud Exit wasn't just a technical migration; it was a strategic move that fundamentally enhanced our engineering efficiency. By onshoring our infrastructure into Southeast Asia, we've achieved $2.4 million USD in projected savings and supercharged our CI pipeline, delivering performance gains of 20-40%. This project proves that taking ownership of our core infrastructure can be a major competitive advantage, allowing us to deliver faster and more reliably for our users across the region.
+The Mac Cloud Exit wasn't just a technical migration; it was a strategic move that fundamentally enhanced our engineering efficiency. By onshoring our infrastructure into Southeast Asia, we have achieved $2.4 million USD in projected savings and supercharged our CI pipeline, delivering performance gains of 20-40%. This project proves that taking ownership of our core infrastructure can be a major competitive advantage, allowing us to deliver faster and more reliably for our users across the region.
 
 ## Join us
 
