@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2025-11-01-custom-vision-llm-at-grab
-title: "How We Built a Custom Vision LLM to Improve Document Processing at Grab"
+title: "How we built a custom vision LLM to improve document processing at Grab"
 date: 2025-11-04 00:00:10
 authors: [jia-chen, manish-sahu, sing-kwan-ng, yang-yang]
 categories: [Engineering, Data]
