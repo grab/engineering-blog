@@ -20,7 +20,7 @@ Join us as we delve into the Mac Cloud Exit journey and the significant improvem
 Our macOS CI/CD infrastructure has evolved from 1 Physical Mac Pro running in our office to a cluster of 250 Mac minis fully occupied during peak hours of the day. There were multiple stages in the journey to transition to the current state. The following diagram shows the focus area for this blog post. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image1.png" alt="" style="width:90%"><figcaption align="middle">Figure 1. Infrastructure transition path</figcaption>
+  <img src="/img/mac-cloud-exit/image1.png" alt="" style="width:60%"><figcaption align="middle">Figure 1. Infrastructure transition path</figcaption>
   </figure>
 </div>
 
