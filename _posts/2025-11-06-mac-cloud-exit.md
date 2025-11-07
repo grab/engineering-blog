@@ -20,7 +20,7 @@ Join us as we delve into the Mac Cloud Exit journey and the significant improvem
 Our macOS CI/CD infrastructure has evolved from 1 Physical Mac Pro running in our office to a cluster of 250 Mac minis fully occupied during peak hours of the day. There were multiple stages in the journey to transition to the current state. The following diagram shows the focus area for this blog post. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image1.png" alt="" style="width:90%"><figcaption align="middle">Figure 1: Infrastructure transition path</figcaption>
+  <img src="/img/mac-cloud-exit/image1.png" alt="" style="width:90%"><figcaption align="middle">Figure 1. Infrastructure transition path</figcaption>
   </figure>
 </div>
 
@@ -30,14 +30,14 @@ Our macOS CI/CD infrastructure has evolved from 1 Physical Mac Pro running in ou
 We began our journey with a much simpler setup.
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image2.png" alt="" style="width:40%"><figcaption align="middle">Figure 2: Photo of the setup when we started</figcaption>
+  <img src="/img/mac-cloud-exit/image2.png" alt="" style="width:40%"><figcaption align="middle">Figure 2. Photo of the setup when we started</figcaption>
   </figure>
 </div>
 
 Today, that infrastructure has scaled significantly to meet the growing demands of Grab 
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image3.png" alt="" style="width:50%"><figcaption align="middle">Figure 3: Mac mini cluster today</figcaption>
+  <img src="/img/mac-cloud-exit/image3.png" alt="" style="width:50%"><figcaption align="middle">Figure 3. Mac mini cluster today</figcaption>
   </figure>
 </div>
 
@@ -60,7 +60,7 @@ The total number of jobs trend is one of the data points to understand the deman
 We estimated we would need 200+ machines to comfortably supply for the peak demand and projected a demand for 400+ machines in 2025. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image4.png" alt="" style="width:70%"><figcaption align="middle">Figure 4: Active macOS CI/CD jobs</figcaption>
+  <img src="/img/mac-cloud-exit/image4.png" alt="" style="width:70%"><figcaption align="middle">Figure 4. Active macOS CI/CD jobs</figcaption>
   </figure>
 </div>
 
@@ -69,8 +69,8 @@ We estimated we would need 200+ machines to comfortably supply for the peak dema
 We have several iOS apps that share a common macOS compute cluster for their CI/CD workloads.   
 This includes, but is not limited to:
 
-* [Grab: Taxi Ride, Food Delivery](https://apps.apple.com/sg/app/grabmerchant/id1282271764) (Largest iOS code base with approximately 2.5M+ total lines of code)  
-* [Grab Driver: App for Partners](https://apps.apple.com/sg/app/grabmerchant/id1282271764) (Second largest iOS code base with approximately 0.7M+ total lines of code)   
+* [Grab app](https://apps.apple.com/sg/app/grab-taxi-ride-food-delivery/id647268330) (Largest iOS code base with approximately 2.5M+ total lines of code)  
+* [Grab Driver app](https://apps.apple.com/sg/app/grab-driver-app-for-partners/id1257641454) (Second largest iOS code base with approximately 0.7M+ total lines of code)   
 * [KartaLink](https://apps.apple.com/sg/app/kartalink/id6450411148)   
 * [GrabMerchant](https://apps.apple.com/sg/app/grabmerchant/id1282271764)   
 * [KartaView](https://apps.apple.com/sg/app/kartaview/id1089548849)   
@@ -83,7 +83,7 @@ The workload primarily involves:
 * Building apps   
 * Execution of tests 
 
-## The Evaluation: Cloud vs colocation vs on-prem
+## The evaluation: Cloud vs colocation vs on-premises
 
 We did a comprehensive comparison and total cost of ownership (TCO) estimation to compare many different options, including cloud vendors and colocation in different places. 
 
@@ -119,12 +119,12 @@ Eventually we concluded to go ahead with a decision to colocate in a data center
 Our choice of hardware model for our build and test workload was guided by a cost-benefit analysis. We decided to use bare-metal setups without virtualization, simplifying migration processes, which may be revisited in the future. We ensured we neither over-specified nor under-specified the bare-metal hardware. We had a clear understanding of the resource consumption of our most demanding workload on a few reference models, as illustrated in the following graphs.
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5: User and System CPU usage during build operation of our largest iOS mobile codebase </figcaption>
+  <img src="/img/mac-cloud-exit/image5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. User and system CPU usage during build</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6: Memory Usage during build operation of our largest iOS mobile codebase </figcaption>
+  <img src="/img/mac-cloud-exit/image6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. Memory usage</figcaption>
   </figure>
 </div>
 
@@ -134,15 +134,15 @@ Virtualization offers significant advantages in managing and provisioning cluste
 
 Key points:
 
-* **Improved Utilization**: Virtualization can improve resource utilization by consolidating multiple workloads on fewer physical servers, thereby reducing the overall cost.  
-* **Performance Penalty**: However, the performance penalty associated with virtualization can sometimes negate these cost benefits. This is particularly true for macOS virtualization, where we have observed trade-offs in performance or stability.  
-* **Evolution of Virtualization**: The virtualization space has been evolving and making good progress. We may re-evaluate these solutions in the future as they continue to mature and potentially address current performance and stability issues.
+* **Improved utilization**: Virtualization can improve resource utilization by consolidating multiple workloads on fewer physical servers, thereby reducing the overall cost.  
+* **Performance penalty**: However, the performance penalty associated with virtualization can sometimes negate these cost benefits. This is particularly true for macOS virtualization, where we have observed trade-offs in performance or stability.  
+* **Evolution of virtualization**: The virtualization space has been evolving and making good progress. We may re-evaluate these solutions in the future as they continue to mature and potentially address current performance and stability issues.
 
 Our conclusion was to stick to bare-metal for the time-being as the benefits didn’t justify the downside and cost.
 
 ## Execution 
 
-### Progressive Migration 
+### Progressive migration 
 
 Any disruption to the macOS CI/CD cluster would be hugely disruptive to the company given our scale highlighted above. So, we enabled new cluster partially for part of the workload for a reasonably long period of time and monitored and compared: 
 
@@ -153,7 +153,7 @@ Any disruption to the macOS CI/CD cluster would be hugely disruptive to the comp
 Once we were confident, we made the full switch and terminated vendor contracts at due. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image7.png" alt="" style="width:90%"><figcaption align="middle">Figure 7: Total active jobs trend</figcaption>
+  <img src="/img/mac-cloud-exit/image7.png" alt="" style="width:90%"><figcaption align="middle">Figure 7. Total active jobs trend</figcaption>
   </figure>
 </div>
 
@@ -179,47 +179,124 @@ Overall, we project total cost of ownership savings of approximately 2.4 million
 
 ### Performance
 
-We measured the performance gains in two of ou largest iOS apps at Grab: 
+We measured the performance gains in two of our largest iOS apps:
 
-* [Grab: Taxi Ride, Food Delivery](https://apps.apple.com/sg/app/grab-taxi-ride-food-delivery/id647268330)  
-* [Grab Driver: App for Partners](https://apps.apple.com/sg/app/grab-driver-app-for-partners/id1257641454) 
+* Grab app
+* Grab Driver app
 
 #### Overall gains
 
 The following table summarizes the total time measured before and after the migration for total CI pipeline time and building the app codebase. Measurements are presented in 3 percentiles (p50, p75, p95)
 
-| App/Metric |  | Time (Minutes) |  |  |
-| ----- | :---- | ----- | ----: | ----: |
-|  |  | **p50** | **p75** | **p95** |
-| CI Pipeline Time Trend for Grab: Taxi Ride, Food Delivery | Before | 43 | 54 | 67 |
-|  | After | 33 | 42 | 49 |
-|  | **Gain** | **23.26%** | **22.22%** | **26.87%** |
-| App build time Trend for Grab: Taxi Ride, Food Delivery | Before | 10.7 | 13.2 | 17.6 |
-|  | After | 6.45 | 9 | 10.8 |
-|  | **Gain** | **39.72%** | **31.82%** | **38.64%** |
-| Pipeline time trend for Grab Driver: App for Partners| Before | 47 | 50 | 52 |
-|  | After | 26 | 31 | 32 |
-|  | **Gain** | **44.68%** | **38.00%** | **38.46%** |
-| App build time trend for Grab Driver: App for Partners| Before | 10 | 13 | 14 |
-|  | After | 6 | 8 | 8.5 |
-|  | **Gain** | **40.00%** | **38.46%** | **39.29%** |
+<table class="table">
+    <thead>
+        <tr>
+            <th rowspan="2">App / Metric</th>
+            <th rowspan="2"></th>
+            <th colspan="3">Time (Minutes)</th>
+        </tr>
+        <tr>
+            <th>p50</th>
+            <th>p75</th>
+            <th>p95</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td rowspan="3">CI pipeline time trend for the Grab app</td>
+            <td>Before</td>
+            <td>43</td>
+            <td>54</td>
+            <td>67</td>
+        </tr>
+        <tr>
+            <td>After</td>
+            <td>33</td>
+            <td>42</td>
+            <td>49</td>
+        </tr>
+        <tr>
+            <td><b>Gain</b></td>
+            <td><b>23.26%</b></td>
+            <td><b>22.22%</b></td>
+            <td><b>26.87%</b></td>
+        </tr>
+        <tr>
+            <td rowspan="3">App build time trend for the Grab app</td>
+            <td>Before</td>
+            <td>10.7</td>
+            <td>13.2</td>
+            <td>17.6</td>
+        </tr>
+        <tr>
+            <td>After</td>
+            <td>6.45</td>
+            <td>9</td>
+            <td>10.8</td>
+        </tr>
+        <tr>
+            <td><b>Gain</b></td>
+            <td><b>39.72%</b></td>
+            <td><b>31.82%</b></td>
+            <td><b>38.64%</b></td>
+        </tr>
+        <tr>
+            <td rowspan="3">Pipeline time trend for the Grab Driver app</td>
+            <td>Before</td>
+            <td>47</td>
+            <td>50</td>
+            <td>52</td>
+        </tr>
+        <tr>
+            <td>After</td>
+            <td>26</td>
+            <td>31</td>
+            <td>32</td>
+        </tr>
+        <tr>
+            <td><b>Gain</b></td>
+            <td><b>44.68%</b></td>
+            <td><b>38.00%</b></td>
+            <td><b>38.46%</b></td>
+        </tr>
+        <tr>
+            <td rowspan="3">App build time trend for the Grab Driver app</td>
+            <td>Before</td>
+            <td>10</td>
+            <td>13</td>
+            <td>14</td>
+        </tr>
+        <tr>
+            <td>After</td>
+            <td>6</td>
+            <td>8</td>
+            <td>8.5</td>
+        </tr>
+        <tr>
+            <td><b>Gain</b></td>
+            <td><b>40.00%</b></td>
+            <td><b>38.46%</b></td>
+            <td><b>39.29%</b></td>
+        </tr>
+    </tbody>
+</table>
 
 #### A different perspective: Trends 
 
 The following trend illustrations show how the performance of various tasks has improved while we progressively migrated to the new colocation setup.  
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image8.png" alt="" style="width:90%"><figcaption align="middle">Figure 8: 14 day aggregate percentiles of p50, p75 and p95 for total CI pipeline times for the Taxi Ride, Food Delivery codebase</figcaption>
+  <img src="/img/mac-cloud-exit/image8.png" alt="" style="width:90%"><figcaption align="middle">Figure 8. 14 day aggregate percentiles of p50, p75 and p95 for total CI pipeline times for the Grab app codebase</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image9.png" alt="" style="width:90%"><figcaption align="middle">Figure 9: Pipeline time pulse for the Taxi Ride, Food Delivery codebase</figcaption>
+  <img src="/img/mac-cloud-exit/image9.png" alt="" style="width:90%"><figcaption align="middle">Figure 9. Pipeline time pulse for the Grab app codebase</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/mac-cloud-exit/image10.png" alt="" style="width:90%"><figcaption align="middle">Figure 10: 14 day aggregate percentiles of p50, p75 and p95 for total CI pipeline times for the App for Partners codebase</figcaption>
+  <img src="/img/mac-cloud-exit/image10.png" alt="" style="width:90%"><figcaption align="middle">Figure 10. 14 day aggregate percentiles of p50, p75 and p95 for total CI pipeline times for the Grab Driver app codebase</figcaption>
   </figure>
 </div>
 
@@ -231,13 +308,42 @@ We measured overall job failure rates between both clusters for extended periods
 
 The following table provides an overview of the layout of our new Mac mini cluster. 
 
-| Component | Description | Redundancy  |
-| :---- | :---- | :---- |
-| Rack | We have got four 42RU (600x1200x42RU) racks housing 200+ Mac minis, plus some spare racks to house upcoming scheduled capacity upgrades.  | Racks have shared resources which have their own redundancy. Generally rack separation does provide some level of redundancy for total compute.  |
-| Power | 2 power sources power the cluster. Each rack is powered by these 2 power sources.  It is 1U, 2-post rack mount.  | Losing 1 power source will reduce 50% of capacity.  |
-| Mac Mini | We rack 2 Mac minis in a row on a mounting tray, typically racking 70 minis in one rack in total. Except for the first rack which requires extra rack units (RUs) for core switches and firewalls.  |  |
-| KVM | KVM switches with adaptor for keyboard and mouse emulation when required. | N/A |
-| Networking Setup | Networking consists of Core Switches, Access Switches, Firewalls, Internet and Direct Connect Links.  | Mostly active/active redundancy. |
+<table class="table">
+    <thead>
+        <tr>
+            <th>Component</th>
+            <th>Description</th>
+            <th>Redundancy</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Rack</td>
+            <td>We have got four 42RU (600x1200x42RU) racks housing 200+ Mac minis, plus some spare racks to house upcoming scheduled capacity upgrades.</td>
+            <td>Racks have shared resources which have their own redundancy. Generally rack separation does provide some level of redundancy for total compute.</td>
+        </tr>
+        <tr>
+            <td>Power</td>
+            <td>2 power sources power the cluster. Each rack is powered by these 2 power sources. It is 1U, 2-post rack mount.</td>
+                <td>Losing 1 power source will reduce 50% of capacity.</td>
+        </tr>
+        <tr>
+            <td>Mac Mini</td>
+            <td>We rack 2 Mac minis in a row on a mounting tray, typically racking 70 minis in one rack in total. Except for the first rack which requires extra rack units (RUs) for core switches and firewalls.</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>KVM</td>
+            <td>KVM switches with adaptor for keyboard and mouse emulation when required.</td>
+            <td>N/A</td>
+        </tr>
+        <tr>
+            <td>Networking Setup</td>
+            <td>Networking consists of Core Switches, Access Switches, Firewalls, Internet and Direct Connect Links.</td>
+            <td>Mostly active/active redundancy.</td>
+        </tr>
+    </tbody>
+</table>
 
 ## Provisioning and configuration 
 
@@ -247,7 +353,7 @@ Zero-touch provisioning is a streamlined method for setting up and configuring d
 
 We have a setup that enables these machines to start accepting jobs once they are racked up and connected (Power and network cables). Here is how it works: 
 
-#### MDM configuration and Automated Device Enrollment (ADE) 
+#### Mobile Device Management (MDM) configuration and Automated Device Enrollment (ADE) 
 
 ADE, previously known as Device Enrollment Program (DEP), is an Apple service that facilitates automatic enrollment. When a new Mac Mini is acquired and registered in the organization's ADE account, it is primed for automatic enrollment. Administrators create a PreStage enrollment configuration within Jamf Pro, encompassing account settings (e.g., creating a local admin account, hiding it in Users & Groups, skipping account creation for the user), configuration profiles (defining device settings, security policies, and restrictions), and enrollment packages (including necessary software and scripts).
 
@@ -276,16 +382,16 @@ The efficiency of a supply chain hinges on the delivery of its final essential c
 
 From the outset, our goal was to develop a scalable infrastructure. As the cluster expands, tasks such as preparing Mac minis for job acceptance require increasing manual input, which ultimately impacts costs. Hence, zero-touch provisioning becomes essential, as scalability is not merely a desirable feature but a necessity. 
 
-### Plan and opt in for a power cost structure best suite for your need 
+### Plan and opt in for a power cost structure best suits for your need
 
 #### Power cost structures
 
 In a colocation setup power costs can be billed in several ways, each with pros and cons:
 
-* **Flat Rate Per Circuit**: A fixed monthly fee, predictable but limits flexibility (e.g., can't exceed 80% without extra circuits).  
+* **Flat rate per circuit**: A fixed monthly fee, predictable but limits flexibility (e.g., can't exceed 80% without extra circuits).  
 * **Allocated kW**: Commit to a fixed power amount (e.g., 100 kW), potentially cheaper but with penalties for overages.  
-* **Metered Usage**: Pay for actual consumption (kWh), good for variable loads but may still charge for space.  
-* **All-In Space & Power**: Single rate covering both, easy to compare but less flexible for upgrades.
+* **Metered usage**: Pay for actual consumption (kWh), good for variable loads but may still charge for space.  
+* **All-in Sspace and power**: Single rate covering both, easy to compare but less flexible for upgrades.
 
 We ultimately opted for an allocated kW commitment, a phased approach based on conservative equipment power ratings and historical usage. We structured this into phases of commitment increases for future capacity growth. 
 
