@@ -186,7 +186,7 @@ We measured the performance gains in two of our largest iOS apps:
 
 #### Overall gains
 
-The following table summarizes the total time measured before and after the migration for total CI pipeline time and building the app codebase. Measurements are presented in 3 percentiles (p50, p75, p95)
+The following table summarizes the total time measured before and after the migration for total CI pipeline time and building the app codebase. Measurements are presented in 3 percentiles (p50, p75, p95).
 
 <table class="table">
     <thead>
