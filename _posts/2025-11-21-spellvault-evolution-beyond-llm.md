@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2025-11-20-spellvault-evolution-beyond-llm
+id: 2025-11-21-spellvault-evolution-beyond-llm
 title: "SpellVault’s evolution: Beyond LLM apps, towards the agentic future"
-date: 2025-11-20 00:00:10
+date: 2025-11-21 00:00:10
 authors: [felix-lie, haotian-mi, jiaqi-yang, muqi-li, shuqi-wang, riyadh-sharif, sayam-bohra, wenhui-wu]
 categories: [Engineering, Data]
 tags: [engineering, performance]
@@ -71,9 +71,9 @@ A significant milestone in SpellVault’s evolution was the introduction of “W
 
 ### Shifting the execution model
 
-As SpellVault evolved, a fundamental shift took place in the way its applications were executed internally. We transitioned from our [legacy executor system](https://python.langchain.com/docs/how_to/agent_executor/), which facilitated one-off information retrieval from the Knowledge Vault or user plugins, to a more advanced [graph based executor](https://langchain-ai.github.io/langgraph/concepts/low_level/). This empowered SpellVault’s app execution with nodes, edges, and states that supported branching, looping, and modularity. This laid the groundwork for more sophisticated agent behaviors, moving beyond the linear input-output paradigm. 
+As SpellVault evolved, a fundamental shift took place in the way its applications were executed internally. We transitioned from our [legacy executor system](https://python.langchain.com/docs/how_to/agent_executor/), which facilitated one-off information retrieval from the Knowledge Vault or user plugins, to a more advanced [graph based executor](https://langchain-ai.github.io/langgraph/concepts/low_level/). This empowered SpellVault’s app execution with nodes, edges, and states that supported branching, looping, and modularity. This laid the groundwork for more sophisticated agent behaviors, moving beyond the linear input-output paradigm.
 
-This transformed all existing SpellVault applications into [ReAct Agents](https://python.langchain.com/api_reference/langchain/agents/langchain.agents.react.agent.create_react_agent.html) - a “one size fits many” solution that significantly enhanced the capabilities of these apps. By enabling them to leverage the Knowledge Vault and plugins in a more agentic and dynamic manner, the ReAct Agent framework allowed apps to perform more complex tasks while seamlessly preserving their existing functionality, ensuring no disruption to their behavior. 
+This transformed all existing SpellVault applications into [ReAct Agents](https://python.langchain.com/api_reference/langchain/agents/langchain.agents.react.agent.create_react_agent.html) - a “one size fits many” solution that significantly enhanced the capabilities of these apps. By enabling them to leverage the Knowledge Vault and plugins in a more agentic and dynamic manner, the ReAct Agent framework allowed apps to perform more complex tasks while seamlessly preserving their existing functionality, ensuring no disruption to their behavior.
 
 In addition, the internal decoupling of the executor and prompt engineering components enabled us to design multiple execution pathways with ease. This allowed us to provide generic Deep Research capability to any SpellVault app via a simple UI checkbox, as well as sophisticated internal workflows that cater to high-ROI complex use cases like on-call alert analysis. The Deep Research capability came with SpellVault’s ability to search across internal information repositories (e.g., Slack messages, Wiki, Jira) within Grab, as well as searching online for relevant information.
 
@@ -81,7 +81,6 @@ In addition, the internal decoupling of the executor and prompt engineering comp
   <img src="/img/spellvault-img/image-4.png" alt="" style="width:70%"><figcaption align="middle">Figure 4: SpellVault’s evolved architecture with more dynamic context gathering and advanced interaction modes</figcaption>
   </figure>
 </div>
-
 
 ### Towards an agentic framework
 
@@ -100,7 +99,7 @@ This consolidation of capabilities under a unified Tools abstraction and enablin
 
 As we streamlined SpellVault’s internal capabilities into a unified tools framework, we also turned our focus outward to align with industry standards. The growing adoption of the [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro) (MCP) presented an opportunity for agents and clients to seamlessly interact without requiring custom integrations. To remain at the forefront of innovation, we adapted SpellVault to function as an MCP service, enabling it to actively participate in this evolving ecosystem. This extension brought two key advancements:
 
-* **SpellVault apps as MCP tools**: Each app created in SpellVault can now be exposed through the MCP protocol. This allows other agents or MCP-compatible clients, such as IDEs or external orchestration frameworks, to treat a SpellVault apps as a callable tool. Instead of living only inside our web user interface or Slack interface, these apps become accessible building blocks that other systems can invoke dynamically.
+* **SpellVault apps as MCP tools**: Each app created in SpellVault can now be exposed through the MCP protocol. This allows other agents or MCP-compatible clients, such as IDEs or external orchestration frameworks, to treat a SpellVault app as a callable tool. Instead of living only inside our web user interface or Slack interface, these apps become accessible building blocks that other systems can invoke dynamically.
 
 * **RAG as an MCP tool**: We extended the same idea to our Knowledge Vaults. Through MCP, external clients can search, retrieve, and even add information to Vaults. This effectively turns SpellVault’s RAG pipeline into an MCP-native service, making contextual grounding available to agents beyond SpellVault itself.
 
