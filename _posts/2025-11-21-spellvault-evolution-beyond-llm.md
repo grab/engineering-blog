@@ -35,7 +35,7 @@ From the start, the SpellVault team prioritized enabling users to enhance their 
 To move beyond static knowledge retrieval, we needed a way for apps to act dynamically. This was made possible through SpellVault plugins—modular components that allow apps to interact with internal systems (e.g. service dashboards, incident trackers) and external APIs (e.g. search engines, weather data). Rather than being confined to their initial prompt and data, these plugins can fetch fresh information at runtime. From the available plugin types, users can create their own instances of plugins with custom settings, enabling highly specialized functionality tailored to their specific workflows. For instance, with SpellVault’s HTTP plugin, users can define custom endpoints and credentials, enabling their AI apps to make tailored HTTP calls during runtime. These custom plugins have become the backbone of many of our most impactful apps, empowering teams to seamlessly integrate SpellVault with their existing systems and processes.
 
 <div class="post-image-section"><figure>
-  <img src="/img/spellvault-img/image-1.png" alt="" style="width:70%"><figcaption align="middle">Figure 1. SpellVault’s early architecture</figcaption>
+  <img src="/img/spellvault-img/image-1.png" alt="" style="width:70%"><figcaption align="middle">Figure 1. SpellVault’s early architecture.</figcaption>
   </figure>
 </div>
 
@@ -46,7 +46,7 @@ One of our primary goals was to make AI seamlessly accessible and useful within 
 Users quickly adopted the platform, creating thousands of apps for internal productivity gains, automation, and even production use cases. The platform’s success validated our hypothesis that there was significant demand for democratized AI tools within the organization.
 
 <div class="post-image-section"><figure>
-  <img src="/img/spellvault-img/image-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. SpellVault’s web interface for LLM App configuration and chat</figcaption>
+  <img src="/img/spellvault-img/image-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. SpellVault’s web interface for LLM App configuration and chat.</figcaption>
   </figure>
 </div>
 
@@ -54,7 +54,7 @@ Users quickly adopted the platform, creating thousands of apps for internal prod
 
 The AI landscape over the past few years has been defined by relentless change. New frameworks, execution paradigms, and standards have emerged in quick succession, each promising to make AI systems more powerful, more reliable, or more extensible. At Grab, we recognized that for SpellVault to stay relevant, it could not remain static. It needed to evolve in tandem with the ever-changing ecosystem, continuously incorporating valuable advancements while ensuring a seamless experience for our users.
 
-This philosophy of continuous adaptation has guided SpellVault’s journey. From its early days as a simple RAG-powered app builder with a few plugins, the platform grew to support an extensive number of plugin types, richer execution models, and eventually a unified approach to tools. Each step was a response both to the needs of our users and to the shifting definition of what “building with AI” meant in practice. Rather than opting for a complete overhaul, SpellVault has embraced incremental advancements, ensuring that Gusers can seamlessly benefit from new capabilities without disruption.
+This philosophy of continuous adaptation has guided SpellVault’s journey. From its early days as a simple RAG-powered app builder with a few plugins, the platform grew to support an extensive number of plugin types, richer execution models, and eventually a unified approach to tools. Each step was a response both to the needs of our users and to the shifting definition of what “building with AI” meant in practice. Rather than opting for a complete overhaul, SpellVault has embraced incremental advancements, ensuring that users can seamlessly benefit from new capabilities without disruption.
 
 This approach to evolution has naturally positioned SpellVault to transition from a platform for LLM apps to one designed for AI agents. The following section delves into this transition in greater detail.
 
@@ -65,7 +65,7 @@ Over time, we introduced numerous new capabilities to SpellVault, driven both by
 A significant milestone in SpellVault’s evolution was the introduction of “Workflow,” a drag-and-drop interface within the platform that empowered users to design deterministic workflows. These workflows enabled users to seamlessly combine various components from the SpellVault ecosystem—such as LLM calls, Python code execution, and Knowledge Vault lookups—in a predefined and structured manner. This enabled advanced use cases for many users.
 
 <div class="post-image-section"><figure>
-  <img src="/img/spellvault-img/image-3.png" alt="" style="width:70%"><figcaption align="middle">Figure 3. Evolving tools landscape of SpellVault with increasing integrations</figcaption>
+  <img src="/img/spellvault-img/image-3.png" alt="" style="width:70%"><figcaption align="middle">Figure 3. Evolving tools landscape of SpellVault with increasing integrations.</figcaption>
   </figure>
 </div>
 
@@ -73,12 +73,12 @@ A significant milestone in SpellVault’s evolution was the introduction of “W
 
 As SpellVault evolved, a fundamental shift took place in the way its apps were executed internally. We transitioned from our [legacy executor system](https://python.langchain.com/docs/how_to/agent_executor/), which facilitated one-off information retrieval from the Knowledge Vault or user plugins, to a more advanced [graph based executor](https://langchain-ai.github.io/langgraph/concepts/low_level/). This empowered SpellVault’s app execution with nodes, edges, and states that supported branching, looping, and modularity. This laid the groundwork for more sophisticated agent behaviors, moving beyond the linear input-output paradigm.
 
-This transformed all existing SpellVault apps into [ReAct agents](https://python.langchain.com/api_reference/langchain/agents/langchain.agents.react.agent.create_react_agent.html) - a “one size fits many” solution that significantly enhanced the capabilities of these apps. A ReAct agent is a type of AI system designed to solve complex problems by blending logical reasoning with the use of external tools. It operates through a continuous cycle of 'analyze-act-evaluate,' where the agent leverages a LLM to assess the task at hand, select an appropriate tool to perform the action, review the results, and repeat the process until the objective is successfully achieved. By enabling them to leverage the Knowledge Vault and plugins in a more agentic and dynamic manner, the ReAct agent framework allowed apps to perform more complex tasks while seamlessly preserving their existing functionality, ensuring no disruption to their behavior.
+This transformed all existing SpellVault apps into [ReAct agents](https://python.langchain.com/api_reference/langchain/agents/langchain.agents.react.agent.create_react_agent.html) - a “one size fits many” solution that significantly enhanced the capabilities of these apps. A ReAct agent is a type of AI agent designed to solve complex problems by blending logical reasoning with the use of external tools. It operates through a continuous cycle of 'analyze-act-evaluate,' where the agent leverages a LLM to assess the task at hand, select an appropriate tool to perform the action, review the results, and repeat the process until the objective is successfully achieved. By enabling them to leverage the Knowledge Vault and plugins in a more agentic and dynamic manner, the ReAct agent framework allowed apps to perform more complex tasks while seamlessly preserving their existing functionality, ensuring no disruption to their behavior.
 
 In addition, the internal decoupling of the executor and prompt engineering components enabled us to design multiple execution pathways with ease. This allowed us to provide generic Deep Research capability to any SpellVault app via a simple UI checkbox, as well as sophisticated internal workflows that cater to high-ROI complex use cases like on-call alert analysis. The Deep Research capability came with SpellVault’s ability to search across internal information repositories (e.g., Slack messages, Wiki, Jira) within Grab, as well as searching online for relevant information.
 
 <div class="post-image-section"><figure>
-  <img src="/img/spellvault-img/image-4.png" alt="" style="width:70%"><figcaption align="middle">Figure 4. SpellVault’s evolved architecture with more dynamic context gathering and advanced interaction modes</figcaption>
+  <img src="/img/spellvault-img/image-4.png" alt="" style="width:70%"><figcaption align="middle">Figure 4. SpellVault’s evolved architecture with more dynamic context gathering and advanced interaction modes.</figcaption>
   </figure>
 </div>
 
@@ -91,7 +91,7 @@ This recognition led to the consolidation of these scattered capabilities into a
 This consolidation of capabilities under a unified Tools abstraction and enabling SpellVault apps to invoke them with greater autonomy marked a pivotal milestone in the platform’s evolution. It meaningfully shifted SpellVault toward making agentic behavior more natural, discoverable, and extensible for every app.
 
 <div class="post-image-section"><figure>
-  <img src="/img/spellvault-img/image-5.png" alt="" style="width:70%"><figcaption align="middle">Figure 5. SpellVault’s Unified Tools housing both Native Tools and Community Built Tools</figcaption>
+  <img src="/img/spellvault-img/image-5.png" alt="" style="width:70%"><figcaption align="middle">Figure 5. SpellVault’s Unified Tools housing both Native Tools and Community Built Tools.</figcaption>
   </figure>
 </div>
 
