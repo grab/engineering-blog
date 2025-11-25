@@ -44,7 +44,7 @@ Our [Coban platform](https://engineering.grab.com/an-elegant-platform) offers a 
 The solution includes three components: *Data Contract Definition, Test Execution & Data Quality Issue Identification, and Result Observability as shown in the architecture diagram in figure 1*. All mentions of “Flow" from here onwards refer to the corresponding processes illustrated in figure 1.
 
 <div class="post-image-section"><figure>
-  <img src="/img/real-time-data-quality-monitoring/coban-architecture.jpg" alt="" style="width:70%"><figcaption align="middle">Figure 1. Real-time Kafka Stream Data Quality Monitoring Architecture diagram. 1. Genchi is a data quality observability platform at Grab that performs data quality checks. 2. CobanUI The Coban Kafka Stream Portal https://engineering.grab.com/an-elegant-platform
+  <img src="/img/real-time-data-quality-monitoring/coban-architecture.jpg" alt="" style="width:100%"><figcaption align="middle">Figure 1. Real-time Kafka Stream Data Quality Monitoring Architecture diagram.
 </figcaption>
   </figure>
 </div>
@@ -60,7 +60,7 @@ The Coban Platform streamlines the process of defining Kafka stream data contrac
 - **LLM-Based Semantic Test Rules Recommendation**: Defining dozens if not hundreds of field-specific test rules can overwhelm users. To simplify this process, the Coban Platform uses LLM-based recommendations to predict semantic test rules using provided Kafka stream schemas and anonymized sample data (Flow 1.4). This feature helps users set up semantic rules efficiently, as demonstrated in the sample UI in figure 2.
 
 <div class="post-image-section"><figure>
-  <img src="/img/real-time-data-quality-monitoring/sample-ui.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Sample UI showcasing LLM-based Kafka stream schema field-level semantic test rules. Note that the data shown is entirely fictional.
+  <img src="/img/real-time-data-quality-monitoring/sample-ui.png" alt="" style="width:100%"><figcaption align="middle">Figure 2. Sample UI showcasing LLM-based Kafka stream schema field-level semantic test rules. Note that the data shown is entirely fictional.
 </figcaption>
   </figure>
 </div>
@@ -75,7 +75,7 @@ Once defined, the Coban Platform's transformation engine converts the data contr
 - **Kafka Stream Semantic Test Rules**: Transforms human-readable semantic test rules into an inverse SQL query to capture the data that violates the defined rules.
 
 <div class="post-image-section"><figure>
-  <img src="/img/real-time-data-quality-monitoring/semantic-test-rules.jpg" alt="" style="width:70%"><figcaption align="middle">Figure 3. Illustration of semantic test rules being converted from human-readable formats into inverse SQL queries.
+  <img src="/img/real-time-data-quality-monitoring/semantic-test-rules.jpg" alt="" style="width:100%"><figcaption align="middle">Figure 3. Illustration of semantic test rules being converted from human-readable formats into inverse SQL queries.
 </figcaption>
   </figure>
 </div>
@@ -100,7 +100,7 @@ Grab's in-house data quality observability platform, Genchi, consumes problemati
 Genchi sends Slack notifications (Flow 3.5) to stream owners specified in the data contract observability metadata. These notifications include detailed information about stream issues, such as links to sample data in Coban UI, observed windows, counts of bad records, and other relevant details.
 
 <div class="post-image-section"><figure>
-  <img src="/img/real-time-data-quality-monitoring/slack-notification.png" alt="" style="width:70%"><figcaption align="middle">Figure 4. Sample Slack notifications
+  <img src="/img/real-time-data-quality-monitoring/slack-notification.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Sample Slack notifications
 </figcaption>
   </figure>
 </div>
@@ -110,7 +110,7 @@ Genchi sends Slack notifications (Flow 3.5) to stream owners specified in the da
 Users can access the Coban UI (Flow 3.4), displaying Kafka stream test rules and sample bad records, highlighting fields and values that violate rules.
 
 <div class="post-image-section"><figure>
-  <img src="/img/real-time-data-quality-monitoring/sample-test-result.jpg" alt="" style="width:70%"><figcaption align="middle">Figure 5. In this Sample Test Result, the highlighted fields indicate violations of the semantic test rules.
+  <img src="/img/real-time-data-quality-monitoring/sample-test-result.jpg" alt="" style="width:100%"><figcaption align="middle">Figure 5. In this Sample Test Result, the highlighted fields indicate violations of the semantic test rules.
 </figcaption>
   </figure>
 </div>
