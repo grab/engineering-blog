@@ -5,7 +5,7 @@ title: "Real-time data quality monitoring: Kafka stream contracts with syntactic
 date: 2025-11-26 00:00:10
 authors: [yuanzhe-liu, fabrice-harbulot, shikai-ng, quang-lehong]
 categories: [Engineering, Data]
-tags: [engineering, performance, data-science]
+tags: [Engineering, Kafka, Performance, Data science, Data processing, Real-time streaming]
 comments: true
 cover_photo: /img/real-time-data-quality-monitoring/cover.png
 excerpt: "Discover how Grab's Coban Platform revolutionizes real-time data quality monitoring for Kafka streams. Learn how syntactic and semantic tests empower stream users to ensure reliable data, prevent cascading errors, and accelerate AI-driven innovation."
@@ -54,10 +54,10 @@ The solution includes three components: *Data Contract Definition, Test Executio
 The Coban Platform streamlines the process of defining Kafka stream data contracts, serving as a formal agreement among Kafka stream stakeholders. This includes the following components:
 
 - **Kafka Stream Schema**: Represents the schema used by the Kafka topic under test and helps the Test Runner to validate schema compatibility across data streams (Flow 1.1).
-- **Kafka Stream Configuration**: Encompasses essential configurations such as the endpoint and topic name,  which the platform automatically populates (Flow 1.2).
+- **Kafka Stream Configuration**: Encompasses essential configurations such as the endpoint and topic name, which the platform automatically populates (Flow 1.2).
 - **Observability Metadata**: Provides contact information for notifying Kafka stream stakeholders about data quality issues and includes alert configurations for monitoring (Flow 1.3).
 - **Kafka Stream Semantic Test Rules**: Empowers users to define intuitive semantic test rules at the field level. These rules include checks for string patterns, number ranges, constant values, etc. (Flow 1.5).
-- **LLM-Based Semantic Test Rules Recommendation**: Defining dozens if not hundreds of field-specific test rules can overwhelm users. To simplify this process, the Coban Platform uses LLM-based recommendations to predict semantic test rules using provided Kafka stream schemas and anonymized sample data  (Flow 1.4). This feature helps users set up semantic rules efficiently, as demonstrated in the sample UI in figure 2.
+- **LLM-Based Semantic Test Rules Recommendation**: Defining dozens if not hundreds of field-specific test rules can overwhelm users. To simplify this process, the Coban Platform uses LLM-based recommendations to predict semantic test rules using provided Kafka stream schemas and anonymized sample data (Flow 1.4). This feature helps users set up semantic rules efficiently, as demonstrated in the sample UI in figure 2.
 
 <div class="post-image-section"><figure>
   <img src="/img/real-time-data-quality-monitoring/sample-ui.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Sample UI showcasing LLM-based Kafka stream schema field-level semantic test rules. Note that the data shown is entirely fictional.
