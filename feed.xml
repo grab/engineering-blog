@@ -6,9 +6,168 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 24 Nov 2025 06:31:13 +0000</pubDate>
-    <lastBuildDate>Mon, 24 Nov 2025 06:31:13 +0000</lastBuildDate>
+    <pubDate>Wed, 26 Nov 2025 02:05:48 +0000</pubDate>
+    <lastBuildDate>Wed, 26 Nov 2025 02:05:48 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Real-time data quality monitoring: Kafka stream contracts with syntactic and semantic test</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;In today’s data-driven landscape, monitoring data quality has become a critical need for ensuring reliable and efficient data usage across domains. High-quality data is the backbone of AI innovation, driving efficiency and unlocking new opportunities. As decentralized data ownership grows, the ability to effectively monitor data quality is essential for maintaining reliability in data systems.&lt;/p&gt;
+
+&lt;p&gt;Kafka streams, as a vital component of real-time data processing, play a significant role in this ecosystem. However, unreliable data within Kafka streams can lead to errors and inefficiencies for downstream users, and monitoring the quality of data within these streams has always been a challenge. This blog introduces a solution that empowers stream users to define a data contract, specifying the rules that Kafka stream data must adhere to. By leveraging this user-defined data contract, the solution performs automated real-time data quality checks, identifies problematic data as it occurs, and promptly notifies stream owners. This ensures timely action, enabling effective monitoring and management of Kafka stream data quality while supporting the broader goals of data mesh and AI-driven innovation.&lt;/p&gt;
+
+&lt;h2 id=&quot;problem-statement&quot;&gt;Problem statement&lt;/h2&gt;
+
+&lt;p&gt;In the past, monitoring Kafka stream data processing lacked an effective solution for data quality validation. This limitation made it challenging to identify bad data, notify users in a timely manner, and prevent the cascading impact on downstream users from further escalating.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Challenges in syntactic and semantic issue identification&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Syntactic issues&lt;/strong&gt;: Refers to schema mismatches between producers and consumers, which can lead to deserialization errors. While schema backward compatibility can be validated upon schema evolution, there are scenarios where the actual data in the Kafka topic does not align with the defined schema. For example, this can occur when a rogue Kafka producer is not using the expected schema for a given Kafka topic. Identifying the specific fields causing these syntactic issues is a typical challenge.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Semantic issues&lt;/strong&gt;: Refers to inconsistencies or misalignments between producers and consumers about the expected pattern or significance of each field. Unlike Kafka stream schemas, which act as a data structure contract between producers and consumers, there is no existing framework for stakeholders to define and enforce field-level semantic rules, for example, the expected length or pattern of an identifier.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Timeliness challenge in data quality monitoring&lt;/strong&gt;: There is no real-time mechanism to automatically validate data against predefined rules, timely identify quality issues, and promptly alert stream stakeholders. Without real-time stream validation, data quality issues can sometimes persist for periods of time, impacting various online and offline downstream systems before being discovered.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Observability challenge for troubleshooting bad data&lt;/strong&gt;: Even when problematic data is identified, stream users face difficulties in pinpointing the exact “poison data” and understanding which fields are incompatible with the schema or violate semantic rules. This lack of visibility complicates Root Cause Analysis and resolution efforts.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;Our &lt;a href=&quot;https://engineering.grab.com/an-elegant-platform&quot;&gt;Coban platform&lt;/a&gt; offers a standardized data quality test and observability solution at the platform level, consisting of the following components:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Data Contract Definition&lt;/strong&gt;: Enables Kafka stream stakeholders to define contracts that include schema agreements, semantic rules that Kafka topic data must comply with, and Kafka stream ownership details for alerting and notifications.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Automated Test Execution&lt;/strong&gt;: Provides a long running Test Runner to automatically execute real-time tests based on the defined contract.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Real-time Data Quality Issue Identification&lt;/strong&gt;: Detects data issues at both syntactic and semantic levels in real-time.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Alerts and Result Observability&lt;/strong&gt;: Alerts users, simplifying observation of data quality issues via the platform.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h3&gt;
+
+&lt;p&gt;The solution includes three components: &lt;em&gt;Data Contract Definition, Test Execution &amp;amp; Data Quality Issue Identification, and Result Observability as shown in the architecture diagram in figure 1&lt;/em&gt;. All mentions of “Flow” from here onwards refer to the corresponding processes illustrated in figure 1.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-quality-monitoring/coban-architecture.jpg&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Real-time Kafka Stream Data Quality Monitoring Architecture diagram.
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;data-contract-definition&quot;&gt;Data Contract Definition&lt;/h4&gt;
+
+&lt;p&gt;The Coban Platform streamlines the process of defining Kafka stream data contracts, serving as a formal agreement among Kafka stream stakeholders. This includes the following components:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Kafka Stream Schema&lt;/strong&gt;: Represents the schema used by the Kafka topic under test and helps the Test Runner to validate schema compatibility across data streams (Flow 1.1).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Kafka Stream Configuration&lt;/strong&gt;: Encompasses essential configurations such as the endpoint and topic name, which the platform automatically populates (Flow 1.2).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Observability Metadata&lt;/strong&gt;: Provides contact information for notifying Kafka stream stakeholders about data quality issues and includes alert configurations for monitoring (Flow 1.3).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Kafka Stream Semantic Test Rules&lt;/strong&gt;: Empowers users to define intuitive semantic test rules at the field level. These rules include checks for string patterns, number ranges, constant values, etc. (Flow 1.5).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;LLM-Based Semantic Test Rules Recommendation&lt;/strong&gt;: Defining dozens if not hundreds of field-specific test rules can overwhelm users. To simplify this process, the Coban Platform uses LLM-based recommendations to predict semantic test rules using provided Kafka stream schemas and anonymized sample data (Flow 1.4). This feature helps users set up semantic rules efficiently, as demonstrated in the sample UI in figure 2.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-quality-monitoring/sample-ui.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Sample UI showcasing LLM-based Kafka stream schema field-level semantic test rules. Note that the data shown is entirely fictional.
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;data-contract-transformation&quot;&gt;Data Contract Transformation&lt;/h4&gt;
+
+&lt;p&gt;Once defined, the Coban Platform’s transformation engine converts the data contract into configurations that the Test Runner can interpret (Flow 2.1). This transformation process includes:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Kafka Stream Schema&lt;/strong&gt;: Translates the schema defined in the data contract into a schema reference that the Test Runner can parse.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Kafka Stream Configuration&lt;/strong&gt;: Sets up the Kafka stream as a source for the Test Runner.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Observability metadata&lt;/strong&gt;: Sets contact information as configurations of the Test Runner.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Kafka Stream Semantic Test Rules&lt;/strong&gt;: Transforms human-readable semantic test rules into an inverse SQL query to capture the data that violates the defined rules.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-quality-monitoring/semantic-test-rules.jpg&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Illustration of semantic test rules being converted from human-readable formats into inverse SQL queries.
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;test-execution--data-quality-issue-identification&quot;&gt;Test Execution &amp;amp; Data Quality Issue Identification&lt;/h3&gt;
+
+&lt;p&gt;Once the Test Configuration Transformation Engine generates the Test Runner configuration (Flow 2.1), the platform automatically deploys the Test Runner.&lt;/p&gt;
+
+&lt;h4 id=&quot;test-runner&quot;&gt;Test Runner&lt;/h4&gt;
+
+&lt;p&gt;The Test Runner utilises FlinkSQL as the compute engine to execute the tests. FlinkSQL was selected for its flexibility in defining test rules as straightforward SQL statements, enabling our platform to efficiently convert data contracts into enforceable rules.&lt;/p&gt;
+
+&lt;h4 id=&quot;test-execution-workflow-and-problematic-data-identification&quot;&gt;Test Execution Workflow And Problematic Data Identification&lt;/h4&gt;
+
+&lt;p&gt;FlinkSQL consumes data from the Kafka topic under test (Flow 2.2) using its own consumer group, ensuring it doesn’t impact other consumers. It runs the inverse SQL query (Flow 2.3) to identify any data that violates the semantic rules or that is syntactically incorrect in the first place. Test Runner captures such data, packages it into a data quality issue event enriched with a test summary, the total count of bad records, and sample bad data, and publishes it to a dedicated Kafka topic (Flow 3.2). Additionally, the platform sinks all such data quality events to an AWS S3 bucket (Flow 3.1) to enable deeper observability and analysis.&lt;/p&gt;
+
+&lt;h3 id=&quot;result-observability&quot;&gt;Result Observability&lt;/h3&gt;
+
+&lt;p&gt;Grab’s in-house data quality observability platform, Genchi, consumes problematic data captured by the Test Runner (Flow 3.3).&lt;/p&gt;
+
+&lt;h4 id=&quot;alerting&quot;&gt;Alerting&lt;/h4&gt;
+&lt;p&gt;Genchi sends Slack notifications (Flow 3.5) to stream owners specified in the data contract observability metadata. These notifications include detailed information about stream issues, such as links to sample data in Coban UI, observed windows, counts of bad records, and other relevant details.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-quality-monitoring/slack-notification.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Sample Slack notifications
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;observability&quot;&gt;Observability&lt;/h4&gt;
+
+&lt;p&gt;Users can access the Coban UI (Flow 3.4), displaying Kafka stream test rules and sample bad records, highlighting fields and values that violate rules.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/real-time-data-quality-monitoring/sample-test-result.jpg&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. In this Sample Test Result, the highlighted fields indicate violations of the semantic test rules.
+&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
+
+&lt;p&gt;Since its deployment earlier this year, the solution has enabled Kafka stream users to define contracts with syntactic and semantic rules, automate test execution, and alert users when problematic data is detected, prompting timely action. It has been actively monitoring data quality across 100+ critical Kafka topics. The solution offers the capability to immediately identify and halt the propagation of invalid data across multiple streams.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;We implemented and rolled out a solution to assist Grab engineers in effectively monitoring data quality in their Kafka streams. This solution empowers them to establish syntactic and semantic tests for their data. Our platform’s automatic testing feature enables real-time tracking of data quality, with instant alerts for any discrepancies. Additionally, we provide detailed visibility into test results, facilitating the easy identification of specific data fields that violate the rules. This accelerates the process of diagnosing and resolving issues, allowing users to swiftly address production data challenges.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;While our current solution emphasizes monitoring the quality of Kafka streaming data, further exploration will focus on tracing producers to pinpoint the origin of problematic data, as well as enabling more advanced semantic tests such as cross-field validations. Additionally, we aim to expand monitoring capabilities to cover broader aspects like data completeness and freshness, and integrate with &lt;a href=&quot;https://www.gable.ai/&quot;&gt;Gable AI&lt;/a&gt; to detect Data Transfer Object (DTO) changes and semantic regressions in Go producers upon committing code to the Git repository. These enhancements will pave the way for a more robust, multidimensional data quality testing solution across a wider range.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.oreilly.com/library/view/driving-data-quality/9781837635009/&quot;&gt;Driving Data Quality with Data Contracts: A Comprehensive Guide to Building Reliable, Trusted, and Effective Data Platforms&lt;/a&gt; by &lt;a href=&quot;https://www.oreilly.com/search?q=author:%22Andrew%20Jones%22&quot;&gt;Andrew Jones&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebmlflink&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 26 Nov 2025 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/real-time-data-quality-monitoring</link>
+        <guid isPermaLink="true">https://engineering.grab.com/real-time-data-quality-monitoring</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Kafka</category>
+        
+        <category>Performance</category>
+        
+        <category>Data science</category>
+        
+        <category>Data processing</category>
+        
+        <category>Real-time streaming</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data</category>
+        
+      </item>
     
       <item>
         <title>SpellVault’s evolution: Beyond LLM apps, towards the agentic future</title>
@@ -2359,140 +2518,6 @@ For the system to function effectively, replication must be nearly instantaneous
         <category>Infrastructure</category>
         
         <category>Performance</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Data mesh at Grab part I: Building trust through certification</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;At Grab, our journey towards a more robust and scalable data ecosystem has been a continuous evolution.&lt;/p&gt;
-
-&lt;p&gt;Considering the size of our data lake and complexity of our ecosystem, with businesses spanning across ride hailing, food delivery, and financial services, we have been long past the point where a single centrally managed data warehouse could serve all these data needs. Over its first decade, Grab experienced dramatic growth. Like most growing businesses, teams in Grab prioritised delivering new features to meet the demands of their users. This meant that the task of data maintenance had to take a back seat so that development and stabilisation works can be focused to keep up with the growth. However, to prepare Grab for the next 10 years, especially for a future where AI is likely to play an important role, our leadership understood the need for high quality data foundation and gave a mandate to our data teams to uplevel our entire enterprise data ecosystem.&lt;/p&gt;
-
-&lt;p&gt;Acknowledging the rising need for data-driven insights and the continuous expansion of our data repository, we initiated our data mesh journey, named the Signals Marketplace, in 2024.&lt;/p&gt;
-
-&lt;p&gt;However, this journey was far from simple. We encountered several critical challenges that required a significant transformation in our approach to data management. Some of the challenges encountered include:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;High volume and variety of data being generated&lt;/strong&gt;: Grab’s diverse operations created both opportunities and complexities. Effectively harnessing this wealth of information required a scalable, streamlined and accessible approach.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Gaps in data ownership&lt;/strong&gt;: As our data landscape expanded, maintaining data quality and reliability became increasingly difficult without clear lines of ownership and accountability. This often led to ad-hoc discussions and delays in resolving data related issues. Since it was difficult to trust the reliability of an existing pipeline, teams were likely to create duplicate pipelines just so they have something they can control.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Unscalable reliance on central Data Engineering (DE) team&lt;/strong&gt;: Our traditional reliance on a central DE team to curate and serve all data needs was becoming a bottleneck. This centralised model struggled to keep pace with the distributed nature of data creation and consumption across various product and engineering teams.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Lack of communication between data consumers and producers&lt;/strong&gt;: Data producers are unaware of downstream dependencies of their data which led to several instances of critical pipelines breaking because of upstream changes.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;No single source of truth&lt;/strong&gt;: While we did have a central data warehouse, it still left a lot of data gaps across Grab’s many business lines. Teams would struggle to identify the correct data definitions and reliable sources of truth.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Varied sophistication of data practitioners&lt;/strong&gt;: Different teams have different levels of expertise in regards to data. Some teams had dedicated data engineers, but many didn’t.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To address these challenges, we made a strategic decision to adopt a data mesh architecture. Data mesh is a decentralised approach to data management that treats data as a product, owned and served by domain specific teams. This paradigm shift empowers teams closest to the data to take responsibility for its quality, reliability, and accessibility.&lt;/p&gt;
-
-&lt;p&gt;Our primary goal in adopting a data mesh was to significantly increase the reusability and reliability of our data assets across the organisation. By fostering a culture of data ownership and providing the necessary tools and processes, we aimed to unlock the full potential of our data to drive innovation and better serve our users and partners.&lt;/p&gt;
-
-&lt;h2 id=&quot;certification&quot;&gt;Certification&lt;/h2&gt;
-
-&lt;p&gt;A cornerstone of our data mesh implementation is the concept of data certification. We believe that clearly identifying high quality, trustworthy datasets is crucial for both data producers and consumers.&lt;/p&gt;
-
-&lt;h3 id=&quot;why-certification&quot;&gt;Why certification?&lt;/h3&gt;
-
-&lt;p&gt;Certification offers significant benefits to both sides of the data ecosystem. Data producers can clearly define and communicate the expectations and guarantees associated with their certified data assets, like defining Service Level Agreements (SLAs) for engineering services. This includes aspects like schema, data quality, and freshness. For data consumers, certification provides the confidence to readily discover and utilise these assets. Knowing that they come with stronger reliability guarantees and clear documentation, data consumers can confidently “shop” for certified data products, reducing the need for extensive validation and ad-hoc inquiries.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/data-mesh-at-grab-part-1/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: Concept of data certification&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;To achieve widespread data certification, we focused on several key enablers:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Ownership&lt;/strong&gt;: Establishing decentralised ownership and accountability is fundamental and non-trivial. We clearly identified teams which we call Data Domains, individuals responsible as Business Data Owners (BDOs), and Technical Data Owners (TDOs) for the upkeep, usability, documentation, and associated Service Level Objective (SLOs) of each data product. This step was bootstrapped by leveraging the identification of the data asset creator’s team. However, if the creator had changed teams or left the company, the initial mapping of Domain &amp;lt;&amp;gt; Data Asset needs to be reviewed by the Domain Leads.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Data contract&lt;/strong&gt;: We introduced data contracts as formal agreements between data producers and consumers. These contracts define the schema, SLA guarantees (including freshness, completeness, and retention policies), notice period for changes, and communication channels for a data product. Data certification helps set clear expectations and ensures reliability across data pipelines.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;data-operational-excellence&quot;&gt;Data operational excellence&lt;/h3&gt;
-
-&lt;p&gt;To further enhance accountability and ensure adherence to data contracts, we implemented &lt;strong&gt;automated Data Production Incidents&lt;/strong&gt; (DPIs) for breached contracts. When data quality tests are done on data availability, timeliness, consistency, completeness, accuracy, validity, or other reliability guarantees fail, a DPI ticket is automatically created and assigned to the TDO. This system aims to standardise and drive accountability in investigating and fixing issues related to reliability guarantees within Data Contracts. The goal is for teams to acknowledge and fix the root cause of the DPIs.&lt;/p&gt;
-
-&lt;h2 id=&quot;operationalisation-and-outcomes&quot;&gt;Operationalisation and outcomes&lt;/h2&gt;
-
-&lt;p&gt;To drive the adoption of data certification and the principles of data mesh across Grab, we focused on the following north star metric: &lt;strong&gt;percentage of queries hitting certified assets (%)&lt;/strong&gt;. This metric serves as a direct indicator of the reusability and trust in our certified data products. It also helps teams prioritise their certification efforts towards the most frequently used tables. It essentially pushes every data team in two synergistic directions:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;To certify their most used datasets.&lt;/li&gt;
-  &lt;li&gt;To query only certified datasets as much as possible.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;operationalisation&quot;&gt;Operationalisation&lt;/h3&gt;
-
-&lt;p&gt;The successful operationalisation of our data mesh and certification efforts relied on several key factors listed below:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Executive buy-in&lt;/strong&gt;: Strong leadership support was crucial in driving this organisational change and emphasising the importance of data as a product.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Organisation-wide push with clear measurable reporting&lt;/strong&gt;: We implemented an organisation-wide initiative with clearly defined goals and measurable targets for data certification. Progress is tracked and reported to ensure accountability and drive momentum.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Dashboard to guide Grabbers target most used tables&lt;/strong&gt;: Dashboards and tooling likely within Hubble, provided visibility into data usage patterns, guiding teams to prioritise the certification of their most popular and impactful datasets.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;outcomes&quot;&gt;Outcomes&lt;/h3&gt;
-
-&lt;p&gt;As a result of these efforts, we have observed significant positive outcomes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;75% of Grab queries hitting certified assets&lt;/strong&gt;: We achieved a significant milestone with 75% of Grab’s data queries now targeting certified assets. This indicates a strong adoption of certified data products and a growing trust in their reliability.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Active deprecation of assets&lt;/strong&gt;: The focus on data ownership and the push for certification has also led to increased visibility into our data landscape, allowing us to identify and actively deprecate redundant and duplicated data assets. Deprecated tables increases 400% year over year (YoY). This not only improves efficiency but also reduces the complexity and cost of maintaining our data infrastructure.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Accelerated innovation and cross-domain reusability&lt;/strong&gt;: Prior to data mesh, every team often resorted to building their own data sources which leads to lower quality outcomes and slower turn around time. Today, internet of things datasets (IoT) like weather data collected by one team can now be reused by another team to optimise marketplace decisions — a practical step toward a more connected data ecosystem.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Beyond these individual instances, we observe a convergence across Grab towards most used datasets, with the number of P80 datasets (the top 80% of Grab’s most used data) reducing by over 58% since the start of the campaign.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;While we have made significant strides in our data mesh journey, we recognise that this is an ongoing evolution. This progress wouldn’t be as smooth sailing without the platforms we build for data management and observability. In our next article, we will be delving into the enhancements for crucial tooling and platforms like Genchi (in-house data quality observational tool) and &lt;a href=&quot;https://engineering.grab.com/hubble-data-discovery&quot;&gt;Hubble&lt;/a&gt; (metadata management platform, built on DataHub and Grab proprietary technology), which underpin our data mesh vision and enable greater data reliability and reusability.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Massive credits to Grab’s leadership, Mohan Krishnan and Nikhil Dwarakanath, as well as Data owners on driving this Grab-wide effort to build strong data foundations in Grab. Grab’s data mesh would not have been possible without the commitment of all data owners to certify and curate their data products.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/geb_mlfs&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 19 Aug 2025 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/signals-market-place</link>
-        <guid isPermaLink="true">https://engineering.grab.com/signals-market-place</guid>
-        
-        <category>Data</category>
-        
-        <category>Database</category>
-        
-        <category>Engineering</category>
         
         
         <category>Engineering</category>
