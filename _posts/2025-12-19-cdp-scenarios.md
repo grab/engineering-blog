@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [Database, FLinkSQL]
 comments: true
 cover_photo: /img/cdp-scenario/banner-1.png
-excerpt: "Grab’s Customer Data Platform (CDP) introduces Scenarios, enabling real-time personalization at scale. By leveraging event triggers, geo-fencing, historical data, and predictive models, Grab delivers dynamic user experiences like mall offers, traveler recommendations, and ad retargeting. Proven results include a 3.57% uplift in conversions, driving growth across Southeast Asia."
+excerpt: "Grab’s Customer Data Platform (CDP) introduces Scenarios, enabling real-time personalization at scale. By leveraging event triggers, geo-fencing, historical data, and predictive models, Grab delivers dynamic user experiences like mall offers, traveler recommendations, and ad retargeting. Proven results include more than a 3% uplift in conversions, driving growth across Southeast Asia."
 ---
 
 ## Introduction
