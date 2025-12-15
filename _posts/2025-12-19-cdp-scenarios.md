@@ -107,7 +107,7 @@ To enhance conversion rates, personalized real-time nudges were deployed through
   </figure>
 </div>
 
-This scenario alone achieved a +3.57% uplift in subscriber conversions vs non-real-time acquisition campaigns, demonstrating Scenarios' potential to significantly boost business outcomes.
+This scenario alone achieved more than a 3% uplift in subscriber conversions vs non-real-time acquisition campaigns, demonstrating Scenarios' potential to significantly boost business outcomes.
 
 <div class="post-image-section"><figure>
   <img src="/img/cdp-scenario/table-1.png" alt="" style="width:80%"><figcaption align="middle">Table 1. Conversion rate of Grab Unlimited registration grouped by country.</figcaption>
