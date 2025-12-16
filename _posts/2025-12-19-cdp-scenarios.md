@@ -3,7 +3,7 @@ layout: post
 id: 2025-12-19-cdp-scenarios
 title: 'How Grab is accelerating growth with real-time personalization using Customer Data Platform (CDP) Scenarios'
 date: 2025-12-22 00:23:00
-authors: [saubhagya-awaneesh, shanmugam-shanthi, shubham-badkur, tom-lam, khanh-ta]
+authors: [saubhagya-awaneesh, shanmugam-shanthi, shubham-badkur, tom-lam, srivatsa-srivatsa]
 categories: [Engineering]
 tags: [Database, FLinkSQL]
 comments: true
@@ -108,11 +108,6 @@ To enhance conversion rates, personalized real-time nudges were deployed through
 </div>
 
 This scenario alone achieved more than a 3% uplift in subscriber conversions vs non-real-time acquisition campaigns, demonstrating Scenarios' potential to significantly boost business outcomes.
-
-<div class="post-image-section"><figure>
-  <img src="/img/cdp-scenario/table-1.png" alt="" style="width:80%"><figcaption align="middle">Table 1. Conversion rate of Grab Unlimited registration grouped by country.</figcaption>
-  </figure>
-</div>
 
 ## Technical architecture: Low latency, high reliability
 
