@@ -2,7 +2,7 @@
 layout: post
 id: 2025-12-19-cdp-scenarios
 title: 'How Grab is accelerating growth with real-time personalization using Customer Data Platform (CDP) Scenarios'
-date: 2025-12-19 00:23:00
+date: 2025-12-22 00:23:00
 authors: [saubhagya-awaneesh, shanmugam-shanthi, shubham-badkur, tom-lam, khanh-ta]
 categories: [Engineering]
 tags: [Database, FLinkSQL]
