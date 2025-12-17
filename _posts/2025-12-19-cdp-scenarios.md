@@ -55,7 +55,7 @@ Scenarios enable innovative use cases such as these:
 Imagine predicting a user's intent to drop off at a mall using both real-time and historical context. For instance, when a user books a ride to a mall, factors such as destination, time, cuisine preferences, and past behavior (e.g., affluence level) can help predict whether the user’s purpose is retail therapy, grocery shopping, or dining out. This prediction accounts for elements like time of day, day of the week, and mall location. Grab's engineering teams can leverage this predicted intent (signal) to offer personalized actions, such as GrabPay discounts for shopping or exclusive dining offers for dinner.
 
 <div class="post-image-section"><figure>
-  <img src="/img/cdp-scenario/figure-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. Scenario in CDP.</figcaption>
+  <img src="/img/cdp-scenario/figure-1.png" alt="" style="width:100%"><figcaption align="middle">Figure 1. Scenario in CDP.</figcaption>
   </figure>
 </div>
 
@@ -68,7 +68,7 @@ Imagine predicting a user's intent to drop off at a mall using both real-time an
 * **Headless APIs**: Allow programmatic access and management of Scenarios.
 
 <div class="post-image-section"><figure>
-  <img src="/img/cdp-scenario/figure-2.jpg" alt="" style="width:80%"><figcaption align="middle">Figure 2. Attributes for a Scenario in CDP.</figcaption>
+  <img src="/img/cdp-scenario/figure-2.jpg" alt="" style="width:100%"><figcaption align="middle">Figure 2. Attributes for a scenario in CDP.</figcaption>
   </figure>
 </div>
 
@@ -76,18 +76,13 @@ Imagine predicting a user's intent to drop off at a mall using both real-time an
 
 We designed an intuitive self-serve UI, embedded within the Grab app, empowering marketers to quickly define and deploy Scenarios. Users can specify event triggers, configure geo-fencing, incorporate historical user attributes, and select predictive models. Marketers can also validate Scenarios using synthetic data before deployment, ensuring accurate and realistic outcomes.  
 
-<div class="post-image-section"><figure>
-  <img src="/img/cdp-scenario/figure-3.gif" alt="" style="width:80%"><figcaption align="middle">Figure 3. CDP Scenario Setup via Web Portal.</figcaption>
-  </figure>
-</div>
-
 How it works:
 
 1. **Select event triggers**: Choose predefined events or define custom intra-session sequences via the GUI.  
 2. **Configure geo-fencing**: Define Scenario activation locations, like airports or malls.  
 3. **Include historical attributes (optional)**: Utilize batch attributes from the CDP to enrich Scenarios.  
 4. **Select predictive models (optional)**: Train custom classifiers or pick from pre-trained Catwalk models.  
-5. **Define data sink**: Choose between Amphawa (DDB), Kafka, or both; potentially extendable to external destinations (e.g., Appsflyer).  
+5. **Define data sink**: Choose between Amphawa (DynamoDB), Kafka, or both; potentially extendable to external destinations (e.g., Appsflyer).  
 6. Once configured, metadata synchronizes automatically with our streaming service, and Scenarios become available for real-time consumption within an hour.
 
 ## Proven impact: Real-world success
@@ -96,14 +91,14 @@ How it works:
 CDP Scenarios are already delivering measurable business results, with over 12 live production implementations. For instance, in a case study addressing Grab Unlimited subscription signup abandonment, we leveraged CDP Scenarios to increase signups by engaging users in real time within 15 minutes of them leaving the signup process.
 
 <div class="post-image-section"><figure>
-  <img src="/img/cdp-scenario/figure-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Grab Unlimited sign-up journey.</figcaption>
+  <img src="/img/cdp-scenario/figure-4.png" alt="" style="width:90%"><figcaption align="middle">Figure 3. Grab Unlimited sign-up journey.</figcaption>
   </figure>
 </div>
 
 To enhance conversion rates, personalized real-time nudges were deployed through Scenarios. For example, users who started the signup process but failed to complete it within 15 minutes received a follow-up notification, prompting them to finalize their registration.
 
 <div class="post-image-section"><figure>
-  <img src="/img/cdp-scenario/figure-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Scenario flow for Grab Unlimited registration.</figcaption>
+  <img src="/img/cdp-scenario/figure-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Scenario flow for Grab Unlimited registration.</figcaption>
   </figure>
 </div>
 
@@ -112,7 +107,7 @@ This scenario alone achieved more than a 3% uplift in subscriber conversions vs 
 ## Technical architecture: Low latency, high reliability
 
 <div class="post-image-section"><figure>
-  <img src="/img/cdp-scenario/figure-6.jpg" alt="" style="width:80%"><figcaption align="middle">Figure 6. High-level Scenario flow. Scenarios are designed for low latency (under 15 seconds) and high reliability.</figcaption>
+  <img src="/img/cdp-scenario/figure-6.jpg" alt="" style="width:90%"><figcaption align="middle">Figure 5. High-level scenario flow. Scenarios are designed for low latency (under 15 seconds) and high reliability.</figcaption>
   </figure>
 </div>
 
