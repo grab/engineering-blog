@@ -64,8 +64,8 @@ Imagine predicting a user's intent to drop off at a mall using both real-time an
 * **Event-driven personalization**: Real-time Scenarios triggered by Scribe events (Grab’s comprehensive event collection and tracking platform) combined with geo-fencing.  
 * **Historical context integration**: Optionally enrich Scenarios using historical CDP data.  
 * **Predictive modeling**: Deploy pre-trained models for instant user behavior predictions.  
-* **Self-serve GUI**: Enable marketers to create complex event sequences and validate Scenarios with synthetic data processed through Flink pipelines.  
-* **Headless APIs**: Allow programmatic access and management of Scenarios.
+* **Self-serve graphical user interface (GUI)**: Enable marketers to create complex event sequences and validate Scenarios with synthetic data processed through Flink pipelines.  
+* **Headless application programming interfaces (APIs)**: Allow programmatic access and management of Scenarios.
 
 <div class="post-image-section"><figure>
   <img src="/img/cdp-scenario/figure-2.jpg" alt="" style="width:100%"><figcaption align="middle">Figure 2. Attributes for a scenario in CDP.</figcaption>
