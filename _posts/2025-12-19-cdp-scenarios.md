@@ -23,7 +23,7 @@ The platform currently manages over 1,000 batch user attributes for Passengers, 
 
 ## The need for real-time personalization
 
-In our current CDP setup, user segments are primarily created for targeting using batch attributes that update once daily. While these batch updates provide valuable historical insights, they are not suitable for Scenarios requiring real-time responsiveness. This delay prevents timely engagement with users, particularly when immediate actions can significantly enhance user experiences and conversion rates.
+In our current CDP setup, user segments are primarily created for targeting using batch attributes that update once daily. While these batch updates provide valuable historical insights, they are not suitable for scenarios requiring real-time responsiveness. This delay prevents timely engagement with users, particularly when immediate actions can significantly enhance user experiences and conversion rates.
 
 For example, when travelers land at an airport, they immediately benefit from timely suggestions for rides, dining options, or local attractions. Traditional batch processing cannot deliver the agility and responsiveness required for these dynamic Scenarios.
 
