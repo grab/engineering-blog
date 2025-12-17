@@ -19,7 +19,7 @@ Delivering personalized user experiences in real-time is central to Grab’s str
 
 Grab’s CDP is a centralized, reliable repository for user attributes, designed for freshness, governance, and reusability. Built on [Grab's Signal Marketplace](https://engineering.grab.com/signals-market-place) framework, the CDP streamlines data management through automation and integration, supporting seamless interactions with internal services and toolings that power marketing, experimentation, ads, Machine Learning (ML) features, and external platforms, including Facebook, Google Ads, and TikTok.
 
-The platform currently manages over 1,000 batch user attributes for Passengers, Drivers, and Merchants. Powering diverse use cases from targeted marketing campaigns to operational decision-making across Grab’s entire ecosystem.
+The platform currently manages over 1,000 batch user attributes for Passengers, Drivers, and Merchants, powering diverse use cases from targeted marketing campaigns to operational decision-making across Grab’s entire ecosystem.
 
 ## The need for real-time personalization
 
