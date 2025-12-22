@@ -8,7 +8,7 @@ categories: [Engineering, Design, Product]
 tags: [mobile, ios, android, tracking]
 comments: true
 cover_photo: /img/auto-tracking/auto-sdk-banner.png
-excerpt: "In the fast-paced world of mobile development, understanding user journey is crucial for effective troubleshooting. This blog explores how Grab's development team overcame the challenges of incomplete user journey tracking. Through the innovative creation of AutoTrack SDK, Grab has transformed their approach in session tracking resulting in reduced downtime, higher customer satisfaction, and enhanced developer efficiency. Dive into this groundbreaking advancement and discover how Grab is setting new standards."
+excerpt: "In the dynamic realm of mobile development, understanding user journeys is key to effective troubleshooting. This blog delves into how Grab's innovative AutoTrack SDK has revolutionized session tracking. By addressing the challenges of incomplete user journey data, Grab has significantly reduced downtime, boosted customer satisfaction, and enhanced developer efficiency."
 ---
 
 
@@ -22,24 +22,21 @@ The distinction between resolving an issue effectively versus spending hours on 
 
 The development team initially attempted to address the issue of the incomplete user journey tracking by implementing a system where a click stream event would be sent with every user interaction. However, this approach presented significant challenges due to the sheer volume of UI components—often numbering in the hundreds—and the reliance on individual developers to correctly instrument each one.
 
-This method presented opportunities for improvement, particularly as we continued to scale with rapid growth. By refining our approach, we could enhance the reliability and comprehensiveness of instrumenting user interactions. A common pitfall was that developers would occasionally overlook or forget to instrument certain user interactions, leading to breaks in the recorded user journey. This created a highly frustrating situation for both the development and product teams, as the integrity of the user journey data was consistently compromised. Despite continuous efforts to patch these bugs and address the omissions, the team found themselves in a perpetual state of reaction, constantly trying to catch up with newly discovered breaches rather than proactively preventing them. This reactive approach consumed valuable resources and hindered the ability to gain a complete and accurate understanding of user behavior.
+A common pitfall was that developers would occasionally overlook or forget to instrument certain user interactions, leading to breaks in the recorded user journey. This created a highly frustrating situation for both the development and product teams, as the integrity of the user journey data was consistently compromised. Despite continuous efforts to patch these bugs and address the omissions, the team found themselves in a perpetual state of reaction, constantly trying to catch up with newly discovered breaches rather than proactively preventing them. This reactive approach consumed valuable resources and hindered the ability to gain a complete and accurate understanding of user behavior.
 
 Diagnosing system failures, application bugs, or poor user experiences in complex applications becomes inefficient without real-time performance metrics and detailed session tracking. When engineering teams rely on outdated or fragmented data, they are forced to piece together issue narratives reactively, long after the issues occur. This significantly delays the Mean Time To Resolution (MTTR). Such a reactive approach leads to increased downtime, higher operational costs, customer dissatisfaction, and a waste of developers' time, as they spend more time "hunting" for clues rather than deploying solutions or new features.
 
-## Our 'Eureka' moment: Auto tracking user journey
+## Our 'Eureka' moment: AutoTrack SDK
 
 The pivotal breakthrough that provides our unique advantage was the creation of auto tracking user journeys—our "Eureka" moment. To deliver this, we developed the new Software Development Kit (SDK) called AutoTrack.
 
-
-## AutoTrack SDK
-
-Imagine a system that comprehensively records application state (mobile app's transition between the foreground and background states), UI view state, as well as user interactions - a solution that pieces together a chronicle of the user journey, from launch to interactions, as they navigate through the screens. AutoTrack SDK is built on the three core pillars:
+AutoTrack is system that comprehensively records application state, UI view state, as well as user interactions - a solution that pieces together a chronicle of the user journey, from launch to interactions, as they navigate through the screens. AutoTrack SDK is built on the three core pillars:
 
 1. Application state  
 2. User interactions  
 3. UI screens 
 
-Let’s go into more detail about how this works.
+Let's delve deeper into the mechanics of how this operates.
 
 ### Application state
 
@@ -129,7 +126,7 @@ Disclaimer: information is redacted in compliance with GDPR/PDPA, personal data 
 
 AutoTrack replaces fragile manual instrumentation with a unified, real-time view of application state, screen context, and user interactions. That end-to-end trace makes elusive bugs reproducible, routes issues to the right owners, and seeds reliable UI tests—turning guesswork into grounded evidence so teams can ship fixes faster and with greater confidence.
 
-What’s next? Next, we’re scaling AutoTrack across surfaces and deepening the context it captures—pairing sessions with network and performance signals, strengthening privacy guardrails, and integrating with automated triage and test generation. Look forward to reading more of our deep dives on auto-generated UI tests and how these journeys will power proactive quality across Grab’s app.
+Looking ahead, we are expanding AutoTrack across surfaces and deepening the context it captures—pairing sessions with network and performance signals, strengthening privacy guardrails, and integrating with automated triage and test generation. Look forward to reading more of our deep dives on auto-generated UI tests and how these journeys will power proactive quality across Grab’s app.
 
 ## Join us
 
