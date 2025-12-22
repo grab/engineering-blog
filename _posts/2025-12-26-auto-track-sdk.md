@@ -14,15 +14,15 @@ excerpt: "In the fast-paced world of mobile development, understanding user jour
 
 ## Introduction
 
-Troubleshooting critical issues by deciphering a user's journey on the Grab application is an extremely challenging task. With countless user journeys and multiple paths through the UI, it's akin to searching for a needle in a vast haystack—a race against the clock. This challenge frequently resonates with us, the dedicated developers at Grab, as we strive to understand user behaviors, views, and interactions. The game is always afoot, but are we winning?
+Troubleshooting critical issues by deciphering a user's journey on the Grab app is an extremely challenging task. With countless user journeys and multiple paths through the User Interface (UI), it's akin to searching for a needle in a vast haystack. This challenge frequently resonates with us, the dedicated developers at Grab, as we strive to understand user behaviors, views, and interactions. 
 
-## The daunting labyrinth: The challenge
+## The challenge
 
-The key to cracking any case lies in observing and tracking the right clues. The distinction between resolving an issue effectively versus spending hours on a wild goose chase is understanding our user journey in real-time.
+The distinction between resolving an issue effectively versus spending hours on a wild goose chase is understanding our user journey in real-time.
 
 The development team initially attempted to address the issue of the incomplete user journey tracking by implementing a system where a click stream event would be sent with every user interaction. However, this approach presented significant challenges due to the sheer volume of UI components—often numbering in the hundreds—and the reliance on individual developers to correctly instrument each one.
 
-A common pitfall was that developers would occasionally overlook or forget to instrument certain user interactions, leading to breaks in the recorded user journey. This created a highly frustrating situation for both the development and product teams, as the integrity of the user journey data was consistently compromised. Despite continuous efforts to patch these bugs and address the omissions, the team found themselves in a perpetual state of reaction, constantly trying to catch up with newly discovered breaches rather than proactively preventing them. This reactive approach consumed valuable resources and hindered the ability to gain a complete and accurate understanding of user behavior.
+This method presented opportunities for improvement, particularly as we continued to scale with rapid growth. By refining our approach, we could enhance the reliability and comprehensiveness of instrumenting user interactions. A common pitfall was that developers would occasionally overlook or forget to instrument certain user interactions, leading to breaks in the recorded user journey. This created a highly frustrating situation for both the development and product teams, as the integrity of the user journey data was consistently compromised. Despite continuous efforts to patch these bugs and address the omissions, the team found themselves in a perpetual state of reaction, constantly trying to catch up with newly discovered breaches rather than proactively preventing them. This reactive approach consumed valuable resources and hindered the ability to gain a complete and accurate understanding of user behavior.
 
 Diagnosing system failures, application bugs, or poor user experiences in complex applications becomes inefficient without real-time performance metrics and detailed session tracking. When engineering teams rely on outdated or fragmented data, they are forced to piece together issue narratives reactively, long after the issues occur. This significantly delays the Mean Time To Resolution (MTTR). Such a reactive approach leads to increased downtime, higher operational costs, customer dissatisfaction, and a waste of developers' time, as they spend more time "hunting" for clues rather than deploying solutions or new features.
 
@@ -33,12 +33,11 @@ The pivotal breakthrough that provides our unique advantage was the creation of 
 
 ## AutoTrack SDK
 
-Imagine a system that comprehensively records application states (transition of application into the foreground and back to the background), UI View states, as well as user interactions - a solution that pieces together a chronicle of the user journey, from launch to interactions, as they navigate through the screens.  
-Auto track SDK is built on the three core pillars:
+Imagine a system that comprehensively records application state (mobile app's transition between the foreground and background states), UI view state, as well as user interactions - a solution that pieces together a chronicle of the user journey, from launch to interactions, as they navigate through the screens. AutoTrack SDK is built on the three core pillars:
 
 1. Application state  
 2. User interactions  
-3. User interface (UI) screens 
+3. UI screens 
 
 Let’s go into more detail about how this works.
 
@@ -54,7 +53,7 @@ Understanding the application state is fundamental to comprehending user behavio
 
 
 Key aspects of application state that are vital to monitor include:  
-**1. Application lifecycle transitions:**
+**Application lifecycle transitions:**
 
 * **Background state:** When the app is running but not actively displayed to the user (e.g., the user switches to another app, or the device is locked). Understanding how frequently and for how long an app resides in the background can inform power consumption analysis and the effectiveness of background tasks.  
 * **Foreground state:** When the app is actively in use and displayed to the user. Monitoring transitions into and out of the foreground provides a real-time view of user engagement.  
@@ -62,13 +61,13 @@ Key aspects of application state that are vital to monitor include:
 * **Suspended state:** An app that is in the background and has been explicitly suspended by the operating system to free up resources.  
 * **Terminated state:** When the app has been completely closed or crashed. Differentiating between intentional termination and crashes is critical for identifying stability issues.
 
-**2. Application launch mechanisms:**
+**Application launch mechanisms:**
 
 The way an app is launched significantly impacts the initial user experience and can influence subsequent interactions. Tracking these different launch types is essential for understanding user entry points and for debugging issues that might be specific to a particular launch method.
 
-* **Explicit User launch:** This is the most straightforward launch mechanism, where the user directly taps on the app icon from their device's home screen or app drawer. This indicates a deliberate intent to use the application and often signifies a primary entry point for regular users.  
-* **Deeplinks:** Deeplinks are URLs that, when clicked, open a specific page or section within a mobile application rather than a web page. They are powerful tools for enhancing user experience and engagement by providing direct access to relevant content.   
-* **Push notifications:** Push notifications are messages sent by an application to a user's device even when the app is not actively in use. Tapping on a push notification often launches the app and directs the user to a specific context related to the notification's content. 
+* **Explicit user launch:** This is the most straightforward launch mechanism, where the user directly taps on the app icon from their device's home screen or app drawer. This indicates a deliberate intent to use the app and often signifies a primary entry point for regular users.  
+* **Deeplinks:** Deeplinks are URLs that, when clicked, open a specific page or section within a mobile app rather than a web page. They are powerful tools for enhancing user experience and engagement by providing direct access to relevant content.   
+* **Push notifications:** Push notifications are messages sent by an app to a user's device even when the app is not actively in use. Tapping on a push notification often launches the app and directs the user to a specific context related to the notification's content. 
 
 
 <div class="post-image-section"><figure>
@@ -77,7 +76,7 @@ The way an app is launched significantly impacts the initial user experience and
 
 ### User interactions
 
-Real-time session tracking is a crucial component in understanding user behavior and optimizing application performance. By meticulously tracking a wide array of user interactions, the system provides invaluable insights into how users navigate and engage with the application. This granular data forms the bedrock for constructing comprehensive user journeys, allowing development teams to visualise the path a user takes from their initial entry point to achieving their goals within the app.
+Real-time session tracking is a crucial component in understanding user behavior and optimizing app performance. By meticulously tracking a wide array of user interactions, the system provides invaluable insights into how users navigate and engage with the app. This granular data forms the bedrock for constructing comprehensive user journeys, allowing development teams to visualise the path a user takes from their initial entry point to achieving their goals within the app.
 
 This deep understanding of user interactions is the most important pillar in creating accurate and insightful user journey maps. These maps, in turn, are instrumental in identifying patterns of user behavior, both positive and negative. For instance, tracking helps to identify pain points, bugs, or areas of confusion that might lead to user frustration or abandonment. 
 
@@ -90,16 +89,13 @@ This deep understanding of user interactions is the most important pillar in cre
 
 ### UI screen
 
-The system leverages lifecycle events from UIViewController (iOS), Activity (Android), and Fragments (Android) to accurately identify and track which specific screen is currently displayed to the user. This granular level of screen tracking is crucial because it significantly enriches the contextual information available to us. By understanding the precise UI that users are interacting with, we can account for the dynamic nature of our application. Different geographical regions, diverse user segments, and varying operational scenarios can lead to distinct user interfaces being presented. This capability ensures that our analysis and troubleshooting efforts are always based on the actual user experience, allowing for more precise problem identification and more effective solutions.  
-
+The system leverages lifecycle events from UIViewController (iOS), Activity (Android), and Fragments (Android) to accurately identify and track which specific screen is currently displayed to the user. This granular level of screen tracking is crucial because it significantly enriches the contextual information available to us. By understanding the precise UI that users are interacting with, we can account for the dynamic nature of our app. Different geographical regions, diverse user segments, and varying operational scenarios can lead to distinct user interfaces being presented. This capability ensures that our analysis and troubleshooting efforts are always based on the actual user experience, allowing for more precise problem identification and more effective solutions.  
 
 
 <div class="post-image-section"><figure>
   <img src="/img/auto-tracking/figure-4-5.png" alt="" style="width:80%"><figcaption align="middle"> </figcaption>
   </figure>
 </div>
-
-
 
 
 <div class="post-image-section"><figure>
@@ -133,8 +129,7 @@ Disclaimer: information is redacted in compliance with GDPR/PDPA, personal data 
 
 AutoTrack replaces fragile manual instrumentation with a unified, real-time view of application state, screen context, and user interactions. That end-to-end trace makes elusive bugs reproducible, routes issues to the right owners, and seeds reliable UI tests—turning guesswork into grounded evidence so teams can ship fixes faster and with greater confidence.
 
-What’s next? Next, we’re scaling AutoTrack across surfaces and deepening the context it captures—pairing sessions with network and performance signals, strengthening privacy guardrails, and integrating with automated triage and test generation.   
-Look forward to reading more of our deep dives on auto-generated UI tests and how these journeys will power proactive quality across Grab’s app.
+What’s next? Next, we’re scaling AutoTrack across surfaces and deepening the context it captures—pairing sessions with network and performance signals, strengthening privacy guardrails, and integrating with automated triage and test generation. Look forward to reading more of our deep dives on auto-generated UI tests and how these journeys will power proactive quality across Grab’s app.
 
 ## Join us
 
