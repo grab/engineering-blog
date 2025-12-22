@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2025-12-15-auto-track-sdk
+id: 2025-12-26-auto-track-sdk
 title: 'Demystifying user journeys: Revolutionizing troubleshooting with auto tracking'
-date: 2025-12-20 00:23:00
+date: 2025-12-26 00:23:00
 authors: [oleksandr-prokofiev, anshul-jain, bunty-madan]
 categories: [Engineering, Design, Product]
 tags: [mobile, ios, android, tracking]
