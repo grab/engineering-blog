@@ -112,12 +112,12 @@ Powered by our SuperAgent and MCP tool layer, Dynamic chat queries live systems 
 
 
 <div class="post-image-section"><figure>
-  <img src="/img/kinabalu-ai-sre/figure-4a.png" alt="" style="width:100%"><figcaption align="middle">Figure 4. Examine related deployments within the same time frame.</figcaption>
+  <img src="/img/kinabalu-ai-sre/figure-4a.png" alt="" style="width:70%"><figcaption align="middle">Figure 4. Examine related deployments within the same time frame.</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/kinabalu-ai-sre/figure-4b.png" alt="" style="width:100%"><figcaption align="middle">Figure 5. Analyze Splunk or DataDog alerts to identify the root cause of an issue.</figcaption>
+  <img src="/img/kinabalu-ai-sre/figure-4b.png" alt="" style="width:70%"><figcaption align="middle">Figure 5. Analyze Splunk or DataDog alerts to identify the root cause of an issue.</figcaption>
   </figure>
 </div>
  
