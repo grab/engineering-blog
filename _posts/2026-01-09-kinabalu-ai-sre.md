@@ -39,14 +39,14 @@ The following components of AI SRE are then executed in sequence:
 
 **Component 1**: Auto-triage with context from incident records, tagging on severity, priority, owner/oncall, as well as issue types.
 
-**Conponent 2**:  AI SRE (static diagnostics) then correlates: 
+**Conponent 2**:  AI SRE (static diagnostics) establishes correlations by
   - Metrics and dashboards: analyzes recent deltas and compares against time-of-day/week baselines. 
   - Dependencies: checks upstream/downstream services to separate causes from symptoms. 
   - Changes: retrieves recent deployments, config updates, and feature-flag flips. 
   - Logs: clusters error signatures and tracks frequency shifts. 
 Delivers an incident summary with actionable insights, aRCA draft, and concrete recommendations (queries to run, rollback/feature-flag options, runbook links).
 
-**Component 3**: Dynamic conversation: 
+**Component 3**: Dynamic conversation.
 - Conversational follow-up where user enters questions in Slack, such as “List owners for impacted services”, or “Compare p95 across top markets.” AI SRE replies with evidence-backed answers and links for drill-down.
 
 ## Architecture
