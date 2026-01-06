@@ -6,169 +6,9 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 06 Jan 2026 09:19:44 +0000</pubDate>
-    <lastBuildDate>Tue, 06 Jan 2026 09:19:44 +0000</lastBuildDate>
+    <pubDate>Tue, 06 Jan 2026 11:14:14 +0000</pubDate>
+    <lastBuildDate>Tue, 06 Jan 2026 11:14:14 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
-    
-      <item>
-        <title>Kinabalu AI SRE - Leveraging AI for scalable diagnostics and alert management (Part 1)</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;If you’ve ever been on-call during an outage, you know the drill: a flood of alerts, five dashboards open, logs streaming from different places, a dozen threads in Slack, and still no clear picture. Context-switching kills velocity, and “where do I even start?” becomes the default question.&lt;/p&gt;
-
-&lt;p&gt;Kinabalu AI Site Reliability Engineering (AI SRE for short) is our attempt to transform this experience. It consolidates the right context in one place, analyzes it with assistive AI agents, and helps us move from alert to action quickly.&lt;/p&gt;
-
-&lt;p&gt;Target audience:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;On-call engineers and incident commanders.&lt;/li&gt;
-  &lt;li&gt;Service owners validating health, dependencies, and changes.&lt;/li&gt;
-  &lt;li&gt;SRE/platform teams standardizing triage and root cause analysis (RCA) quality.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Note: Kinabalu AI SRE is in its experimental stage; features, coverage, and interfaces may change as we iterate.&lt;/p&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Incidents today suffer from several issues, including alert overload, fragmented context across tools, slow RCA, operational redundancy from tool-hopping, and scattered runbooks that are hard to find and apply under pressure.&lt;/p&gt;
-
-&lt;p&gt;AI SRE aims to solve these issues by serving a unified view that streamlines diagnostics and correlates signals to recommend the best next actions. This approach accelerates response time, further reducing time-to-resolution (TTR), lowers the cognitive load on on-calls by keeping all relevant context in one place, and strengthens collaboration through evidence-backed updates and clear ownership.&lt;/p&gt;
-
-&lt;h2 id=&quot;a-typical-user-journey&quot;&gt;A typical user journey&lt;/h2&gt;
-
-&lt;p&gt;Kinabalu’s AI SRE is a 24/7 automator reachable via Slack and a Web UI. It takes input in the form of an automated alert or a direct question and responds with an evidence-backed, actionable insight.&lt;/p&gt;
-
-&lt;p&gt;In a hypothetical user journey with AI SRE, the process might begin with a trigger. For instance, if a monitoring alert is triggered by a fivefold increase in a Datadog report and increasing latency for a service, AI SRE initiates an incident thread and gathers the initial context.&lt;/p&gt;
-
-&lt;p&gt;The following components of AI SRE are then executed in sequence:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Component 1&lt;/strong&gt;: Auto-triage with context from incident records, tagging on severity, priority, owner/oncall, as well as issue types.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Component 2&lt;/strong&gt;: AI SRE (static diagnostics) establishes correlations by&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;Metrics and dashboards: analyzes recent deltas and compares against time-of-day/week baselines.&lt;/li&gt;
-  &lt;li&gt;Dependencies: checks upstream/downstream services to separate causes from symptoms.&lt;/li&gt;
-  &lt;li&gt;Changes: retrieves recent deployments, config updates, and feature-flag flips.&lt;/li&gt;
-  &lt;li&gt;Logs: clusters error signatures and tracks frequency shifts.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Delivers an incident summary with actionable insights, aRCA draft, and concrete recommendations (queries to run, rollback/feature-flag options, runbook links).&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Component 3&lt;/strong&gt;: Dynamic conversation.&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;Conversational follow-up where user enters questions in Slack, such as “List owners for impacted services”, or “Compare p95 across top markets”. AI SRE replies with evidence-backed answers and provides links for further drill-down.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;architecture&quot;&gt;Architecture&lt;/h2&gt;
-
-&lt;p&gt;Under the hood, the backend combines a central signal aggregator with Model Context Protocol (MCP) servers for instant search, and a Large Language Model (LLM) powered intelligence layer that analyzes signals to auto-triage incidents and produce actionable insights.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kinabalu-ai-sre/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. SRE AI architecture.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;signal-aggregator-context-engineering&quot;&gt;Signal aggregator: Context engineering&lt;/h3&gt;
-
-&lt;p&gt;We follow a Retrieval Augmented Generation (RAG) approach and are building a knowledge graph that stitches together incident signals across the stack. The aggregator ingests the information as follows:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Datadog (metrics, monitors)&lt;/li&gt;
-  &lt;li&gt;Kibana/Elasticsearch (logs)&lt;/li&gt;
-  &lt;li&gt;Grafana (dashboards)&lt;/li&gt;
-  &lt;li&gt;Hystrix (circuit state)&lt;/li&gt;
-  &lt;li&gt;GitLab/Jira (changes/issues)&lt;/li&gt;
-  &lt;li&gt;CI/CD and deployment metadata&lt;/li&gt;
-  &lt;li&gt;Service/product catalog (ownership, dependencies)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;With this context, AI SRE agents can provide a clear view of what changed, when it changed, and who owns it, making incident understanding and debugging faster and more reliable in a near-real-time manner.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kinabalu-ai-sre/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Examples of signal aggregation for building context.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;unified-intelligence-an-agentic-approach&quot;&gt;Unified intelligence: An agentic approach&lt;/h3&gt;
-
-&lt;p&gt;Agents can basically “normalize” the alerts and signals, meaning they standardize and interpret them for better understanding. They can semantically search through historical changes that can explain current symptoms, correlate co-occurring signals, and surface likely causes.&lt;/p&gt;
-
-&lt;p&gt;AI SRE uses the SuperAgent and A2A multi-agent frameworks to analyze incidents using two workflows, which can coexist.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;For static diagnosis, a separate flow collects all data and logs for services via the MCP toolkit and sends them to A2A multi-agents for a deep-dive investigation.&lt;/li&gt;
-  &lt;li&gt;For dynamic analysis, SuperAgent uses the MCP toolkit to investigate and pull real-time data.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;static-diagnosis&quot;&gt;Static diagnosis&lt;/h4&gt;
-
-&lt;p&gt;The static diagnostics workflow starts with a trigger from Slack or the Web UI and ends with a comprehensive service health report. It coordinates six domain-specific sub-agents encompassing the areas of incident management, deployment, application, database, infrastructure, and external APIs. Each sub-agent pulls the relevant signals and runs targeted checks, producing detailed findings. The supervisor then synthesizes these into an investigation-ready brief. The brief contains a concise summary of suspects and blast radius, timeline, and recommended next steps. The briefs are grounded in logs and metrics, so engineers can quickly understand the impact and move toward resolution.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kinabalu-ai-sre/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Examples of static diagnosis by AI SRE.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;dynamic-chat&quot;&gt;Dynamic chat&lt;/h4&gt;
-
-&lt;p&gt;Users can inquire via Slack or the Web UI to receive an immediate, evidence-supported action plan. Examples of such questions include:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;“How many recent deployments touched the food service?”&lt;/li&gt;
-  &lt;li&gt;“How many Terraform changes in the past 5 minutes?”&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Powered by our SuperAgent and MCP tool layer, dynamic chat queries live systems such as metrics, logs, deploy history, and configs. It then returns cited data, comparisons, and next-best actions. On-call engineers can diagnose issues and pull logs on the fly, before escalating actions (e.g., open a ticket, compare regions, list owners, suggest rollbacks). It’s human-in-the-loop (HITL) by design.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kinabalu-ai-sre/figure-4a.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Example of examining related deployments within the same time frame.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/kinabalu-ai-sre/figure-4b.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Example of analyzing Splunk or DataDog alerts to identify the root cause of an issue.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;mcp-toolkit&quot;&gt;MCP toolkit&lt;/h3&gt;
-
-&lt;p&gt;The Kinabalu MCP Toolkit serves as a universal integration layer that empowers AI SRE by unifying 25 operational tools into a single, consistent interface. This comprehensive toolkit spans six key domains:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Incident and communications: Manages historical incidents, Slack thread context, and ticketing.&lt;/li&gt;
-  &lt;li&gt;Internal platforms: Includes changelogs, experiments, rollout history, and automated analyses.&lt;/li&gt;
-  &lt;li&gt;Knowledge and AI: Facilitates enterprise document search/chat and unstructured data analysis.&lt;/li&gt;
-  &lt;li&gt;Service and configuration: Offers topology and configuration introspection.&lt;/li&gt;
-  &lt;li&gt;Observability: Provides insights through metrics, logs, and profiling.&lt;/li&gt;
-  &lt;li&gt;Deployment: Tracks recent releases and commit history.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The Kinabalu MCP Toolkit is designed to provide AI SRE with a 360 degree view of incidents, significantly accelerating root-cause discovery and response.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Our journey highlights the importance of structured context, robust diagnostic layers, and hybrid AI models for dependable incident automation. Through our ongoing development of Kinabalu AI SRE, we’re moving toward an ecosystem where alerts are normalized, evidence is automatically synthesized, and engineers can focus on higher level decision-making rather than firefighting.&lt;/p&gt;
-
-&lt;p&gt;Stay tuned for part 2, where we will cover the challenges, design decisions, and lessons that shaped Kinabalu AI SRE.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-
-</description>
-        <pubDate>Tue, 06 Jan 2026 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/kinabalu-ai-sre</link>
-        <guid isPermaLink="true">https://engineering.grab.com/kinabalu-ai-sre</guid>
-        
-        <category>automation</category>
-        
-        <category>LLM</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
     
       <item>
         <title>Demystifying user journeys: Revolutionizing troubleshooting with auto tracking</title>
@@ -1864,6 +1704,238 @@ We’re developing a more efficient model training workflow. A particularly exci
         <category>Engineering</category>
         
         <category>Data</category>
+        
+      </item>
+    
+      <item>
+        <title>Highly concurrent in-memory counter in GoLang</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Ah, the familiar &lt;em&gt;beep beep beep&lt;/em&gt; but don’t worry, it’s not your alarm coaxing you out of bed. No, this is far worse: the dreaded PagerDuty on-call alert! What’s the crisis this time? There appears to be an issue with high database CPU utilisation, overwhelmed by a flood of heavy traffic. If you’re a developer, chances are you’ve faced this scenario at least once. The very moment when you question every life decision while desperately searching for answers at 3 AM.&lt;/p&gt;
+
+&lt;p&gt;This article was born of one such heart-pounding, adrenaline-fuelled incident. Picture this: the database was struggling, the traffic was relentless, and the team was caught in the crossfire. The seemingly obvious solution was to migrate from SQL to NoSQL—a straightforward fix, or so it seemed. Instead of taking the easy way out, we stepped back, rolled up our sleeves, and tackled the problem head-on, embarking on a bold journey of optimisation.&lt;/p&gt;
+
+&lt;p&gt;What followed was a rollercoaster of trial, error, and a few “why did we even try this” moments. Yet, isn’t that the beauty of being a developer? Embracing the chaos, thriving in the madness, and eventually emerging victorious with a story worth sharing.&lt;/p&gt;
+
+&lt;p&gt;Real-time usage count tracking is a common use case that can be found across many applications, like Instagram’s post like count, YouTube’s watch count, or a marketing campaign usage count, which is used in monitoring and measuring the performance of marketing campaigns to assess effectiveness. These counts don’t have to be highly accurate, but rather an approximation in most use cases. This meant that in an occurrence of an event, instead of immediately updating the count in the database, the count is cached in the application server and later updated in batches to reduce the database Queries Per Second (QPS) and Central Processing Unit (CPU) utilisation.&lt;/p&gt;
+
+&lt;p&gt;This article shares one such use case where we optimised the campaign usage count tracking with highly concurrent in-memory caching that flushes to the database at periodic intervals.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Marketing campaigns are configured to deliver push notifications, emails, and award rewards and points to Grab users. Total usage as well as daily usage needs to be tracked for display purposes to give a sense of how the campaign is performing. In this use case, accuracy is not a top priority. This release in constraint helps us to reduce write traffic by incrementing the counter in-memory and flushing the disk at periodic intervals for persistence.&lt;/p&gt;
+
+&lt;p&gt;In this section, let’s break down the process of designing a highly concurrent in-memory counter with data persistence.&lt;/p&gt;
+
+&lt;h3 id=&quot;functional-requirements&quot;&gt;Functional requirements&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Upsert the counter value for the given key.&lt;/li&gt;
+  &lt;li&gt;Periodically flush the counter value to the storage layer for persistence.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;non-functional-requirements&quot;&gt;Non-functional requirements&lt;/h3&gt;
+
+&lt;p&gt;Do note that although consistency is not critical for this use case, we will build a generic in-memory counter with the following guarantees, which can be reused for other use cases:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Highly consistent updates of the counter values in memory during high concurrency.&lt;/li&gt;
+  &lt;li&gt;Consistent flushing of the counter values to the storage layer for persistence.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Simple GoLang code for writing an in-memory counter may look like the code sample shown in &lt;strong&gt;Figure 1&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. In-memory counter code snippet.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The code has a map declared globally, and the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function increments the counter value against the key. However, this code fails to work when multiple Goroutines (GoLang version of threads) try to access this &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function concurrently. This will result in the following error, as shown in &lt;strong&gt;Figure 2&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Code error sample.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Maps in GoLang are not thread safe and need to be locked when being accessed concurrently. The GoLang sync package has Mutex, which serves this locking purpose. The code changes are shown in &lt;strong&gt;Figure 3&lt;/strong&gt;. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sync.RWMutex&lt;/code&gt; object is declared globally and every time the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function is called, the lock is obtained first. Then the map is mutated, followed by releasing the lock at the end. This code works as intended even when multiple go routines try to access it concurrently.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Implementing sync.RWMutex for locking purpose.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The code for the functional requirement of periodically flushing the counter value to the storage layer is shown in &lt;strong&gt;Figure 4&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-4.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Code snippet of flushing counter value to storage function. &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Assuming that this design is a success, every 200 milliseconds, a background job acquires a global map lock, iterates over all keys, writes each entry to the storage layer asynchronously, then deletes it from the map. After that, a flush is executed where counter increments are blocked until the lock is released. We can further optimise the flushing process by acquiring the lock, handing the old map to the flusher, swapping in a fresh map to handle new traffic, and then releasing the lock.&lt;/p&gt;
+
+&lt;h2 id=&quot;can-we-do-something-better&quot;&gt;Can we do something better?&lt;/h2&gt;
+
+&lt;p&gt;Yes, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; is the synchronised version of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;map&lt;/code&gt; in GoLang. This can be used to get rid of the explicit locking overheads. This works well when the keys accessed are disjoint and the map has a finite set of keys accessed frequently.&lt;/p&gt;
+
+&lt;p&gt;Powerful features of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;LoadOrStore&lt;/strong&gt;: Retrieves the existing value for a key if present, or stores and returns a new value if the key is absent. Ensuring atomic operation and preventing race conditions.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;CompareAndSwap&lt;/strong&gt;: Atomically compares a variable’s current value to an expected value. If they match, it is swapped with a new value, ensuring thread-safe updates.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;LoadAndDelete&lt;/strong&gt;: Atomically retrieves and removes the value of a given key, returning the value and a boolean indicating if the key was present.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When combined, these &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; features produce the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function shown in &lt;strong&gt;Figure 5&lt;/strong&gt;. When the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;do&lt;/code&gt; function is called, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LoadOrStore&lt;/code&gt; function tries to atomically store the key in the map if the key is absent. Otherwise, it returns the current value for the key with the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;isLoaded&lt;/code&gt; variable set to true. If the key is already present, a new value is created by summing up the increment value with the current value and setting it as the new value in the map using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CompareAndSwap&lt;/code&gt; function. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;compareAndSwap&lt;/code&gt; function successfully sets the new value to the key only if the existing value in the map matches the current value. During high concurrency, this can fail, so we recursively retry until the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CompareAndSwap&lt;/code&gt; replaces the current value with the new value.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Sync.Map features in do function. &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The code example for periodically flushing the counter value to the storage layer is shown in &lt;strong&gt;Figure 6&lt;/strong&gt;. In the previous version of the code, it obtained the lock on the entire map and flushed the counter to the storage layer before releasing the lock. However, there is no locking during this flushing operation. Instead, we rely on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LoadAndDelete&lt;/code&gt; function to atomically remove a key from the map. This also returns the latest value for the key, which is updated into the storage layer async.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/memory-counter-golang/code-base-6.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Code snippet of LoadAndDelete function. &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;em&gt;Note: In production, we run flushKeys less frequently, trading a risk of data loss for lower database usage and, consequently, improved database performance.&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;benchmarking&quot;&gt;Benchmarking&lt;/h2&gt;
+
+&lt;p&gt;In an experiment conducted with an Apple M4 24 GB RAM machine, using the test case of spawning up to millions of concurrent Go routines to increment the counter of 2000 keys.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;go test -bench . -benchmem -benchtime=80s -v inmemory_counter_test.go
+goos: darwin
+goarch: arm64
+cpu: Apple M4 Pro
+Benchmark1_Mutex_2000Keys
+Benchmark1_Mutex_2000Keys-14            588503698              161.5 ns/op             0 B/op          0 allocs/op
+Benchmark2_SyncMap_2000Keys
+Benchmark2_SyncMap_2000Keys-14          1000000000              59.89 ns/op           88 B/op          4 allocs/op
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Metric&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;Mutex&lt;/th&gt;
+      &lt;th style=&quot;text-align: center&quot;&gt;Sync.Map&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Average latency&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;159 ns/op&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;53 ns/op&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Speed advantage&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;-&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;3.0x faster&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Throughput (60s)&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;466M ops&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;1B ops&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Memory/op&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;0 B&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;88 B&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Allocations/op&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;0&lt;/td&gt;
+      &lt;td style=&quot;text-align: center&quot;&gt;4&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;In summary, getting rid of explicit locking with Sync.Map is 3 times faster than using map with Mutex.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-is-syncmap-is-faster-than-map-with-mutex-in-our-case&quot;&gt;Why is Sync.Map is faster than map with Mutex in our case?&lt;/h2&gt;
+
+&lt;p&gt;Acknowledging the factual information on Sync.Map:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Sync.Map is optimised for the ready heavy workloads.&lt;/li&gt;
+  &lt;li&gt;Sync.Map maintains two maps internally: read map and dirty map and has additional overheads in internal management.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In the actual production environment, there are roughly a few thousand keys in the map (campaignIDs) and at high QPS. Go routines update the same keys concurrently (tracking the usage by incrementing internal value).&lt;/p&gt;
+
+&lt;p&gt;Looking into the internal implementation of Sync.Map. Each key holds a pointer to a struct named entry, which holds the unsafe pointer to the actual value. Whenever a key is accessed and the key is present in the internal read map, the pointer to the struct is returned, and CompareAndSwap (CAS) is then used to atomically replace the pointer to the new value present in the struct in case of update. This strategy is lock free, but there is contention by CAS operation.&lt;/p&gt;
+
+&lt;p&gt;When a key already exists in the internal read map, the value pointer is updated atomically without acquiring a lock—the fast path. The dirty map is only involved when the key is missing from the read map or has been marked for deletion—the slow path. In our case, the same finite set of keys is accessed across Go routines over time, so we hit the fast path about 99% of the time. Compared with using a regular map protected by a Mutex that locks on every update, Sync.Map is typically faster for this access pattern.&lt;/p&gt;
+
+&lt;p&gt;As we have an estimate of 2000 entries in the map, the total memory occupied by Sync.Map will be roughly around 150KB~200KB in memory, including the overheads.&lt;/p&gt;
+
+&lt;p&gt;Performance varies by case. Benchmarking is necessary to determine the optimal strategy for our specific use case. It is important to take note that Sync.Map performance may degrade if there are frequent insertions or deletions. In our use case, insertion of keys happens occasionally when a new campaign starts. The deletion of keys is triggered by the flush keys job.&lt;/p&gt;
+
+&lt;h2 id=&quot;approach-comparison&quot;&gt;Approach comparison&lt;/h2&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Map with Mutex&lt;/th&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Synchronised map (Sync.Map)&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Locks are explicitly taken.&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Implicit locks.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Locks serialises every update operation though different keys are accessed.&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Atomic operations on different keys happen in parallel when keys are present in the read map.&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Benchmark running over 80 seconds with 2000 keys in map, each operation took 160ns on avg with total throughput of 466million operations.&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Benchmark running over 80 seconds with 2000 keys in map, each operation took 53ns on avg with total throughput of 1billion operations.&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;We implemented the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Sync.Map&lt;/code&gt; approach for our in-memory counter that periodically flushes the campaign usage count in the database. This implementation resulted in the following efficiency improvements:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;68% decrease in usage tracking update queries, nose-diving from 140 QPS to just 45 QPS!&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Master database experienced a significant reduction in CPU utilisation, decreasing by 48.5%—from 35% to just 18%, alleviating considerable strain on its resources.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Replica databases benefited from a 37% decrease in CPU utilisation, dropping from 19% to a more manageable 12%.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Through this optimisation journey, we successfully overcame the challenging database CPU bottlenecks while avoiding the substantial effort and complexity of migrating from SQL to NoSQL. Who would have thought that a calculated leap of faith could save us so much time, effort, and countless sleepless nights? At times, the most effective solutions arise from taking a step back and approaching the problem with a fresh perspective, rather than rushing towards an immediate fix.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;grb.to/gebgolang&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 06 Oct 2025 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang</link>
+        <guid isPermaLink="true">https://engineering.grab.com/highly-concurrent-in-memory-counter-in-go-lang</guid>
+        
+        <category>Database</category>
+        
+        
+        <category>Engineering</category>
         
       </item>
     
