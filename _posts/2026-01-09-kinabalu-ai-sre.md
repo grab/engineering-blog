@@ -9,6 +9,7 @@ tags: [automation, LLM]
 comments: true
 cover_photo: /img/kinabalu-ai-sre/banner.jpg
 excerpt: "Grab is redefining how engineers respond to operational incidents by introducing Kinabalu AI Site Reliability Engineering (AI SRE); an AI-assisted platform that brings together fragmented context, automates reasoning, and accelerates the path from alert to action. AI SRE is currently in an experimental stage during which we’ve encountered new complexities that present opportunities to innovate and improve our troubleshooting processes. This article explores why we built Kinabalu AI SRE, the design principles and engineering decisions behind it, and how it’s transforming incident response for teams across Grab."
+draft: true
 ---
 
 ## Introduction
