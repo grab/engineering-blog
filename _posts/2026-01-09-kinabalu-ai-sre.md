@@ -5,7 +5,6 @@ title: 'Kinabalu AI SRE - Leveraging AI for scalable diagnostics and alert manag
 date: 2026-01-06 00:23:00
 authors: [david-khu, jolin-zhou, ruike-zhang, ziqin-yeow]
 categories: [Engineering]
-tags: [Database, FLinkSQL]
 comments: true
 cover_photo: /img/kinabalu-ai-sre/banner.jpg
 excerpt: "Grab is redefining how engineers respond to operational incidents by introducing Kinabalu AI Site Reliability Engineering (AI SRE); an AI-assisted platform that brings together fragmented context, automates reasoning, and accelerates the path from alert to action. As we have scaled across transport, deliveries, and financial services, we've encountered new complexities that present us with opportunities to innovate and improve our troubleshooting processes. This article explores why we built Kinabalu AI SRE, the design principles and engineering decisions behind it, and how it’s transforming incident response for teams across Grab."
