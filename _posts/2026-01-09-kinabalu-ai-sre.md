@@ -8,7 +8,7 @@ categories: [Engineering]
 tags: [automation, LLM]
 comments: true
 cover_photo: /img/kinabalu-ai-sre/banner.jpg
-excerpt: "Grab is redefining how engineers respond to operational incidents by introducing Kinabalu AI Site Reliability Engineering (AI SRE); an AI-assisted platform that brings together fragmented context, automates reasoning, and accelerates the path from alert to action. As we have scaled across transport, deliveries, and financial services, we've encountered new complexities that present us with opportunities to innovate and improve our troubleshooting processes. This article explores why we built Kinabalu AI SRE, the design principles and engineering decisions behind it, and how it’s transforming incident response for teams across Grab."
+excerpt: "Grab is redefining how engineers respond to operational incidents by introducing Kinabalu AI Site Reliability Engineering (AI SRE); an AI-assisted platform that brings together fragmented context, automates reasoning, and accelerates the path from alert to action. AI SRE is currently in an experimental stage during which we’ve encountered new complexities that present opportunities to innovate and improve our troubleshooting processes. This article explores why we built Kinabalu AI SRE, the design principles and engineering decisions behind it, and how it’s transforming incident response for teams across Grab."
 ---
 
 ## Introduction
@@ -23,11 +23,13 @@ Target audience:
 * Service owners validating health, dependencies, and changes.   
 * SRE/platform teams standardizing triage and root cause analysis (RCA) quality.
 
+Note: Kinabalu AI SRE is in its experimental stage; features, coverage, and interfaces may change as we iterate. 
+
 ## Background
 
 Incidents today suffer from several issues, including alert overload, fragmented context across tools, slow RCA, operational redundancy from tool-hopping, and scattered runbooks that are hard to find and apply under pressure. 
 
-AI SRE solves these issues by serving a unified view that streamlines diagnostics and correlates signals to recommend the best next actions. This approach accelerates response time, further reducing time-to-resolution (TTR), lowers the cognitive load on on-calls by keeping all relevant context in one place, and strengthens collaboration through evidence-backed updates and clear ownership.
+AI SRE aims to solve these issues by serving a unified view that streamlines diagnostics and correlates signals to recommend the best next actions. This approach accelerates response time, further reducing time-to-resolution (TTR), lowers the cognitive load on on-calls by keeping all relevant context in one place, and strengthens collaboration through evidence-backed updates and clear ownership.
 
 ## A typical user journey
 
@@ -139,7 +141,7 @@ The Kinabalu MCP Toolkit is designed to provide AI SRE with a 360 degree view of
 
 ## Conclusion
 
-Our journey highlights the importance of structured context, robust diagnostic layers, and hybrid AI models for dependable incident automation. With Kinabalu AI SRE, we’re moving toward an ecosystem where alerts are normalized, evidence is automatically synthesized, and engineers can focus on higher level decision-making rather than firefighting.
+Our journey highlights the importance of structured context, robust diagnostic layers, and hybrid AI models for dependable incident automation. Through our ongoing development of Kinabalu AI SRE, we’re moving toward an ecosystem where alerts are normalized, evidence is automatically synthesized, and engineers can focus on higher level decision-making rather than firefighting.
 
 Stay tuned for part 2, where we will cover the challenges, design decisions, and lessons that shaped Kinabalu AI SRE.  
 
