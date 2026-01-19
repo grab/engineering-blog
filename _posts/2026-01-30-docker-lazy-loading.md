@@ -21,7 +21,7 @@ At Grab, we've been exploring ways to dramatically reduce container startup time
 
 ### Benchmark results
 
-Our initial testing on fresh nodes (nodes without cached images) showed dramatic improvements in image pull times as shown in **Figure 1**
+Our initial testing on fresh nodes (nodes without cached images) showed dramatic improvements in image pull times as shown in **Figure 1**.
 
 <div class="post-image-section"><figure>
   <img src="/img/docker-lazy-loading/figure-1.png" alt="" style="width:70%"><figcaption align="middle">Figure 1. Table of results.</figcaption>
@@ -38,7 +38,7 @@ During our SOCI benchmark testing, we observed an important distinction between 
 
 The production deployment of SOCI lazy loading has delivered significant, measurable improvements across our data platforms. Both Airflow and Spark Connect now experience 30-40% faster startup times, directly improving our ability to handle traffic spikes and scale efficiently. These improvements translate to better auto-scaling responsiveness, reduced resource waste during initialization, and improved user experience for data processing workloads. The sustained performance gains observed over time demonstrate that lazy loading is a stable, production-ready optimization that delivers consistent value.
 
-The following charts illustrate the P95 startup time improvements for both services:
+**Figure 2 and 3** illustrate the P95 startup time improvements for both services:
 
 <div class="post-image-section"><figure>
   <img src="/img/docker-lazy-loading/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Production results: Airflow P95 startup time. </figcaption>
