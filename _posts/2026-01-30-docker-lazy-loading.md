@@ -32,7 +32,7 @@ Our initial testing on fresh nodes (nodes without cached images) showed dramatic
 
 The key advantage of lazy loading is the reduction in image pull time, especially on "fresh" nodes that do not have the image cached. By analyzing detailed pod events, we can see the precise impact of using the stargz snapshotter.
 
-During our SOCI benchmark testing, we observed an important distinction between SOCI and eStargz: **SOCI maintains the same application startup time as standard images**, while eStargz takes longer. For example, with Airflow, both overlayFS and SOCI achieved 5.0 seconds startup time, while eStargz took 25.0 seconds. This demonstrates that lazy loading doesn't eliminate download time; it redistributes it. SOCI's approach of maintaining separate indexes allows it to optimize the download-to-startup time trade-off more effectively, keeping application startup performance on par with standard images while still dramatically reducing image pull time.
+During our SOCI benchmark testing, we observed an important distinction between SOCI and eStargz: **SOCI maintains the same application startup time as standard images, while eStargz takes longer**. For example, with Airflow, both overlayFS and SOCI achieved 5.0 seconds startup time, while eStargz took 25.0 seconds. This demonstrates that lazy loading doesn't eliminate download time; it redistributes it. SOCI's approach of maintaining separate indexes allows it to optimize the download-to-startup time trade-off more effectively, keeping application startup performance on par with standard images while still dramatically reducing image pull time.
 
 ## Production performance
 
