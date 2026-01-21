@@ -6,9 +6,281 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 19 Jan 2026 09:35:25 +0000</pubDate>
-    <lastBuildDate>Mon, 19 Jan 2026 09:35:25 +0000</lastBuildDate>
+    <pubDate>Wed, 21 Jan 2026 05:03:03 +0000</pubDate>
+    <lastBuildDate>Wed, 21 Jan 2026 05:03:03 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Docker lazy loading at Grab: Accelerating container startup times</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;At Grab, we’ve been exploring ways to dramatically reduce container startup times for our data platforms. Large container images for services like Airflow and Spark Connect were taking minutes to download, causing slow cold starts and poor auto-scaling performance. This blog post shares our journey implementing Docker image lazy loading using eStargz and Seekable OCI (SOCI) technologies, the results we achieved, and the lessons learned along the way.&lt;/p&gt;
+
+&lt;h2 id=&quot;results-the-numbers-speak-for-themselves&quot;&gt;Results: The numbers speak for themselves&lt;/h2&gt;
+
+&lt;h3 id=&quot;benchmark-results&quot;&gt;Benchmark results&lt;/h3&gt;
+
+&lt;p&gt;Our initial testing on fresh nodes (nodes without cached images) showed dramatic improvements in image pull times as shown in &lt;strong&gt;Figure 1&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/docker-lazy-loading/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Table of results.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The key advantage of lazy loading is the reduction in image pull time, especially on “fresh” nodes that do not have the image cached. By analyzing detailed pod events, we can see the precise impact of using the stargz snapshotter.&lt;/p&gt;
+
+&lt;p&gt;During our SOCI benchmark testing, we observed an important distinction between SOCI and eStargz: &lt;strong&gt;SOCI maintains the same application startup time as standard images, while eStargz takes longer&lt;/strong&gt;. For example, with Airflow, both overlayFS and SOCI achieved 5.0 seconds startup time, while eStargz took 25.0 seconds. This demonstrates that lazy loading doesn’t eliminate download time; it redistributes it. SOCI’s approach of maintaining separate indexes allows it to optimize the download-to-startup time trade-off more effectively, keeping application startup performance on par with standard images while still dramatically reducing image pull time.&lt;/p&gt;
+
+&lt;h2 id=&quot;production-performance&quot;&gt;Production performance&lt;/h2&gt;
+
+&lt;p&gt;The production deployment of SOCI lazy loading has delivered significant, measurable improvements across our data platforms. Both Airflow and Spark Connect now experience 30-40% faster startup times, directly improving our ability to handle traffic spikes and scale efficiently. These improvements translate to better auto-scaling responsiveness, reduced resource waste during initialization, and improved user experience for data processing workloads. The sustained performance gains observed over time demonstrate that lazy loading is a stable, production-ready optimization that delivers consistent value.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Figure 2 and 3&lt;/strong&gt; illustrates the P95 startup time improvements for both services:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/docker-lazy-loading/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Production results: Airflow P95 startup time. &lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/docker-lazy-loading/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Production results: Spark Connect P95 startup time.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;It is important to note that P95 startup time includes both the image download/pull time and the application startup time itself. This metric captures the entire system performance for both cold and hot starts on fresh and hot nodes, showing the overall system improvement rather than just cold start performance.&lt;/p&gt;
+
+&lt;p&gt;During the production deployment and monitoring, we gained valuable insights on SOCI configuration tuning. Following AWS’s recommended configuration from their blog on &lt;a href=&quot;https://aws.amazon.com/blogs/containers/introducing-seekable-oci-parallel-pull-mode-for-amazon-eks/&quot;&gt;Introducing Seekable OCI: Parallel Pull Mode for Amazon EKS&lt;/a&gt;, we optimized our SOCI snapshotter settings:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Increased &lt;em&gt;max_concurrent_downloads_per_image&lt;/em&gt; from 5 to 10.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Increased &lt;em&gt;max_concurrent_unpacks_per_image&lt;/em&gt; from 3 to 10.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Increased &lt;em&gt;concurrent_download_chunk_size&lt;/em&gt; from 8MB to 16MB (aligning with AWS’s recommendation for Elastic Container Registry (ECR)).&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This configuration tuning led to a significant performance improvement: &lt;strong&gt;image download time on a fresh node was reduced from 60 seconds to 24 seconds, representing a 60% improvement&lt;/strong&gt;. The key lesson here is that default SOCI configurations may not be optimal for all environments, and tuning these parameters based on your infrastructure (especially when using ECR) can yield substantial gains.&lt;/p&gt;
+
+&lt;h2 id=&quot;technical-background-how-docker-lazy-loading-works&quot;&gt;Technical background: How Docker lazy loading works&lt;/h2&gt;
+
+&lt;h3 id=&quot;container-root-filesystem-rootfs-and-file-organization&quot;&gt;Container root filesystem (rootfs) and file organization&lt;/h3&gt;
+
+&lt;p&gt;A container’s root filesystem, or rootfs, is the directory structure that the container sees as its root &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(/)&lt;/code&gt;. It contains all the files and directories necessary for an application to run, including the application itself, its dependencies, system libraries, and configuration files. It’s an isolated filesystem, separate from the host machine’s filesystem.&lt;/p&gt;
+
+&lt;p&gt;The rootfs is built from a series of read-only layers that come from the container image. Each instruction in an image’s Dockerfile creates a new layer, representing a set of filesystem changes. When a container is launched, a new writable layer, often called the “container layer,” is added on top of the stack of read-only image layers. Any changes made to the running container, such as writing new files or modifying existing ones, are written to this writable layer. The underlying image layers remain untouched. This is known as a copy-on-write (CoW) mechanism.&lt;/p&gt;
+
+&lt;p&gt;In containerd, a snapshotter is a plugin responsible for managing container filesystems. Its primary job is to take the layers of an image and assemble them into a rootfs for a container. The default snapshotter in containerd is &lt;strong&gt;overlayFS&lt;/strong&gt;, which uses the Linux kernel’s OverlayFS driver to efficiently stack layers. To assemble the rootfs, the overlayFS snapshotter creates a “merged” view of the read-only image layers:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/docker-lazy-loading/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. How OverlayFS assembles the container filesystem.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;lowerdir&lt;/strong&gt;: The read-only image layers are used as the lowerdir in OverlayFS. These are the immutable layers from the container image.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;upperdir&lt;/strong&gt;: A new, empty directory is created to be the upperdir. This is the writable layer for the container where any changes are stored.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;merged&lt;/strong&gt;: The merged directory is the unified view of the lowerdir and upperdir. This is what is presented to the container as its rootfs.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When a container reads a file, it’s read from the merged view. When a container writes a file, it’s written to the upperdir using a copy-on-write mechanism. This is an efficient way to manage container filesystems, as it avoids duplicating files and allows for fast container startup.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-problem-traditional-container-image-pull&quot;&gt;The problem: Traditional container image pull&lt;/h3&gt;
+
+&lt;p&gt;To understand the benefits of lazy loading, we first need to understand the traditional container image pull process:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Download layers&lt;/strong&gt;: The container runtime downloads all layer tarballs that make up the image.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Unpack layers&lt;/strong&gt;: Each layer is unpacked and extracted onto the host’s disk.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Create snapshot&lt;/strong&gt;: The snapshotter combines these layers into a single, unified filesystem, known as the container’s rootfs.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Start container&lt;/strong&gt;: Only after all layers are downloaded and unpacked can the container start.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This process is slow, especially for large images, as the entire image must be present on the host before the container can launch.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-solution-remote-snapshotter&quot;&gt;The solution: Remote snapshotter&lt;/h3&gt;
+
+&lt;p&gt;To address the slow startup issue with large images, we use a &lt;strong&gt;remote snapshotter&lt;/strong&gt; solution. A remote snapshotter is a special type of snapshotter that doesn’t require all image data to be locally present. Instead of downloading and unpacking all the layers, it creates a “snapshot” that points to the remote location of the data (like a container registry). The actual file content is then fetched on-demand when the container tries to read a file for the first time.&lt;/p&gt;
+
+&lt;p&gt;While a traditional snapshotter like overlayFS uses directories on the local disk as its lowerdir, a remote snapshotter creates a virtual lowerdir that is backed by the remote registry. This is typically done using FUSE (Filesystem in Userspace). The remote snapshotter creates a FUSE filesystem that presents the contents of the remote layer as if it were a local directory. This FUSE mount is then used as the lowerdir for the overlayFS driver. This allows the remote snapshotter to integrate with the existing overlayFS infrastructure while adding the capability of lazy-loading data from a remote source.&lt;/p&gt;
+
+&lt;p&gt;There are two main formats that enable remote snapshotters: &lt;strong&gt;eStargz&lt;/strong&gt; and &lt;strong&gt;SOCI&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;estargz-format&quot;&gt;eStargz format&lt;/h3&gt;
+
+&lt;p&gt;eStargz is a backward-compatible extension of the standard OCI &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tar.gz&lt;/code&gt; layer format. It has several key features that enable lazy loading:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Individually compressed files&lt;/strong&gt;: Each file within the layer (and even chunks of large files) is compressed individually. This is the key that allows for random access to file contents.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;TOC (table of contents)&lt;/strong&gt;: A JSON file named &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;stargz.index.json&lt;/code&gt; is located at the end of the layer. This TOC contains metadata for every file, including its name, size, and, most importantly, its offset within the layer blob.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Footer&lt;/strong&gt;: A small footer at the very end of the layer contains the offset of the TOC, allowing it to be easily located by reading only the last few bytes of the layer.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Chunking and verification&lt;/strong&gt;: Large files can be broken down into smaller chunks, each with its own entry in the TOC. Each chunk also has a chunkDigest in its TOC entry, allowing for independent verification of each downloaded piece of data.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Prefetch landmark&lt;/strong&gt;: A special file, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.prefetch.landmark&lt;/code&gt;, can be placed in the layer to mark the end of “prioritized files”. This allows the snapshotter to intelligently prefetch the most important files for the container’s workload.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The stargz snapshotter uses the eStargz format to enable lazy loading. Here’s how it works:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Mount request&lt;/strong&gt;: When containerd calls the Mount function, it’s the main entry point for creating a new filesystem for a layer.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Resolve and read TOC&lt;/strong&gt;: The snapshotter fetches the layer’s footer, then fetches the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;stargz.index.json&lt;/code&gt; TOC from the remote registry. This TOC contains all the file metadata needed to create a virtual filesystem.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Mount FUSE filesystem&lt;/strong&gt;: With the TOC in memory, the snapshotter creates a virtual filesystem using FUSE. The container can now start, as it has a valid rootfs, even though most of the file content has not been downloaded.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;On-demand fetching&lt;/strong&gt;: When the container performs a file operation like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;read()&lt;/code&gt;, the FUSE filesystem intercepts the call. The snapshotter checks a local disk cache for the requested bytes. If the data is not cached, it issues an HTTP Range request to the container registry to download only the required chunk of the layer.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Remote fetching and caching&lt;/strong&gt;: The downloaded data is returned to the container and also written to the local cache for subsequent reads.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Prefetching for optimization&lt;/strong&gt;: After the FUSE filesystem is mounted, a background goroutine begins downloading the prioritized files (up to the &lt;em&gt;.prefetch.landmark&lt;/em&gt;) and can also be configured to download the entire rest of the layer in the background.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;For a deeper understanding of the eStargz format and stargz snapshotter, see the &lt;a href=&quot;https://github.com/containerd/stargz-snapshotter/blob/main/docs/overview.md&quot;&gt;stargz-snapshotter overview documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;soci-format&quot;&gt;SOCI format&lt;/h3&gt;
+
+&lt;p&gt;SOCI is a technology open sourced by AWS that enables containers to launch faster by lazily loading the container image. SOCI works by creating an index (SOCI Index) of the files within an existing container image. SOCI borrows some of the design principles from stargz-snapshotter but takes a different approach:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Separate index&lt;/strong&gt;: A SOCI index is generated separately from the container image and is stored in the registry as an OCI Artifact, linked back to the container image by OCI Reference Types.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;No image conversion&lt;/strong&gt;: This means that the container images do not need to be converted, image digests do not change, and image signatures remain valid.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Native Bottlerocket support&lt;/strong&gt;: SOCI is natively supported on Bottlerocket OS.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For a deeper understanding of the SOCI format, see the &lt;a href=&quot;https://github.com/awslabs/soci-snapshotter/blob/main/docs/index.md&quot;&gt;soci-snapshotter documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;building-and-deploying-lazy-loaded-images&quot;&gt;Building and deploying lazy-loaded images&lt;/h2&gt;
+
+&lt;h3 id=&quot;setting-up-snapshotters-in-eks&quot;&gt;Setting up snapshotters in EKS&lt;/h3&gt;
+
+&lt;p&gt;When using EKS with containerd as the container runtime, you can configure remote snapshotters to enable lazy loading. Here’s how to set them up:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;For stargz-snapshotter (eStargz)&lt;/strong&gt;: You need to install the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;containerd-stargz-grpc&lt;/code&gt; service first, then register it as a proxy plugin in containerd’s configuration:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-textproto&quot;&gt;# /etc/containerd/config.toml
+[proxy_plugins]
+[proxy_plugins.stargz]
+type = &quot;snapshot&quot;
+address = &quot;/run/containerd-stargz-grpc/containerd-stargz-grpc.sock&quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For detailed installation instructions, see the &lt;a href=&quot;https://github.com/containerd/stargz-snapshotter/blob/main/docs/INSTALL.md&quot;&gt;stargz-snapshotter installation documentation&lt;/a&gt;. The setup can be baked into an AMI for production use or tested via user data from node bootstrap scripts.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;For SOCI snapshotter (Bottlerocket)&lt;/strong&gt;: On Bottlerocket nodes, enable the SOCI snapshotter via user data:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-textproto&quot;&gt;# Enable SOCI snapshotter
+[settings.container-runtime]
+snapshotter = &quot;soci&quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;SOCI is natively supported on Bottlerocket, so no additional daemon installation is required.&lt;/p&gt;
+
+&lt;h3 id=&quot;building-lazy-loaded-images&quot;&gt;Building lazy-loaded images&lt;/h3&gt;
+
+&lt;p&gt;eStargz images can be built natively using Docker Buildx by setting the output compression to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;estargz&lt;/code&gt;:&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;docker buildx build 
+  &lt;span class=&quot;nt&quot;&gt;--platform&lt;/span&gt; linux/amd64 
+  &lt;span class=&quot;nt&quot;&gt;--output&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;registry,oci-mediatypes&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt;,compression&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;estargz,force-compression&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt; 
+  &lt;span class=&quot;nt&quot;&gt;--tag&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$ECR_REGISTRY&lt;/span&gt;/airflow:&lt;span class=&quot;nv&quot;&gt;$TAG&lt;/span&gt; 
+  &lt;span class=&quot;nb&quot;&gt;.&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;SOCI doesn’t require rebuilding images; you only need to generate a SOCI index for existing images. Since Docker doesn’t natively support SOCI index generation yet, workaround solutions include using the &lt;a href=&quot;https://awslabs.github.io/cfn-ecr-aws-soci-index-builder/#_overview&quot;&gt;AWS SOCI Index Builder Using Lambda Functions&lt;/a&gt; or integrating SOCI index generation into your CI/CD pipeline as described in this &lt;a href=&quot;https://pabis.eu/blog/2025-06-17-Faster-ECS-Startup-SOCI-Index-GitLab-Pipeline.html&quot;&gt;blog post&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;key-takeaway-why-we-chose-soci&quot;&gt;Key takeaway: Why we chose SOCI&lt;/h2&gt;
+
+&lt;p&gt;We started our exploration with eStargz but ultimately chose SOCI for production deployment. The key reason is scalability and alignment with our strategy to use Bottlerocket OS for enhancing Kubernetes pod startup and security. SOCI is natively supported by Bottlerocket, which means service teams don’t need to set up and maintain the more complicated stargz snapshotter across all EKS clusters. This makes the implementation easier to maintain and provides better support from AWS.&lt;/p&gt;
+
+&lt;p&gt;Additionally, we learned that lazy loading doesn’t eliminate the time required to download image data; it redistributes it from startup time to runtime. While this dramatically improves cold start performance, it’s important to monitor application performance closely and tune configuration parameters based on your workload and infrastructure. We achieved a 60% improvement by optimizing SOCI’s parallel pull mode settings, demonstrating the value of proper configuration tuning.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Docker image lazy loading with SOCI offers a significant opportunity to improve the performance and efficiency of our services at Grab. Our testing and production deployments have shown:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;4x faster image pull times on fresh nodes.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;29-34% improvement in P95 startup times for production workloads.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;60% improvement in image download times with proper configuration tuning.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The implementation path is clear, low-risk, and builds on proven components. This technology is production-ready, and we’re continuing to scale it across more services.&lt;/p&gt;
+
+&lt;h3 id=&quot;references&quot;&gt;References&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Databricks:&lt;/strong&gt; &lt;a href=&quot;https://www.databricks.com/blog/2021/09/08/booting-databricks-vms-7x-faster-for-serverless-compute.html&quot;&gt;Booting Databricks VMs 7x Faster for Serverless Compute&lt;/a&gt; - Industry case study showing how major tech companies achieve fast container startup at scale&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;BytePlus:&lt;/strong&gt; &lt;a href=&quot;https://docs.byteplus.com/en/docs/vke/Container-image-lazy-loading-solution&quot;&gt;Container Image Lazy Loading Solution&lt;/a&gt; - Enterprise implementation guide for lazy loading in production Kubernetes environments&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;AWS:&lt;/strong&gt; &lt;a href=&quot;https://aws.amazon.com/blogs/containers/introducing-seekable-oci-parallel-pull-mode-for-amazon-eks/&quot;&gt;Introducing Seekable OCI: Parallel Pull Mode for Amazon EKS&lt;/a&gt; - AWS’s guide to SOCI configuration and optimization&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebmesh&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 21 Jan 2026 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/docker-lazy-loading</link>
+        <guid isPermaLink="true">https://engineering.grab.com/docker-lazy-loading</guid>
+        
+        <category>Database</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>From deployment slop to production reality: How BriX bridges the gap with enterprise-grade AI infrastructure</title>
@@ -2455,140 +2727,6 @@ We’re developing a more efficient model training workflow. A particularly exci
         <pubDate>Thu, 30 Oct 2025 00:00:10 +0000</pubDate>
         <link>https://engineering.grab.com/ml-predictive-autoscaling-for-flink</link>
         <guid isPermaLink="true">https://engineering.grab.com/ml-predictive-autoscaling-for-flink</guid>
-        
-        <category>engineering</category>
-        
-        <category>performance</category>
-        
-        <category>data-science</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data</category>
-        
-      </item>
-    
-      <item>
-        <title>Modernising Grab’s model serving platform with NVIDIA Triton Inference Server</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://engineering.grab.com/catwalk-evolution&quot;&gt;Catwalk&lt;/a&gt; is Grab’s machine learning (ML) model serving platform, designed to enable data scientists and engineers in deploying production-ready inference APIs. Currently, Catwalk powers hundreds of ML models and online deployments. To accommodate this growth, the platform has adapted to the rapidly evolving machine learning technology landscape. This involved progressively integrating support for multiple frameworks such as ONNX, PyTorch, TensorFlow, and vLLM. While this approach initially worked for a limited number of frameworks, it soon became unsustainable as maintaining various inference engines, ensuring backward compatibility, and managing deprecated legacy components (such as the ONNX server) introduced significant technical debt. Over time, this resulted in degraded platform performance: with increased latency, reduced throughput, and escalating costs. These issues began to impact users, as larger models could no longer be served efficiently or cost-effectively by legacy components. Recognising the need for change, the team revisited the platform’s design to address these challenges.&lt;/p&gt;
-
-&lt;h2 id=&quot;evaluation-and-implementation&quot;&gt;Evaluation and implementation&lt;/h2&gt;
-
-&lt;p&gt;After evaluating other industry-leading model serving platforms and studying best practices, we decided to conduct an in-depth analysis of NVIDIA Triton. Triton offers significant advantages as an inference engine, including:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Multi-framework support&lt;/strong&gt;: Compatibility with major ML frameworks, including ONNX, PyTorch, and TensorFlow, ensuring versatility and broad applicability.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Unified inference interface&lt;/strong&gt;: Provides a single, consistent API for various ML frameworks, simplifying user interaction and reducing overhead when switching between models or frameworks.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Hardware optimisation&lt;/strong&gt;: Optimised for NVIDIA GPUs, Triton delivers strong performance on CPU-only environments and specialised instances like AWS Inferentia.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Up-to-date support&lt;/strong&gt;: Continuously updated by upstream to support the latest optimisation and features from upstream ML frameworks, ensuring access to cutting-edge capabilities.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Advanced inference features&lt;/strong&gt;: Includes capabilities like dynamic batching and model ensembling (model pipelining), which enhances throughput and efficiency for complex ML workflows.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Our extensive benchmarking demonstrated that NVIDIA Triton delivers substantial enhancements in both performance and service stability compared to our existing solutions.&lt;/p&gt;
-
-&lt;p&gt;We are now working towards consolidating the various inference engines we manage into a unified, all-in-one Triton engine, beginning with ONNX adoption as the first phase of implementation.&lt;/p&gt;
-
-&lt;p&gt;In this blog, we aim to share our journey of adopting Triton. From initial benchmarking results on one of Grab’s core models facing performance challenges, to the development of the “Triton manager”, a component designed to integrate Triton into our platform seamlessly and with minimal user disruption. Ultimately, more than 50% of online deployments were successfully migrated to Triton, with some of our critical systems achieving a 50% improvement in tail latency.&lt;/p&gt;
-
-&lt;h2 id=&quot;exploratory-benchmark-results&quot;&gt;Exploratory benchmark results&lt;/h2&gt;
-
-&lt;p&gt;We conducted rigorous testing of Triton against our existing ONNX server under varying levels of request traffic.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/nvida-triton/table-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Table 1: Benchmark results of Triton against Catwalk ONNX server.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;During testing with a transformer-based model, Triton demonstrated the ability to handle at least 5 times the traffic while maintaining excellent latency. Additionally, its performance was further enhanced with features like batching enabled, and there is potential for even greater optimisation by converting the model to TensorRT, leveraging GPU support.&lt;/p&gt;
-
-&lt;p&gt;Through profiling, we learned that a handful of ONNX Runtime knobs have an outsized impact on throughput. One low-effort, high-return tweak is to set the intra-op thread count to match the number of physical CPU cores. In most cases, this single change yields a healthy performance lift, sparing us from time-consuming, model-by-model micro-optimisation.&lt;/p&gt;
-
-&lt;h2 id=&quot;adopting-triton-at-scale&quot;&gt;Adopting Triton at scale&lt;/h2&gt;
-
-&lt;p&gt;While the benchmark results clearly demonstrate Triton’s advantages, the primary challenge was ensuring a seamless migration, ideally with minimal user reactions. Given the high frequency of migrations within our company, even exceptional performance improvements are often insufficient to fully motivate internal users to adopt new systems. From our point of view, a successful migration required:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Maintaining API compatibility with existing systems.&lt;/li&gt;
-  &lt;li&gt;Ensuring zero-downtime.&lt;/li&gt;
-  &lt;li&gt;Preserving all existing functionality while adding new capabilities.&lt;/li&gt;
-  &lt;li&gt;Minimising disruption to downstream services and users.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To streamline the migration process, we opted to manage it centrally within our platform, rather than relying on individual users to address the details themselves.&lt;/p&gt;
-
-&lt;p&gt;We landed on the idea of offering Triton to our users as a drop-in replacement for the old server, with the help of a new component, “Triton manager”. The Triton manager is a critical component that glues Triton to the Catwalk ecosystem. It consists of two major components: Triton server manager and Triton proxy.&lt;/p&gt;
-
-&lt;p&gt;Triton server manager is designed as the entry point of our Catwalk Triton. It downloads the model from remote storage, runs verification on the model files, prepares per-model configurations based on users’ customisation, and lastly it launches the Triton server. It also periodically checks the server’s health and provides observability overlooking the server’s status.&lt;/p&gt;
-
-&lt;p&gt;Triton proxy provides backward compatibility to the existing clients. It hosts endpoints that translate requests from the older API and forward them to the Triton server. The proxy layer plays a crucial role in facilitating a seamless transition from our legacy servers, eliminating the need for user code changes. The conversion logic is designed to prioritise performance, ensuring minimal overhead. Extensive benchmarks were conducted during development to validate and optimise its efficiency.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/nvida-triton/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: High-level architecture for Triton Inference Server (TIS) deployment at Catwalk.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Finally, a special mode in the Triton server manager is implemented to allow the Triton Inference Server (TIS) to be backward compatible with the command line interface of the existing ONNX runtime server used in Catwalk.&lt;/p&gt;
-
-&lt;p&gt;We plan to enhance the Triton Manager to ensure backward compatibility with other ML frameworks, as part of our efforts to onboard additional frameworks seamlessly.&lt;/p&gt;
-
-&lt;h2 id=&quot;rollout-result&quot;&gt;Rollout result&lt;/h2&gt;
-
-&lt;p&gt;Within just 10 days of Triton’s availability, we successfully rolled it out to over 50% of our online model deployments. Thanks to rigorous testing for backward compatibility, the rollout was seamless, with most users unaware of the transition while benefiting from the improved performance.&lt;/p&gt;
-
-&lt;h2 id=&quot;tritons-impacts-on-critical-models&quot;&gt;Triton’s impacts on critical models&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/nvida-triton/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Latency before and after rollout in ms. Blue line: XGBoost-based model. Orange line: transformer-based model. Solid line: average. Dashed line: p99&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We’ve observed significant performance improvements in our business-critical models that have high demands for stability. Latency improvements were consistently observed in all models, especially in the models that suffered from highly volatile request traffic. For some larger transformer models, the p90 latency decreased dramatically from 120ms to 20ms, and the average latency remained steady at 4ms. Smaller XGBoost models maintained their average latency at 2ms across regions.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/nvida-triton/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt; Figure 3: Number of pods, before (blue line) and after (purple line) rollout in another model.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Triton has delivered significant cost savings for certain models, with some achieving over 90% reductions due to its advanced optimisations. These improvements have come alongside enhanced performance and reliability.&lt;/p&gt;
-
-&lt;p&gt;It is worth noting that Triton was initially rolled out with limited capabilities to prioritise backward compatibility and ensure a seamless migration. However, we’ve noticed that higher tail latency still remains an issue when facing request spikes for larger models in production. To address this, we are working on enabling batching through Triton to minimise tail latency during traffic surges. This effort will involve close collaboration with model owners to optimise the capacity of each Triton instance further.&lt;/p&gt;
-
-&lt;h2 id=&quot;early-cost-impact-of-the-migration&quot;&gt;Early cost impact of the migration&lt;/h2&gt;
-
-&lt;p&gt;To gauge the financial upside of migrating to Triton, we took a snapshot of 11 production ML services that had already completed the migration. For every ML service, we compared its infrastructure spend over the 14 days before the cut-over with the 14 days after.&lt;/p&gt;
-
-&lt;p&gt;Despite the staggered migration dates, the trend was uniform: average spend fell by ~ 20% across this small cohort within 14 days. As more models and applications migrate, we expect the absolute dollar savings to scale proportionally.&lt;/p&gt;
-
-&lt;h2 id=&quot;takeaways&quot;&gt;Takeaways&lt;/h2&gt;
-
-&lt;p&gt;Initial results are aligned with our benchmarks for the Triton migration. With improved performance and cost reduction, we expect model owners to either upgrade their model sizes or allow for higher Queries Per Second (QPS). While making further progress with the overall Triton migration, the model serving platform team will continue to monitor cost differences and provide consultation to model owners who seek further optimisation for their deployments.&lt;/p&gt;
-
-&lt;p&gt;Another key takeaway is the painless migration of Triton for our internal users. Rather than asking internal users to make necessary code changes, our team dedicated significant time to providing Triton as a drop-in inference engine to minimise any inconvenience of migration.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;Big appreciation to Shengwei Pang from the Geo team, Khai Hung Do, Nhat Minh Nguyen, and Siddharth Pandey from the Catwalk team, along with Richard Ryu from the PM team and Padarn George Wilson for the sponsorship. &lt;/small&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebmodel&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 21 Oct 2025 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/modernising-grab-model-serving-platform</link>
-        <guid isPermaLink="true">https://engineering.grab.com/modernising-grab-model-serving-platform</guid>
         
         <category>engineering</category>
         
