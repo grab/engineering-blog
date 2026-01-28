@@ -13,51 +13,48 @@ excerpt: "A look inside how we scaled AI-assisted coding across Grab, moving Cur
 
 ## Adoption overview
 
-### Multi-tool strategy as a foundation
+### Multi-tool strategy
 
-Grab embraces a multi-tool strategy to AI coding assistants, so that we remain open-minded, experimenting with multiple tools simultaneously, in a field that is rapidly evolving. This approach has been detailed in our previous [Inside Grab Blog](https://www.grab.com/sg/inside-grab/stories/beyond-one-size-fits-all-why-grab-embraces-multiple-ai-coding-assistants/). This openness to continuous experimentation has allowed us to quickly conduct proof of concepts (POCs), compare outcomes, and selectively incorporate tools into our arsenal when they demonstrate tangible value.
+Grab embraces a multi-tool strategy for AI coding assistants. Rather than committing to a single solution, we experiment with multiple tools simultaneously, allowing us to compare outcomes and adopt what works. This approach keeps us flexible in a space that evolves quickly. We covered this philosophy in a [previous post](https://www.grab.com/sg/inside-grab/stories/beyond-one-size-fits-all-why-grab-embraces-multiple-ai-coding-assistants/).
 
-### Rapid growth in usage
+### Growth
 
-We introduced [Cursor](https://cursor.com/), as one of the many tools in Grab’s AI engineering toolkit in late 2024. Cursor's growth at Grab began with an impressive organic adoption rate of over 90% for monthly active users (MAUs), and approximately 75% for weekly active users (WAUs) among tech engineers. 
+We introduced [Cursor](https://cursor.com/) in late 2024 as one of several tools in our AI engineering toolkit. Adoption grew quickly—98% of tech Grabbers became monthly active users, and about 75% use it weekly. For comparison, Google's [2025 State of AI-Assisted Software Development](https://services.google.com/fh/files/misc/2025_state_of_ai_assisted_software_development.pdf) report highlights that even among high-performing teams, AI coding tool adoption seldom surpasses 70%. Notably, Cursor's appeal extended beyond engineering, with non-technical teams incorporating it into their workflows.
 
-Cursor's built-in integrated development environment (IDE) suggestions played a pivotal role in its high user engagement, boasting an acceptance rate of around 50%, significantly exceeding the industry average of 30%. This feature became a cornerstone of productivity, enhancing the coding experience for tech teams. Cursor's AI-powered features led to a peak of 1,800 daily active users, making it a significant tool for boosting efficiency and productivity.
+A standout metric is Cursor's suggestion acceptance rate, which is around 50%, surpassing the industry average of 30%. This indicates two key insights: first, the suggestions are sufficiently relevant for engineers to accept them half of the time; second, engineers maintain a critical review process rather than accepting suggestions indiscriminately. We attribute this relevance to continuous feedback loops and environment-specific tuning, ensuring suggestions remain aligned with Grab's codebase and conventions.
 
-### Relevance and trustworthiness
+## Extent of adoption
 
-The acceptance rate for Cursor’s code suggestions at approximately 50% indicates that they find Cursor's code suggestions relevant. This is enabled by Grab’s ongoing feedback and environment-specific integration to make the use of Cursor relevant, useful, and safe in our environment.
+Raw adoption figures don't provide the complete picture. We aimed to determine whether engineers were truly incorporating Cursor into their daily workflows or merely experimenting with it sporadically.
 
-## Productivity impact
+The data indicates genuine integration. Approximately half of Cursor users engage with it 10 or more days each month, with some teams achieving full adoption. Over 98% of merge requests now incorporate Cursor in some capacity. Engineers actively share tips and workflows via a dedicated Slack channel, fostering an organic knowledge base.
 
-The ultimate test of any engineering tool is its impact on productivity and output. In our reviews, we see a strong positive correlation between greater proficiency with Cursor and higher engineering productivity across individuals and teams. For example, high-engagement Cursor users showed improvements in code throughput and faster merge times for merge requests compared to non-users. This statement is supported by internal research conducted over the span of 10 months on the rates of successful merged Merge Requests (MRs), processing time, and volume of MRs across teams in the company.
+Across various teams, we've observed significant transitions from light usage to moderate and power user levels over the past six months.
 
-This supports the following chain of thought: 
+## Engineer utilization patterns
 
-“Time saved using Cursor → Increased usage and experimentation → Deeper AI intuition and fluency → Discovering more creative ways to leverage AI → Greater time savings and productivity.”
+The most common patterns we see are unit test generation, code refactoring, cross-repository navigation, bug fixing, and automation of routine tasks like API scaffolding or commit messages.
 
-Qualitative feedback and case studies underscore Cursor’s impact: tasks that once took an entire day can often be completed in just a few hours. Cursor users have noted many improvements, such as large-scale refactoring or extensive test additions, which likely would have been deferred without the tool due to the effort involved.
+Test generation is particularly popular. Writing tests manually is tedious, and Cursor's ability to generate and iteratively refine tests has become a standard part of many engineers' workflows. Cross-repository navigation helps with onboarding and context-switching—engineers can ask Cursor questions about unfamiliar codebases rather than hunting through documentation.
 
-Beyond raw acceleration, Cursor makes worthwhile code improvements feasible, even those that engineers might skip under time pressure. Together, the combination of quantitative analysis and on-the-ground reports indicates that Cursor is delivering real value in terms of developer productivity, code quality, and the velocity of delivery
+Qualitative feedback confirms what the adoption numbers suggest: tasks that took a full day to complete now take hours. Engineers report tackling refactors and test additions they would have otherwise skipped due to time pressure. Cursor doesn't just speed up existing work; it makes previously impractical work feasible.
 
-## Developer engagement
+## Integration with Grab's stack
 
-We observe a healthy cohort of “heavy users" emerging, with approximately half of all Cursor users employing it 10 or more days per month. This indicates that adoption isn’t superficial; engineers are not just trying Cursor, but are integrating it into their daily workflows. Engineers who experimented with the tool share tips, best practices, and "cookbooks" through internal channels such as a dedicated Slack channel to help others including non-technical teams maximize their use of Cursor. This could be one of the many factors why roughly 90% of daily active users (DAUs) show minimal weekly retention, and more than 98% of MRs are authored using Cursor. In addition to that, some teams have achieved 100% Cursor adoption.
+Integrating Cursor effectively at Grab required custom tooling. We built solutions for monorepo indexing to handle Grab's scale and to distribute preconfigured rules that align Cursor's suggestions with Grab-specific coding conventions. This integration ensures that Cursor understands our environment rather than offering generic suggestions.
 
-## Key use cases
+## What's next
 
-Developers have discovered diverse applications for Cursor in their daily work, ranging from routine tasks to complex problem-solving. Some of the most common and high-value use cases include unit test generation, which significantly accelerates test writing and facilitates automated generation and iterative refinement. Cursor also aids in code refactoring by assisting with repetitive code changes and clean-ups, simplifying migrations, and standardization. For cross-repository understanding, Cursor enhances code navigation and comprehension across services, streamlining onboarding and cross-team contributions. In terms of bug fixing and troubleshooting, it quickly identifies potential causes and suggests fixes, supporting parallel debugging workflows during incidents. Additionally, Cursor reduces repetitive work by handling routine coding tasks, such as API scaffolding and commit messages, and generates utility scripts for daily tasks. 
+Cursor is one tool in a broader toolkit. Our multi-tool strategy means we're also investing in terminal-based workflows and [GrabGPT](https://engineering.grab.com/the-birth-of-grab-gpt) for internal knowledge retrieval. Different tools suit different workflows. The aim is to empower users, not to restrict them.
 
-Despite these advancements, humans remain in the driver's seat, with robust guardrails in place to ensure that Cursor's assistance complements rather than replaces human decision-making and oversight.
+Beyond engineering, we're expanding AI-assisted development to new personas. Our AI Upskilling workshops have trained several hundred Grabbers across five countries, including executive committee members and senior leaders who have built and deployed their own apps. Non-engineers in Financial Planning and Analysis (FP&A), Operations, and regional teams are now building tools with the assitance of AI to solve their own pain points.
 
-## Closing remarks and key takeaways
+Our product design team has launched an initiative empowering designers to directly implement production fixes. Designers have successfully merged hundreds of merge requests, often with same-day turnaround, facilitating quicker iterations on UI fixes without the engineering queue delay. This process requires designers to be trained in Git fundamentals prior to gaining access, with initial reviews conducted by design managers.
 
-Integration with Grab’s ecosystem has been pivotal in enhancing Cursor's value within our engineering workflows. We have developed custom solutions to tackle performance challenges by utilizing Cursor for monorepo indexing, as well as the development of internal tools and protocols. Custom coding conventions and preconfigured setups ensure that Cursor aligns with Grab-specific rules and playbooks have also been distributed to developers.
+Cursor has become part of daily work at Grab. But adoption is only half the question — the other half is impact. We've been running a parallel effort to measure productivity effects rigorously, using fixed-effects regression to isolate Cursor's contribution from other factors. Early findings show a dose-response relationship: productivity gains scale with usage intensity, and the effects hold up to statistical scrutiny.
 
-Cursor has now become one of the essential components of Grab’s engineering toolkit, delivering significant productivity gains, improved code quality, and increased engineer satisfaction with higher MR throughput and a strong engineering community.
+We will address the measurement methodology and present our findings in a subsequent post.
 
-We’re excited to continue advancing Cursor by continuously measuring its impact and staying at the forefront of AI coding innovations. We are now actively testing new workflows and capabilities, background agents and the Cursor CLI to unlock even greater productivity and provide an outstanding developer experience.
-
-Our multi-tool strategy has been a core enabler. By maintaining an open mindset, we have been able to experiment, learn quickly, and integrate Cursor in most impactful ways. We remain open to further enhancing the experience and offerings for our engineers. The use of Cursor marks progress, not the finish line. 
 
 ## Join us
 
