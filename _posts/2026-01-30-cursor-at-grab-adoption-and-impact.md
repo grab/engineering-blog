@@ -13,6 +13,11 @@ excerpt: "A look inside how we scaled AI-assisted coding across Grab, moving Cur
 
 ## Adoption overview
 
+<div class="post-image-section"><figure>
+  <img src="/img/cursor-at-grab/cursor-figure-1.png" alt="" style="width:70%"><figcaption align="middle">Figure 1: Adoption overview of AI tool Cursor in Grab.</figcaption>
+  </figure>
+</div>
+
 ### Multi-tool strategy
 
 Grab embraces a multi-tool strategy for AI coding assistants. Rather than committing to a single solution, we experiment with multiple tools simultaneously, allowing us to compare outcomes and adopt what works. This approach keeps us flexible in a space that evolves quickly. We covered this philosophy in a [previous post](https://www.grab.com/sg/inside-grab/stories/beyond-one-size-fits-all-why-grab-embraces-multiple-ai-coding-assistants/).
