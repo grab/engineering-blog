@@ -13,6 +13,8 @@ excerpt: "A look inside how we scaled AI-assisted coding across Grab, moving Cur
 
 ## Adoption overview
 
+The illustration below encapsulates how Cursor is scaled across Grab, achieving rapid and widespread adoption that accelerated software development and empowered non-technical teams to build solutions.
+
 <div class="post-image-section"><figure>
   <img src="/img/cursor-at-grab/cursor-figure-1.png" alt="" style="width:70%"><figcaption align="middle">Figure 1: Adoption overview of AI tool Cursor in Grab.</figcaption>
   </figure>
