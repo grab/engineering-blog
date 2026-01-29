@@ -2,7 +2,7 @@
 layout: post
 id: 2026-01-30-cursor-at-grab-adoption-and-impact
 title: 'Cursor at Grab: Adoption and impact'
-date: 2026-01-30 00:23:00
+date: 2026-01-29 00:23:00
 authors: [akshay-misra, nguyen-karmi]
 categories: [Engineering]
 tags: [AI] 
