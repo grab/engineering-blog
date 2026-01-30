@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2026-01-30-cursor-at-grab-adoption-and-impact
+id: 2026-01-29-cursor-at-grab-adoption-and-impact
 title: 'Cursor at Grab: Adoption and impact'
 date: 2026-01-29 00:23:00
 authors: [akshay-misra, nguyen-karmi]
@@ -67,4 +67,4 @@ We will address the measurement methodology and present our findings in a subseq
 
 Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.
 
-Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://www.grab.careers/en/) today!
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team](https://grb.to/cursoratgrab1) today!
