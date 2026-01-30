@@ -34,7 +34,7 @@ A standout metric is Cursor's suggestion acceptance rate, which is around 50%, s
 
 Raw adoption figures don't provide the complete picture. We aimed to determine whether engineers were truly incorporating Cursor into their daily workflows or merely experimenting with it sporadically.
 
-The data indicates genuine integration. Approximately half of Cursor users engage with it 10 or more days each month, with some teams achieving full adoption. Over 98% of merge requests now incorporate Cursor in some capacity. Engineers actively share tips and workflows via a dedicated Slack channel, fostering an organic knowledge base.
+The data indicates genuine integration. Approximately half of Cursor users engage with it 10 or more consecutive days each month, with some teams achieving full adoption. Over a third of merge requests now incorporate Cursor in some capacity. Engineers actively share tips and workflows via a dedicated Slack channel, fostering an organic knowledge base.
 
 Across various teams, we've observed significant transitions from light usage to moderate and power user levels over the past six months.
 
@@ -42,7 +42,7 @@ Across various teams, we've observed significant transitions from light usage to
 
 The most common patterns we see are unit test generation, code refactoring, cross-repository navigation, bug fixing, and automation of routine tasks like API scaffolding or commit messages.
 
-Test generation is particularly popular. Writing tests manually is tedious, and Cursor's ability to generate and iteratively refine tests has become a standard part of many engineers' workflows. Cross-repository navigation helps with onboarding and context-switching—engineers can ask Cursor questions about unfamiliar codebases rather than hunting through documentation.
+Test generation is particularly popular. Writing tests manually is tedious, and Cursor's ability to generate and iteratively refine tests has become a standard part of many engineers' workflows. Cross-repository navigation helps with onboarding and context-switching: engineers can ask Cursor questions about unfamiliar codebases rather than hunting through documentation.
 
 Qualitative feedback confirms what the adoption numbers suggest: tasks that took a full day to complete now take hours. Engineers report tackling refactors and test additions they would have otherwise skipped due to time pressure. Cursor doesn't just speed up existing work; it makes previously impractical work feasible.
 
@@ -54,7 +54,7 @@ Integrating Cursor effectively at Grab required custom tooling. We built solutio
 
 Cursor is one tool in a broader toolkit. Our multi-tool strategy means we're also investing in terminal-based workflows and [GrabGPT](https://engineering.grab.com/the-birth-of-grab-gpt) for internal knowledge retrieval. Different tools suit different workflows. The aim is to empower users, not to restrict them.
 
-Beyond engineering, we're expanding AI-assisted development to new personas. Our AI Upskilling workshops have trained several hundred Grabbers across five countries, including executive committee members and senior leaders who have built and deployed their own apps. Non-engineers in Financial Planning and Analysis (FP&A), Operations, and regional teams are now building tools with the assitance of AI to solve their own pain points.
+Beyond engineering, we're expanding AI-assisted development to new personas. Our AI Upskilling workshops have trained several hundred Grabbers across five countries, including executive committee members and senior leaders who built and deployed their own apps. Non-engineers in Financial Planning and Analysis (FP&A), Operations, and regional teams are now building tools to solve their own pain points.
 
 Our product design team has launched an initiative empowering designers to directly implement production fixes. Designers have successfully merged hundreds of merge requests, often with same-day turnaround, facilitating quicker iterations on UI fixes without the engineering queue delay. This process requires designers to be trained in Git fundamentals prior to gaining access, with initial reviews conducted by design managers.
 
