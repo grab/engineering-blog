@@ -4,7 +4,7 @@ id: driving-southeast-asia-forward-with-aws
 title: Driving Southeast Asia Forward with AWS
 date: 2017-05-21 18:43:40
 categories: [Engineering]
-authors: [arul.kumaravel]
+authors: [arulk]
 tags: [AWS]
 comments: true
 cover_photo: /img/driving-southeast-asia-forward-with-aws/cover.png
