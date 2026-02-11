@@ -3,7 +3,7 @@ layout: post
 id: how-we-scaled-our-cache-and-got-a-good-nights-sleep
 title: How We Scaled Our Cache and Got a Good Night's Sleep
 date: 2017-06-19 00:00:00
-authors: [gao-chao]
+authors: [gao.chao]
 categories: [Engineering]
 tags: [Back End, Redis]
 comments: true

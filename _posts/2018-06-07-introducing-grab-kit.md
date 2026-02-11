@@ -3,7 +3,7 @@ layout: post
 id: introducing-grab-kit.md
 title: "Introducing Grab-Kit: Distributed Service Design at Grab"
 date: 2018-06-08 02:00:00
-authors: [karen-kue, michael-cartmell]
+authors: [karen.kue, michael.cartmell]
 categories: [Engineering]
 tags: [Back End, Engineering, Golang]
 comments: true

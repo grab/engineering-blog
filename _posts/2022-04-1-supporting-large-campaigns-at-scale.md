@@ -3,7 +3,7 @@ layout: post
 id: 2022-04-1-supporting-large-campaigns-at-scale
 title: Supporting large campaigns at scale
 date: 2022-04-1 00:20:00
-authors: [jie-zhang, abdullah-mamun]
+authors: [jie.zhang, abdullah.mamun]
 categories: [Engineering]
 tags: [Kafka, Scheduling, Stream processing, Batch processing, Scheduled job]
 comments: true

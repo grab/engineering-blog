@@ -3,7 +3,7 @@ layout: post
 id: 2022-03-24-telematics-at-grab
 title: How telematics helps Grab to improve safety
 date: 2022-03-24 00:20:00
-authors: [wilson-burhan]
+authors: [wilson.burhan]
 categories: [Engineering, Data Science]
 tags: [Engineering, Data Science, Driving patterns, Safety, Analytics]
 comments: true

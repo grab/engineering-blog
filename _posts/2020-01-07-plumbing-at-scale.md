@@ -4,7 +4,7 @@ id: plumbing-at-scale
 title: Plumbing At Scale
 subtitle: Event Sourcing and Stream Processing Pipelines at Grab
 date: 2020-01-06 19:00:00
-authors: [karan-kamath]
+authors: [karan.kamath]
 categories: [Engineering]
 tags: [Event Sourcing, Stream Processing, Kubernetes, Back End, Platform, Go]
 comments: true

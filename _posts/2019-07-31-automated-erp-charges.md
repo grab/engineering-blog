@@ -3,7 +3,7 @@ layout: post
 id: automated-erp-charges
 title: No More Forgetting to Input ERP Charges - Hello Automated ERP!
 date: 2019-07-31 13:43:40
-authors: [garvee-garg, kudali-robinson-immanuel, lara-pureum-yim]
+authors: [garvee.garg, robinson.kudali, pureum.yim]
 categories: [Product]
 tags: [Data, Maps, Tech]
 comments: true

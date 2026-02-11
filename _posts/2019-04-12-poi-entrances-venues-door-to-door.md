@@ -3,7 +3,7 @@ layout: post
 id: poi-entrances-venues-door-to-door
 title: Guiding You Door-to-Door via Our Superapp!
 date: 2019-04-12 02:08:12
-authors: [neeraj-mishra, lara-pureum-yim, sufyan-selamet, nagur-hassan, summit-saurav]
+authors: [neeraj.mishra, pureum.yim, sufyan.selamet, nagur.mohammad, summit.saurav]
 categories: [Product]
 tags: [Grab, Data, Tech, Maps, App]
 comments: true

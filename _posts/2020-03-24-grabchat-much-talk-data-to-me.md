@@ -3,7 +3,7 @@ layout: post
 id: 2020-03-24-grabchat-much-talk-data-to-me
 title: GrabChat Much? Talk Data to Me!
 date: 2020-03-24 05:02:55
-authors: [jason-lee, lara-pureum-yim]
+authors: [jason.lee, pureum.yim]
 categories: [Data Science]
 tags: [Data, Data Analytics, Data Visualisation]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2021-07-07-reshaping-chat-support
 title: Reshaping Chat Support for Our Users
 date: 2021-07-07 00:18:20
-authors: [elisa-monacchi, wan-ling-guai, suman-anand]
+authors: [elisa.monacchi, wanling.guai, suman.anand]
 categories: [Product]
 tags: [Product, Design, Chat support]
 comments: true

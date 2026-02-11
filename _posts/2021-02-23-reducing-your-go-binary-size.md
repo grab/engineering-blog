@@ -3,7 +3,7 @@ layout: post
 id: 2021-02-23-one-small-step-closer-to-containerising-service-binaries
 title: One Small Step Closer to Containerising Service Binaries
 date: 2021-02-23 00:12:23
-authors: [stan-halka, samuel-thomas]
+authors: [stan.halka, samuel.thomas]
 categories: [Engineering]
 tags: [Back End, Engineering, Golang, Cloud-Native Transformations, Containerisation, Kubernetes]
 comments: true

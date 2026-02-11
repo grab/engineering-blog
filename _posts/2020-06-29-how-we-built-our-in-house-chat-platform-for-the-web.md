@@ -3,7 +3,7 @@ layout: post
 id: 2020-06-29-how-we-built-our-in-house-chat-platform-for-the-web
 title: How We Built Our In-house Chat Platform for the Web
 date: 2020-06-29 14:34:40
-authors: [vasudevan-k]
+authors: [vasu.krishnamoorthy]
 categories: [Engineering]
 tags: [Chat, Web, Customer Support, Engineering]
 comments: true

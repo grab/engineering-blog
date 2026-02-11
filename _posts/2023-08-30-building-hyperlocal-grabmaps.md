@@ -3,7 +3,7 @@ layout: post
 id: 2023-08-30-building-hyperlocal-grabmaps
 title: Building hyperlocal GrabMaps
 date: 2023-08-30 00:00:10
-authors: [adriana-lazar]
+authors: [adriana.lazar]
 categories: [Engineering, Data Science, Product]
 tags: [Maps, Data, Big Data, Data processing, hyperlocalisation, GrabMaps, navigation]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: deep-dive-into-database-timeouts-in-rails
 title: Deep Dive into Database Timeouts in Rails
 date: 2018-01-29 09:36:00
-authors: [jia-hao-goh]
+authors: [jiahao.goh]
 categories: [Engineering]
 tags: [Back End, Database, Distributed Systems, Ruby, Ruby on Rails]
 comments: true

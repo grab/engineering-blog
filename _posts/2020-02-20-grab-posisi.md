@@ -3,7 +3,7 @@ layout: post
 id: 2020-02-20-grab-posisi
 title: Grab-Posisi - Southeast Asia’s First Comprehensive GPS Trajectory Dataset
 date: 2020-02-20 18:43:40
-authors: [zhengmin-xu, poornima-badrinath, xiaocheng-huang, abeesh-thomas]
+authors: [zhengmin.xu, poornima.badrinath, xiaocheng.huang, thomas.stephen]
 categories: [Engineering]
 tags: [GPS, Datasets, Maps]
 comments: true

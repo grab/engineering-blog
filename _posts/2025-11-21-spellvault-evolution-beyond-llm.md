@@ -3,7 +3,7 @@ layout: post
 id: 2025-11-21-spellvault-evolution-beyond-llm
 title: "SpellVault’s evolution: Beyond LLM apps, towards the agentic future"
 date: 2025-11-21 00:00:10
-authors: [felix-lie, haotian-mi, jiaqi-yang, muqi-li, shuqi-wang, riyadh-sharif, sayam-bohra, wenhui-wu]
+authors: [felix.lie, haotian.mi, jiaqi.yang, muqi.li, shuqi.wang, riyadh.sharif, sayam.bohra, wenhui.wu]
 categories: [Engineering, Data]
 tags: [engineering, performance]
 comments: true

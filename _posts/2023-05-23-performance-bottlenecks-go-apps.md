@@ -3,7 +3,7 @@ layout: post
 id: 2023-05-23-performance-bottlenecks-go-apps
 title: Performance bottlenecks of Go application on Kubernetes with non-integer (floating) CPU allocation
 date: 2023-05-23 01:18:00
-authors: [shubham-badkur, alvis-chew]
+authors: [shubham.badkur, alvis.chew]
 categories: [Engineering]
 tags: [Engineering]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2024-12-12-turbocharging-grabunlimited-with-temporal
 title: 'Turbocharging GrabUnlimited with Temporal'
 date: 2024-12-12 00:00:10
-authors: [michael-parreno, theodore-felix]
+authors: [michael.parreno, theodore.felix]
 categories: [Engineering, Product]
 tags: [Engineering, Optimisation, Product, Database, Scalability]
 comments: true

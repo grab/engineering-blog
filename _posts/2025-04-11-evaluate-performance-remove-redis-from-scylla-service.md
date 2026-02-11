@@ -3,7 +3,7 @@ layout: post
 id: 2025-04-11-evaluate-performance-remove-redis-from-scylla-service
 title: 'Evaluating performance impact of removing Redis-cache from a Scylla-backed service'
 date: 2025-04-11 00:23:00
-authors: [riyadh-sharif, jialong-loh, swarit-arora, muqi-li]
+authors: [riyadh.sharif, jialong.loh, swarit.arora, muqi.li]
 categories: [Engineering]
 tags: [Database, Engineering, Event processing, Optimisation, Redis]
 comments: true

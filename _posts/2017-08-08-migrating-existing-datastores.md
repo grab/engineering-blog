@@ -3,7 +3,7 @@ layout: post
 id: migrating-existing-datastores
 title: "Migrating Existing Datastores"
 date: 2017-08-08 07:30:00
-authors: [nishant-gupta]
+authors: [nishant.gupta]
 categories: [Engineering]
 tags: [Back End, Redis]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2022-11-23-graph-for-fraud-detection
 title: Graph for fraud detection
 date: 2022-11-24 00:13:40
-authors: [min-chen, advitiya-vashist, jenn-ng, jia-chen]
+authors: [min.chen, advitiya.vashist, jenn.ng, jia.chen]
 categories: [Engineering, Data Science, Security]
 tags: [Analytics, Data Science, Security, Graphs, Graph visualisation, Graph networks, Fraud detection]
 comments: true

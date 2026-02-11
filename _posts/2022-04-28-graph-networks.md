@@ -3,7 +3,7 @@ layout: post
 id: 2022-04-28-graph-networks
 title: Graph Networks - Striking fraud syndicates in the dark
 date: 2022-04-28 10:55:55
-authors: [muqi-li]
+authors: [muqi.li]
 categories: [Engineering, Security]
 tags: [Graph networks, Graphs, Fraud detection, Security]
 comments: true

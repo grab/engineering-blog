@@ -3,7 +3,7 @@ layout: post
 id: 2024-09-10-the-creation-of-our-powerful-campaign-builder
 title: 'Unveiling the process: The creation of our powerful campaign builder'
 date: 2024-09-10 00:00:10
-authors: [jie-zhang, kevin-hutama, abdullah-mamun]
+authors: [jie.zhang, kevin.hutama, abdullah.mamun]
 categories: [Engineering, Design]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2022-12-07-zero-trust-with-kafka
 title: Zero trust with Kafka
 date: 2022-12-07 00:23:05
-authors: [fabrice-harbulot, thanhtung-dao, quangminh-tran]
+authors: [fabrice.harbulot, thanhtung.dao, quangminh.tran]
 categories: [Engineering, Security]
 tags: [Engineering, Kafka, Performance, Zero trust, Access control]
 comments: true

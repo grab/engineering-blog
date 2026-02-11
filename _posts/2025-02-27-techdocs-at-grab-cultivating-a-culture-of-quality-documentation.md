@@ -3,7 +3,7 @@ layout: post
 id: 2025-02-27-techdocs-at-grab-cultivating-a-culture-of-quality-documentation
 title: 'TechDocs at Grab: Cultivating a culture of quality documentation'
 date: 2025-02-27 08:23:00
-authors: [david-khu, karen-kue, preeti-karkera,sita-yadav]
+authors: [david.khusmadilan, karen.kue, preeti.karkera, sita.yadav]
 categories: [Engineering]
 tags: [Blog, TechDocs, Helix, Engineering]
 comments: true

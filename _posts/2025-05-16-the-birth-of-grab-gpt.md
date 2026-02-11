@@ -3,7 +3,7 @@ layout: post
 id: 2025-05-16-the-birth-of-grab-gpt
 title: 'From failure to success: The birth of GrabGPT, Grab’s internal ChatGPT'
 date: 2025-05-19 00:00:10
-authors: [wenbo-wei]
+authors: [wenbo.wei]
 categories: [Engineering]
 tags: [Engineering, Optimisation, AI]
 comments: true

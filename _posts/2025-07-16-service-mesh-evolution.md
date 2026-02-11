@@ -3,7 +3,7 @@ layout: post
 id: 2025-07-16-service-mesh-evolution
 title: "Grab's service mesh evolution: From Consul to Istio"
 date: 2025-07-16 00:00:10
-authors: [hilman-kurniawan, jay-chin, shiyu-chen, sokann-yap]
+authors: [hilman.kurniawan, jay.chin, shiyu.chen, sokann.yap]
 categories: [Engineering]
 tags: [Microservice, Service mesh, Kubernetes, AWS, GCP]
 comments: true

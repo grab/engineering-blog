@@ -3,7 +3,7 @@ layout: post
 id: 2025-05-23-dex-in-action
 title: 'Effortless enterprise authentication at Grab: Dex in action'
 date: 2025-05-23 00:00:10
-authors: [kah-wei-lee, jack-wang, weibin-wu, jan-bissinger]
+authors: [kahwei.lee, jack.wang, weibin.wu, jan.bissinger]
 categories: [Engineering]
 tags: [Access control, Engineering, Security]
 comments: true

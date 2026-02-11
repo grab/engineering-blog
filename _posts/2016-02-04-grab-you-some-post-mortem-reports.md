@@ -3,7 +3,7 @@ layout: post
 id: grab-you-some-post-mortem-reports
 title: Grab You Some Post-Mortem Reports
 date: 2016-02-04 03:46:00
-authors: [lian-yuanlin]
+authors: [lian.yuanlin]
 categories: [Engineering]
 tags: [Post Mortem]
 comments: true

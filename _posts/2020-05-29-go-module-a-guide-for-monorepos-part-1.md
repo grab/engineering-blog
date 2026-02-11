@@ -3,7 +3,7 @@ layout: post
 id: 2020-05-29-go-module-a-guide-for-monorepos-part-1
 title: Go Modules- A Guide for monorepos (Part 1)
 date: 2020-05-29 11:34:40
-authors: [michael-cartmell]
+authors: [michael.cartmell]
 categories: [Engineering]
 tags: [Go, Monorepo, Vendoring, Vendors, Libraries]
 comments: true

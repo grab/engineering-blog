@@ -3,7 +3,7 @@ layout: post
 id: why-test-the-design-with-only-5-users
 title: Why Test the Design with Only 5 Users
 date: 2016-08-26 13:43:40
-authors: [avinash-papatla]
+authors: [avinash.papatla]
 categories: [Design]
 tags: [User Research, UX]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2023-05-15-faster_using_the_go_plugin_to_replace_Lua_VM
 title: 2.3x faster using the Go plugin to replace Lua virtual machine
 date: 2023-05-15 01:23:05
-authors: [yonghao-hu, fabianto-wangsamulya]
+authors: [yonghao.hu, fabianto.wangsamulya]
 categories: [Engineering]
 tags: [Engineering, Virtual machines, Faster, Go plugin, Lua VM]
 comments: true

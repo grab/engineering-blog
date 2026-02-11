@@ -3,7 +3,7 @@ layout: post
 id: 2023-03-21-determining-tech-stack
 title: How OVO determined the right technology stack for their web-based projects
 date: 2023-03-21 01:23:05
-authors: [george-matthew, sandy-ys]
+authors: [george.matthew, sandy.ys]
 categories: [Engineering, Design]
 tags: [Engineering, Technology stack, Exploration]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2021-01-26-mirror-cache-blog
 title: Serving Driver-partners Data at Scale Using Mirror Cache
 date: 2021-01-26 00:23:00
-authors: [indrajit-sarkar]
+authors: [indrajit.sarkar]
 categories: [Engineering]
 tags: [Mirror Cache, Data at Scale]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2024-10-30-reduced-memory-cpu-usage-grabx-sdk
 title: 'How we reduced peak memory and CPU usage of the product configuration management SDK'
 date: 2024-10-30 00:00:10
-authors: [ram-pradhan, fabianto-wangsamulya, inderpreet-singh, padarn-wilson, yonghao-hu]
+authors: [ram.pradhan, fabianto.wangsamulya, inderpreet.singh, padarn.wilson, yonghao.hu]
 categories: [Engineering]
 tags: [Engineering, Optimisation, Service]
 comments: true

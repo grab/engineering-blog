@@ -3,7 +3,7 @@ layout: post
 id: 2023-02-21-geohash-plugin
 title: New zoom freezing feature for Geohash plugin
 date: 2023-02-21 01:18:05
-authors: [maria-mitisor]
+authors: [maria.mitisor]
 categories: [Engineering, Product]
 tags: [Engineering, Geohash, Maps, Open source]
 comments: true

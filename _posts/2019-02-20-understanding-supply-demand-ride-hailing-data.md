@@ -3,7 +3,7 @@ layout: post
 id: understanding-supply-demand-ride-hailing-data
 title: Understanding Supply & Demand in Ride-hailing Through the Lens of Data
 date: 2019-02-20 18:43:40
-authors: [aayush-garg, lara-pureum-yim, chunkai-phang]
+authors: [aayush.garg, pureum.yim, chunkai.phang]
 categories: [Data Science]
 tags: [Analytics, Data, Data Analytics, Data Visualisation, Data Storytelling]
 comments: true

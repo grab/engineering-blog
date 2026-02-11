@@ -3,7 +3,7 @@ layout: post
 id: connecting-the-invisibles-to-design-seamless-experiences
 title: Connecting the Invisibles to Design Seamless Experiences
 date: 2019-05-28 18:43:40
-authors: [stephanie-lukito, jia-liang-wong]
+authors: [stephanie.lukito, jia.liang.wong]
 categories: [Design]
 tags: [Design, Service Design]
 comments: true

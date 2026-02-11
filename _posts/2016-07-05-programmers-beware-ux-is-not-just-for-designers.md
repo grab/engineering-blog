@@ -3,7 +3,7 @@ layout: post
 id: programmers-beware-ux-is-not-just-for-designers
 title: Programmers Beware - UX is Not Just for Designers
 date: 2016-07-05 08:23:00
-authors: [corey-scott]
+authors: [corey.scott]
 categories: [Engineering]
 tags: [API, UX]
 comments: true

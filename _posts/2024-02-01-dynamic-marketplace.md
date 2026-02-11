@@ -3,7 +3,7 @@ layout: post
 id: 2024-02-01-dynamic-marketplace
 title: "Managing dynamic marketplace content at scale: Grab's approach to content moderation"
 date: 2024-02-01 00:22:10
-authors: [poonam-gambhire]
+authors: [poonam.gambhire]
 categories: [Product]
 tags: [Dynamic marketplace, Content moderation, Scaling]
 comments: true

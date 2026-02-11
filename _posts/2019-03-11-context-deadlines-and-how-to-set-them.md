@@ -3,7 +3,7 @@ layout: post
 id: context-deadlines-and-how-to-set-them
 title: "Context Deadlines and How to Set Them"
 date: 2019-03-11 2:50:40
-authors: [michael-cartmell]
+authors: [michael.cartmell]
 categories: [Engineering]
 tags: [Resiliency, Microservice]
 comments: true

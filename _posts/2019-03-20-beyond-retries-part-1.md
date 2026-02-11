@@ -3,7 +3,7 @@ layout: post
 id: beyond-retries-part-1
 title: "Designing Resilient Systems Beyond Retries (Part 1): Rate-Limiting"
 date: 2019-03-20 14:39:33
-authors: [michael-cartmell]
+authors: [michael.cartmell]
 categories: [Engineering]
 tags: [Resiliency, Microservice, Rate-limiting]
 comments: true

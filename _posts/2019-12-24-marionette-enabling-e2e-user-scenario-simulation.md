@@ -3,7 +3,7 @@ layout: post
 id: marionette-enabling-e2e-user-scenario-simulation
 title: Marionette - Enabling E2E User-scenario Simulation
 date: 2019-12-23 21:00:00
-authors: [anish-jha, biju-jacob, phuc-lam-nguyen, vineet-nair, yiwei-yeo]
+authors: [anish.jha, biju.josephjacob , phuclam.nguyen, vineet.nair, yiwei.yeo]
 categories: [Engineering]
 tags: [Back End, Testing, Microservice]
 comments: true

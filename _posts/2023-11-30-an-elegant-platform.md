@@ -3,7 +3,7 @@ layout: post
 id: 2023-11-30-an-elegant-platform
 title: 'An elegant platform'
 date: 2023-11-30 00:00:10
-authors: [fabrice-harbulot, minhkhoi-nguyen]
+authors: [fabrice.harbulot, minhkhoi.nguyen]
 categories: [Engineering, Data Science, Product]
 tags: [Data, Data streaming, Real-time streaming, Platformisation]
 comments: true

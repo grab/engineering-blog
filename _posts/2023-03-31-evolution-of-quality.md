@@ -3,7 +3,7 @@ layout: post
 id: 2023-03-31-evolution-of-quality
 title: Evolution of quality at Grab
 date: 2023-03-31 01:23:05
-authors: [abby-alcantara, xuanthu-doan, renu-yadav]
+authors: [abby.alcantara, xuanthu.doan, renu.yadav]
 categories: [Engineering, Design]
 tags: [Engineering, Technology stack, Exploration]
 comments: true

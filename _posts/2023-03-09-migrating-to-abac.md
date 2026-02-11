@@ -3,7 +3,7 @@ layout: post
 id: 2023-03-09-migrating-to-abac
 title: Migrating from Role to Attribute-based Access Control
 date: 2023-03-09 01:23:05
-authors: [minhkhoi-nguyen]
+authors: [minhkhoi.nguyen]
 categories: [Engineering, Security]
 tags: [Engineering, Access control, Security]
 comments: true

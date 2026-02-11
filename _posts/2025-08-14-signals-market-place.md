@@ -3,7 +3,7 @@ layout: post
 id: 2025-08-14-signals-market-place
 title: 'Data mesh at Grab part I: Building trust through certification'
 date: 2025-08-19 00:23:00
-authors: [chunrong-phang, satarupa-seal, gladys-chia, jerome-tong]
+authors: [chunrong.phang, satarupa.seal, gladys.chia, jerome.tong]
 categories: [Engineering]
 tags: [Data, Database, Engineering]
 comments: true

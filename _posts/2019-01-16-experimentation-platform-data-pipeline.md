@@ -3,7 +3,7 @@ layout: post
 id: experimentation-platform-data-pipeline
 title: A Lean and Scalable Data Pipeline to Capture Large Scale Events and Support Experimentation Platform
 date: 2019-01-16 18:43:40
-authors: [oscar-cassetti, roman-atachiants]
+authors: [oscar.cassetti, roman.atachiants]
 categories: [Engineering]
 tags: [Big Data, Data Pipeline, Experiment]
 comments: true

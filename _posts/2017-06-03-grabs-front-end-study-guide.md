@@ -3,7 +3,7 @@ layout: post
 id: grabs-front-end-study-guide
 title: Grab's Front End Study Guide
 date: 2017-06-03 18:43:40
-authors: [tay-yang-shun]
+authors: [yangshun.tay]
 categories: [Engineering]
 tags: [Front End, JavaScript, Web]
 comments: true

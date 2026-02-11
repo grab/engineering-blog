@@ -3,7 +3,7 @@ layout: post
 id: 2024-05-03-no-version-left-behind-our-epic-journey-of-gitlab-upgrades
 title: "No version left behind: Our epic journey of GitLab upgrades"
 date: 2024-05-03 00:10:10
-authors: [saurabh-vajpayee, ramkumar-manickam, nagendra-gangwar, dan-low, akshay-misra]
+authors: [saurabh.vajpayee, ramkumar.manickam, nagendra.gangwar, dan.low, akshay.misra]
 categories: [Engineering]
 tags: [stability, automation, optimisation]
 comments: true

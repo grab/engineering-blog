@@ -3,7 +3,7 @@ layout: post
 id: 2022-05-17-search-architecture-revamp
 title: Search architecture revamp
 date: 2022-05-17 03:55:55
-authors: [lipeng-zhang, tao-hou, weilun-wu]
+authors: [lipeng.zhang, tao.hou, weilun.wu]
 categories: [Engineering]
 tags: [Architecture, Optimisation, Search]
 comments: true

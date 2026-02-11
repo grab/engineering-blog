@@ -3,7 +3,7 @@ layout: post
 id: preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes
 title: How We Prevented App Performance Degradation from Sudden Ride Demand Spikes
 date: 2020-01-08 15:00:00
-authors: [corey-scott]
+authors: [corey.scott]
 categories: [Engineering]
 tags: [Resiliency, Circuit Breakers]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2022-04-19-how-we-reduced-our-ci-yaml-files
 title: How we reduced our CI YAML files from 1800 lines to 50 lines
 date: 2022-04-19 15:55:55
-authors: [jialong-loh, oscar-cassetti, wenbo-wei]
+authors: [jialong.loh, oscar.cassetti, wenbo.wei]
 categories: [Engineering]
 tags: [CI, Machine Learning, Pipelines, Continuous Integration, Continuous Delivery, Optimisation, Rust]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2021-07-26-protecting-personal-data-in-grabs-imagery
 title: Protecting Personal Data in Grab's Imagery
 date: 2021-07-26 00:40:00
-authors: [adrian-popovici, zsolt-vadaszi, adrian-margin, hannes-kruppa]
+authors: [sever.popovici, zsolt.vadaszi, adrian.margin, hannes.kruppa]
 categories: [Engineering]
 tags: [Engineering, Machine Learning, Data, Datasets, Data Science]
 comments: true

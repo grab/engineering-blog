@@ -3,7 +3,7 @@ layout: post
 id: 2024-02-23-enabling-near-realtime-data-analytics
 title: "Enabling near real-time data analytics on the data lake"
 date: 2024-02-23 00:22:10
-authors: [shikai-ng, shuguang-xiang]
+authors: [shikai.ng, shuguang.xiang]
 categories: [Engineering, Data Science]
 tags: [Data Analytics, Stream Processing, Kafka, Real-Time]
 comments: true

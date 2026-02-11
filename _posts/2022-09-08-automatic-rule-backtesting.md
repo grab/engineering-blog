@@ -3,7 +3,7 @@ layout: post
 id: 2022-09-08-automatic-rule-backtesting
 title: Automatic rule backtesting with large quantities of data
 date: 2022-09-08 00:55:55
-authors: [chao-wang, clemens-valiente, jun-liu, daniel-wang]
+authors: [chao.w, clemens.valiente, jun.liu, daniel.wang]
 categories: [Engineering, Data Science]
 tags: [Testing, Automation, Backtesting, Data science]
 comments: true

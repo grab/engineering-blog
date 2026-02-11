@@ -3,7 +3,7 @@ layout: post
 id: 2021-04-19-how-we-improved-agent-chat-efficiency-with-ml
 title: How We Improved Agent Chat Efficiency with Machine Learning
 date: 2021-04-19 00:08:30
-authors: [suman-anand, elisa-monacchi, darrell-tay, yun-zou, wan-ling-guai]
+authors: [suman.anand, elisa.monacchi, darrell.tay, yun.zou, wanling.guai]
 categories: [Engineering]
 tags: [Engineering, Machine Learning, Consumer Support]
 comments: true

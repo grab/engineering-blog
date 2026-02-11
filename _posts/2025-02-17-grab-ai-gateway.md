@@ -3,7 +3,7 @@ layout: post
 id: 2025-02-19-grab-ai-gateway
 title: 'Grab AI Gateway: Connecting Grabbers to multiple GenAI providers'
 date: 2025-02-19 00:00:10
-authors: [bjorn-jee, daniel-tai, siddharth-pandey, wenbo-wei]
+authors: [bjorn.jee, daniel.tai, siddharth.pandey, wenbo.wei]
 categories: [Engineering, Data Science]
 tags: [Engineering, Data Science, Optimisation, Generative AI, LLM, Machine Learning]
 comments: true

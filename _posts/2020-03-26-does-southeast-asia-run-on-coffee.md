@@ -3,7 +3,7 @@ layout: post
 id: 2020-03-26-does-southeast-asia-run-on-coffee
 title: Does Southeast Asia Run on Coffee?
 date: 2020-03-26 08:34:00
-authors: [siu-sing-lai, lara-pureum-yim]
+authors: [siusing.lai, pureum.yim]
 categories: [Data Science]
 tags: [Data, Data Analytics, Data Visualisation]
 comments: true

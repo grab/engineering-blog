@@ -3,7 +3,7 @@ layout: post
 id: 2024-03-01-project-bonsai
 title: "Android App Size at Scale with Project Bonsai"
 date: 2024-03-01 02:22:10
-authors: [van-minh]
+authors: [van.minh]
 categories: [Engineering]
 tags: [App size, Optimisation, Project Bonsai, App download size, App disk size, Scalability]
 comments: true

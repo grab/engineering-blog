@@ -3,7 +3,7 @@ layout: post
 id: dealing-with-the-meltdown-patch-at-grab.md
 title: Dealing with the Meltdown Patch at Grab
 date: 2018-01-07 07:00:00
-authors: [althaf-hameez]
+authors: [althaf.hameez]
 categories: [Engineering]
 tags: [AWS, Meltdown]
 comments: true

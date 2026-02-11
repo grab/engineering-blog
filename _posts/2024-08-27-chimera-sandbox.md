@@ -3,7 +3,7 @@ layout: post
 id: 2024-08-27-chimera-sandbox
 title: 'Chimera Sandbox: A scalable experimentation and development platform for Notebook services'
 date: 2024-08-27 00:00:10
-authors: [arkarmin-aung, yiyang-liao, xian-zhou, padarn-wilson, dheeraj-pidatala]
+authors: [arkarmin.aung, yiyang.liao, xian.zhou, padarn.wilson, dheeraj.pidatala]
 categories: [Engineering, Design]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
 comments: true

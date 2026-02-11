@@ -3,7 +3,7 @@ layout: post
 id: 2024-09-17-live-activity-2
 title: 'Bringing Grab’s Live Activity to Android: Enhancing user experience through custom notifications'
 date: 2024-09-23 00:00:10
-authors: [jessica-sean]
+authors: [jessica.sean]
 categories: [Engineering]
 tags: [Engineering, Android, Exploration]
 comments: true

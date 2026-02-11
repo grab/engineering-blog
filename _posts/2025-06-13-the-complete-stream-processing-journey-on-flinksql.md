@@ -3,7 +3,7 @@ layout: post
 id: 2025-06-12-the-complete-stream-processing-journey-on-flinksql
 title: 'The complete stream processing journey on FlinkSQL'
 date: 2025-06-12 00:23:00
-authors: [calvin-tran, shikai-ng]
+authors: [calvin.tran, shikai.ng]
 categories: [Engineering]
 tags: [Database, FlinkSQL]
 comments: true

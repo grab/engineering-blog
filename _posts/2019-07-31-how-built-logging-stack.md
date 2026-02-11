@@ -3,7 +3,7 @@ layout: post
 id: how-built-logging-stack
 title: How We Built a Logging Stack at Grab
 date: 2019-07-31 11:43:40
-authors: [daniel-kasen]
+authors: [daniel.kasen]
 categories: [Engineering]
 tags: [Logging]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2022-03-14-real-time-data-ingestion
 title: Real-time data ingestion in Grab
 date: 2022-03-14 00:20:00
-authors: [shuguang-xiang, irfan-hanif, feng-cheng]
+authors: [shuguang.xiang, irfan.hanif, feng.cheng]
 categories: [Engineering, Data Science]
 tags: [Engineering, Data ingestion]
 comments: true

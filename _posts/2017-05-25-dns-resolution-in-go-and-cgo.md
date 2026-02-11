@@ -3,7 +3,7 @@ layout: post
 id: dns-resolution-in-go-and-cgo
 title: DNS Resolution in Go and Cgo
 date: 2017-05-24 18:43:40
-authors: [ryan-law]
+authors: [ryan.law]
 categories: [Engineering]
 tags: [Golang, Networking]
 comments: true

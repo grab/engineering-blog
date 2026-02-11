@@ -3,7 +3,7 @@ layout: post
 id: 2022-10-25-using-mobile-sensor-data-to-encourage-safer-driving
 title: Using mobile sensor data to encourage safer driving
 date: 2022-10-25 11:30:00
-authors: [laiyi-lin]
+authors: [laiyi.lin]
 categories: [Engineering, Data Science, Security]
 tags: [Analytics, Driving patterns, Data Science, GPS, Security]
 comments: true

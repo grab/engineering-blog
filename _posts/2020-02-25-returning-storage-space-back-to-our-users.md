@@ -3,7 +3,7 @@ layout: post
 id: 2020-02-25-returning-storage-space-back-to-our-users
 title: Returning 575 Terabytes of Storage Space to Our Users
 date: 2020-02-25 20:13:00
-authors: [lucas-nelaupe]
+authors: [lucas.nelaupe]
 categories: [Engineering]
 tags: [Mobile, Android, Performance]
 comments: true

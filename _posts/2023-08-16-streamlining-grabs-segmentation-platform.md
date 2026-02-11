@@ -3,7 +3,7 @@ layout: post
 id: 2023-08-16-streamlining-grabs-segmentation-platform
 title: Streamlining Grab's Segmentation Platform with faster creation and lower latency
 date: 2023-08-15 00:00:10
-authors: [jake-ng]
+authors: [jake.ng]
 categories: [Engineering]
 tags: [Back End, Performance]
 comments: true

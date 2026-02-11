@@ -3,7 +3,7 @@ layout: post
 id: loki-dynamic-mock-server-http-tcp-testing
 title: Loki, a Dynamic Mock Server for HTTP/TCP Testing
 date: 2019-04-10 02:41:42
-authors: [thuy-nguyent, mayank-gupta, vishal-prakash, vineet-nair]
+authors: [thuy.nguyent, mayank.gupta, vishal.prakash, vineet.nair]
 categories: [Engineering]
 tags: [Back End, Service, Mobile, Testing]
 comments: true

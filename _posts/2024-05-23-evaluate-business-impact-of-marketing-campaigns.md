@@ -3,7 +3,7 @@ layout: post
 id: 2024-05-23-evaluate-business-impact-of-marketing-campaigns
 title: "How we evaluated the business impact of marketing campaigns"
 date: 2024-05-23 00:10:10
-authors: [jie-zhang, zen-nguyen]
+authors: [jie.zhang, zen.nguyen]
 categories: [Engineering]
 tags: [Marketing, Metrics, Optimisation, Statistic, A/B Testing]
 comments: true

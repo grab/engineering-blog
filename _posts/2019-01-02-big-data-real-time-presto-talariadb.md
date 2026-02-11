@@ -3,7 +3,7 @@ layout: post
 id: big-data-real-time-presto-talariadb
 title: Querying Big Data in Real-time with Presto & Grab's TalariaDB
 date: 2019-01-02 02:00:00
-authors: [roman-atachiants, oscar-cassetti]
+authors: [roman.atachiants, oscar.cassetti]
 categories: [Engineering]
 tags: [Big Data, Real-Time, Database, Presto, TalariaDB]
 comments: true

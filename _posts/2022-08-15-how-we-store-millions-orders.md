@@ -3,7 +3,7 @@ layout: post
 id: 2022-08-15-how-we-store-millions-orders
 title: How we store and process millions of orders daily
 date: 2022-08-15 00:55:55
-authors: [xi-chen, siliang-cao]
+authors: [xi.chen, siliang.cao]
 categories: [Engineering, Data Science]
 tags: [Database, Storage, Distributed Systems, Platform]
 comments: true

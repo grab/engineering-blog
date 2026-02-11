@@ -3,7 +3,7 @@ layout: post
 id: 2023-11-08-graph-modelling-guidelines
 title: 'Graph modelling guidelines'
 date: 2023-11-08 00:00:10
-authors: [wenxiang-lu, muqi-li, wei-yang-wang, wenhui-wu]
+authors: [wenxiang.lu, muqi.li, weiyang.wang, wenhui.wu]
 categories: [Engineering, Security]
 tags: [Graph technology, Graphs, Graph networks, Security, Data]
 comments: true

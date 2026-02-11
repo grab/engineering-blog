@@ -3,7 +3,7 @@ layout: post
 id: how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps
 title: How to Go from a Quick Idea to an Essential Feature in Four Steps
 date: 2017-05-16 00:00:00
-authors: [huang-da, tan-sien-yi]
+authors: [da.huang, sienyi.tan]
 category: [Data Science, Product]
 tags: [Data Science, Product Management]
 comments: true

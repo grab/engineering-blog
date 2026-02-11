@@ -3,7 +3,7 @@ layout: post
 id: round-robin-in-distributed-systems
 title: Round-robin in Distributed Systems
 date: 2016-09-27 13:43:40
-authors: [gao-chao]
+authors: [gao.chao]
 categories: [Engineering]
 tags: [Back End, Data, Distributed Systems, ELB, Golang]
 comments: true

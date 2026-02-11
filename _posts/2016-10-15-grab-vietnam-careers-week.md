@@ -3,7 +3,7 @@ layout: post
 id: grab-vietnam-careers-week
 title: Grab Vietnam Careers Week
 date: 2016-10-14 18:43:40
-authors: [grab-engineering]
+authors: [grab.engineering]
 tags: [Hiring]
 comments: true
 cover_photo: /img/grab-vietnam-careers-week/son-hai.jpg

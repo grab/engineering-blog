@@ -3,7 +3,7 @@ layout: post
 id: a-key-expired-in-redis-you-wont-believe-what-happened-next
 title: A Key Expired in Redis, You Won't Believe What Happened Next
 date: 2017-03-27 18:43:40
-authors: [karan-kamath]
+authors: [karan.kamath]
 categories: [Engineering]
 tags: [Back End, Redis]
 comments: true
