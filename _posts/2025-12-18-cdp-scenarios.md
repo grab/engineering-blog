@@ -3,7 +3,7 @@ layout: post
 id: 2025-12-18-cdp-scenarios
 title: 'How Grab is accelerating growth with real-time personalization using Customer Data Platform scenarios'
 date: 2025-12-18 00:23:00
-authors: [saubhagya-awaneesh, shanmugam-shanthi, shubham-badkur, tom-lam, srivatsa-srivatsa]
+authors: [saubhagya.awaneesh, shanmugam.shanthi, shubham.badkur, tomoki.lam, srivatsa]
 categories: [Engineering]
 tags: [Database, FlinkSQL]
 comments: true

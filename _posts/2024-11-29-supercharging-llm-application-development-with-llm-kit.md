@@ -3,7 +3,7 @@ layout: post
 id: 2024-11-29-supercharging-llm-application-development-with-llm-kit
 title: 'Supercharging LLM application development with LLM-Kit'
 date: 2024-11-29 00:00:10
-authors: [boonzhan-chew, kendrick-tan, swati-joshi, yujie-ang]
+authors: [boonzhan.chew, kendrick.tan, swati.joshi, yujie.ang]
 categories: [Engineering, Data Science]
 tags: [Engineering, Generative AI, LLM, Machine Learning]
 comments: true

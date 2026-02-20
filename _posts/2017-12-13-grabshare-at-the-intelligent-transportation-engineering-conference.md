@@ -3,7 +3,7 @@ layout: post
 id: grabshare-at-the-intelligent-transportation-engineering-conference
 title: GrabShare at the Intelligent Transportation Engineering Conference
 date: 2017-12-13 06:00:00
-authors: [dominic-widdows]
+authors: [dominic.widdows]
 categories: [Data Science]
 tags: [Data Science, GrabShare]
 comments: true

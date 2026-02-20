@@ -3,7 +3,7 @@ layout: post
 id: structured-logging
 title: "Structured Logging: The Best Friend You’ll Want When Things Go Wrong"
 date: 2019-03-05 13:07:40
-authors: [aditya-praharaj]
+authors: [aditya.praharaj]
 categories: [Engineering]
 tags: [Logging]
 comments: true

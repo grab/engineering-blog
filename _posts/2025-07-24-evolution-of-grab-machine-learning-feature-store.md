@@ -3,7 +3,7 @@ layout: post
 id: evolution-of-grab-machine-learning-feature-store.md
 title: "The evolution of Grab's machine learning feature store"
 date: 2025-07-24 00:23:00
-authors: [daniel-tai, oscar-cassetti]
+authors: [daniel.tai, oscar.cassetti]
 categories: [Engineering]
 tags: [Database, AWS]
 comments: true

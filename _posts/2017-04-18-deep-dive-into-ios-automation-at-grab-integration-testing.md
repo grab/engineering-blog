@@ -3,7 +3,7 @@ layout: post
 id: deep-dive-into-ios-automation-at-grab-integration-testing
 title: Deep Dive into iOS Automation at Grab - Integration Testing
 date: 2017-04-18 18:43:40
-authors: [sun-xiangxin]
+authors: [xiangxin]
 categories: [Engineering]
 tags: [Continuous Integration, iOS, Mobile, Testing]
 comments: true

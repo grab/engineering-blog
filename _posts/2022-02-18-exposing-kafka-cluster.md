@@ -3,7 +3,7 @@ layout: post
 id: 2022-02-18-exposing-kafka-cluster
 title: Exposing a Kafka Cluster via a VPC Endpoint Service
 date: 2022-02-18 00:20:00
-authors: [fabrice-harbulot]
+authors: [fabrice.harbulot]
 categories: [Engineering]
 tags: [Engineering, Cloud, Kafka]
 comments: true

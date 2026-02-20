@@ -3,7 +3,7 @@ layout: post
 id: using-grabs-trust-counter-service-to-detect-fraud-successfully
 title: Using Grab’s Trust Counter Service to Detect Fraud Successfully
 date: 2019-10-21 14:30:12
-authors: [chao-wang, muqi-li, gregory-allan, varun-kansal]
+authors: [chao.w, muqi.li, gregory.allan, varun.kansal]
 categories: [Engineering]
 tags: [Engineering, Anti-Fraud, Security, Fraud Detection, Data]
 comments: true

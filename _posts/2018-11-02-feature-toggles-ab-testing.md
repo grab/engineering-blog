@@ -3,7 +3,7 @@ layout: post
 id: feature-toggles-ab-testing
 title: Reliable and Scalable Feature Toggles and A/B Testing SDK at Grab
 date: 2018-11-02 06:00:00
-authors: [roman-atachiants]
+authors: [roman.atachiants]
 categories: [Engineering]
 tags: [Experiment, Back End, Front End, Feature Toggle, A/B Testing]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2022-02-11-scalable-ads-server
 title: How Grab built a scalable, high-performance ad server
 date: 2022-02-11 00:20:00
-authors: [anthony-mccallum, jeremy-wang, wenxin-liao, ashish-agarwal, xiuqi-chenyang, andy-lin, eliot-li]
+authors: [anthony.mccallum, jeremy.wang, wenxin.liao, ashish.agarwal, xiuqi.chenyang, tienju.lin, eliot.li]
 categories: [Product]
 tags: [Engineering, Ads, Design]
 comments: true

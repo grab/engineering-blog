@@ -3,7 +3,7 @@ layout: post
 id: grab-everyday-super-app
 title: Making Grab’s Everyday App Super
 date: 2019-07-03 18:43:40
-authors: [justin-bolilia, romain-basseville, karen-kue]
+authors: [justin.bolilia, romain.basseville, karen.kue]
 categories: [Data Science, Product]
 tags: [Superapp, Feed, Recommendations, Data Science, Machine Learning]
 comments: true

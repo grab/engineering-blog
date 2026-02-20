@@ -3,7 +3,7 @@ layout: post
 id: 2024-02-20-attribution-platform
 title: "The journey of building a comprehensive attribution platform"
 date: 2024-02-20 00:22:10
-authors: [kang-huang, suvi-murugan, sharathbabu-s]
+authors: [kang.huang, suvi.murugan, sharathbabu.s]
 categories: [Engineering, Product, Design]
 tags: [Attribution platform, User journeys, Advertising]
 comments: true

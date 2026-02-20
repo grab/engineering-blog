@@ -3,7 +3,7 @@ layout: post
 id: curious-case-of-the-phantom-instance
 title: The Curious Case of the Phantom Instance
 date: 2015-12-28 04:39:00
-authors: [lian-yuanlin]
+authors: [lian.yuanlin]
 categories: [Engineering]
 tags: [AWS]
 comments: true

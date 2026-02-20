@@ -3,7 +3,7 @@ layout: post
 id: 2025-11-01-custom-vision-llm-at-grab
 title: "How we built a custom vision LLM to improve document processing at Grab"
 date: 2025-11-04 00:00:10
-authors: [jia-chen, manish-sahu, sing-kwan-ng, yang-yang]
+authors: [jia.chen, manish.sahu, singkwan.ng, yang.yang]
 categories: [Engineering, Data]
 tags: [engineering, performance]
 comments: true

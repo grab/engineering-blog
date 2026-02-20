@@ -3,7 +3,7 @@ layout: post
 id: bubble-tea-craze-on-grabfood
 title: Bubble Tea Craze on GrabFood!
 date: 2019-05-09 17:49:30
-authors: [lara-pureum-yim, ming-xuan-lee]
+authors: [pureum.yim, mingxuan.lee]
 categories: [Data Science]
 tags: [Data, Analytics, Data Analytics]
 comments: true

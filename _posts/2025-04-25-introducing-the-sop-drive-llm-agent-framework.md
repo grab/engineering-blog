@@ -3,7 +3,7 @@ layout: post
 id: 2025-04-25-introducing-the-sop-drive-llm-agent-framework
 title: 'Introducing the SOP-driven LLM agent frameworks'
 date: 2025-04-25 00:00:10
-authors: [fujiao-liu, shuqi-wang, wenhui-wu, muqi-li, jia-chen, haitao-bao, meichen-lu] 
+authors: [fujiao.liu, shuqi.wang, wenhui.wu, muqi.li, jia.chen, haitao.bao, meichen.lu] 
 categories: [Engineering, Data Analytics, Data Science]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
 comments: true

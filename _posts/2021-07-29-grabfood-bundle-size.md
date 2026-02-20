@@ -3,7 +3,7 @@ layout: post
 id: 2021-07-29-grabfood-bundle-size
 title: How We Cut GrabFood.com’s Page JavaScript Asset Sizes by 3x
 date: 2021-07-29 01:20:00
-authors: [gibson-cheng]
+authors: [gibson.cheng]
 categories: [Product]
 tags: [Product, Asset Size, Cloud, Optimisation]
 comments: true

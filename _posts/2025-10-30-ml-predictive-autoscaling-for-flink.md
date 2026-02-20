@@ -3,7 +3,7 @@ layout: post
 id: 2025-10-30-ml-predictive-autoscaling-for-flink.md
 title: "Machine-learning predictive autoscaling for Flink"
 date: 2025-10-30 00:00:10
-authors: [nhat-nguyen, shikai-ng, calvin-tran]
+authors: [nhat.nguyen, shikai.ng, calvin.tran]
 categories: [Engineering, Data]
 tags: [engineering, performance, data-science]
 comments: true

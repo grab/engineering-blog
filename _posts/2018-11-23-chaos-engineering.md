@@ -3,7 +3,7 @@ layout: post
 id: chaos-engineering
 title: Orchestrating Chaos Using Grab's Experimentation Platform
 date: 2018-11-23 06:00:00
-authors: [roman-atachiants, tharaka-wijebandara, abeesh-thomas]
+authors: [roman.atachiants, tharaka.nw, thomas.stephen]
 categories: [Engineering]
 tags: [Chaos Engineering, Resiliency, Microservice]
 comments: true

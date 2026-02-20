@@ -3,7 +3,7 @@ layout: post
 id: 2020-12-16-reflecting-on-the-five-years-of-bug-bounty-at-grab
 title: Reflecting on the Five Years of Bug Bounty at Grab
 date: 2020-12-16 00:00:00
-authors: [ajay-srivastava, aniket-kulkarni, avinash-singh, nathaniel-callens]
+authors: [ajay.srivastava, aniket.kulkarni, avinash.singh, nathaniel.callens]
 categories: [Security]
 tags: [Security, HackerOne, Bug Bounty]
 comments: true

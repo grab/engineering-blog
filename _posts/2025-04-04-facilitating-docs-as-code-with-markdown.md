@@ -3,7 +3,7 @@ layout: post
 id: 2025-04-03-facilitating-docs-as-code-with-markdown
 title: 'Facilitating Docs-as-Code implementation for users unfamiliar with Markdown'
 date: 2025-04-04 00:23:00
-authors: [david-khu, preeti-karkera, sita-yadav, ziqin-yeow]
+authors: [david.khusmadilan, preeti.karkera, sita.yadav, ziqin.yeow]
 categories: [Engineering]
 tags: [Blog, TechDocs, Helix, Engineering]
 comments: true

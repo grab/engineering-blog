@@ -3,7 +3,7 @@ layout: post
 id: react-native-in-grabpay
 title: React Native in GrabPay
 date: 2019-05-30 17:00:00
-authors: [sushant-tiwari, vinod-prajapati]
+authors: [sushant.tiwari, vinod.prajapati]
 categories: [Engineering]
 tags: [Grab, Mobile, GrabPay, React]
 comments: true

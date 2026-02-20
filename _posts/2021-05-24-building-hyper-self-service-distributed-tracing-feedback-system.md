@@ -3,7 +3,7 @@ layout: post
 id: 2021-05-24-building-hyper-self-service-distributed-tracing-feedback-system
 title: Building a Hyper Self-Service, Distributed Tracing and Feedback System for Rule & Machine Learning (ML) Predictions
 date: 2021-05-24 00:11:20
-authors: [warren-zhou, wenhui-wu, yongguo-mei, muqi-li, varun-kansal]
+authors: [warren.zhou, wenhui.wu, yongguo.mei, muqi.li, varun.kansal]
 categories: [Engineering]
 tags: [Engineering, Machine Learning, Statistics, Distributed Tracing]
 comments: true

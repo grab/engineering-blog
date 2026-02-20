@@ -3,7 +3,7 @@ layout: post
 id: 2023-12-25-kafka-on-kubernetes
 title: 'Kafka on Kubernetes: Reloaded for fault tolerance'
 date: 2023-12-26 00:10:10
-authors: [fabrice-harbulot, thang-le]
+authors: [fabrice.harbulot, thang.le]
 categories: [Engineering, Data Science]
 tags: [Kafka, Kubernetes, AWS, Data Streaming]
 comments: true

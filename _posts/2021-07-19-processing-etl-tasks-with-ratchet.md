@@ -3,7 +3,7 @@ layout: post
 id: 2021-07-19-processing-etl-tasks-with-ratchet
 title: Processing ETL tasks with Ratchet
 date: 2021-07-19 03:21:10
-authors: [amar-prakash]
+authors: [amar.prakash]
 categories: [Engineering]
 tags: [Pipelines, Data, ETL, Engineering]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2021-10-21-designing-products-and-services-based-on-jtbd
 title: Designing products and services based on Jobs to be Done
 date: 2021-10-21 01:20:00
-authors: [tim-lange, soon-hau-chua, sherizan-sheikh]
+authors: [tim.lange, soonhau.chua, sherizan.sheikh]
 categories: [Design]
 tags: [Design, Product, Database, User Research]
 comments: true

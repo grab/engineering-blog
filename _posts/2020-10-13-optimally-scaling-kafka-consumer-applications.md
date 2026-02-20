@@ -3,7 +3,7 @@ layout: post
 id: 2020-10-13-optimally-scaling-kafka-consumer-applications
 title: Optimally Scaling Kafka Consumer Applications
 date: 2020-10-13 02:13:54
-authors: [shubham-badkur]
+authors: [shubham.badkur]
 categories: [Engineering]
 tags: [Event Sourcing, Stream Processing, Kubernetes, Back End, Platform, Go]
 comments: true

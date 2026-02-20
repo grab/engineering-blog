@@ -3,7 +3,7 @@ layout: post
 id: quotas-service
 title: How We Designed the Quotas Microservice to Prevent Resource Abuse
 date: 2018-08-10 02:00:00
-authors: [jim-zhan, gao-chao]
+authors: [chengjun.zhan, gao.chao]
 categories: [Engineering]
 tags: [Quota, Back End, Service]
 comments: true

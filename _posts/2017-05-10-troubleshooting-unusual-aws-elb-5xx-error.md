@@ -3,7 +3,7 @@ layout: post
 id: troubleshooting-unusual-aws-elb-5xx-errors
 title: Troubleshooting Unusual AWS ELB 5XX Error
 date: 2017-05-10 18:43:40
-authors: [dharmarth-shah, ryan-law]
+authors: [dharmarth.shah, ryan.law]
 categories: [Engineering]
 tags: [AWS, Networking]
 comments: true

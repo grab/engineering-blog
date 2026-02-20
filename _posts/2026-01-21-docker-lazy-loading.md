@@ -3,7 +3,7 @@ layout: post
 id: 2026-01-21-docker-lazy-loading
 title: 'Docker lazy loading at Grab: Accelerating container startup times'
 date: 2026-01-21 00:23:00
-authors: [huong-vuong, joseph-sahayaraj]
+authors: [huong.vuong, joseph.sahayaraj]
 categories: [Engineering]
 tags: [Database] 
 comments: true

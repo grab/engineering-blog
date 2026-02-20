@@ -3,7 +3,7 @@ layout: post
 id: grabbing-growth-a-growth-hacking-story
 title: "Grabbing Growth: A Growth Hacking Story"
 date: 2017-12-08 03:00:00
-authors: [gaurav-sachdeva, huan-yang, jiaying-lim]
+authors: [gaurav.sachdeva, huan.yang, jiaying.lim]
 categories: [Product]
 tags: [Growth Hacking]
 comments: true

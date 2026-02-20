@@ -3,7 +3,7 @@ layout: post
 id: come-and-hackallthethings-at-grab
 title: "Come and #hackallthethings at Grab"
 date: 2017-07-11 00:00:40
-authors: [grab-engineering]
+authors: [grab.engineering]
 categories: [Engineering]
 tags: [Security]
 comments: true

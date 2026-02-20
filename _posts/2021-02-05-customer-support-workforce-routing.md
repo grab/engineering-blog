@@ -3,7 +3,7 @@ layout: post
 id: 2021-02-05-customer-support-workforce-routing
 title: Customer Support Workforce Routing
 date: 2021-02-05 00:15:00
-authors: [suman-anand, elisa-monacchi, jasmine-lim, matthew-yeow, pengcheng-zhao]
+authors: [suman.anand, elisa.monacchi, jasmine.lim, matthew.yeow, pengcheng.zhao]
 categories: [Engineering]
 tags: [Workforce Routing, Chat, Product, Routing, Queueing, Customer Support]
 comments: true

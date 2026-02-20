@@ -3,7 +3,7 @@ layout: post
 id: 2023-05-02-safer-flink-deployments
 title: Safer deployment of streaming applications
 date: 2023-05-02 01:23:05
-authors: [shikai-ng]
+authors: [shikai.ng]
 categories: [Engineering]
 tags: [Engineering, Deployments, Streaming applications]
 comments: true

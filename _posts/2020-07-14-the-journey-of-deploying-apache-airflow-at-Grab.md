@@ -3,7 +3,7 @@ layout: post
 id: 2020-07-14-the-journey-of-deploying-apache-airflow-at-Grab
 title: The Journey of Deploying Apache Airflow at Grab
 date: 2020-07-14 10:34:40
-authors: [chandulal-kavar]
+authors: [chandulal.kavar]
 categories: [Engineering, Data Science]
 tags: [Engineering, Data Pipeline, Scheduling, Airflow, Kubernetes, Platform]
 comments: true

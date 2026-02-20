@@ -3,7 +3,7 @@ layout: post
 id: 2021-08-30-multi-armed-bandit-system-recommendation
 title: Automating Multi-Armed Bandit testing during feature rollout
 date: 2021-09-01 01:20:00
-authors: [weicheng-zhu, zhuolun-li, weilun-wu, da-huang]
+authors: [weicheng.zhu, zhuolun.li, weilun.wu, da.huang]
 categories: [Engineering]
 tags: [Engineering, Testing, Optimisation]
 comments: true

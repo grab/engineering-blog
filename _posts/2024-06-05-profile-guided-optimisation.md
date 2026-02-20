@@ -3,7 +3,7 @@ layout: post
 id: 2024-06-05-profile-guided-optimisation
 title: "Profile-guided optimisation (PGO) on Grab services"
 date: 2024-06-05 00:10:10
-authors: [yonghao-hu, vishal-sharma]
+authors: [yonghao.hu, vishal.sharma]
 categories: [Engineering]
 tags: [Go, optimisation, experiments, performance]
 comments: true

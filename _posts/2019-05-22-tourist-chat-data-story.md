@@ -3,7 +3,7 @@ layout: post
 id: tourist-chat-data-story
 title: Tourists on GrabChat!
 date: 2019-05-22 18:43:40
-authors: [lara-pureum-yim, dustin-chung]
+authors: [pureum.yim, dustin.chung]
 categories: [Data Science]
 tags: [Data, Analytics, Data Analytics]
 comments: true

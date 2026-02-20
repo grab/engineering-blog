@@ -3,7 +3,7 @@ layout: post
 id: catwalk-serving-machine-learning-models-at-scale
 title: "Catwalk: Serving Machine Learning Models at Scale"
 date: 2019-07-02 18:43:40
-authors: [nutdanai-phansooksai, juho-lee, pratyush-more, romain-basseville]
+authors: [nutdanai.phansooksai, juho.lee, pratyush.more, romain.basseville]
 categories: [Engineering, Data Science]
 tags: [Machine Learning, Models, Data Science, TensorFlow]
 comments: true

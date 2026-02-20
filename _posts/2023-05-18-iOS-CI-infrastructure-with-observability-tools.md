@@ -3,7 +3,7 @@ layout: post
 id: 2023-05-18-iOS-CI-infrastructure-with-observability-tools
 title: How we improved our iOS CI infrastructure with observability tools
 date: 2023-05-18 04:39:00
-authors: [bunty-madan,krist-foo,denis-sakhapov]
+authors: [bunty.madan, krist.foo, denis.sakhapov]
 categories: [Engineering]
 tags: [iOS, Mobile, Engineering, UITesting]
 comments: true

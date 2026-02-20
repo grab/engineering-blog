@@ -3,7 +3,7 @@ layout: post
 id: 2021-01-18-grabmart-product-team-experience
 title: The GrabMart Journey
 date: 2021-01-18 03:23:00
-authors: [clarisse-peralta, shweta-padmanaban, ya-gao, eelin-ngiow]
+authors: [clarisse.peralta, shweta.padmanaban, ya.gao, eelin.ngiow]
 categories: [Product]
 tags: [GrabMart, Product]
 comments: true

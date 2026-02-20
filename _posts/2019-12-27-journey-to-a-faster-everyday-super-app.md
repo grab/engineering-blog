@@ -3,7 +3,7 @@ layout: post
 id: journey-to-a-faster-everyday-super-app
 title: Journey to a Faster Everyday Superapp Where Every Millisecond Counts
 date: 2019-12-26 22:00:00
-authors: [renu-yadav]
+authors: [renu.yadav]
 categories: [Engineering]
 tags: [Superapp, Mobile, Performance]
 comments: true

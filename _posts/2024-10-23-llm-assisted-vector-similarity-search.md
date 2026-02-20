@@ -3,7 +3,7 @@ layout: post
 id: 2024-10-23-llm-assisted-vector-similarity-search
 title: 'LLM-assisted vector similarity search'
 date: 2024-10-23 00:00:10
-authors: [riyadh-sharif, muqi-li, felix-lie, jialong-loh, haotian-mi, sayam-bohra]
+authors: [riyadh.sharif, muqi.li, felix.lie, jialong.loh, haotian.mi, sayam.bohra]
 categories: [Engineering, Data Science]
 tags: [Engineering, Generative AI, LLM, Machine Learning, Experiment]
 comments: true

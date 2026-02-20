@@ -3,7 +3,7 @@ layout: post
 id: 2025-07-7-techblog_-dispatchgym
 title: 'DispatchGym: Grab’s reinforcement learning research framework'
 date: 2025-07-07 07:23:00
-authors: [tan-sien-yi, henokh-fibrianto, larry-lin]
+authors: [sienyi.tan, henokh.fibrianto, larry.lin]
 categories: [Engineering]
 tags: [Dispatch, Python]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: peak-shift-demand-travel-trends
 title: "Recipe for Building a Widget: How We Helped to “Peak-Shift” Demand by Helping Passengers Understand Travel Trends"
 date: 2019-03-07 11:55:33
-authors: [lara-pureum-yim, prashant-kumar, raghav-garg, preeti-kotamarthi, ajmal-afif, calvin-ng-tjioe, renrong-weng]
+authors: [pureum.yim, prashant.kumar, raghav.garg, preeti.swati, ajmal.jamal, calvin.c, renrong.weng]
 categories: [Data Science, Engineering, Product, Design]
 tags: [Analytics, Data, Data Analytics]
 comments: true

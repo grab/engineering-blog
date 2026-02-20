@@ -3,7 +3,7 @@ layout: post
 id: 2023-04-17-message-center
 title: Message Center - Redesigning the messaging experience on the Grab superapp
 date: 2023-04-17 01:23:05
-authors: [jonathan-lee, jie-zhang, vasu-krishnamoorthy]
+authors: [jonathan.lee, jie.zhang, vasu.krishnamoorthy]
 categories: [Engineering, Design]
 tags: [Engineering, GrabChat, Redesign, Messaging, Chat support]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2024-10-01-catwalk-evolution
 title: 'Evolution of Catwalk: Model serving platform at Grab'
 date: 2024-10-01 00:00:50
-authors: [vishal-sharma, wenbo-wei, siddharth-pandey, daniel-tai, bjorn-jee]
+authors: [vishal.sharma, wenbo.wei, siddharth.pandey, daniel.tai, bjorn.jee]
 categories: [Engineering, Data Science]
 tags: [Machine Learning, Models, Data Science, TensorFlow, Kubernetes, Docker]
 comments: true

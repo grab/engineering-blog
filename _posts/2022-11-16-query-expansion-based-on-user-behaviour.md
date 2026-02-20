@@ -3,7 +3,7 @@ layout: post
 id: 2022-11-16-query-expansion-based-on-user-behaviour
 title: Query expansion based on user behaviour
 date: 2022-11-16 00:29:00
-authors: [shuailong-liang, weilun-wu, yuan-meng, simone-wong]
+authors: [shuailong.liang, weilun.wu, yuan.meng, simone.wong]
 categories: [Engineering, Data Science]
 tags: [Analytics, Data Science]
 comments: true

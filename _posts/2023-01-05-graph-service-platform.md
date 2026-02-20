@@ -3,7 +3,7 @@ layout: post
 id: 2023-01-05-graph-service-platform
 title: Graph service platform
 date: 2023-01-05 01:18:05
-authors: [wenxiang-lu, bruce-li, jacob-yu, muqi-li, jia-chen]
+authors: [wenxiang.lu, bruce.li, jacob.yu, muqi.li, jia.chen]
 categories: [Engineering, Security, Data Science]
 tags: [Engineering, Graph networks, Graphs, Graph visualisation, Security, Analytics, Fraud detection]
 comments: true

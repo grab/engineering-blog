@@ -3,7 +3,7 @@ layout: post
 id: 2024-04-09-grabx-decision-engine
 title: "Grab Experiment Decision Engine - a Unified Toolkit for Experimentation"
 date: 2024-04-09 02:22:10
-authors: [ruike-zhang, panos-m]
+authors: [ruike.zhang, panos.m]
 categories: [Engineering, Data Science]
 tags: [Data Science, Experiment, Statistics, Econometrics, Python Package]
 comments: true

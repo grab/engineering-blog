@@ -3,7 +3,7 @@ layout: post
 id: 2025-11-26-real-time-data-quality-monitoring.md
 title: "Real-time data quality monitoring: Kafka stream contracts with syntactic and semantic test"
 date: 2025-11-26 00:00:10
-authors: [yuanzhe-liu, fabrice-harbulot, shikai-ng, quang-lehong]
+authors: [yuanzhe.liu, fabrice.harbulot, shikai.ng, quang.lehong]
 categories: [Engineering, Data]
 tags: [Engineering, Kafka, Performance, Data science, Data processing, Real-time streaming]
 comments: true

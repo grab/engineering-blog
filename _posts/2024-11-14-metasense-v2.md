@@ -3,7 +3,7 @@ layout: post
 id: 2024-11-14-metasense-v2
 title: 'Metasense V2: Enhancing, improving and productionisation of LLM powered data governance'
 date: 2024-11-14 00:00:10
-authors: [nick-buhrer, shreyas-parbat, yucheng-zeng]
+authors: [nick.buhrer, shreyas.parbat, yucheng.zeng]
 categories: [Engineering, Data Science]
 tags: [Engineering, Generative AI, LLM, Machine Learning]
 comments: true

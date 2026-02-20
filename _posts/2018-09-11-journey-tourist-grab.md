@@ -3,7 +3,7 @@ layout: post
 id: journey-tourist-grab
 title: Journey of a Tourist via Grab
 date: 2018-09-11 08:43:40
-authors: [lara-pureum-yim]
+authors: [pureum.yim]
 categories: [Data Science]
 tags: [Analytics, Data, Data Analytics, Tourism, Tourists]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: the-art-of-hiring-good-engineers
 title: "The Art of Hiring Good Engineers"
 date: 2017-10-04 07:30:00
-authors: [rachel-lee]
+authors: [rachel.lee]
 categories: [Engineering]
 tags: [Hiring]
 comments: true

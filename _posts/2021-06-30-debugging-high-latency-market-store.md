@@ -3,7 +3,7 @@ layout: post
 id: 2021-06-30-debugging-high-latency-market-store
 title: Debugging High Latency Due to Context Leaks
 date: 2021-06-30 00:08:20
-authors: [sourabh-suman, adarsh-koyya, chandankumar-agarwal]
+authors: [sourabh.suman, adarsh.koyya, chandankumar.agarwal]
 categories: [Engineering]
 tags: [Engineering, Latency, Debugging, Memory Leak]
 comments: true

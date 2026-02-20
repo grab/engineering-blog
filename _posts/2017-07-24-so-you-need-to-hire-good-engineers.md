@@ -3,7 +3,7 @@ layout: post
 id: so-you-need-to-hire-good-engineers
 title: "So You Need to Hire Good Engineers"
 date: 2017-07-24 07:46:00
-authors: [rachel-lee]
+authors: [rachel.lee]
 categories: [Engineering]
 tags: [Hiring]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2022-12-01-kartacam-powers-grabmaps
 title: How KartaCam powers GrabMaps
 date: 2022-12-01 01:08:40
-authors: [shuangquan-hou, victor-liang, alex-ilisei, zhixin-yu, suwei-yang, an-tran, ameya-mannikar]
+authors: [shuangquan.hou, victor.liang, alex.ilisei, zhixin.yu, suwei.yang, an.tran, ameya.mannikar]
 categories: [Engineering, Product, Design]
 tags: [Engineering, GrabMaps, KartaCam, Maps, Edge AI]
 comments: true

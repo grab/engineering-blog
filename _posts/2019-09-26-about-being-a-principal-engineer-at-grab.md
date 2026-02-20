@@ -3,7 +3,7 @@ layout: post
 id: about-being-a-principal-engineer-at-grab
 title: Being a Principal Engineer at Grab
 date: 2019-09-25 18:14:40
-authors: [roman-atachiants]
+authors: [roman.atachiants]
 categories: [Engineering]
 tags: [Career, Engineering, Microservice]
 comments: true

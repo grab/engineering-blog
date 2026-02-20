@@ -3,7 +3,7 @@ layout: post
 id: building-grab-s-experimentation-platform
 title: Building Grab’s Experimentation Platform
 date: 2018-07-13 02:00:00
-authors: [abeesh-thomas, roman-atachiants]
+authors: [thomas.stephen, roman.atachiants]
 categories: [Engineering]
 tags: [Experiment, Back End, Front End]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2025-12-01-a-decade-of-defense.md
 title: "A Decade of Defense: Celebrating Grab's 10th Year Bug Bounty Program"
 date: 2025-12-01 00:00:10
-authors: [peishan-yap, prithvinder-singh, zhenhao-lee]
+authors: [peishan.yap, prithvinder.singh, zhenhao.lee]
 categories: [Engineering, Data]
 tags: [engineering, performance]
 comments: true

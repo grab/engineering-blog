@@ -3,7 +3,7 @@ layout: post
 id: 2020-09-07-uncovering-the-truth-behind-lua-and-redis-data-consistency
 title: Uncovering the Truth Behind Lua and Redis Data Consistency
 date: 2020-9-07 08:43:40
-authors: [allen-wang]
+authors: [allen.wang]
 categories: [Engineering]
 tags: [Redis, Lua Scripts, High CPU Usage, Data Consistency]
 comments: true

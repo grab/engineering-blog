@@ -3,7 +3,7 @@ layout: post
 id: 2021-01-13-trident-real-time-event-processing-at-scale
 title: Trident - Real-time Event Processing at Scale
 date: 2021-01-13 00:23:00
-authors: [jie-zhang, abdullah-mamun]
+authors: [jie.zhang, abdullah.mamun]
 categories: [Engineering]
 tags: [A/B Testing, Event processing]
 comments: true

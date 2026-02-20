@@ -3,7 +3,7 @@ layout: post
 id: save-your-place-with-grab
 title: Save Your Place with Grab!
 date: 2019-08-01 18:43:40
-authors: [summit-saurav, neeraj-mishra, shirley-yang]
+authors: [summit.saurav, neeraj.mishra, shirley.yang]
 categories: [Product]
 tags: [Maps, Data]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2023-08-02-graph-anomaly-model
 title: Unsupervised graph anomaly detection - Catching new fraudulent behaviours
 date: 2023-08-02 01:23:05
-authors: [rizal-fathony,jenn-ng,jia-chen]
+authors: [rizal.fathony, jenn.ng, jia.chen]
 categories: [Data Science, Security]
 tags: [Data science, Graph networks, Graphs, Graph visualisation, Security, Fraud detection, Anomaly detection, Machine learning]
 comments: true

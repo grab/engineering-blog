@@ -3,7 +3,7 @@ layout: post
 id: 2021-07-13-app-modularisation-at-scale
 title: App Modularisation at Scale
 date: 2021-07-13 00:04:40
-authors: [amar-jain]
+authors: [amar.jain]
 categories: [Engineering]
 tags: [App, Build Time, Engineering, Monorepo]
 comments: true

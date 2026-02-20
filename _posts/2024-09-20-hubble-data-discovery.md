@@ -3,7 +3,7 @@ layout: post
 id: 2024-09-20-hubble-data-discovery
 title: 'Enabling conversational data discovery with LLMs at Grab'
 date: 2024-09-26 00:00:40
-authors: [shreyas-parbat, amanda-ng, yucheng-zeng, vinnson-lee, feng-cheng, varun-torka]
+authors: [shreyas.parbat, amanda.ng, yucheng.zeng, vinnson.lee, feng.cheng, varun.torka]
 categories: [Engineering]
 tags: [Data Discovery, AI, LLM, Documentation, Elasticsearch]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2023-03-01-securing-gitops-pipeline
 title: Securing GitOps pipelines
 date: 2023-03-01 02:23:05
-authors: [thang-le]
+authors: [thang.le]
 categories: [Engineering]
 tags: [Engineering, Open source, Pipelines, Continuous Delivery, Continuous Integration, Optimisation]
 comments: true

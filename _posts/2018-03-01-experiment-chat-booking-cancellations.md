@@ -3,7 +3,7 @@ layout: post
 id: experiment-chat-booking-cancellations
 title: How Grab Experimented with Chat to Drive Down Booking Cancellations
 date: 2018-03-01 00:43:40
-authors: [ishita-parbat, kaisen-wang, joseph-khan, mike-tee]
+authors: [ishita.parbat, kaisen.wang, joseph.khan, mike.tee]
 categories: [Product]
 tags: [Chat, Booking, Experiment]
 comments: true

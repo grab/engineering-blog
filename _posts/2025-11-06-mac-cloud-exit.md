@@ -3,7 +3,7 @@ layout: post
 id: 2025-11-06-mac-cloud-exit.md
 title: "Grab's Mac Cloud Exit supercharges macOS CI/CD"
 date: 2025-11-06 00:00:05
-authors: [madushan-gamage, jacob-xu, tunyi-oh]
+authors: [madushan.gamage, jacob.xu, tunyi.oh]
 categories: [Engineering]
 tags: [engineering, performance]
 comments: true

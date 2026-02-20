@@ -3,7 +3,7 @@ layout: post
 id: 2023-06-30-go-module-proxy
 title: Go module proxy at Grab
 date: 2023-06-30 01:18:00
-authors: [jerry-ng]
+authors: [jerry.ng]
 categories: [Engineering]
 tags: [Engineering]
 comments: true

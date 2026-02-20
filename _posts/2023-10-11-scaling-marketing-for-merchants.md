@@ -3,7 +3,7 @@ layout: post
 id: 2023-10-11-scaling-marketing-for-merchants
 title: 'Scaling marketing for merchants with targeted and intelligent promos'
 date: 2023-10-11 00:00:10
-authors: [sharon-teng]
+authors: [sharon.teng]
 categories: [Engineering, Data Science]
 tags: [Data, Advertising, Scalability, Data science, Marketing]
 comments: true

@@ -3,7 +3,7 @@ layout: post
 id: 2020-03-20-seven-facts-about-grab-partner-drivers-in-sg
 title: 7 Fun Facts about Grab’s Driver-Partners in Singapore
 date: 2020-03-20 12:13:20
-authors: [lara-pureum-yim, you-zhen-chong, sze-han-ong, michael-chirico, kelly-kuo, kenny-chan]
+authors: [pureum.yim, youzhen.chong, szehan.ong, michael.chirico, kelly.kuo, kenny.chan]
 categories: [Data Science]
 tags: [Data, Data Analytics]
 comments: true

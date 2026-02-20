@@ -3,7 +3,7 @@ layout: post
 id: 2021-05-10-our-journey-to-continuous-delivery-at-grab-part2
 title: Our Journey to Continuous Delivery at Grab (Part 2)
 date: 2021-05-10 08:10:20
-authors: [sylvain-bougerel]
+authors: [sylvain.bougerel]
 categories: [Engineering]
 tags: [Deployment, CI, Continuous Integration, Continuous Deployment, Deployment Process, Continuous Delivery, Multi Cloud, Hermetic Deployments, Automation]
 comments: true

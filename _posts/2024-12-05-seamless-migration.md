@@ -3,7 +3,7 @@ layout: post
 id: 2024-12-05-seamless-migration
 title: 'How we seamlessly migrated high volume real-time streaming traffic from one service to another with zero data loss and duplication'
 date: 2024-12-05 00:00:10
-authors: [riyadh-sharif, jialong-loh, muqi-li, pu-li]
+authors: [riyadh.sharif, jialong.loh, muqi.li, pu.li]
 categories: [Engineering, Data Science]
 tags: [Engineering, Optimisation, Data streaming, Real-time streaming, Service]
 comments: true
