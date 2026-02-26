@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2026-02-28-reclaiming-tetabytes-optimizing-android-image-caching-with-tlru
-title: 'Reclaiming Terabytes: Optimizing Android Image Caching with TLRU'
+title: 'Reclaiming Terabytes: Optimizing Android image caching with TLRU'
 date: 2026-02-02 00:23:00
 authors: [van.minh]
 categories: [Engineering]
