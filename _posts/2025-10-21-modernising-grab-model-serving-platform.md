@@ -3,7 +3,7 @@ layout: post
 id: 2025-10-21-modernising-grab-model-serving-platform.md
 title: "Modernising Grab’s model serving platform with NVIDIA Triton Inference Server"
 date: 2025-10-21 00:00:10
-authors: [daniel.tai, siddharth.pandey, richard.ryu, hung.do, nguyen.nhat.minh]
+authors: [daniel.tai, siddharth.pandey, richard.ryu, hung.do, nhatminh.nguyen]
 categories: [Engineering, Data]
 tags: [engineering, performance, data-science]
 comments: true
