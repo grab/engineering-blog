@@ -114,7 +114,7 @@ When a new 10 MB item is added on Day 100, the cache grows to 105 MB, exceeding 
 
 #### Size-based eviction process
 
-When the cache exceeds its 100MB limit, TLRU applies traditional LRU eviction logic. **Item 3** is selected for eviction because:
+When the cache exceeds its 100 MB limit, TLRU applies traditional LRU eviction logic. **Item 3** is selected for eviction because:
 
 * It is the least recently used entry (oldest access time).
 
