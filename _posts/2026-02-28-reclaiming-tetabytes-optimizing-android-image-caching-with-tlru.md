@@ -5,7 +5,7 @@ title: 'Reclaiming Terabytes: Optimizing Android image caching with TLRU'
 date: 2026-03-06 00:23:00
 authors: [van.minh]
 categories: [Engineering]
-tags: [app disk, disk size, optimisation, scalability] 
+tags: [app disk, disk size, optimization, scalability] 
 comments: true
 cover_photo: /img/image-caching/banner-image.png
 excerpt: "In the quest to optimize app performance, managing the image cache was crucial. This blog takes us on a journey from a traditional Least Recently Used (LRU) cache to a Time-Aware Least Recently Used (TLRU) cache. This innovative approach reclaimed terabytes of storage across millions of devices while maintaining user experience and controlling server costs. Discover how Grab's TLRU implementation cleverly balances storage optimization and performance, offering a glimpse into the future of app development."
@@ -51,13 +51,13 @@ While DiskLruCache efficiently manages cache size, it has a critical limitation:
  
 What we needed was a cache mechanism that could:
 
-* **Maintain LRU cache benefits**: Preserve efficient caching for users who actively use the app features.
+- **Maintain LRU cache benefits**: Preserve efficient caching for users who actively use the app features.
 
-* **Remove stale content based on time:** Automatically identify and evict outdated entries, not just rely on storage constraints.
+- **Remove stale content based on time:** Automatically identify and evict outdated entries, not just rely on storage constraints.
 
-* **Protect user experience**: Ensure images still load quickly without cache misses.
+- **Protect user experience**: Ensure images still load quickly without cache misses.
 
-* **Keep server costs low**: Avoid increased server requests from premature cache evictions.
+- **Keep server costs low**: Avoid increased server requests from premature cache evictions.
 
 These requirements pointed us toward an enhanced LRU approach. We needed to enhance LRU with time awareness while preserving its proven size-management capabilities.
 
@@ -69,11 +69,11 @@ To address these limitations, we developed a new LRU cache variant named TLRU th
 
 TLRU introduces three core attributes to manage cache entries:
 
-* **Time-To-Live (TTL)**: A threshold that determines when a cache entry is considered expired. An entry is expired if `(current_time - last_accessed) > TTL`. Expired entries are automatically removed during cache operations.
+- **Time-To-Live (TTL)**: A threshold that determines when a cache entry is considered expired. An entry is expired if `(current_time - last_accessed) > TTL`. Expired entries are automatically removed during cache operations.
 
-* **Minimum cache size threshold**: A safety net that ensures a baseline set of essential images always remains cached, even when entries expire. This prevents complete cache deletion when users haven't used the app for more than the TTL period, maintaining app responsiveness for returning users instead of starting with an empty cache.
+- **Minimum cache size threshold**: A safety net that ensures a baseline set of essential images always remains cached, even when entries expire. This prevents complete cache deletion when users haven't used the app for more than the TTL period, maintaining app responsiveness for returning users instead of starting with an empty cache.
 
-* **Maximum cache size**: Inherited from LRU cache, this enforces the upper storage limit (100 MB in our case). When exceeded, the least recently used entries are evicted regardless of their age.
+- **Maximum cache size**: Inherited from LRU cache, this enforces the upper storage limit (100 MB in our case). When exceeded, the least recently used entries are evicted regardless of their age.
 
 Together, these attributes ensure TLRU maintains optimal cache size by managing both storage constraints and temporal relevance, reducing app disk footprint without impacting user experience.
 
@@ -83,11 +83,11 @@ To better understand how TLRU works in practice, let's walk through a comprehens
 
 Our TLRU cache configuration includes:
 
-* **Maximum cache size**: 100MB - the storage limit that triggers size-based eviction.
+- **Maximum cache size**: 100 MB - the storage limit that triggers size-based eviction.
 
-* **Minimum size threshold**: 20 MB - the safety net that protects essential cached content.
+- **Minimum size threshold**: 20 MB - the safety net that protects essential cached content.
 
-* **TTL**: 20 days - entries older than this are considered expired.
+- **TTL**: 20 days - entries older than this are considered expired.
 
 Each cache entry includes `last_accessed` metadata containing the timestamp of its most recent access. When an entry is first created, this timestamp is initialized with the creation time. This timestamp determines whether an entry has expired based on the formula:
 
@@ -101,9 +101,9 @@ For this walkthrough, we'll use `current_time = Day 100` as our starting point.
 
 Our example begins with three existing cache entries totaling 95 MB, approaching the 100 MB limit:
 
-* **Item 1** (8 MB, last accessed Day 82): At 18 days old
-* **Item 2** (30MB, last accessed Day 81): At 19 days old
-* **Item 3** (57 MB, last accessed Day 80): At exactly 20 days old, valid at the TTL threshold
+- **Item 1** (8 MB, last accessed Day 82): At 18 days old
+- **Item 2** (30 MB, last accessed Day 81): At 19 days old
+- **Item 3** (57 MB, last accessed Day 80): At exactly 20 days old, valid at the TTL threshold
 
 When a new 10 MB item is added on Day 100, the cache grows to 105 MB, exceeding our 100 MB limit and triggering size-based eviction.
 
@@ -116,9 +116,9 @@ When a new 10 MB item is added on Day 100, the cache grows to 105 MB, exceeding 
 
 When the cache exceeds its 100 MB limit, TLRU applies traditional LRU eviction logic. **Item 3** is selected for eviction because:
 
-* It is the least recently used entry (oldest access time).
+- It is the least recently used entry (oldest access time).
 
-* This demonstrates TLRU maintaining LRU behavior for size enforcement, regardless of expiration status.
+- This demonstrates TLRU maintaining LRU behavior for size enforcement, regardless of expiration status.
 
 <div class="post-image-section"><figure>
   <img src="/img/image-caching/figure-4.png" alt="" style="width:60%"><figcaption align="middle">Figure 4. Size-based eviction removes the least recently used entry to enforce storage limits.</figcaption>
@@ -129,7 +129,7 @@ When the cache exceeds its 100 MB limit, TLRU applies traditional LRU eviction l
 
 Five days later (Day 105), Item 1 and Item 2 cross the expiration threshold:
 
-Despite operating well below the size limit (48MB < 100MB), TLRU evaluates expired entries for time-based eviction. Item 2 is removed because it's expired, and the cache remains above the minimum threshold. Item 1, although also expired, is protected by the minimum threshold rule; removing it would leave only 10MB, which falls below the 20MB minimum.
+Despite operating well below the size limit (48 MB < 100 MB), TLRU evaluates expired entries for time-based eviction. Item 2 is removed because it's expired, and the cache remains above the minimum threshold. Item 1, although also expired, is protected by the minimum threshold rule; removing it would leave only 10 MB, which falls below the 20 MB minimum.
 
 <div class="post-image-section"><figure>
   <img src="/img/image-caching/figure-5.png" alt="" style="width:60%"><figcaption align="middle">Figure 5. Time-based eviction and minimum threshold protection working together.</figcaption>
@@ -140,11 +140,11 @@ Despite operating well below the size limit (48MB < 100MB), TLRU evaluates expir
 
 This comprehensive example demonstrates TLRU's three core mechanisms:
 
-* **Size-based eviction**: Enforces storage limits using traditional LRU ordering (Item 3 removed despite being valid).
+- **Size-based eviction**: Enforces storage limits using traditional LRU ordering (Item 3 removed despite being valid).
 
-* **Time-based eviction**: Proactively removes expired content when safe to do so (Item 2 removed for age).
+- **Time-based eviction**: Proactively removes expired content when safe to do so (Item 2 removed for age).
 
-* **Minimum threshold protection**: Preserves essential cache functionality even with expired content (Item 1 protected despite expiration).
+- **Minimum threshold protection**: Preserves essential cache functionality even with expired content (Item 1 protected despite expiration).
 
 ## Technical implementation
 
@@ -158,15 +158,15 @@ To understand our implementation, we'll first explore how the original DiskLruCa
 
 [DiskLruCache](https://github.com/bumptech/glide/blob/master/third_party/disklrucache/src/main/java/com/bumptech/glide/disklrucache/DiskLruCache.java) provides a simple cache solution that stores key-value pairs on disk, while also keeping track of their usage to evict the least recently used items when the cache reaches its maximum size. Here is an overview of how DiskLruCache is implemented:
 
-* **Data storage**: DiskLruCache stores its data in a specified directory, creating files for each entry.
+- **Data storage**: DiskLruCache stores its data in a specified directory, creating files for each entry.
 
-* **Key-based access**: Each entry has a unique key (typically a hash generated by the image loader) used to create the filename of the cached entry.
+- **Key-based access**: Each entry has a unique key (typically a hash generated by the image loader) used to create the filename of the cached entry.
 
-* **Atomic writes**: When adding an entry, it creates a temporary file and writes the data to it. If successful, it atomically renames the temporary file to the final filename.
+- **Atomic writes**: When adding an entry, it creates a temporary file and writes the data to it. If successful, it atomically renames the temporary file to the final filename.
 
-* **Cache retrieval**: When reading from the cache, it looks up the key, opens the corresponding file on disk, and returns an InputStream to read the data.
+- **Cache retrieval**: When reading from the cache, it looks up the key, opens the corresponding file on disk, and returns an InputStream to read the data.
 
-* **Size management**: It maintains a maximum cache size limit. When exceeded, it removes the least recently used items until it is within the specified limit.
+- **Size management**: It maintains a maximum cache size limit. When exceeded, it removes the least recently used items until it is within the specified limit.
 
 The central component that enables this functionality is the journaling mechanism, detailed in the following section.
 
@@ -183,25 +183,25 @@ The journaling mechanism in DiskLruCache is designed to maintain consistency and
 
 The journal file is a plain text file that records cache operations line by line.
 
-* DIRTY: Indicates the start of a write operation to a cache entry.
+- DIRTY: Indicates the start of a write operation to a cache entry.
 
-* CLEAN: Indicates that a cache entry was successfully written and closed.
+- CLEAN: Indicates that a cache entry was successfully written and closed.
 
-* REMOVE: Indicates that a cache entry was removed from the cache.
+- REMOVE: Indicates that a cache entry was removed from the cache.
 
-* READ: Indicates that a cache entry was read.
+- READ: Indicates that a cache entry was read.
 
 To gain a comprehensive understanding of the journal file format, refer to the following detailed explanation.
 
-* **Key information**: Each line includes the key and other relevant information, such as the lengths of the cache entry files.
+- **Key information**: Each line includes the key and other relevant information, such as the lengths of the cache entry files.
 
-* **Cache initialization**: Upon initialization, DiskLruCache reads the journal file to reconstruct cache metadata in memory, determining file associations, lengths, and access order. If the journal file is corrupted or missing, the cache will be considered invalid, and DiskLruCache will remove all cache files and start fresh.
+- **Cache initialization**: Upon initialization, DiskLruCache reads the journal file to reconstruct cache metadata in memory, determining file associations, lengths, and access order. If the journal file is corrupted or missing, the cache will be considered invalid, and DiskLruCache will remove all cache files and start fresh.
 
-* **Cache operations and journal updates**: When performing cache operations like adding, updating, or removing entries, DiskLruCache appends corresponding lines to the journal file, recording the operation details. For example, when starting to write a new cache entry, it writes a `DIRTY` line with the key, and when the write is successful, it appends a `CLEAN` line with the key and lengths.  
+- **Cache operations and journal updates**: When performing cache operations like adding, updating, or removing entries, DiskLruCache appends corresponding lines to the journal file, recording the operation details. For example, when starting to write a new cache entry, it writes a `DIRTY` line with the key, and when the write is successful, it appends a `CLEAN` line with the key and lengths.  
 
-* **Synchronization and consistency:** DiskLruCache uses synchronization to ensure that only one thread can access the cache at a time, preventing race conditions and data corruption. It also uses a journalWriter ([java.io.Writer](http://java.io)) instance to append operations to the journal file, ensuring that the file is always in a consistent state.
+- **Synchronization and consistency:** DiskLruCache uses synchronization to ensure that only one thread can access the cache at a time, preventing race conditions and data corruption. It also uses a journalWriter (`java.io.Writer`) instance to append operations to the journal file, ensuring that the file is always in a consistent state.
 
-* **Journal compaction**: Over time, the journal file may grow with redundant operations. DiskLruCache periodically compacts the journal by creating a new file that contains only the current cache metadata, then atomically replaces the old file. The compaction process usually happens when the journal file size exceeds a certain threshold.
+- **Journal compaction**: Over time, the journal file may grow with redundant operations. DiskLruCache periodically compacts the journal by creating a new file that contains only the current cache metadata, then atomically replaces the old file. The compaction process usually happens when the journal file size exceeds a certain threshold.
 
 DiskLruCache ensures consistency and prevents data corruption by using this journaling mechanism, making it a reliable solution for disk-based caching.
 
@@ -211,11 +211,11 @@ With a solid understanding of DiskLruCache's architecture, we can now explore ho
 
 Three primary modifications to DiskLruCache:
 
-#### Tracking last access time
+- **Tracking last access time**:
 
 To support time-based eviction, the cache needs to track when each entry was last accessed. This information must persist across app restarts, so it's stored in the journal file itself.
 
-**Modified journal format**:
+Modified journal format:
 
 ```
 READ [Cache-Key] [Access-Timestamp]
@@ -224,16 +224,16 @@ CLEAN [Cache-Key] [File-Size]-[Access-Timestamp]
 
 The timestamps are added to `READ` and `CLEAN` operations:
 
-* **READ entries** record when a cache entry is accessed, updating its last-access time.  
+- **READ entries** record when a cache entry is accessed, updating its last-access time.  
 
-* **CLEAN entries** record the creation time when a new entry is successfully added to the cache.
+- **CLEAN entries** record the creation time when a new entry is successfully added to the cache.
 
 <div class="post-image-section"><figure>
   <img src="/img/image-caching/examplep-tlru-file.png" alt="" style="width:70%"><figcaption align="middle">Figure 7. Example of a TLRU journal file.</figcaption>
   </figure>
 </div> 
 
-#### Time-based eviction logic
+- **Time-based eviction logic**:
 
 The TLRU cache leverages the existing LRU ordering to optimize expiration checking. For each cache operation, it checks if the least recently accessed entry has expired before proceeding with time-based trimming.
 
@@ -246,7 +246,7 @@ The diagram below shows how the TLRU cache makes the decision to remove the cach
 
 The algorithm leverages the sorted nature of the cache: if the least recently accessed entry hasn't expired, no other entries need checking. If it has expired, the cache trim operation walks through entries from oldest to newest, removing all expired ones.
 
-#### Backward-compatible migration
+- **Backward-compatible migration**:
 
 With an extensive user base, invalidating existing cached images would cause millions of users to experience poor performance while creating massive server traffic spikes and infrastructure costs.
 
@@ -262,9 +262,9 @@ Finding optimal configuration values requires systematic experimentation and dat
 
 *Note: Cache hit ratio, our key success metric, gauges efficiency by the percentage of requests served from cache versus requiring server downloads. Lower ratios lead to higher server costs and increased user data consumption.* 
 
-Our success criteria is for a cache hit ratio decrease of no more than 3 percentage points (p.p) during the transition to TLRU. For instance, a decrease from 59% to 56% hit ratio would result in 7% increase in server requests. This threshold balances storage optimization with acceptable performance impact.
+Our success criteria is for a cache hit ratio decrease of no more than 3 percentage points (pp) during the transition to TLRU. For instance, a decrease from 59% to 56% hit ratio would result in 7% increase in server requests. This threshold balances storage optimization with acceptable performance impact.
 
-To mitigate potential server cost impact from our maximum acceptable 3 p.p cache hit ratio drop, we worked with the server team to optimize image delivery infrastructure, enabling a confident TLRU rollout without infrastructure cost concerns.
+To mitigate potential server cost impact from our maximum acceptable 3 pp cache hit ratio drop, we worked with the server team to optimize image delivery infrastructure, enabling a confident TLRU rollout without infrastructure cost concerns.
 
 ## Impact and results
 
