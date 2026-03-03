@@ -105,7 +105,7 @@ Our example begins with three existing cache entries totaling 95 MB, approaching
 * **Item 2** (30MB, last accessed Day 81): At 19 days old
 * **Item 3** (57 MB, last accessed Day 80): At exactly 20 days old, valid at the TTL threshold
 
-When a new 10MB item is added on Day 100, the cache grows to 105MB, exceeding our 100MB limit and triggering size-based eviction.
+When a new 10 MB item is added on Day 100, the cache grows to 105 MB, exceeding our 100 MB limit and triggering size-based eviction.
 
 <div class="post-image-section"><figure>
   <img src="/img/image-caching/figure-3.png" alt="" style="width:60%"><figcaption align="middle">Figure 3. Initial TLRU cache state and the impact of adding new entries.</figcaption>
