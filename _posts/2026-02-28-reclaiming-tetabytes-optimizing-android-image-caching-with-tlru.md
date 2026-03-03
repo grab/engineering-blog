@@ -229,7 +229,7 @@ The timestamps are added to `READ` and `CLEAN` operations:
 * **CLEAN entries** record the creation time when a new entry is successfully added to the cache.
 
 <div class="post-image-section"><figure>
-  <img src="/img/image-caching/examplep-tlru-file.png" alt="" style="width:70%"><figcaption align="middle">Figure 7. Example TLRU journal file.</figcaption>
+  <img src="/img/image-caching/examplep-tlru-file.png" alt="" style="width:70%"><figcaption align="middle">Figure 7. Example of a TLRU journal file.</figcaption>
   </figure>
 </div> 
 
