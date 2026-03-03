@@ -5,7 +5,7 @@ title: 'Turbocharging GrabUnlimited with Temporal'
 date: 2024-12-12 00:00:10
 authors: [michael.parreno, theodore.felix]
 categories: [Engineering, Product]
-tags: [Engineering, Optimisation, Product, Database, Scalability]
+tags: [Engineering, Optimization, Product, Database, Scalability]
 comments: true
 cover_photo: /img/turbocharging-grabunlimited-with-temporal/cover.png
 excerpt: "Discover how Grab tackled the challenges of scaling its flagship membership program, GrabUnlimited. In this deep dive, we explore the migration from a legacy system to Temporal, reducing production incidents by 80%, improving scalability, and transforming the architecture for millions of users."

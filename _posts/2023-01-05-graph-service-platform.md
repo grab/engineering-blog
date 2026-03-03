@@ -5,7 +5,7 @@ title: Graph service platform
 date: 2023-01-05 01:18:05
 authors: [wenxiang.lu, bruce.li, jacob.yu, muqi.li, jia.chen]
 categories: [Engineering, Security, Data Science]
-tags: [Engineering, Graph networks, Graphs, Graph visualisation, Security, Analytics, Fraud detection]
+tags: [Engineering, Graph networks, Graphs, Graph visualization, Security, Analytics, Fraud detection]
 comments: true
 cover_photo: /img/graph-service-platform/cover.jpg
 excerpt: "Graphs are powerful data representations that detect relationships and data linkages between devices and help reveal fraudulent or malicious users. Learn how GrabDefence built the graph service platform to help discover potentially malicious data linkages."

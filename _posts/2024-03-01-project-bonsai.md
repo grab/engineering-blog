@@ -5,7 +5,7 @@ title: "Android App Size at Scale with Project Bonsai"
 date: 2024-03-01 02:22:10
 authors: [van.minh]
 categories: [Engineering]
-tags: [App size, Optimisation, Project Bonsai, App download size, App disk size, Scalability]
+tags: [App size, Optimization, Project Bonsai, App download size, App disk size, Scalability]
 comments: true
 cover_photo: /img/project-bonsai/cover.png
 excerpt: "With the size of our app growing to include more features, Grab recognised it as a potential hurdle for new users with small storage capacities or restricted Internet bandwidth. Read to find out more about Project Bonsai and how it reduced app download size and app disk size."

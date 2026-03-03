@@ -5,7 +5,7 @@ title: "Profile-guided optimisation (PGO) on Grab services"
 date: 2024-06-05 00:10:10
 authors: [yonghao.hu, vishal.sharma]
 categories: [Engineering]
-tags: [Go, optimisation, experiments, performance]
+tags: [Go, Optimization, Experiments, Performance]
 comments: true
 cover_photo: /img/profile-guided-optimisation/cover.png
 excerpt: "Profile-guided optimisation (PGO) is a method that tracks CPU profile data and uses that data to optimise your application builds. The AI platform team enabled this on several Grab services to discover the full benefits and caveats of using PGO. Read this article to find out more."

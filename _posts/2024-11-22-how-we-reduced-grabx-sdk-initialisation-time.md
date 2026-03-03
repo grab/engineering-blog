@@ -5,7 +5,7 @@ title: 'How we reduced initialisation time of Product Configuration Management S
 date: 2024-11-22 00:00:01
 authors: [ram.pradhan, inderpreet.singh, yonghao.hu, padarn.wilson]
 categories: [Engineering]
-tags: [Engineering, Optimisation, Service]
+tags: [Engineering, Optimization, Service]
 comments: true
 cover_photo: /img/how-we-reduced-grabx-sdk-initialisation-time/cover.png
 excerpt: "Discover how we revolutionised our product configuration management SDK, reducing initialisation time by up to 90%. Learn about the challenges we faced with cold starts and the phased approach we took to optimise the SDK's performance."

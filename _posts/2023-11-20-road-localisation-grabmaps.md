@@ -5,7 +5,7 @@ title: 'Road localisation in GrabMaps'
 date: 2023-11-17 00:00:10
 authors: [roxana.crisan]
 categories: [Engineering, Data Science, Product]
-tags: [Maps, Data, Big Data, Data processing, Hyperlocalisation, GrabMaps]
+tags: [Maps, Data, Big Data, Data processing, Hyperlocalization, GrabMaps]
 comments: true
 cover_photo: /img/road-localisation-grabmaps/cover.jpg
 excerpt: "With GrabMaps powering the Grab superapp we have the opportunity to improve our services and enhance our map with hyperlocal data. No matter the use case, road localisation plays an important role in Grab’s map-making process. However, road localisation entails handling a substantial volume of data, making it a costly and time-consuming endeavour. In this article, we explore the strategies we have implemented to drive down costs and reduce processing times associated with road localisation."

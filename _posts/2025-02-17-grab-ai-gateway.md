@@ -5,7 +5,7 @@ title: 'Grab AI Gateway: Connecting Grabbers to multiple GenAI providers'
 date: 2025-02-19 00:00:10
 authors: [bjorn.jee, daniel.tai, siddharth.pandey, wenbo.wei]
 categories: [Engineering, Data Science]
-tags: [Engineering, Data Science, Optimisation, Generative AI, LLM, Machine Learning]
+tags: [Engineering, Data Science, Optimization, Generative AI, LLM, Machine Learning]
 comments: true
 cover_photo: /img/grabaigateway/GenAIGateway-banner-3.png
 excerpt: "GenAI has become integral to innovation, powering the next generation of AI enabled applications. With easy integration with multiple AI providers, it brings cutting edge technology to every user. This article explores why we need GenAI Gateway, how it works, what are the user benefits, and the challenges faced in GenAI in this article."

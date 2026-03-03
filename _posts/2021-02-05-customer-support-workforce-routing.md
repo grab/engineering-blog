@@ -5,7 +5,7 @@ title: Customer Support Workforce Routing
 date: 2021-02-05 00:15:00
 authors: [suman.anand, elisa.monacchi, jasmine.lim, matthew.yeow, pengcheng.zhao]
 categories: [Engineering]
-tags: [Workforce Routing, Chat, Product, Routing, Queueing, Customer Support]
+tags: [Workforce Routing, Chat, Product, Routing, Queuing, Customer Support]
 comments: true
 cover_photo: /img/customer-support-workforce-routing/cover.png
 excerpt: "Read how we built our in-house workforce routing system at Grab."

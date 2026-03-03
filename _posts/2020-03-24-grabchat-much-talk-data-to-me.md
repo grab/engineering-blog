@@ -5,7 +5,7 @@ title: GrabChat Much? Talk Data to Me!
 date: 2020-03-24 05:02:55
 authors: [jason.lee, pureum.yim]
 categories: [Data Science]
-tags: [Data, Data Analytics, Data Visualisation]
+tags: [Data, Data Analytics, Data Visualization]
 comments: true
 cover_photo: /img/grabchat-much-talk-data-to-me/cover.png
 excerpt: "This blog post uncovers some interesting insights from our GrabChat data in Singapore, Malaysia, and Indonesia."

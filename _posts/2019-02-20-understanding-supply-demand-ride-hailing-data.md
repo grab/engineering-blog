@@ -5,7 +5,7 @@ title: Understanding Supply & Demand in Ride-hailing Through the Lens of Data
 date: 2019-02-20 18:43:40
 authors: [aayush.garg, pureum.yim, chunkai.phang]
 categories: [Data Science]
-tags: [Analytics, Data, Data Analytics, Data Visualisation, Data Storytelling]
+tags: [Analytics, Data, Data Analytics, Data Visualization, Data Storytelling]
 comments: true
 cover_photo: /img/understanding-supply-demand-ride-hailing-data/cover.png
 excerpt: "Grab aims to ensure that our passengers can get a ride conveniently while providing our drivers better livelihood. To achieve this, balancing demand and supply is crucial. This article gives you a glimpse of one of our analytics initiatives - how to measure the supply and demand ratio at any given area and time."

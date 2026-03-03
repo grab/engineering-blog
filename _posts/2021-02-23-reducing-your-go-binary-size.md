@@ -5,7 +5,7 @@ title: One Small Step Closer to Containerising Service Binaries
 date: 2021-02-23 00:12:23
 authors: [stan.halka, samuel.thomas]
 categories: [Engineering]
-tags: [Back End, Engineering, Golang, Cloud-Native Transformations, Containerisation, Kubernetes]
+tags: [Back End, Engineering, Golang, Cloud-Native Transformations, Containerization, Kubernetes]
 comments: true
 cover_photo: /img/one-small-step-closer-to-containerising-service-binaries/cover.png
 excerpt: "Learn how Grab is investigating and reducing service binary size for Golang projects."

@@ -5,7 +5,7 @@ title: 'How we seamlessly migrated high volume real-time streaming traffic from 
 date: 2024-12-05 00:00:10
 authors: [riyadh.sharif, jialong.loh, muqi.li, pu.li]
 categories: [Engineering, Data Science]
-tags: [Engineering, Optimisation, Data streaming, Real-time streaming, Service]
+tags: [Engineering, Optimization, Data streaming, Real-time streaming, Service]
 comments: true
 cover_photo: /img/seamless-migration/cover.jpg
 excerpt: "In the world of high-volume data processing, migrating services without disruption is a formidable challenge. At Grab, we recently undertook this task by splitting one of our backend service's stream read and write functionalities into two separate services. Discover how we conducted this transition with zero data loss and duplication using a simple switchover strategy, along with rigorous validation mechanisms."

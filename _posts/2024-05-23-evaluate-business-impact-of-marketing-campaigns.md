@@ -5,7 +5,7 @@ title: "How we evaluated the business impact of marketing campaigns"
 date: 2024-05-23 00:10:10
 authors: [jie.zhang, zen.nguyen]
 categories: [Engineering]
-tags: [Marketing, Metrics, Optimisation, Statistic, A/B Testing]
+tags: [Marketing, Metrics, Optimization, Statistic, A/B Testing]
 comments: true
 cover_photo: /img/evaluate-business-impact-of-marketing-campaigns/cover.png
 excerpt: "Discover how Grab assesses marketing effectiveness using advanced attribution models and strategic testing to improve campaign precision and impact."

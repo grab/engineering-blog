@@ -5,7 +5,7 @@ title: How We Cut GrabFood.com’s Page JavaScript Asset Sizes by 3x
 date: 2021-07-29 01:20:00
 authors: [gibson.cheng]
 categories: [Product]
-tags: [Product, Asset Size, Cloud, Optimisation]
+tags: [Product, Asset Size, Cloud, Optimization]
 comments: true
 cover_photo: /img/grabfood-bundle/image11.png
 excerpt: "Find out how the GrabFood team cut their bundle size by 3 times with these 7 webpack bundle optimisation strategies."

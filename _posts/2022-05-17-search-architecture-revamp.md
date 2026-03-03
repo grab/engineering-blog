@@ -5,7 +5,7 @@ title: Search architecture revamp
 date: 2022-05-17 03:55:55
 authors: [lipeng.zhang, tao.hou, weilun.wu]
 categories: [Engineering]
-tags: [Architecture, Optimisation, Search]
+tags: [Architecture, Optimization, Search]
 comments: true
 cover_photo: /img/search-architecture-revamp/cover.jpg
 excerpt: "Grab’s search architecture was initially designed to only support exact text matching based on user queries. Find out what problems the Deliveries search team faced and how they improved the search architecture to address these issues."

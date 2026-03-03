@@ -5,7 +5,7 @@ title: Securing GitOps pipelines
 date: 2023-03-01 02:23:05
 authors: [thang.le]
 categories: [Engineering]
-tags: [Engineering, Open source, Pipelines, Continuous Delivery, Continuous Integration, Optimisation]
+tags: [Engineering, Open source, Pipelines, Continuous Delivery, Continuous Integration, Optimization]
 comments: true
 cover_photo: /img/securing-gitops-pipeline/cover.jpg
 excerpt: "This article illustrates how Grab’s real-time data platform team secured GitOps pipelines at scale with our in-house GitOps implementation."
