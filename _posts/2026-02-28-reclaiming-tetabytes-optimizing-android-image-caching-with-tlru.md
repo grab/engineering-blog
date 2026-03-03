@@ -33,7 +33,7 @@ Our analysis revealed that image caching was a major contributor to the app's di
 
 The LRU cache algorithm manages storage by maintaining entries in access order and automatically evicting the oldest unused entries when space is needed.
 
-**Figure 1 and 2** illustrates how LRU cache trimming works. These diagrams present an LRU cache with a maximum size of 100MB containing three cache entries totaling 95MB. When a new 25MB cache entry is added, it exceeds the cache's maximum size.
+**Figure 1 and 2** illustrates how LRU cache trimming works. These diagrams present an LRU cache with a maximum size of 100 MB containing three cache entries totaling 95 MB. When a new 25 MB cache entry is added, it exceeds the cache's maximum size.
 
 <div class="post-image-section"><figure>
   <img src="/img/image-caching/figure-1.png" alt="" style="width:60%"><figcaption align="middle">Figure 1. A new cache entry is added to an LRU cache that's near its 100 MB capacity, exceeding the limit.</figcaption>
