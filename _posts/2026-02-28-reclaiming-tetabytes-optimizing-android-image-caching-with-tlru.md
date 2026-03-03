@@ -85,7 +85,7 @@ Our TLRU cache configuration includes:
 
 * **Maximum cache size**: 100MB - the storage limit that triggers size-based eviction.
 
-* **Minimum size threshold**: 20MB - the safety net that protects essential cached content.
+* **Minimum size threshold**: 20 MB - the safety net that protects essential cached content.
 
 * **TTL**: 20 days - entries older than this are considered expired.
 
