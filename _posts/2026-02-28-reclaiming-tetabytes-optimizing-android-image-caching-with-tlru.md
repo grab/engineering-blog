@@ -103,7 +103,7 @@ Our example begins with three existing cache entries totaling 95 MB, approaching
 
 * **Item 1** (8 MB, last accessed Day 82): At 18 days old
 * **Item 2** (30MB, last accessed Day 81): At 19 days old
-* **Item 3** (57MB, last accessed Day 80): At exactly 20 days old, valid at the TTL threshold
+* **Item 3** (57 MB, last accessed Day 80): At exactly 20 days old, valid at the TTL threshold
 
 When a new 10MB item is added on Day 100, the cache grows to 105MB, exceeding our 100MB limit and triggering size-based eviction.
 
