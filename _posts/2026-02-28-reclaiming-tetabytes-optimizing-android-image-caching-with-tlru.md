@@ -272,7 +272,7 @@ After fully rolling out TLRU to production, we significantly optimized storage w
 
 With over 100 million downloads of the Grab Android app, even conservative estimates show terabytes of storage reclaimed across all user devices worldwide. This translates to better device performance, especially on low-end devices, and improved user satisfaction.
 
-Critically, we maintained our success criteria: cache hit ratio stayed within target thresholds (no more than 3 p.p decrease), with no increase in infrastructure costs. The seamless migration preserved all existing cache data without disruption.
+Critically, we maintained our success criteria: cache hit ratio stayed within target thresholds (no more than 3 pp decrease), with no increase in infrastructure costs. The seamless migration preserved all existing cache data without disruption.
 
 ## Conclusion
 
