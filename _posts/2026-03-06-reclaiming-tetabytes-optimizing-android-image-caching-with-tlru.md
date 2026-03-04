@@ -175,7 +175,7 @@ The central component that enables this functionality is the journaling mechanis
 The journaling mechanism in DiskLruCache is designed to maintain consistency and prevent data corruption in the cache. The journal file records all cache operations, such as adding, updating, or removing entries. The journaling mechanism is essential in rebuilding the cache metadata during initialization and performing journal compaction to clean up the journal file. 
 
 <div class="post-image-section"><figure>
-  <img src="/img/image-caching/journaling-mechanism.png" alt="" style="width:70%"><figcaption align="middle">Figure 6. Example of the journaling mechanism in DiskLruCache.</figcaption>
+  <img src="/img/image-caching/figure-6.png" alt="" style="width:70%"><figcaption align="middle">Figure 6. Example of the journaling mechanism in DiskLruCache.</figcaption>
   </figure>
 </div> 
 
@@ -233,7 +233,7 @@ The timestamps are added to `READ` and `CLEAN` operations:
   - `CLEAN` entries record the creation time when a new entry is successfully added to the cache.
 
 <div class="post-image-section"><figure>
-  <img src="/img/image-caching/examplep-tlru-file.png" alt="" style="width:70%"><figcaption align="middle">Figure 7. Example of a TLRU journal file.</figcaption>
+  <img src="/img/image-caching/figure-7.png" alt="" style="width:70%"><figcaption align="middle">Figure 7. Example of a TLRU journal file.</figcaption>
   </figure>
 </div> 
 
