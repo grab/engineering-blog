@@ -5,7 +5,7 @@ title: "Grab's Mac Cloud Exit supercharges macOS CI/CD"
 date: 2025-11-06 00:00:05
 authors: [madushan.gamage, jacob.xu, tunyi.oh]
 categories: [Engineering]
-tags: [engineering, performance]
+tags: [Engineering, Performance]
 comments: true
 cover_photo: /img/mac-cloud-exit/cover.png
 excerpt: "Discover how our transition from cloud-based Mac hardware infrastructure to a colocation cluster within Southeast Asia has revolutionized our macOS CI/CD, enhancing performance and reducing costs."

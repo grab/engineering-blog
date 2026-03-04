@@ -5,7 +5,7 @@ title: "Machine-learning predictive autoscaling for Flink"
 date: 2025-10-30 00:00:10
 authors: [nhat.nguyen, shikai.ng, calvin.tran]
 categories: [Engineering, Data]
-tags: [engineering, performance, data-science]
+tags: [Engineering, Performance, Data Science]
 comments: true
 cover_photo: /img/ml-predictive-autoscaling-for-flink/banner.jpg
 excerpt: "Explore how Grab uses machine learning to perform predictive scaling on our data processing workloads."

@@ -5,7 +5,7 @@ title: "SpellVault’s evolution: Beyond LLM apps, towards the agentic future"
 date: 2025-11-21 00:00:10
 authors: [felix.lie, haotian.mi, jiaqi.yang, muqi.li, shuqi.wang, riyadh.sharif, sayam.bohra, wenhui.wu]
 categories: [Engineering, Data]
-tags: [engineering, performance]
+tags: [Engineering, Performance]
 comments: true
 cover_photo: /img/spellvault-img/banner.png
 excerpt: "Discover SpellVault’s evolution from its early RAG-based foundations and plugin ecosystem to its transformation into a tool-driven, agentic framework that empowers users to build AI agents that are powerful, flexible, and future-ready."

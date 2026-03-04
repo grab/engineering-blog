@@ -5,7 +5,7 @@ title: Building hyperlocal GrabMaps
 date: 2023-08-30 00:00:10
 authors: [adriana.lazar]
 categories: [Engineering, Data Science, Product]
-tags: [Maps, Data, Big Data, Data processing, Hyperlocalization, GrabMaps, navigation]
+tags: [Maps, Data, Big Data, Data processing, Hyperlocalization, GrabMaps, Navigation]
 comments: true
 cover_photo: /img/building-hyperlocal-grabmaps/cover.jpeg
 excerpt: "Being hyperlocal is a key advantage for GrabMaps. In this article we will explain what being hyperlocal means and how it helps GrabMaps bring value to our driver-partners and passengers through the Grab platform."
