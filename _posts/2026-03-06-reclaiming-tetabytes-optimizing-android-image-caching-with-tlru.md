@@ -244,7 +244,7 @@ The TLRU cache leverages the existing LRU ordering to optimize expiration checki
 The diagram below shows how the TLRU cache makes the decision to remove the cache entries.
 
 <div class="post-image-section"><figure>
-  <img src="/img/image-caching/figure-6.png" alt="" style="width:70%"><figcaption align="middle">Figure 8. TLRU eviction decision flow - evaluating cache entries based on time expiration and size constraints.</figcaption>
+  <img src="/img/image-caching/figure-8.png" alt="" style="width:70%"><figcaption align="middle">Figure 8. TLRU eviction decision flow - evaluating cache entries based on time expiration and size constraints.</figcaption>
   </figure>
 </div> 
 
