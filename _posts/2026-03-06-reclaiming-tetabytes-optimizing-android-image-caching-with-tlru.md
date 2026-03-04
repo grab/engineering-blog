@@ -211,9 +211,13 @@ With a solid understanding of DiskLruCache's architecture, we can now explore ho
 
 Three primary modifications to DiskLruCache:
 
-**Tracking last access time**:
+  - [Tracking last access time](#tracking-last-access-time)
+  - [Time-based eviction logic](#time-based-eviction-logic)
+  - [Backward-compatible migration](#backward-compatible-migration)
 
-To support time-based eviction, the cache needs to track when each entry was last accessed. This information must persist across app restarts, so it's stored in the journal file itself.
+#### Tracking last access time
+
+To support time-based eviction, the cache needs to track when each entry was last accessed. This information m  ust persist across app restarts, so it's stored in the journal file itself.
 
 Modified journal format:
 
@@ -233,7 +237,7 @@ The timestamps are added to `READ` and `CLEAN` operations:
   </figure>
 </div> 
 
-- **Time-based eviction logic**:
+#### Time-based eviction logic
 
 The TLRU cache leverages the existing LRU ordering to optimize expiration checking. For each cache operation, it checks if the least recently accessed entry has expired before proceeding with time-based trimming.
 
@@ -246,7 +250,7 @@ The diagram below shows how the TLRU cache makes the decision to remove the cach
 
 The algorithm leverages the sorted nature of the cache: if the least recently accessed entry hasn't expired, no other entries need checking. If it has expired, the cache trim operation walks through entries from oldest to newest, removing all expired ones.
 
-- **Backward-compatible migration**:
+#### Backward-compatible migration
 
 With an extensive user base, invalidating existing cached images would cause millions of users to experience poor performance while creating massive server traffic spikes and infrastructure costs.
 
