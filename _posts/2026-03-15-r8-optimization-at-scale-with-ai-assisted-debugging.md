@@ -1,23 +1,23 @@
 ---
 layout: post
-id: 2026-03-15-r8-optimization-at-scale-with-ai-assisted-debugging.md
-title: 'Enabling R8 optimisation at scale with AI-assisted debugging'
+id: 2026-03-15-r8-optimization-at-scale-with-ai-assisted-debugging
+title: 'Enabling R8 optimization at scale with AI-assisted debugging'
 date: 2026-03-15 00:23:00
 authors: [van.minh]
 categories: [Engineering]
 tags: [AI]
 comments: true
 cover_photo: /img/r8-optimization/banner.png
-excerpt: "How Grab enabled R8 optimisation for its Android app at scale—over 9 million lines of code and 100+ engineers. We achieved 25% Application Not Responding (ANR) reduction, 16% app size decrease, and 27% faster startup through AI-assisted debugging with Model Context Protocol (MCP) tools, pragmatic testing strategies, and optimised feedback loops."
+excerpt: "How Grab enabled R8 optimization for its Android app at scale—over 9 million lines of code and 100+ engineers. We achieved 25% Application Not Responding (ANR) reduction, 16% app size decrease, and 27% faster startup through AI-assisted debugging with Model Context Protocol (MCP) tools, pragmatic testing strategies, and optimized feedback loops."
 ---
 
 Grab is Southeast Asia's leading superapp, providing a suite of services that bring essential needs to users throughout the region. Its offerings include ride-hailing, food delivery, parcel delivery, mobile payments, and more. With safety, efficiency, and user-centered design at heart, Grab remains dedicated to solving everyday issues and improving the lives of millions. As our app continues to expand, we identified platform-level performance challenges that were affecting user experience across the board. In this article, we share how we successfully enabled R8 optimization for the [Grab Android app](https://play.google.com/store/apps/details?id=com.grabtaxi.passenger&hl=en), achieving significant improvements in app size, startup time, and stability through innovative AI-assisted debugging techniques.
 
 ## Introduction
 
-Since 2024, our team observed a concerning trend, Application Not Responding (ANR) rates were spiking across the Grab app. Unlike typical isolated issues, the data revealed that ANRs were happening everywhere, not confined to specific features or modules. This pattern pointed to platform-level causes, with our analysis showing strong correlations between ANRs and several factors like memory pressure (particularly when garbage collection was triggered), ad-heavy user flows, overhead from heavy use of Jetpack Compose within XML layouts, and XML views within Compose code.
+Since 2024, our team observed a concerning trend: Application Not Responding (ANR) rates were spiking across the Grab app. Unlike typical isolated issues, the data revealed that ANRs were happening everywhere, not confined to specific features or modules. This pattern pointed to platform-level causes, with our analysis showing strong correlations between ANRs and several factors like memory pressure (particularly when garbage collection was triggered), ad-heavy user flows, overhead from heavy use of Jetpack Compose within XML layouts, and XML views within Compose code.
 
-The Android community had long proven that R8 optimization (beyond basic code shrinking) could deliver substantial performance gains and app size reductions. As Grab has been adopting Jetpack Compose over the last two years, [Google's Jetpack Compose performance documentation](https://developer.android.com/develop/ui/compose/performance#config) specifically recommends R8 optimization for Compose-heavy apps. It became particularly relevant, making it a natural solution for our systemic performance issues.
+The Android community had long proven that R8 optimization (beyond basic code shrinking) could deliver substantial performance gains and app size reductions. As Grab has been adopting Jetpack Compose over the last two years, [Google's Jetpack Compose performance documentation](https://developer.android.com/develop/ui/compose/performance#config) specifically recommends R8 optimization for Compose-heavy apps. This made it a natural solution for our systemic performance issues.
 
 ## The challenge at scale
 
@@ -59,7 +59,7 @@ These optimizations work together to improve runtime performance while significa
 
 ## Three core challenges
 
-Despite R8’s clear benefits, enabling it at Grab’s scale remains hard. Lessons from prior attempts and current project context surfaces three fundamental challenges we need to solve.
+Despite R8’s clear benefits, enabling it at Grab’s scale remains hard. Lessons from prior attempts and current project context surfaced three fundamental challenges we needed to solve.
 
 ### Challenge 1: Slow debugging
 
@@ -70,7 +70,7 @@ R8 optimization issues are notoriously difficult to debug:
 - Stack traces are **unreadable** without proper mapping files when crashes occur.  
 - **Pinpointing the root cause** requires manual reverse engineering.
 
-The challenge was compounded by limited bandwidth and high labor requirements. Most issues had to be either addressed directly or have solutions provided for other teams to fix. Manual decompilation, deobfuscation, and context gathering for each issue are inherently time-consuming, making the slow investigation cycle.
+The challenge was compounded by limited bandwidth and high labor requirements. Most issues had to be either addressed directly or have solutions provided for other teams to fix. Manual decompilation, deobfuscation, and context gathering for each issue are inherently time-consuming, making the investigation cycle prohibitively slow.
 
 ### Challenge 2: Testing at scale
 
@@ -124,13 +124,13 @@ At Grab, we use **GitLab for Continuous Integration and Continuous Delivery (CI/
 
 #### AI and CI pipeline workflow:
 
-We developed a systematic two-phase approach for investigating and fixing each runtime issue, combining AI assistance with parallel testing. The phase breakdown is as follow:
+We developed a systematic two-phase approach for investigating and fixing each runtime issue, combining AI assistance with parallel testing. The phase breakdown is as follows:
 
 **Phase 1: MCP server tools for debugging**
 
 1. **Detect runtime issue**: From End-to-End (E2E) tests, QA testing, or crash reports.  
 2. **MCP tool orchestrates APK analysis**: Coordinates decompilation tools for reverse engineering.  
-3. **MCP tool provides decompiled code context**: Pull and decompile problematic code sections.
+3. **MCP tool provides decompiled code context**: Pulls and decompiles problematic code sections.
 4. **Engineer and AI analysis**: The engineer uses AI assistance to analyze the decompiled code context and note down multiple solution approaches.
 
 **Phase 2: GitLab CI integration**
@@ -155,7 +155,7 @@ Our approach functions as an AI assistant that:
 
 Instead of testing solutions one-by-one (waiting 2 hours per build), AI creates multiple MRs in parallel, dramatically accelerating the verification process. Engineers focus on making decisions about which solutions to pursue while the AI handles both the mechanical work and the parallel experimentation.
 
-**The impact: accelerating investigation**
+**The impact: Accelerating investigation**
 
 While investigating a single R8 issue might still take days, our MCP tools dramatically accelerated critical investigation tasks. Manual tasks that previously took hours for decompilation, deobfuscation, and context gathering were reduced to minutes. Additionally, AI assistance significantly sped up the analysis phase, helping engineers quickly identify patterns, suggest solutions, and explore multiple approaches in parallel, both analytically and through simultaneous CI builds, further accelerating the overall investigation process.
 
@@ -163,7 +163,7 @@ While investigating a single R8 issue might still take days, our MCP tools drama
 
 **Solving challenge 2**:
 
-How do we do testing at scale? How do we validate R8 optimization across a matured codebase containing more than seven million lines of code when comprehensive testing is necessary but impossible? Our solution came from a critical insight about R8 issues at scale.
+How do we do testing at scale? How do we validate R8 optimization across a mature codebase containing more than seven million lines of code when comprehensive testing is necessary but impossible? Our solution came from a critical insight about R8 issues at scale.
 
 **Testing approaches that don't work with R8**:
 
@@ -179,9 +179,7 @@ From our experience, R8 issues tend to share similar root causes across the code
 
 If we could identify and fix these pattern-based issues, we could address many problems without testing every corner of the app. We decided to start with critical paths and expand from there. This "ripple effect" strategy began at the center with the most important flows, then expanded by identifying common root causes and similar patterns across the codebase.
 
-**Progressive, risk-based validation strategy**:
-
-We designed a validation pipeline that progressively increased confidence.
+**We designed a progressive risk-based validation strategy**:
 
 - **Stage 1: E2E tests - pattern discovery phase**: Fortunately, we had existing E2E tests covering most critical paths in the project, and they could be executed with R8 optimization enabled. Initially, all E2E tests failed after enabling optimization. This became our opportunity for pattern discovery. We systematically fixed issues and applied our pattern-based approach to resolve similar problems across the project.
 
@@ -189,15 +187,14 @@ We designed a validation pipeline that progressively increased confidence.
 
 - **Stage 3: Daily QA build enablement - real-world integration**: After confirming stability in controlled testing, we made a significant decision to enable R8 optimization in our daily QA build (the build our QA team uses for daily feature testing). This integrated R8 optimization into the normal development workflow without requiring additional testing effort.
 
-- **Stage 4: Regression testing and Grab Early Access (GEA) - parallel production-scale validation**: After confirming stability in daily QA builds, we moved to production-scale validation with two parallel tracks. Every release at Grab includes **regression testing** covering all critical paths and new features. With R8 optimization now enabled in the QA build, we ran regression tests using this build for a few weeks, providing sustained validation across multiple release cycles.  
-One week after regression testing, we rolled out to **GEA**, Grab's internal production release channel for Grab employees and partners. While GEA users typically receive features one week before general production rollout, for this R8 optimization project, we extended the GEA phase to 2 weeks, given the significance of the change. With hundreds of daily active users using the app in real-world production conditions during this extended period, we encountered only one remaining R8 issue during the GEA phase. This combination of regression testing and real-world GEA production usage gave us the confidence needed before full production rollout.
+- **Stage 4: Regression testing and Grab Early Access (GEA) - parallel production-scale validation**: After confirming stability in daily QA builds, we moved to production-scale validation with two parallel tracks. Every release at Grab includes **regression testing** covering all critical paths and new features. With R8 optimization now enabled in the QA build, we ran regression tests using this build for a few weeks, providing sustained validation across multiple release cycles. One week after regression testing, we rolled out to **GEA**, Grab's internal production release channel for Grab employees and partners. While GEA users typically receive features one week before general production rollout, for this R8 optimization project, we extended the GEA phase to 2 weeks, given the significance of the change. With hundreds of daily active users using the app in real-world production conditions during this extended period, we encountered only one remaining R8 issue during the GEA phase. This combination of regression testing and real-world GEA production usage gave us the confidence needed before full production rollout.
 
 **Pattern-based issue resolution**:
 
 Throughout these validation phases, when we identified R8 issues, we followed a systematic pattern-based resolution process.
 
 1. **Identify the issue**: Catch the failure through E2E, QA, or monitoring.
-2. **Find the pattern**: analyze the root cause to identify if it's a common pattern across the codebase.
+2. **Find the pattern**: Analyze the root cause to identify if it's a common pattern across the codebase.
 3. **Detect similar instances**: Search the entire codebase to find the same pattern across different modules and the internal SDKs.
 4. **Coordinate fixes**: Create tickets requesting teams to modify their code to prevent the same issue in their modules.
 
@@ -211,11 +208,11 @@ This demonstrates that while our testing strategy worked effectively, human coor
 
 This approach transformed an "impossible" comprehensive testing problem into a manageable, systematic validation process, reducing what would have been months of coordinated testing effort to days, proving that a smart strategy can overcome resource constraints.
 
-### Innovation 3: optimized feedback loop
+### Innovation 3: Optimized feedback loop
 
 **Solving challenge 3**:
 
-The challenge of slow feedback consists of 2-hour CI builds, and the QA configuration misalignment created a bottleneck for R8 debugging. We addressed this through a comprehensive infrastructure strategy targeting these critical areas:
+The slow feedback challenge—2-hour CI builds and QA configuration misalignment—created a bottleneck for R8 debugging. We addressed this through a comprehensive infrastructure strategy targeting these critical areas:
 
 **Remote compilation to enable local build and fast feedback loop**:
 
@@ -243,7 +240,7 @@ buildTypes {
 }
 ```
 
-From our understanding, R8 applies different optimization levels based on the `debuggable` flag, with more aggressive optimizations when debuggable=false, this ensured our QA testing reflected actual production R8 processing. We preserved `DEBUG = true` to maintain staging environment routing while achieving R8 parity.
+From our understanding, R8 applies different optimization levels based on the `debuggable` flag, with more aggressive optimizations when debuggable=false. This ensured our QA testing reflected actual production R8 processing. We preserved `DEBUG = true` to maintain staging environment routing while achieving R8 parity.
 
 This infrastructure foundation was essential, providing faster feedback loops that accelerated verification and investigation, while the QA build configuration matching production exactly was critical for catching real production issues during testing.
 
@@ -277,6 +274,6 @@ For other teams considering R8 optimization at scale: the journey is challenging
 
 ## Join us
 
-Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.
+Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.
 
 Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team today](https://grab.careers/)!
