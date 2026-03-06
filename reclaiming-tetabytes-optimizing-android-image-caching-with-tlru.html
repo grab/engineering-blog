@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Reclaiming Terabytes: Optimizing Android image caching with TLRU</title>
+    <meta name="description" content="In the quest to optimize app performance, managing the image cache was crucial. This blog takes us on a journey from a traditional Least Recently Used (LRU) cache to a Time-Aware Least Recently Used (TLRU) cache. This innovative approach reclaimed terabytes of storage across millions of devices while maintaining user experience and controlling server costs. Discover how Grab's TLRU implementation cleverly balances storage optimization and performance, offering a glimpse into the future of app development.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru">
+    <meta property="og:title" content="Reclaiming Terabytes: Optimizing Android image caching with TLRU">
+    <meta property="og:description" content="In the quest to optimize app performance, managing the image cache was crucial. This blog takes us on a journey from a traditional Least Recently Used (LRU) cache to a Time-Aware Least Recently Used (TLRU) cache. This innovative approach reclaimed terabytes of storage across millions of devices while maintaining user experience and controlling server costs. Discover how Grab's TLRU implementation cleverly balances storage optimization and performance, offering a glimpse into the future of app development.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/image-caching/banner-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/image-caching/banner-image.png" class="post-cover-photo" alt="Reclaiming Terabytes: Optimizing Android image caching with TLRU cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Reclaiming Terabytes: Optimizing Android image caching with TLRU</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/van-minh.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#van.minh">Nguyen Van Minh</a>
+                  
+                
+              </span>
+              <span class="post-date-large">6 Mar 2026 | 14 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>In a previous post, we discussed <a href="https://engineering.grab.com/project-bonsai">Project Bonsai</a>, our initiative to reduce the Grab app’s download size. We successfully reduced the Android Application Package (APK) download size by 26%. This reduction offers a substantial advantage: it minimizes download friction, allowing users to download the app, even on slower networks. However, the battle for storage doesn’t end after installation.</p>
+
+<p>The Grab app includes a wide range of features and workflows that heavily depend on image content, particularly in services like transportation and e-commerce. Although some images are packaged within the app binary, a large majority are downloaded from Grab’s server at runtime. To optimize the app’s performance and minimize server expenses, the downloaded images are cached in the app’s storage. This reduces both load times and traffic to Grab’s image server, resulting in better user experience and lower costs. Although we use Least Recently Used (LRU) cache to manage storage, many images can remain in the app storage for extended periods, even if they are no longer relevant.</p>
+
+<p>This blog details how we addressed this challenge in our Grab Android app by evolving our standard LRU cache into a <strong>Time-Aware Least Recently Used (TLRU)</strong> cache. This evolution allows us to reclaim storage space without compromising user experience or increasing server costs.</p>
+
+<h2 id="understanding-lru-cache-limitations">Understanding LRU cache limitations</h2>
+
+<p><em>Note: In this article, when “cache” or “image cache” is mentioned, it specifically refers to <strong>disk cache</strong>, which is the persistent storage on the device’s file system, rather than in-memory cache.</em></p>
+
+<p>The Grab Android app uses the <a href="https://github.com/bumptech/glide">Glide library</a> as its primary image loading framework. Glide provides excellent features for efficient image loading, caching, and display. At its core, by default, Glide uses a cloned version of <a href="https://github.com/bumptech/glide/blob/master/third_party/disklrucache/src/main/java/com/bumptech/glide/disklrucache/DiskLruCache.java">Jake Wharton’s DiskLruCache</a> for disk-based caching.</p>
+
+<p>To prevent unlimited cache growth, we configured the LRU cache with a maximum size limit of 100 MB. However, our analytics revealed that the 90th percentile (P90) of users were consistently reaching this 100 MB limit, meaning the cache was constantly at capacity. Conversely, for users whose cache hadn’t yet reached the 100 MB threshold, images were never removed, even if they were outdated by several months and no longer relevant.</p>
+
+<p>Our analysis revealed that image caching was a major contributor to the app’s disk footprint, and without proactive management, this would only worsen as we continued adding features and content to Grab’s superapp.</p>
+
+<h3 id="how-disklrucache-works">How DiskLruCache works</h3>
+
+<p>The LRU cache algorithm manages storage by maintaining entries in access order and automatically evicting the oldest unused entries when space is needed.</p>
+
+<p><strong>Figure 1 and 2</strong> illustrates how LRU cache trimming works. These diagrams present an LRU cache with a maximum size of 100 MB containing three cache entries totaling 95 MB. When a new 25 MB cache entry is added, it exceeds the cache’s maximum size.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-1.png" alt="" style="width:60%" /><figcaption align="middle">Figure 1. A new cache entry is added to an LRU cache that's near its 100 MB capacity, exceeding the limit.</figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-2.png" alt="" style="width:60%" /><figcaption align="middle">Figure 2. The LRU cache automatically trims the least recently used entry to bring the total size back within the 100 MB limit.</figcaption>
+  </figure>
+</div>
+
+<h2 id="the-challenge">The challenge</h2>
+
+<p>While DiskLruCache efficiently manages cache size, it has a critical limitation: It does not account for the age of cached content. Due to the lack of time-based eviction rules, the cache does not remove outdated entries until it exceeds the maximum size. This meant that stale promotional images, images from infrequently used features, and outdated content continued occupying disk space indefinitely, as long as the cache remained under the size limit.</p>
+
+<p>What we needed was a cache mechanism that could:</p>
+
+<ul>
+  <li>
+    <p><strong>Maintain LRU cache benefits</strong>: Preserve efficient caching for users who actively use the app features.</p>
+  </li>
+  <li>
+    <p><strong>Remove stale content based on time:</strong> Automatically identify and evict outdated entries, not just rely on storage constraints.</p>
+  </li>
+  <li>
+    <p><strong>Protect user experience</strong>: Ensure images still load quickly without cache misses.</p>
+  </li>
+  <li>
+    <p><strong>Keep server costs low</strong>: Avoid increased server requests from premature cache evictions.</p>
+  </li>
+</ul>
+
+<p>These requirements pointed us toward an enhanced LRU approach. We needed to enhance LRU with time awareness while preserving its proven size-management capabilities.</p>
+
+<h2 id="tlru-cache-the-solution">TLRU cache: The solution</h2>
+
+<p>To address these limitations, we developed a new LRU cache variant named TLRU that extends traditional LRU by introducing time-based eviction while maintaining size-based cache management.</p>
+
+<h3 id="core-tlru-attributes">Core TLRU attributes</h3>
+
+<p>TLRU introduces three core attributes to manage cache entries:</p>
+
+<ul>
+  <li>
+    <p><strong>Time-To-Live (TTL)</strong>: A threshold that determines when a cache entry is considered expired. An entry is expired if <code class="language-plaintext highlighter-rouge">(current_time - last_accessed) &gt; TTL</code>. Expired entries are automatically removed during cache operations.</p>
+  </li>
+  <li>
+    <p><strong>Minimum cache size threshold</strong>: A safety net that ensures a baseline set of essential images always remains cached, even when entries expire. This prevents complete cache deletion when users haven’t used the app for more than the TTL period, maintaining app responsiveness for returning users instead of starting with an empty cache.</p>
+  </li>
+  <li>
+    <p><strong>Maximum cache size</strong>: Inherited from LRU cache, this enforces the upper storage limit (100 MB in our case). When exceeded, the least recently used entries are evicted regardless of their age.</p>
+  </li>
+</ul>
+
+<p>Together, these attributes ensure TLRU maintains optimal cache size by managing both storage constraints and temporal relevance, reducing app disk footprint without impacting user experience.</p>
+
+<h3 id="tlru-cache-trimming-in-action">TLRU cache trimming in action</h3>
+
+<p>To better understand how TLRU works in practice, let’s walk through a comprehensive example. The following diagrams demonstrate how the TLRU cache evaluates and trims entries based on both time and size constraints.</p>
+
+<p>Our TLRU cache configuration includes:</p>
+
+<ul>
+  <li>
+    <p><strong>Maximum cache size</strong>: 100 MB - the storage limit that triggers size-based eviction.</p>
+  </li>
+  <li>
+    <p><strong>Minimum size threshold</strong>: 20 MB - the safety net that protects essential cached content.</p>
+  </li>
+  <li>
+    <p><strong>TTL</strong>: 20 days - entries older than this are considered expired.</p>
+  </li>
+</ul>
+
+<p>Each cache entry includes <code class="language-plaintext highlighter-rouge">last_accessed</code> metadata containing the timestamp of its most recent access. When an entry is first created, this timestamp is initialized with the creation time. This timestamp determines whether an entry has expired based on the formula:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Entry is expired if: (current_time - last_accessed) &gt; TTL
+</code></pre></div></div>
+
+<p>For this walkthrough, we’ll use <code class="language-plaintext highlighter-rouge">current_time = Day 100</code> as our starting point.</p>
+
+<h4 id="initial-cache-state-analysis">Initial cache state analysis</h4>
+
+<p>Our example begins with three existing cache entries totaling 95 MB, approaching the 100 MB limit:</p>
+
+<ul>
+  <li><strong>Item 1</strong> (8 MB, last accessed Day 82): At 18 days old</li>
+  <li><strong>Item 2</strong> (30 MB, last accessed Day 81): At 19 days old</li>
+  <li><strong>Item 3</strong> (57 MB, last accessed Day 80): At exactly 20 days old, valid at the TTL threshold</li>
+</ul>
+
+<p>When a new 10 MB item is added on Day 100, the cache grows to 105 MB, exceeding our 100 MB limit and triggering size-based eviction.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-3.png" alt="" style="width:60%" /><figcaption align="middle">Figure 3. Initial TLRU cache state and the impact of adding new entries.</figcaption>
+  </figure>
+</div>
+
+<h4 id="size-based-eviction-process">Size-based eviction process</h4>
+
+<p>When the cache exceeds its 100 MB limit, TLRU applies traditional LRU eviction logic. <strong>Item 3</strong> is selected for eviction because:</p>
+
+<ul>
+  <li>
+    <p>It is the least recently used entry (oldest access time).</p>
+  </li>
+  <li>
+    <p>This demonstrates TLRU maintaining LRU behavior for size enforcement, regardless of expiration status.</p>
+  </li>
+</ul>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-4.png" alt="" style="width:60%" /><figcaption align="middle">Figure 4. Size-based eviction removes the least recently used entry to enforce storage limits.</figcaption>
+  </figure>
+</div>
+
+<h4 id="time-based-eviction-process">Time-based eviction process</h4>
+
+<p>Five days later (Day 105), Item 1 and Item 2 cross the expiration threshold:</p>
+
+<p>Despite operating well below the size limit (48 MB &lt; 100 MB), TLRU evaluates expired entries for time-based eviction. Item 2 is removed because it’s expired, and the cache remains above the minimum threshold. Item 1, although also expired, is protected by the minimum threshold rule; removing it would leave only 10 MB, which falls below the 20 MB minimum.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-5.png" alt="" style="width:60%" /><figcaption align="middle">Figure 5. Time-based eviction and minimum threshold protection working together.</figcaption>
+  </figure>
+</div>
+
+<h4 id="tlru-behavior-summary">TLRU behavior summary</h4>
+
+<p>This comprehensive example demonstrates TLRU’s three core mechanisms:</p>
+
+<ul>
+  <li>
+    <p><strong>Size-based eviction</strong>: Enforces storage limits using traditional LRU ordering (Item 3 removed despite being valid).</p>
+  </li>
+  <li>
+    <p><strong>Time-based eviction</strong>: Proactively removes expired content when safe to do so (Item 2 removed for age).</p>
+  </li>
+  <li>
+    <p><strong>Minimum threshold protection</strong>: Preserves essential cache functionality even with expired content (Item 1 protected despite expiration).</p>
+  </li>
+</ul>
+
+<h2 id="technical-implementation">Technical implementation</h2>
+
+<p>Rather than building an image cache from scratch, we recognized that Glide’s bundled <a href="https://github.com/bumptech/glide/blob/master/third_party/disklrucache/src/main/java/com/bumptech/glide/disklrucache/DiskLruCache.java">DiskLruCache</a> (originally from <a href="https://github.com/JakeWharton/DiskLruCache">Jake Wharton’s implementation</a>) already provided a mature, battle-tested foundation. This implementation is widely adopted across the Android ecosystem and handles complex edge cases like crash recovery, thread safety, and performance optimization that would require substantial effort to replicate.</p>
+
+<p>Our approach was pragmatic, we cloned Glide’s DiskLruCache and extended it to support time-based expiration. This strategy allowed us to inherit the existing reliability while adding the temporal awareness we needed for TLRU.</p>
+
+<p>To understand our implementation, we’ll first explore how the original DiskLruCache works, then dive into the specific modifications we made to transform it into TLRU.</p>
+
+<h3 id="understanding-disklrucache">Understanding DiskLruCache</h3>
+
+<p><a href="https://github.com/bumptech/glide/blob/master/third_party/disklrucache/src/main/java/com/bumptech/glide/disklrucache/DiskLruCache.java">DiskLruCache</a> provides a simple cache solution that stores key-value pairs on disk, while also keeping track of their usage to evict the least recently used items when the cache reaches its maximum size. Here is an overview of how DiskLruCache is implemented:</p>
+
+<ul>
+  <li>
+    <p><strong>Data storage</strong>: DiskLruCache stores its data in a specified directory, creating files for each entry.</p>
+  </li>
+  <li>
+    <p><strong>Key-based access</strong>: Each entry has a unique key (typically a hash generated by the image loader) used to create the filename of the cached entry.</p>
+  </li>
+  <li>
+    <p><strong>Atomic writes</strong>: When adding an entry, it creates a temporary file and writes the data to it. If successful, it atomically renames the temporary file to the final filename.</p>
+  </li>
+  <li>
+    <p><strong>Cache retrieval</strong>: When reading from the cache, it looks up the key, opens the corresponding file on disk, and returns an InputStream to read the data.</p>
+  </li>
+  <li>
+    <p><strong>Size management</strong>: It maintains a maximum cache size limit. When exceeded, it removes the least recently used items until it is within the specified limit.</p>
+  </li>
+</ul>
+
+<p>The central component that enables this functionality is the journaling mechanism, detailed in the following section.</p>
+
+<h4 id="the-journaling-mechanism">The journaling mechanism</h4>
+
+<p>The journaling mechanism in DiskLruCache is designed to maintain consistency and prevent data corruption in the cache. The journal file records all cache operations, such as adding, updating, or removing entries. The journaling mechanism is essential in rebuilding the cache metadata during initialization and performing journal compaction to clean up the journal file.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-6.png" alt="" style="width:70%" /><figcaption align="middle">Figure 6. Example of the journaling mechanism in DiskLruCache.</figcaption>
+  </figure>
+</div>
+
+<p><strong>Journal file format</strong>:</p>
+
+<p>The journal file is a plain text file that records cache operations line by line.</p>
+
+<ul>
+  <li>
+    <p>DIRTY: Indicates the start of a write operation to a cache entry.</p>
+  </li>
+  <li>
+    <p>CLEAN: Indicates that a cache entry was successfully written and closed.</p>
+  </li>
+  <li>
+    <p>REMOVE: Indicates that a cache entry was removed from the cache.</p>
+  </li>
+  <li>
+    <p>READ: Indicates that a cache entry was read.</p>
+  </li>
+</ul>
+
+<p>To gain a comprehensive understanding of the journal file format, refer to the following detailed explanation.</p>
+
+<ul>
+  <li>
+    <p><strong>Key information</strong>: Each line includes the key and other relevant information, such as the lengths of the cache entry files.</p>
+  </li>
+  <li>
+    <p><strong>Cache initialization</strong>: Upon initialization, DiskLruCache reads the journal file to reconstruct cache metadata in memory, determining file associations, lengths, and access order. If the journal file is corrupted or missing, the cache will be considered invalid, and DiskLruCache will remove all cache files and start fresh.</p>
+  </li>
+  <li>
+    <p><strong>Cache operations and journal updates</strong>: When performing cache operations like adding, updating, or removing entries, DiskLruCache appends corresponding lines to the journal file, recording the operation details. For example, when starting to write a new cache entry, it writes a <code class="language-plaintext highlighter-rouge">DIRTY</code> line with the key, and when the write is successful, it appends a <code class="language-plaintext highlighter-rouge">CLEAN</code> line with the key and lengths.</p>
+  </li>
+  <li>
+    <p><strong>Synchronization and consistency:</strong> DiskLruCache uses synchronization to ensure that only one thread can access the cache at a time, preventing race conditions and data corruption. It also uses a journalWriter (<code class="language-plaintext highlighter-rouge">java.io.Writer</code>) instance to append operations to the journal file, ensuring that the file is always in a consistent state.</p>
+  </li>
+  <li>
+    <p><strong>Journal compaction</strong>: Over time, the journal file may grow with redundant operations. DiskLruCache periodically compacts the journal by creating a new file that contains only the current cache metadata, then atomically replaces the old file. The compaction process usually happens when the journal file size exceeds a certain threshold.</p>
+  </li>
+</ul>
+
+<p>DiskLruCache ensures consistency and prevents data corruption by using this journaling mechanism, making it a reliable solution for disk-based caching.</p>
+
+<h3 id="modifying-disklrucache-for-tlru">Modifying DiskLruCache for TLRU</h3>
+
+<p>With a solid understanding of DiskLruCache’s architecture, we can now explore how we extended it to implement the TLRU cache attributes defined earlier.</p>
+
+<p>Three primary modifications to DiskLruCache:</p>
+
+<ul>
+  <li><a href="#tracking-last-access-time">Tracking last access time</a></li>
+  <li><a href="#time-based-eviction-logic">Time-based eviction logic</a></li>
+  <li><a href="#backward-compatible-migration">Backward-compatible migration</a></li>
+</ul>
+
+<h4 id="tracking-last-access-time">Tracking last access time</h4>
+
+<p>To support time-based eviction, the cache needs to track when each entry was last accessed. This information m  ust persist across app restarts, so it’s stored in the journal file itself.</p>
+
+<p>Modified journal format:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>READ [Cache-Key] [Access-Timestamp]
+CLEAN [Cache-Key] [File-Size]-[Access-Timestamp]
+</code></pre></div></div>
+
+<p>The timestamps are added to <code class="language-plaintext highlighter-rouge">READ</code> and <code class="language-plaintext highlighter-rouge">CLEAN</code> operations:</p>
+
+<ul>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">READ</code> entries record when a cache entry is accessed, updating its last-access time.</p>
+  </li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">CLEAN</code> entries record the creation time when a new entry is successfully added to the cache.</p>
+  </li>
+</ul>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-7.png" alt="" style="width:70%" /><figcaption align="middle">Figure 7. Example of a TLRU journal file.</figcaption>
+  </figure>
+</div>
+
+<h4 id="time-based-eviction-logic">Time-based eviction logic</h4>
+
+<p>The TLRU cache leverages the existing LRU ordering to optimize expiration checking. For each cache operation, it checks if the least recently accessed entry has expired before proceeding with time-based trimming.</p>
+
+<p>The diagram below shows how the TLRU cache makes the decision to remove the cache entries.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/image-caching/figure-8.png" alt="" style="width:70%" /><figcaption align="middle">Figure 8. TLRU eviction decision flow - evaluating cache entries based on time expiration and size constraints.</figcaption>
+  </figure>
+</div>
+
+<p>The algorithm leverages the sorted nature of the cache: if the least recently accessed entry hasn’t expired, no other entries need checking. If it has expired, the cache trim operation walks through entries from oldest to newest, removing all expired ones.</p>
+
+<h4 id="backward-compatible-migration">Backward-compatible migration</h4>
+
+<p>With an extensive user base, invalidating existing cached images would cause millions of users to experience poor performance while creating massive server traffic spikes and infrastructure costs.</p>
+
+<p>One of the challenges was retrieving last-access timestamps from existing LRU entries, as file system APIs do not offer reliable access time data. Our solution was to set the last-access time of all existing entries to the migration timestamp. This approach preserves all cached content and establishes a consistent baseline, although it necessitates waiting one TTL period to realize the full benefits of eviction.</p>
+
+<p>We also ensured bidirectional compatibility - the original LRU implementation can read TLRU journal files by ignoring timestamp suffixes, enabling safe rollbacks if needed.</p>
+
+<p>Upon completing our TLRU implementation, we focused on determining optimal values for the three core attributes: <strong>TTL duration</strong>, <strong>minimum threshold</strong>, and <strong>maximum cache size</strong>. These parameters are crucial for balancing storage optimization and cache performance, requiring careful tuning based on real user behavior.</p>
+
+<h2 id="finding-optimal-configuration-values">Finding optimal configuration values</h2>
+
+<p>Finding optimal configuration values requires systematic experimentation and data-driven decision-making. Controlled experiments to compare the cache hit ratio with baseline LRU performance must be conducted.</p>
+
+<p><em>Note: Cache hit ratio, our key success metric, gauges efficiency by the percentage of requests served from cache versus requiring server downloads. Lower ratios lead to higher server costs and increased user data consumption.</em></p>
+
+<p>Our success criteria is for a cache hit ratio decrease of no more than 3 percentage points (pp) during the transition to TLRU. For instance, a decrease from 59% to 56% hit ratio would result in 7% increase in server requests. This threshold balances storage optimization with acceptable performance impact.</p>
+
+<p>To mitigate potential server cost impact from our maximum acceptable 3 pp cache hit ratio drop, we worked with the server team to optimize image delivery infrastructure, enabling a confident TLRU rollout without infrastructure cost concerns.</p>
+
+<h2 id="impact-and-results">Impact and results</h2>
+
+<p>After fully rolling out TLRU to production, we significantly optimized storage while preserving user experience. Post-implementation stabilization, the P95 total app size reduced by approximately 50 MB. This meant that 95% of our users experienced storage reduction up to 50 MB, with the top 5% seeing even greater savings.</p>
+
+<p>With over 100 million downloads of the Grab Android app, even conservative estimates show terabytes of storage reclaimed across all user devices worldwide. This translates to better device performance, especially on low-end devices, and improved user satisfaction.</p>
+
+<p>Critically, we maintained our success criteria: cache hit ratio stayed within target thresholds (no more than 3 pp decrease), with no increase in infrastructure costs. The seamless migration preserved all existing cache data without disruption.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>At Grab, we believe that every byte matters. Our users trust us with their device storage, and we take that responsibility seriously. The TLRU implementation exemplifies our commitment to user experience. We don’t just build features, we optimize them to ensure our app respects our users’ devices. The petabytes of storage reclaimed across millions of devices aren’t just a technical achievement; it’s a reflection of our dedication to creating a lighter, faster, more respectful mobile experience.</p>
+
+<p>The implementation demonstrates that meaningful improvements can be achieved through thoughtful modifications to existing, well-tested libraries. Our focus on backward compatibility and safe migration ensured zero disruption for Grab’s users, proving that user experience and technical innovation can coexist.</p>
+
+<h2 id="join-us">Join Us</h2>
+
+<p>Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team today</a>!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#app-disk" class="label tags-label">app disk</a>
+  
+    <a href="/tags#disk-size" class="label tags-label">disk size</a>
+  
+    <a href="/tags#optimization" class="label tags-label">optimization</a>
+  
+    <a href="/tags#scalability" class="label tags-label">scalability</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Reclaiming Terabytes: Optimizing Android image caching with TLRU&url=https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru&title=Reclaiming Terabytes: Optimizing Android image caching with TLRU
+&summary=In the quest to optimize app performance, managing the image cache was crucial. This blog takes us on a journey from a traditional Least Recently Used (LRU) cache to a Time-Aware Least Recently Used (TLRU) cache. This innovative approach reclaimed terabytes of storage across millions of devices while maintaining user experience and controlling server costs. Discover how Grab's TLRU implementation cleverly balances storage optimization and performance, offering a glimpse into the future of app development.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru';
+    this.page.identifier = '/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
