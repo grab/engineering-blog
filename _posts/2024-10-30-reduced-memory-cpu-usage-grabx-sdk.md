@@ -5,7 +5,7 @@ title: 'How we reduced peak memory and CPU usage of the product configuration ma
 date: 2024-10-30 00:00:10
 authors: [ram.pradhan, fabianto.wangsamulya, inderpreet.singh, padarn.wilson, yonghao.hu]
 categories: [Engineering]
-tags: [Engineering, Optimisation, Service]
+tags: [Engineering, Optimization, Service]
 comments: true
 cover_photo: /img/reduced-memory-cpu-usage-grabx-sdk/cover.png
 excerpt: "Learn about GrabX, Grab’s central platform for product configuration management. This article discusses the steps taken to optimise the SDK, aiming to improve resource utilisation, reduce costs, and accelerate internal adoption."

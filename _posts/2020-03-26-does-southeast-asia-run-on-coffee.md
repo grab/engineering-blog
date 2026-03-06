@@ -5,7 +5,7 @@ title: Does Southeast Asia Run on Coffee?
 date: 2020-03-26 08:34:00
 authors: [siusing.lai, pureum.yim]
 categories: [Data Science]
-tags: [Data, Data Analytics, Data Visualisation]
+tags: [Data, Data Analytics, Data Visualization]
 comments: true
 cover_photo: /img/does-southeast-asia-run-on-coffee/cover.png
 excerpt: "This blog post shares insights on GrabFood data around how much our fellow Southeast Asians love coffee."

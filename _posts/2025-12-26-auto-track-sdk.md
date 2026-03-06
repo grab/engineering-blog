@@ -5,7 +5,7 @@ title: 'Demystifying user journeys: Revolutionizing troubleshooting with auto tr
 date: 2025-12-23 00:23:00
 authors: [oleksandr.prokofiev, anshul.jain, bunty.madan]
 categories: [Engineering, Design, Product]
-tags: [mobile, ios, android, tracking]
+tags: [Mobile, iOS, Android, Tracking]
 comments: true
 cover_photo: /img/auto-tracking/auto-sdk-banner.png
 excerpt: "In the dynamic realm of mobile development, understanding user journeys is key to effective troubleshooting. This blog delves into how Grab's innovative AutoTrack SDK has revolutionized session tracking. By addressing the challenges of incomplete user journey data, Grab has significantly reduced downtime, boosted customer satisfaction, and enhanced developer efficiency."

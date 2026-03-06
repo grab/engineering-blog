@@ -5,7 +5,7 @@ title: "A Decade of Defense: Celebrating Grab's 10th Year Bug Bounty Program"
 date: 2025-12-01 00:00:10
 authors: [peishan.yap, prithvinder.singh, zhenhao.lee]
 categories: [Engineering, Data]
-tags: [engineering, performance]
+tags: [Engineering, Performance]
 comments: true
 cover_photo: /img/decade-of-defense/banner.png
 excerpt: "Discover how Grab has championed cybersecurity for a decade with its Bug Bounty Program. This article delves into the milestones, insights, and the collaborative efforts that have fortified Grab's defenses, ensuring a secure and reliable platform for millions."

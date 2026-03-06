@@ -5,7 +5,7 @@ title: Search indexing optimisation
 date: 2021-09-27 01:20:00
 authors: [weilun.wu, yanguang.hu]
 categories: [Engineering]
-tags: [Engineering, Data, Database, Optimisation]
+tags: [Engineering, Data, Database, Optimization]
 comments: true
 cover_photo: /img/search-indexing-optimisation/cover.jpg
 excerpt: "Learn about the different optimisation techniques when building a search index."

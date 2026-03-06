@@ -5,7 +5,7 @@ title: Graph Networks - 10X investigation with Graph Visualisations
 date: 2022-06-30 00:20:55
 authors: [fujiao.liu, shuqi.wang, muqi.li, jia.chen]
 categories: [Engineering, Security, Data Science]
-tags: [Security, Graphs concepts, Graph technology, Graph visualisation]
+tags: [Security, Graphs concepts, Graph technology, Graph visualization]
 comments: true
 cover_photo: /img/graph-visualisation/cover.png
 excerpt: "As fraud schemes get more complex, we need to stay one step ahead by improving fraud investigation methods. Read to find out more about graph visualisation, why we need it and how it helps with uncovering patterns and relationships."

@@ -5,7 +5,7 @@ title: "User foundation models for Grab"
 date: 2025-09-26 00:00:10
 authors: [abhinav.rai, boonping.chong, chongyu.zhou, jenny.kang, nick.buhrer, sneha.krishnaswamy, sonphat.tran, zulfikar.lazuardi] 
 categories: [Engineering]
-tags: [ai, artificial-intelligence, machine-learning, llm]
+tags: [AI, Artificial-intelligence, Machine-learning, LLM]
 comments: true
 cover_photo: /img/user-found-model-img/banner-4.png
 excerpt: "Grab has developed a groundbreaking foundation model specifically designed to understand user behavior. Grab's custom solution addresses the unique challenges of a multi-service platform spanning food delivery, ride-hailing, grocery shopping, financial services, and more. The blog delves into the architecture and technical achievements that this innovation is built on."

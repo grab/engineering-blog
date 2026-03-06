@@ -5,7 +5,7 @@ title: 'An elegant platform'
 date: 2023-11-30 00:00:10
 authors: [fabrice.harbulot, minhkhoi.nguyen]
 categories: [Engineering, Data Science, Product]
-tags: [Data, Data streaming, Real-time streaming, Platformisation]
+tags: [Data, Data streaming, Real-time streaming, Platformization]
 comments: true
 cover_photo: /img/elegant-platform/cover.png
 excerpt: "Supporting real-time data streaming enables our internal users to build intelligent applications and services, a crucial aspect of continuously out-serving our community. Read this article to understand our journey of building a real-time data streaming platform from pure Infrastructure-as-Code towards a more sophisticated control plane, and the benefits of this solution."

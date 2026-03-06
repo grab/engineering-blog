@@ -5,7 +5,7 @@ title: Automating Multi-Armed Bandit testing during feature rollout
 date: 2021-09-01 01:20:00
 authors: [weicheng.zhu, zhuolun.li, weilun.wu, da.huang]
 categories: [Engineering]
-tags: [Engineering, Testing, Optimisation]
+tags: [Engineering, Testing, Optimization]
 comments: true
 cover_photo: /img/multi-armed-bandit-system-recommendation/image7.jpeg
 excerpt: "Find out how you can run an automated test and simultaneously roll out a new feature."

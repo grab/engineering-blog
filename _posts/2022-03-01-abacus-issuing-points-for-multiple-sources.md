@@ -5,7 +5,7 @@ title: Abacus - Issuing points for multiple sources
 date: 2022-03-01 00:20:00
 authors: [chandra.ugregowda]
 categories: [Engineering]
-tags: [Engineering, Event processing, Optimisation, Stream Processing]
+tags: [Engineering, Event processing, Optimization, Stream Processing]
 comments: true
 cover_photo: /img/abacus-issuing-points-for-multiple-sources/cover.png
 excerpt: "Learn about the challenges of points rewarding and how GrabRewards Points are rewarded for different Grab offerings."

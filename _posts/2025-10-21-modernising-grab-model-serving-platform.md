@@ -5,7 +5,7 @@ title: "Modernising Grab’s model serving platform with NVIDIA Triton Inference
 date: 2025-10-21 00:00:10
 authors: [daniel.tai, siddharth.pandey, richard.ryu, hung.do, nhatminh.nguyen]
 categories: [Engineering, Data]
-tags: [engineering, performance, data-science]
+tags: [Engineering, Performance, Data Science]
 comments: true
 cover_photo: /img/nvida-triton/banner.png
 excerpt: "Dive into Grab’s engineering journey to optimise a core ML model. Learn how we built the Triton Server Manager and used Triton Inference Server (TIS) to achieve a 50% reduction in tail latency and seamlessly migrate over 50% of online deployments."

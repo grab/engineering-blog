@@ -5,7 +5,7 @@ title: 'From failure to success: The birth of GrabGPT, Grab’s internal ChatGPT
 date: 2025-05-19 00:00:10
 authors: [wenbo.wei]
 categories: [Engineering]
-tags: [Engineering, Optimisation, AI]
+tags: [Engineering, Optimization, AI]
 comments: true
 cover_photo: /img/birth-of-grabgpt/grabgpt-banner.png
 excerpt: "When Grab's Machine Learning team sought to automate support queries, a failed chatbot experiment sparked an unexpected pivot: GrabGPT. Born from the need to harness Large Language Models (LLMs) internally, this tool became a go-to resource for employees. Offering private, auditable access to models like GPT and Gemini, the author shares his journey of turning failed experiments into strategic wins."

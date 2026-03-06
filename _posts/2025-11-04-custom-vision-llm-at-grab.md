@@ -5,7 +5,7 @@ title: "How we built a custom vision LLM to improve document processing at Grab"
 date: 2025-11-04 00:00:10
 authors: [jia.chen, manish.sahu, singkwan.ng, yang.yang]
 categories: [Engineering, Data]
-tags: [engineering, performance]
+tags: [Engineering, Performance]
 comments: true
 cover_photo: /img/custom-vision-llm-at-grab/banner-1.png
 excerpt: "e-KYC faces challenges with unstandardized document formats and local SEA languages. Existing LLMs lack sufficient SEA language support. We trained a Vision LLM from scratch, modifying open-source models to be 50% faster while maintaining accuracy. These models now serve live production traffic across Grab's ecosystem for merchant, driver, and user onboarding."

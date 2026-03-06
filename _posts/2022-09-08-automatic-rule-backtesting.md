@@ -5,7 +5,7 @@ title: Automatic rule backtesting with large quantities of data
 date: 2022-09-08 00:55:55
 authors: [chao.w, clemens.valiente, jun.liu, daniel.wang]
 categories: [Engineering, Data Science]
-tags: [Testing, Automation, Backtesting, Data science]
+tags: [Testing, Automation, Backtesting, Data Science]
 comments: true
 cover_photo: /img/auto-rule-testing/cover.jpg
 excerpt: "At Grab, real-time fraud detection is built on a rule engine. As data scientists and analysts, we need to analyse and simulate a rule on historical data to check the performance and accuracy of the rule. Backtesting, also known as Replay, enables analysts to run simulations of either newly-invented rules, or evaluate the performance of existing rules using past events ranging from days to months, and significantly improve rule creation efficiency."

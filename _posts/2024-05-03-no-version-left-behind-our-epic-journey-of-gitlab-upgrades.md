@@ -5,7 +5,7 @@ title: "No version left behind: Our epic journey of GitLab upgrades"
 date: 2024-05-03 00:10:10
 authors: [saurabh.vajpayee, ramkumar.manickam, nagendra.gangwar, dan.low, akshay.misra]
 categories: [Engineering]
-tags: [stability, automation, optimisation]
+tags: [Stability, Automation, Optimization]
 comments: true
 cover_photo: /img/no-version-left-behind-our-epic-journey-of-gitlab-upgrades/cover.png
 excerpt: "Join us as we share our experience in developing and implementing a consistent upgrade routine. This process underscored the significance of adaptability, comprehensive preparation, efficient communication, and ongoing learning."

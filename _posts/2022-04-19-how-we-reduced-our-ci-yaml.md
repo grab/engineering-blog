@@ -5,7 +5,7 @@ title: How we reduced our CI YAML files from 1800 lines to 50 lines
 date: 2022-04-19 15:55:55
 authors: [jialong.loh, oscar.cassetti, wenbo.wei]
 categories: [Engineering]
-tags: [CI, Machine Learning, Pipelines, Continuous Integration, Continuous Delivery, Optimisation, Rust]
+tags: [CI, Machine Learning, Pipelines, Continuous Integration, Continuous Delivery, Optimization, Rust]
 comments: true
 cover_photo: /img/how-we-reduced-our-ci-yaml/cover.jpg
 excerpt: "GitLab and its tooling are are an integral part of the machine learning platform team stack, for continuous delivery of machine learning. One of our core products is MerLin Pipelines. We were reaching certain limitations of GitLab for large repositories by way of includes and nested gitlab-ci YAML files."

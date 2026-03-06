@@ -5,7 +5,7 @@ title: 'Evaluating performance impact of removing Redis-cache from a Scylla-back
 date: 2025-04-11 00:23:00
 authors: [riyadh.sharif, jialong.loh, swarit.arora, muqi.li]
 categories: [Engineering]
-tags: [Database, Engineering, Event processing, Optimisation, Redis]
+tags: [Database, Engineering, Event processing, Optimization, Redis]
 comments: true
 cover_photo: /img/evaluate-performance-remove-redis-from-scylla-service/cover.png
 excerpt: "At Grab, we recently reevaluated a setup that combined Scylla with an external Redis cache. We decided to remove Redis and adjusted our Scylla configurations and strategies accordingly. This change helped reduce latency spikes while significantly lowering the overall cost. In this article, we explore the process, the challenges we faced, and the solutions we implemented to create a more efficient and cost-effective setup."

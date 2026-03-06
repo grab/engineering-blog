@@ -5,7 +5,7 @@ title: Graph for fraud detection
 date: 2022-11-24 00:13:40
 authors: [min.chen, advitiya.vashist, jenn.ng, jia.chen]
 categories: [Engineering, Data Science, Security]
-tags: [Analytics, Data Science, Security, Graphs, Graph visualisation, Graph networks, Fraud detection]
+tags: [Analytics, Data Science, Security, Graphs, Graph visualization, Graph networks, Fraud detection]
 comments: true
 cover_photo: /img/graph-for-fraud-detection/cover.png
 excerpt: "Fraud detection has become increasingly important in a fast growing business as new fraud patterns arise when a business product is introduced. We need a sustainable framework to combat different types of fraud and prevent fraud from happening. Read and find out how we use graph-based models to protect our business from various known and unknown fraud risks."
