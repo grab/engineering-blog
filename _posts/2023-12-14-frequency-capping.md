@@ -5,7 +5,7 @@ title: 'Sliding window rate limits in distributed systems'
 date: 2023-12-14 00:00:10
 authors: [naveen.kumar, abdullah.mamun]
 categories: [Engineering]
-tags: [Data, Big data, Rate limiting, Frequency capping, Distributed systems]
+tags: [Data, Big Data, Rate-limiting, Frequency capping, Distributed systems]
 comments: true
 cover_photo: /img/frequency-capping/cover.jpg
 excerpt: "In the field of distributed systems, there are several common challenges, such as rate limiters and fast queries in big data. In this blog post, we delve into how we address these challenges with sliding window rate limits to optimise marketing communications for our users."

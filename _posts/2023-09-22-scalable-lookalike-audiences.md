@@ -5,7 +5,7 @@ title: 'Stepping up marketing for advertisers: Scalable lookalike audience'
 date: 2023-09-22 00:00:10
 authors: [william.wu]
 categories: [Engineering, Data Science]
-tags: [Data, Advertising, Scalability, Data science, Marketing, Lookalike audience]
+tags: [Data, Advertising, Scalability, Data Science, Marketing, Lookalike audience]
 comments: true
 cover_photo: /img/scalable-lookalike-audience/cover.jpg
 excerpt: "A key challenge in advertising is reaching the right audience who are most likely to use your product. Read this article to find out how the Data Science team improved advertising effectiveness by using lookalike audiences to identify individuals who share similar characteristics with an existing consumer base."

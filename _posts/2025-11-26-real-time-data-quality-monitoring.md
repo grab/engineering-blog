@@ -5,7 +5,7 @@ title: "Real-time data quality monitoring: Kafka stream contracts with syntactic
 date: 2025-11-26 00:00:10
 authors: [yuanzhe.liu, fabrice.harbulot, shikai.ng, quang.lehong]
 categories: [Engineering, Data]
-tags: [Engineering, Kafka, Performance, Data science, Data processing, Real-time streaming]
+tags: [Engineering, Kafka, Performance, Data Science, Data processing, Real-time streaming]
 comments: true
 cover_photo: /img/real-time-data-quality-monitoring/cover.png
 excerpt: "Discover how Grab's Coban Platform revolutionizes real-time data quality monitoring for Kafka streams. Learn how syntactic and semantic tests empower stream users to ensure reliable data, prevent cascading errors, and accelerate AI-driven innovation."

@@ -5,7 +5,7 @@ title: 'Reclaiming Terabytes: Optimizing Android image caching with TLRU'
 date: 2026-03-06 00:23:00
 authors: [van.minh]
 categories: [Engineering]
-tags: [app disk, disk size, optimization, scalability] 
+tags: [App disk, Disk size, Optimization, Scalability] 
 comments: true
 cover_photo: /img/image-caching/banner-image.png
 excerpt: "In the quest to optimize app performance, managing the image cache was crucial. This blog takes us on a journey from a traditional Least Recently Used (LRU) cache to a Time-Aware Least Recently Used (TLRU) cache. This innovative approach reclaimed terabytes of storage across millions of devices while maintaining user experience and controlling server costs. Discover how Grab's TLRU implementation cleverly balances storage optimization and performance, offering a glimpse into the future of app development."

@@ -5,7 +5,7 @@ title: Unsupervised graph anomaly detection - Catching new fraudulent behaviours
 date: 2023-08-02 01:23:05
 authors: [rizal.fathony, jenn.ng, jia.chen]
 categories: [Data Science, Security]
-tags: [Data science, Graph networks, Graphs, Graph visualization, Security, Fraud detection, Anomaly detection, Machine learning]
+tags: [Data Science, Graph networks, Graphs, Graph visualization, Security, Fraud detection, Anomaly detection, Machine learning]
 comments: true
 cover_photo: /img/graph-anomaly-model/cover.png
 excerpt: "As fraudsters continue to evolve, it becomes more challenging to automatically detect new fraudulent behaviours. At Grab, we are committed to continuously improving our security measures and ensuring our users are protected from fraudsters. Find out how Grab’s Data Science team designed a machine learning model that has the ability to discover new fraud patterns without the need for label supervision."
