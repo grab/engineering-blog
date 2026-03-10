@@ -3,7 +3,7 @@ layout: post
 id: 2026-03-06-reclaiming-tetabytes-optimizing-android-image-caching-with-tlru
 title: 'Reclaiming Terabytes: Optimizing Android image caching with TLRU'
 date: 2026-03-06 00:23:00
-authors: [van.minh]
+authors: [van.minh,rifqi.fahmi]
 categories: [Engineering]
 tags: [App disk, Disk size, Optimization, Scalability] 
 comments: true
