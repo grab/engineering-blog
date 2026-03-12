@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Enabling R8 optimization at scale with AI-assisted debugging</title>
+    <meta name="description" content="How Grab enabled R8 optimization for its Android app at scale—over 9 million lines of code and 100+ engineers. We achieved 25% Application Not Responding (ANR) reduction, 16% app size decrease, and 27% faster startup through AI-assisted debugging with Model Context Protocol (MCP) tools, pragmatic testing strategies, and optimized feedback loops.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging">
+    <meta property="og:title" content="Enabling R8 optimization at scale with AI-assisted debugging">
+    <meta property="og:description" content="How Grab enabled R8 optimization for its Android app at scale—over 9 million lines of code and 100+ engineers. We achieved 25% Application Not Responding (ANR) reduction, 16% app size decrease, and 27% faster startup through AI-assisted debugging with Model Context Protocol (MCP) tools, pragmatic testing strategies, and optimized feedback loops.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/r8-optimization/banner.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/r8-optimization/banner.png" class="post-cover-photo" alt="Enabling R8 optimization at scale with AI-assisted debugging cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Enabling R8 optimization at scale with AI-assisted debugging</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/van-minh.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#van.minh">Nguyen Van Minh</a>
+                  
+                
+              </span>
+              <span class="post-date-large">12 Mar 2026 | 15 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <p>Grab is Southeast Asia’s leading superapp, providing a suite of services that bring essential needs to users throughout the region. Its offerings include ride-hailing, food delivery, parcel delivery, mobile payments, and more. With safety, efficiency, and user-centered design at heart, Grab remains dedicated to solving everyday issues and improving the lives of millions. As our app continues to expand, we identified platform-level performance challenges that were affecting user experience across the board. In this article, we share how we successfully enabled R8 optimization for the <a href="https://play.google.com/store/apps/details?id=com.grabtaxi.passenger&amp;hl=en">Grab Android app</a>, achieving significant improvements in app size, startup time, and stability through innovative AI-assisted debugging techniques.</p>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>Since 2024, our team observed a concerning trend: Application Not Responding (ANR) rates were spiking across the Grab app. Unlike typical isolated issues, the data revealed that ANRs were happening everywhere, not confined to specific features or modules. This pattern pointed to platform-level causes, with our analysis showing strong correlations between ANRs and several factors like memory pressure (particularly when garbage collection was triggered), ad-heavy user flows, overhead from heavy use of Jetpack Compose within XML layouts, and XML views within Compose code.</p>
+
+<p>The Android community had long proven that R8 optimization (beyond basic code shrinking) could deliver substantial performance gains and app size reductions. As Grab has been adopting Jetpack Compose over the last two years, <a href="https://developer.android.com/develop/ui/compose/performance#config">Google’s Jetpack Compose performance documentation</a> specifically recommends R8 optimization for Compose-heavy apps. This made it a natural solution for our systemic performance issues.</p>
+
+<h2 id="the-challenge-at-scale">The challenge at scale</h2>
+
+<p>However, enabling R8 optimization for Grab’s Android app was far from straightforward. Our app operates at a massive scale with over 9 million lines of code and more than a hundred engineers actively working on it daily. While we had basic R8 shrinking enabled, advanced optimization had proven challenging despite multiple attempts over six years (earlier with adopting DexGuard, later with R8 optimization).</p>
+
+<p>In 2022, we almost succeeded with R8 optimization after successfully rolling it out onto our early access build. We were unfortunately faced with <a href="https://issuetracker.google.com/u/0/issues/240077160">critical roadblocks</a> that compelled us to put the project on hold. After analyzing our previous attempts and the current project situation, we identified three fundamental challenges that had to be solved simultaneously.</p>
+
+<p>This article explains how we tackled each challenge through targeted innovations, including <strong>AI-assisted debugging</strong> for slow investigation cycles, <strong>pragmatic testing strategy</strong> for validation at scale, and <strong>optimized feedback loop</strong> for rapid iteration.</p>
+
+<h2 id="understanding-r8-optimization">Understanding R8 optimization</h2>
+
+<p>Before diving into our solution, it’s important to understand what R8 optimization actually provides beyond basic R8 shrinking.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/r8-optimization/figure-1.png" alt="" style="width:70%" /><figcaption align="middle">Figure 1. The R8 processing pipeline involves multiple interconnected phases that transform, analyze, and optimize code. Understanding this complexity helps explain both the benefits of optimization and why debugging issues become challenging.</figcaption>
+  </figure>
+</div>
+
+<h3 id="what-we-had-in-place">What we had in place</h3>
+
+<p>With <code class="language-plaintext highlighter-rouge">minifyEnabled=true</code> and <code class="language-plaintext highlighter-rouge">shrinkResources=true</code> using <code class="language-plaintext highlighter-rouge">proguard-android.txt</code>, we already had:</p>
+
+<ul>
+  <li><strong>Tree shaking (shrink phase)</strong>: Removes unused/unreachable code.</li>
+  <li><strong>Code minification (obfuscation)</strong>: Renames classes/methods to short names.</li>
+  <li><strong>Resource shrinking</strong>: Removes unused XML files and drawables.</li>
+  <li><strong>Desugaring</strong>: Java 8+ compatibility.</li>
+</ul>
+
+<h3 id="whats-new-with-optimization">What’s new with optimization</h3>
+
+<p>By switching to <code class="language-plaintext highlighter-rouge">proguard-android-optimize.txt</code>, we gained access to:</p>
+
+<ul>
+  <li><strong>Method inlining</strong>: Replaces method calls with actual code, reducing call overhead.</li>
+  <li><strong>Class merging</strong>: Makes code more compact by combining similar classes.</li>
+  <li><strong>Constant folding</strong>: Pre-computes constant expressions at compile time.</li>
+  <li><strong>Dead code elimination</strong>: More aggressive than tree shaking, removes unreachable branches.</li>
+  <li><strong>Devirtualization</strong>: Converts virtual calls to direct calls when possible.</li>
+</ul>
+
+<p>These optimizations work together to improve runtime performance while significantly reducing app size.</p>
+
+<h2 id="three-core-challenges">Three core challenges</h2>
+
+<p>Despite R8’s clear benefits, enabling it at Grab’s scale remains hard. Lessons from prior attempts and current project context surfaced three fundamental challenges we needed to solve.</p>
+
+<h3 id="challenge-1-slow-debugging">Challenge 1: Slow debugging</h3>
+
+<p>R8 optimization issues are notoriously difficult to debug:</p>
+
+<ul>
+  <li>Code is <strong>obfuscated</strong>, class names become <code class="language-plaintext highlighter-rouge">a</code>, <code class="language-plaintext highlighter-rouge">b</code>, <code class="language-plaintext highlighter-rouge">c</code>.</li>
+  <li>Code is <strong>modified</strong>, inlined, merged, and optimized beyond recognition.</li>
+  <li>Stack traces are <strong>unreadable</strong> without proper mapping files when crashes occur.</li>
+  <li><strong>Pinpointing the root cause</strong> requires manual reverse engineering.</li>
+</ul>
+
+<p>The challenge was compounded by limited bandwidth and high labor requirements. Most issues had to be either addressed directly or have solutions provided for other teams to fix. Manual decompilation, deobfuscation, and context gathering for each issue are inherently time-consuming, making the investigation cycle prohibitively slow.</p>
+
+<h3 id="challenge-2-testing-at-scale">Challenge 2: Testing at scale</h3>
+
+<p>R8 optimization affects every corner of the app. Unlike feature-specific changes, enabling optimization transforms how the entire codebase is compiled, inlined, and optimized. A single misconfiguration or missing keep rule can break seemingly unrelated features across different modules and Software Development Kits (SDKs).</p>
+
+<p>When we first enabled R8 optimization, the impact was immediate and widespread—most of the app’s features simply stopped working correctly. This presented us with a deeper problem: not just how to test, but what kind of testing strategy would actually give us confidence to roll out to production.</p>
+
+<p>In theory, R8 optimization works reliably with standard codebases that follow Google’s and the community’s best practices. However, considering the large scale of Grab’s project, legacy code patterns, reflection usage, and SDK integrations have been accumulated over the years, creating numerous edge cases.</p>
+
+<p>This combination makes comprehensive testing necessary, but at our scale, it’s nearly impossible to execute due to:</p>
+
+<ul>
+  <li><strong>Full regression testing</strong>: Requires significant effort from all teams across the organization.</li>
+  <li><strong>Quality Assurance (QA) resource constraints</strong>: Exhaustive testing is impractical.</li>
+  <li><strong>High-quality bar</strong>: At Grab, app stability and zero runtime errors are non-negotiable standards.</li>
+</ul>
+
+<p>This creates a catch-22: we need broad coverage because consistency can’t be guaranteed everywhere, yet the scale makes that coverage infeasible.</p>
+
+<h3 id="challenge-3-slow-feedback">Challenge 3: Slow feedback</h3>
+
+<p>Due to the large scale of the project, compiling a build with R8 optimization enabled on a standard engineering laptop is physically impossible. This created a significant bottleneck: a slow feedback loop where every experimental change required a remote Continuous Integration (CI) build to verify, with each R8-optimized build taking up to 2 hours to complete.</p>
+
+<p>Additionally, R8 treats debug and release build types differently. At Grab, we have a QA build for QA testing. This is a debug build type with R8 enabled, pointed to our staging environment. We had to ensure this QA build’s R8 configuration matched our production build exactly. This alignment was critical for catching R8-specific issues during QA testing that would actually reflect production behavior.</p>
+
+<h2 id="our-three-innovation-solution">Our three-innovation solution</h2>
+
+<p>To overcome these three fundamental challenges, we developed a comprehensive strategy centered on targeted innovations that addressed each bottleneck:</p>
+
+<h3 id="innovation-1-ai-assisted-debugging">Innovation 1: AI-assisted debugging</h3>
+
+<p><strong>Solving challenge 1</strong>:</p>
+
+<p>How do we speed up the investigation of R8 issues in obfuscated, optimized code at scale? The answer is in emerging AI technology that wasn’t available during our previous attempts.</p>
+
+<p><strong>The AI context at Grab</strong>:</p>
+
+<p>Unlike 2022 and earlier attempts, the landscape had changed dramatically. After the LLM explosion, Grab proactively promoted Large Language Model (LLM) usage to boost engineering productivity. Over the past two years, Grab has dedicated 1 to 2 months annually for engineers to learn how to use AI efficiently. This investment in AI literacy became crucial for this project.</p>
+
+<p>This year, my team gained experience building Model Context Protocol (MCP) servers and identified an opportunity: applying this technology to solve the R8 debugging challenge.</p>
+
+<p><strong>Our solution</strong>:</p>
+
+<p>At Grab, we use <strong>GitLab for Continuous Integration and Continuous Delivery (CI/CD)</strong>. To tackle R8 debugging bottlenecks, we built a comprehensive solution combining:</p>
+<ul>
+  <li><a href="#build-mcp-tools-eliminate-manual-reverse-engineering">Custom MCP tools</a>.</li>
+  <li><a href="#ai-and-ci-pipeline-workflow">AI-assisted GitLab CI integration</a>.</li>
+</ul>
+
+<h4 id="build-mcp-tools-eliminate-manual-reverse-engineering">Build MCP tools: Eliminate manual reverse engineering</h4>
+
+<ul>
+  <li><strong>Automatic Android Application Package (APK) decompilation</strong>: Parse and decompile APKs.</li>
+  <li><strong>Stack trace deobfuscation</strong>: Automatically map obfuscated traces to source code.</li>
+  <li><strong>Class/method context fetching</strong>: Pull relevant decompiled code sections for analysis.</li>
+</ul>
+
+<h4 id="ai-and-ci-pipeline-workflow">AI and CI pipeline workflow:</h4>
+
+<p>We developed a systematic two-phase approach for investigating and fixing each runtime issue, combining AI assistance with parallel testing. The phase breakdown is as follows:</p>
+
+<p><strong>Phase 1: MCP server tools for debugging</strong></p>
+
+<ol>
+  <li><strong>Detect runtime issue</strong>: From End-to-End (E2E) tests, QA testing, or crash reports.</li>
+  <li><strong>MCP tool orchestrates APK analysis</strong>: Coordinates decompilation tools for reverse engineering.</li>
+  <li><strong>MCP tool provides decompiled code context</strong>: Pulls and decompiles problematic code sections.</li>
+  <li><strong>Engineer and AI analysis</strong>: The engineer uses AI assistance to analyze the decompiled code context and note down multiple solution approaches.</li>
+</ol>
+
+<p><strong>Phase 2: GitLab CI integration</strong></p>
+
+<p>We leveraged the GitLab CLI tool (<a href="https://docs.gitlab.com/cli/"><code class="language-plaintext highlighter-rouge">glab</code></a>) and instructed AI to use it for interacting with our CI pipeline:</p>
+
+<ol>
+  <li><strong>AI creates multiple Merge Requests (MRs)</strong>: Using <code class="language-plaintext highlighter-rouge">glab</code> CLI, AI creates merge requests for different solution approaches from Phase 1, each triggering CI compilation.</li>
+  <li><strong>Track progress</strong>: Maintain an MD file as the source of truth for the investigation, containing all notes about the issue (root cause analysis, test cases, test branches, CI build status).</li>
+  <li><strong>AI fetches APK from CI</strong>: Using <code class="language-plaintext highlighter-rouge">glab</code> CLI to retrieve built APKs from completed CI pipelines.</li>
+  <li><strong>Verify</strong>: Ask AI to use Android Debug Bridge (ADB) to install APK, then manually test the fix.</li>
+  <li><strong>Iterate</strong>: If issues remain, loop back to step 2 for further analysis.</li>
+</ol>
+
+<p><strong>Why this worked</strong>:</p>
+
+<p>Our approach functions as an AI assistant that:</p>
+
+<ul>
+  <li>Decodes the obfuscated code automatically.</li>
+  <li>Finds the relevant code sections without manual searching.</li>
+  <li>Suggests multiple solutions based on the context provided by the MCP tools.</li>
+  <li>Creates multiple test branches simultaneously and runs parallel CI builds to test different approaches.</li>
+  <li>Tracks everything to ensure no progress is lost on complex investigations.</li>
+</ul>
+
+<p>Instead of testing solutions one-by-one (waiting 2 hours per build), AI creates multiple MRs in parallel, dramatically accelerating the verification process. Engineers focus on making decisions about which solutions to pursue while the AI handles both the mechanical work and the parallel experimentation.</p>
+
+<p><strong>The impact: Accelerating investigation</strong></p>
+
+<p>While investigating a single R8 issue might still take days, our MCP tools dramatically accelerated critical investigation tasks. Manual tasks that previously took hours for decompilation, deobfuscation, and context gathering were reduced to minutes. Additionally, AI assistance significantly sped up the analysis phase, helping engineers quickly identify patterns, suggest solutions, and explore multiple approaches in parallel, both analytically and through simultaneous CI builds, further accelerating the overall investigation process.</p>
+
+<h3 id="innovation-2-pragmatic-testing-strategy">Innovation 2: Pragmatic testing strategy</h3>
+
+<p><strong>Solving challenge 2</strong>:</p>
+
+<p>How do we do testing at scale? How do we validate R8 optimization across a mature codebase containing more than seven million lines of code when comprehensive testing is necessary but impossible? Our solution came from a critical insight about R8 issues at scale.</p>
+
+<p><strong>Testing approaches that don’t work with R8</strong>:</p>
+
+<ul>
+  <li><strong>Unit tests</strong>: Run on Java Virtual Machine (JVM), while R8 optimizations affect Android Runtime behavior - fundamentally different environments.</li>
+  <li><strong>UI tests with R8</strong>: Community solutions exist as Gradle plugins, but <a href="https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration">our tests run on Bazel</a> - complex setup and reliability concerns.</li>
+</ul>
+
+<p><strong>Key insight</strong>:</p>
+
+<p>From our experience, R8 issues tend to share similar root causes across the codebase. Legacy patterns like reflection usage, parser implementations, and dynamic class loading follow consistent patterns within a large codebase. This insight led to two key advantages:</p>
+
+<ul>
+  <li><strong>Fix one, help many</strong>: Fixing one place often resolves issues in others.</li>
+  <li><strong>Pattern recognition</strong>: Once we identify a pattern, we can search the codebase to find similar issues instead of waiting for QA to discover them.</li>
+</ul>
+
+<p>If we could identify and fix these pattern-based issues, we could address many problems without testing every corner of the app. We decided to start with critical paths and expand from there. This “ripple effect” strategy began at the center with the most important flows, then expanded by identifying common root causes and similar patterns across the codebase.</p>
+
+<p><strong>We designed a progressive risk-based validation strategy</strong>:</p>
+
+<ul>
+  <li>
+    <p><strong>Stage 1: E2E tests - pattern discovery phase</strong>: Fortunately, we had existing E2E tests covering most critical paths in the project, and they could be executed with R8 optimization enabled. Initially, all E2E tests failed after enabling optimization. This became our opportunity for pattern discovery. We systematically fixed issues and applied our pattern-based approach to resolve similar problems across the project.</p>
+  </li>
+  <li>
+    <p><strong>Stage 2: QA smoke tests - coverage expansion</strong>: After E2E tests stabilized, we requested our QA team to run smoke tests on critical flows, especially those not covered by E2E automation. This caught additional edge cases and validated that the pattern-based fixes we applied were effective across different user journeys. We fixed any issues that appeared during this phase.</p>
+  </li>
+  <li>
+    <p><strong>Stage 3: Daily QA build enablement - real-world integration</strong>: After confirming stability in controlled testing, we made a significant decision to enable R8 optimization in our daily QA build (the build our QA team uses for daily feature testing). This integrated R8 optimization into the normal development workflow without requiring additional testing effort.</p>
+  </li>
+  <li>
+    <p><strong>Stage 4: Regression testing and Grab Early Access (GEA) - parallel production-scale validation</strong>: After confirming stability in daily QA builds, we moved to production-scale validation with two parallel tracks. Every release at Grab includes <strong>regression testing</strong> covering all critical paths and new features. With R8 optimization now enabled in the QA build, we ran regression tests using this build for a few weeks, providing sustained validation across multiple release cycles. One week after regression testing, we rolled out to <strong>GEA</strong>, Grab’s internal production release channel for Grab employees and partners. While GEA users typically receive features one week before general production rollout, for this R8 optimization project, we extended the GEA phase to 2 weeks, given the significance of the change. With hundreds of daily active users using the app in real-world production conditions during this extended period, we encountered only one remaining R8 issue during the GEA phase. This combination of regression testing and real-world GEA production usage gave us the confidence needed before full production rollout.</p>
+  </li>
+</ul>
+
+<p><strong>Pattern-based issue resolution</strong>:</p>
+
+<p>Throughout these validation phases, when we identified R8 issues, we followed a systematic pattern-based resolution process.</p>
+
+<ol>
+  <li><strong>Identify the issue</strong>: Catch the failure through E2E, QA, or monitoring.</li>
+  <li><strong>Find the pattern</strong>: Analyze the root cause to identify if it’s a common pattern across the codebase.</li>
+  <li><strong>Detect similar instances</strong>: Search the entire codebase to find the same pattern across different modules and the internal SDKs.</li>
+  <li><strong>Coordinate fixes</strong>: Create tickets requesting teams to modify their code to prevent the same issue in their modules.</li>
+</ol>
+
+<p>This approach required cross-team coordination for fixing, but critically, not for testing. The difference is significant: asking teams to fix identified issues in their modules is much more scalable than requiring all teams to perform comprehensive testing upfront.</p>
+
+<p><strong>Production rollout results</strong>:</p>
+
+<p>When we made it to production, only one issue escaped to production. Notably, we had actually detected this issue through our pattern-based approach during testing and created a ticket for the responsible team to fix it. However, with ongoing daily development, the team missed one instance when implementing the fix, which caused the production issue.</p>
+
+<p>This demonstrates that while our testing strategy worked effectively, human coordination challenges can still occur at scale. With a project of this scale, having only one small production issue is considered a highly successful rollout.</p>
+
+<p>This approach transformed an “impossible” comprehensive testing problem into a manageable, systematic validation process, reducing what would have been months of coordinated testing effort to days, proving that a smart strategy can overcome resource constraints.</p>
+
+<h3 id="innovation-3-optimized-feedback-loop">Innovation 3: Optimized feedback loop</h3>
+
+<p><strong>Solving challenge 3</strong>:</p>
+
+<p>The slow feedback challenge—2-hour CI builds and QA configuration misalignment—created a bottleneck for R8 debugging. We addressed this through a comprehensive infrastructure strategy targeting these critical areas:</p>
+
+<p><strong>Remote compilation to enable local build and fast feedback loop</strong>:</p>
+
+<p>At Grab, we used to use <a href="https://github.com/buildfoundation/mainframer">Mainframer</a> for remote execution to handle slow performance on local Gradle builds. However, since <a href="https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration">migrating to Bazel</a> (only for the debug build without R8 enabled), we removed the large-scale Mainframer setup for every engineer. From that experience, to tackle the local compilation blocker for R8 builds, we decided to deploy a new Mainframer setup, a much smaller one with one powerful Amazon Elastic Compute Cloud (EC2) instance, serving as a solution for local compilation in a short time.</p>
+
+<p>This targeted deployment transformed physically impossible local R8 builds into a manageable remote process, enabling engineers to test R8 changes without requiring powerful local hardware.</p>
+
+<p>The performance improvement was substantial: from up to 2 hours in CI to around 1 hour with Mainframer—a ~50% reduction that enabled rapid iteration cycles essential for R8 debugging.</p>
+
+<p><strong>QA build configuration alignment</strong>:</p>
+
+<p>We eliminated the critical gap between QA and production R8 behavior by aligning build configurations exactly. The key change was setting <code class="language-plaintext highlighter-rouge">debuggable = false</code> for QA builds while maintaining the environment configuration.</p>
+
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">buildTypes</span> <span class="o">{</span>
+    <span class="n">debug</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">isQaBuild</span><span class="o">())</span> <span class="o">{</span>
+            <span class="n">minifyEnabled</span> <span class="kc">true</span>
+            <span class="n">shrinkResources</span> <span class="kc">true</span>
+            <span class="n">debuggable</span> <span class="kc">false</span>
+            <span class="n">buildConfigField</span> <span class="s1">'boolean'</span><span class="o">,</span> <span class="s1">'DEBUG'</span><span class="o">,</span> <span class="s1">'true'</span>
+            <span class="o">...</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>From our understanding, R8 applies different optimization levels based on the <code class="language-plaintext highlighter-rouge">debuggable</code> flag, with more aggressive optimizations when debuggable=false. This ensured our QA testing reflected actual production R8 processing. We preserved <code class="language-plaintext highlighter-rouge">DEBUG = true</code> to maintain staging environment routing while achieving R8 parity.</p>
+
+<p>This infrastructure foundation was essential, providing faster feedback loops that accelerated verification and investigation, while the QA build configuration matching production exactly was critical for catching real production issues during testing.</p>
+
+<h2 id="a-lucky-break">A lucky break</h2>
+
+<p>Perhaps most surprising: the R8 flakiness issue that blocked us in 2022 (<a href="https://issuetracker.google.com/u/0/issues/240077160">Issue #240077160</a>) appears to have been resolved by the R8 team. We encountered no build determinism issues during this attempt, which significantly smoothed our path to production.</p>
+
+<h2 id="results">Results</h2>
+
+<p>After ~10 weeks of systematic implementation led by one engineer collaborating with multiple teams across the organization, we achieved substantial improvements using <strong>Android Gradle Plugin 8.6.1 with R8 version 8.6.39</strong>:</p>
+
+<ul>
+  <li><strong>Stability</strong>: Around 25% reduction in ANR rates.</li>
+  <li><strong>App size:</strong> Reduced by 21.6MB (16% decrease) in download size on our reference device (zipped APK).</li>
+  <li><strong>Performance:</strong> Nearly 27% improvement in startup time. After enabling R8 optimization, we saw ~12% app startup improvement. However, during our analysis, we discovered that our existing baseline and startup profiles implementation was incorrect. After proper implementation, the combination of R8 optimization plus the corrected profiles delivered the full 27% improvement.</li>
+</ul>
+
+<p>These results exceeded our initial targets and validated the significant effort required to enable R8 optimization at scale.</p>
+
+<h2 id="whats-next">What’s next</h2>
+
+<p>Our journey doesn’t end here. We’re exploring several areas for continued optimization:</p>
+
+<ul>
+  <li><strong>R8 full mode</strong>: More extreme/aggressive optimization than the current mode for additional performance benefits.</li>
+  <li><strong>Revisit R8 keep rules</strong>: Clean up unnecessary rules that prevent optimization, and implement a governance solution to guardrail R8 rules in our pre-merge CI pipeline.</li>
+  <li><strong>Dead code removal for experiment framework</strong>: We discovered a solution to help R8 understand our experiment framework flags and remove dead branches for fully turned-off features.</li>
+</ul>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Enabling R8 optimization for the Grab Android app at scale required innovation beyond traditional debugging approaches. By combining AI-assisted debugging, pragmatic testing strategies, and infrastructure investment, we overcame challenges that had blocked previous attempts for many years.</p>
+
+<p>For other teams considering R8 optimization at scale: the journey is challenging, but the results speak for themselves. With the right tools, strategy, and team collaboration, it’s achievable even for the largest codebases.</p>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team today</a>!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#ai" class="label tags-label">AI</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Enabling R8 optimization at scale with AI-assisted debugging&url=https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging&title=Enabling R8 optimization at scale with AI-assisted debugging
+&summary=How Grab enabled R8 optimization for its Android app at scale—over 9 million lines of code and 100+ engineers. We achieved 25% Application Not Responding (ANR) reduction, 16% app size decrease, and 27% faster startup through AI-assisted debugging with Model Context Protocol (MCP) tools, pragmatic testing strategies, and optimized feedback loops.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging';
+    this.page.identifier = '/r8-optimization-at-scale-with-ai-assisted-debugging';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>

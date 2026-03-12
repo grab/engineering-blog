@@ -6,9 +6,323 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 12 Mar 2026 01:44:23 +0000</pubDate>
-    <lastBuildDate>Thu, 12 Mar 2026 01:44:23 +0000</lastBuildDate>
+    <pubDate>Thu, 12 Mar 2026 01:48:54 +0000</pubDate>
+    <lastBuildDate>Thu, 12 Mar 2026 01:48:54 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Enabling R8 optimization at scale with AI-assisted debugging</title>
+        <description>&lt;p&gt;Grab is Southeast Asia’s leading superapp, providing a suite of services that bring essential needs to users throughout the region. Its offerings include ride-hailing, food delivery, parcel delivery, mobile payments, and more. With safety, efficiency, and user-centered design at heart, Grab remains dedicated to solving everyday issues and improving the lives of millions. As our app continues to expand, we identified platform-level performance challenges that were affecting user experience across the board. In this article, we share how we successfully enabled R8 optimization for the &lt;a href=&quot;https://play.google.com/store/apps/details?id=com.grabtaxi.passenger&amp;amp;hl=en&quot;&gt;Grab Android app&lt;/a&gt;, achieving significant improvements in app size, startup time, and stability through innovative AI-assisted debugging techniques.&lt;/p&gt;
+
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Since 2024, our team observed a concerning trend: Application Not Responding (ANR) rates were spiking across the Grab app. Unlike typical isolated issues, the data revealed that ANRs were happening everywhere, not confined to specific features or modules. This pattern pointed to platform-level causes, with our analysis showing strong correlations between ANRs and several factors like memory pressure (particularly when garbage collection was triggered), ad-heavy user flows, overhead from heavy use of Jetpack Compose within XML layouts, and XML views within Compose code.&lt;/p&gt;
+
+&lt;p&gt;The Android community had long proven that R8 optimization (beyond basic code shrinking) could deliver substantial performance gains and app size reductions. As Grab has been adopting Jetpack Compose over the last two years, &lt;a href=&quot;https://developer.android.com/develop/ui/compose/performance#config&quot;&gt;Google’s Jetpack Compose performance documentation&lt;/a&gt; specifically recommends R8 optimization for Compose-heavy apps. This made it a natural solution for our systemic performance issues.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-challenge-at-scale&quot;&gt;The challenge at scale&lt;/h2&gt;
+
+&lt;p&gt;However, enabling R8 optimization for Grab’s Android app was far from straightforward. Our app operates at a massive scale with over 9 million lines of code and more than a hundred engineers actively working on it daily. While we had basic R8 shrinking enabled, advanced optimization had proven challenging despite multiple attempts over six years (earlier with adopting DexGuard, later with R8 optimization).&lt;/p&gt;
+
+&lt;p&gt;In 2022, we almost succeeded with R8 optimization after successfully rolling it out onto our early access build. We were unfortunately faced with &lt;a href=&quot;https://issuetracker.google.com/u/0/issues/240077160&quot;&gt;critical roadblocks&lt;/a&gt; that compelled us to put the project on hold. After analyzing our previous attempts and the current project situation, we identified three fundamental challenges that had to be solved simultaneously.&lt;/p&gt;
+
+&lt;p&gt;This article explains how we tackled each challenge through targeted innovations, including &lt;strong&gt;AI-assisted debugging&lt;/strong&gt; for slow investigation cycles, &lt;strong&gt;pragmatic testing strategy&lt;/strong&gt; for validation at scale, and &lt;strong&gt;optimized feedback loop&lt;/strong&gt; for rapid iteration.&lt;/p&gt;
+
+&lt;h2 id=&quot;understanding-r8-optimization&quot;&gt;Understanding R8 optimization&lt;/h2&gt;
+
+&lt;p&gt;Before diving into our solution, it’s important to understand what R8 optimization actually provides beyond basic R8 shrinking.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/r8-optimization/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. The R8 processing pipeline involves multiple interconnected phases that transform, analyze, and optimize code. Understanding this complexity helps explain both the benefits of optimization and why debugging issues become challenging.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;what-we-had-in-place&quot;&gt;What we had in place&lt;/h3&gt;
+
+&lt;p&gt;With &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;minifyEnabled=true&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;shrinkResources=true&lt;/code&gt; using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;proguard-android.txt&lt;/code&gt;, we already had:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Tree shaking (shrink phase)&lt;/strong&gt;: Removes unused/unreachable code.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Code minification (obfuscation)&lt;/strong&gt;: Renames classes/methods to short names.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Resource shrinking&lt;/strong&gt;: Removes unused XML files and drawables.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Desugaring&lt;/strong&gt;: Java 8+ compatibility.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;whats-new-with-optimization&quot;&gt;What’s new with optimization&lt;/h3&gt;
+
+&lt;p&gt;By switching to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;proguard-android-optimize.txt&lt;/code&gt;, we gained access to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Method inlining&lt;/strong&gt;: Replaces method calls with actual code, reducing call overhead.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Class merging&lt;/strong&gt;: Makes code more compact by combining similar classes.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Constant folding&lt;/strong&gt;: Pre-computes constant expressions at compile time.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Dead code elimination&lt;/strong&gt;: More aggressive than tree shaking, removes unreachable branches.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Devirtualization&lt;/strong&gt;: Converts virtual calls to direct calls when possible.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;These optimizations work together to improve runtime performance while significantly reducing app size.&lt;/p&gt;
+
+&lt;h2 id=&quot;three-core-challenges&quot;&gt;Three core challenges&lt;/h2&gt;
+
+&lt;p&gt;Despite R8’s clear benefits, enabling it at Grab’s scale remains hard. Lessons from prior attempts and current project context surfaced three fundamental challenges we needed to solve.&lt;/p&gt;
+
+&lt;h3 id=&quot;challenge-1-slow-debugging&quot;&gt;Challenge 1: Slow debugging&lt;/h3&gt;
+
+&lt;p&gt;R8 optimization issues are notoriously difficult to debug:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Code is &lt;strong&gt;obfuscated&lt;/strong&gt;, class names become &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;b&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;c&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;Code is &lt;strong&gt;modified&lt;/strong&gt;, inlined, merged, and optimized beyond recognition.&lt;/li&gt;
+  &lt;li&gt;Stack traces are &lt;strong&gt;unreadable&lt;/strong&gt; without proper mapping files when crashes occur.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pinpointing the root cause&lt;/strong&gt; requires manual reverse engineering.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The challenge was compounded by limited bandwidth and high labor requirements. Most issues had to be either addressed directly or have solutions provided for other teams to fix. Manual decompilation, deobfuscation, and context gathering for each issue are inherently time-consuming, making the investigation cycle prohibitively slow.&lt;/p&gt;
+
+&lt;h3 id=&quot;challenge-2-testing-at-scale&quot;&gt;Challenge 2: Testing at scale&lt;/h3&gt;
+
+&lt;p&gt;R8 optimization affects every corner of the app. Unlike feature-specific changes, enabling optimization transforms how the entire codebase is compiled, inlined, and optimized. A single misconfiguration or missing keep rule can break seemingly unrelated features across different modules and Software Development Kits (SDKs).&lt;/p&gt;
+
+&lt;p&gt;When we first enabled R8 optimization, the impact was immediate and widespread—most of the app’s features simply stopped working correctly. This presented us with a deeper problem: not just how to test, but what kind of testing strategy would actually give us confidence to roll out to production.&lt;/p&gt;
+
+&lt;p&gt;In theory, R8 optimization works reliably with standard codebases that follow Google’s and the community’s best practices. However, considering the large scale of Grab’s project, legacy code patterns, reflection usage, and SDK integrations have been accumulated over the years, creating numerous edge cases.&lt;/p&gt;
+
+&lt;p&gt;This combination makes comprehensive testing necessary, but at our scale, it’s nearly impossible to execute due to:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Full regression testing&lt;/strong&gt;: Requires significant effort from all teams across the organization.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Quality Assurance (QA) resource constraints&lt;/strong&gt;: Exhaustive testing is impractical.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;High-quality bar&lt;/strong&gt;: At Grab, app stability and zero runtime errors are non-negotiable standards.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This creates a catch-22: we need broad coverage because consistency can’t be guaranteed everywhere, yet the scale makes that coverage infeasible.&lt;/p&gt;
+
+&lt;h3 id=&quot;challenge-3-slow-feedback&quot;&gt;Challenge 3: Slow feedback&lt;/h3&gt;
+
+&lt;p&gt;Due to the large scale of the project, compiling a build with R8 optimization enabled on a standard engineering laptop is physically impossible. This created a significant bottleneck: a slow feedback loop where every experimental change required a remote Continuous Integration (CI) build to verify, with each R8-optimized build taking up to 2 hours to complete.&lt;/p&gt;
+
+&lt;p&gt;Additionally, R8 treats debug and release build types differently. At Grab, we have a QA build for QA testing. This is a debug build type with R8 enabled, pointed to our staging environment. We had to ensure this QA build’s R8 configuration matched our production build exactly. This alignment was critical for catching R8-specific issues during QA testing that would actually reflect production behavior.&lt;/p&gt;
+
+&lt;h2 id=&quot;our-three-innovation-solution&quot;&gt;Our three-innovation solution&lt;/h2&gt;
+
+&lt;p&gt;To overcome these three fundamental challenges, we developed a comprehensive strategy centered on targeted innovations that addressed each bottleneck:&lt;/p&gt;
+
+&lt;h3 id=&quot;innovation-1-ai-assisted-debugging&quot;&gt;Innovation 1: AI-assisted debugging&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Solving challenge 1&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;How do we speed up the investigation of R8 issues in obfuscated, optimized code at scale? The answer is in emerging AI technology that wasn’t available during our previous attempts.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;The AI context at Grab&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;Unlike 2022 and earlier attempts, the landscape had changed dramatically. After the LLM explosion, Grab proactively promoted Large Language Model (LLM) usage to boost engineering productivity. Over the past two years, Grab has dedicated 1 to 2 months annually for engineers to learn how to use AI efficiently. This investment in AI literacy became crucial for this project.&lt;/p&gt;
+
+&lt;p&gt;This year, my team gained experience building Model Context Protocol (MCP) servers and identified an opportunity: applying this technology to solve the R8 debugging challenge.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Our solution&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;At Grab, we use &lt;strong&gt;GitLab for Continuous Integration and Continuous Delivery (CI/CD)&lt;/strong&gt;. To tackle R8 debugging bottlenecks, we built a comprehensive solution combining:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;#build-mcp-tools-eliminate-manual-reverse-engineering&quot;&gt;Custom MCP tools&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;#ai-and-ci-pipeline-workflow&quot;&gt;AI-assisted GitLab CI integration&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;build-mcp-tools-eliminate-manual-reverse-engineering&quot;&gt;Build MCP tools: Eliminate manual reverse engineering&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Automatic Android Application Package (APK) decompilation&lt;/strong&gt;: Parse and decompile APKs.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Stack trace deobfuscation&lt;/strong&gt;: Automatically map obfuscated traces to source code.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Class/method context fetching&lt;/strong&gt;: Pull relevant decompiled code sections for analysis.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;ai-and-ci-pipeline-workflow&quot;&gt;AI and CI pipeline workflow:&lt;/h4&gt;
+
+&lt;p&gt;We developed a systematic two-phase approach for investigating and fixing each runtime issue, combining AI assistance with parallel testing. The phase breakdown is as follows:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Phase 1: MCP server tools for debugging&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Detect runtime issue&lt;/strong&gt;: From End-to-End (E2E) tests, QA testing, or crash reports.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;MCP tool orchestrates APK analysis&lt;/strong&gt;: Coordinates decompilation tools for reverse engineering.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;MCP tool provides decompiled code context&lt;/strong&gt;: Pulls and decompiles problematic code sections.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Engineer and AI analysis&lt;/strong&gt;: The engineer uses AI assistance to analyze the decompiled code context and note down multiple solution approaches.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Phase 2: GitLab CI integration&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;We leveraged the GitLab CLI tool (&lt;a href=&quot;https://docs.gitlab.com/cli/&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;glab&lt;/code&gt;&lt;/a&gt;) and instructed AI to use it for interacting with our CI pipeline:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;AI creates multiple Merge Requests (MRs)&lt;/strong&gt;: Using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;glab&lt;/code&gt; CLI, AI creates merge requests for different solution approaches from Phase 1, each triggering CI compilation.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Track progress&lt;/strong&gt;: Maintain an MD file as the source of truth for the investigation, containing all notes about the issue (root cause analysis, test cases, test branches, CI build status).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;AI fetches APK from CI&lt;/strong&gt;: Using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;glab&lt;/code&gt; CLI to retrieve built APKs from completed CI pipelines.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Verify&lt;/strong&gt;: Ask AI to use Android Debug Bridge (ADB) to install APK, then manually test the fix.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Iterate&lt;/strong&gt;: If issues remain, loop back to step 2 for further analysis.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;Why this worked&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;Our approach functions as an AI assistant that:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Decodes the obfuscated code automatically.&lt;/li&gt;
+  &lt;li&gt;Finds the relevant code sections without manual searching.&lt;/li&gt;
+  &lt;li&gt;Suggests multiple solutions based on the context provided by the MCP tools.&lt;/li&gt;
+  &lt;li&gt;Creates multiple test branches simultaneously and runs parallel CI builds to test different approaches.&lt;/li&gt;
+  &lt;li&gt;Tracks everything to ensure no progress is lost on complex investigations.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Instead of testing solutions one-by-one (waiting 2 hours per build), AI creates multiple MRs in parallel, dramatically accelerating the verification process. Engineers focus on making decisions about which solutions to pursue while the AI handles both the mechanical work and the parallel experimentation.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;The impact: Accelerating investigation&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;While investigating a single R8 issue might still take days, our MCP tools dramatically accelerated critical investigation tasks. Manual tasks that previously took hours for decompilation, deobfuscation, and context gathering were reduced to minutes. Additionally, AI assistance significantly sped up the analysis phase, helping engineers quickly identify patterns, suggest solutions, and explore multiple approaches in parallel, both analytically and through simultaneous CI builds, further accelerating the overall investigation process.&lt;/p&gt;
+
+&lt;h3 id=&quot;innovation-2-pragmatic-testing-strategy&quot;&gt;Innovation 2: Pragmatic testing strategy&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Solving challenge 2&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;How do we do testing at scale? How do we validate R8 optimization across a mature codebase containing more than seven million lines of code when comprehensive testing is necessary but impossible? Our solution came from a critical insight about R8 issues at scale.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Testing approaches that don’t work with R8&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Unit tests&lt;/strong&gt;: Run on Java Virtual Machine (JVM), while R8 optimizations affect Android Runtime behavior - fundamentally different environments.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;UI tests with R8&lt;/strong&gt;: Community solutions exist as Gradle plugins, but &lt;a href=&quot;https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration&quot;&gt;our tests run on Bazel&lt;/a&gt; - complex setup and reliability concerns.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Key insight&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;From our experience, R8 issues tend to share similar root causes across the codebase. Legacy patterns like reflection usage, parser implementations, and dynamic class loading follow consistent patterns within a large codebase. This insight led to two key advantages:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Fix one, help many&lt;/strong&gt;: Fixing one place often resolves issues in others.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pattern recognition&lt;/strong&gt;: Once we identify a pattern, we can search the codebase to find similar issues instead of waiting for QA to discover them.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If we could identify and fix these pattern-based issues, we could address many problems without testing every corner of the app. We decided to start with critical paths and expand from there. This “ripple effect” strategy began at the center with the most important flows, then expanded by identifying common root causes and similar patterns across the codebase.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;We designed a progressive risk-based validation strategy&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Stage 1: E2E tests - pattern discovery phase&lt;/strong&gt;: Fortunately, we had existing E2E tests covering most critical paths in the project, and they could be executed with R8 optimization enabled. Initially, all E2E tests failed after enabling optimization. This became our opportunity for pattern discovery. We systematically fixed issues and applied our pattern-based approach to resolve similar problems across the project.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Stage 2: QA smoke tests - coverage expansion&lt;/strong&gt;: After E2E tests stabilized, we requested our QA team to run smoke tests on critical flows, especially those not covered by E2E automation. This caught additional edge cases and validated that the pattern-based fixes we applied were effective across different user journeys. We fixed any issues that appeared during this phase.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Stage 3: Daily QA build enablement - real-world integration&lt;/strong&gt;: After confirming stability in controlled testing, we made a significant decision to enable R8 optimization in our daily QA build (the build our QA team uses for daily feature testing). This integrated R8 optimization into the normal development workflow without requiring additional testing effort.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Stage 4: Regression testing and Grab Early Access (GEA) - parallel production-scale validation&lt;/strong&gt;: After confirming stability in daily QA builds, we moved to production-scale validation with two parallel tracks. Every release at Grab includes &lt;strong&gt;regression testing&lt;/strong&gt; covering all critical paths and new features. With R8 optimization now enabled in the QA build, we ran regression tests using this build for a few weeks, providing sustained validation across multiple release cycles. One week after regression testing, we rolled out to &lt;strong&gt;GEA&lt;/strong&gt;, Grab’s internal production release channel for Grab employees and partners. While GEA users typically receive features one week before general production rollout, for this R8 optimization project, we extended the GEA phase to 2 weeks, given the significance of the change. With hundreds of daily active users using the app in real-world production conditions during this extended period, we encountered only one remaining R8 issue during the GEA phase. This combination of regression testing and real-world GEA production usage gave us the confidence needed before full production rollout.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;Pattern-based issue resolution&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;Throughout these validation phases, when we identified R8 issues, we followed a systematic pattern-based resolution process.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Identify the issue&lt;/strong&gt;: Catch the failure through E2E, QA, or monitoring.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Find the pattern&lt;/strong&gt;: Analyze the root cause to identify if it’s a common pattern across the codebase.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Detect similar instances&lt;/strong&gt;: Search the entire codebase to find the same pattern across different modules and the internal SDKs.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Coordinate fixes&lt;/strong&gt;: Create tickets requesting teams to modify their code to prevent the same issue in their modules.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;This approach required cross-team coordination for fixing, but critically, not for testing. The difference is significant: asking teams to fix identified issues in their modules is much more scalable than requiring all teams to perform comprehensive testing upfront.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Production rollout results&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;When we made it to production, only one issue escaped to production. Notably, we had actually detected this issue through our pattern-based approach during testing and created a ticket for the responsible team to fix it. However, with ongoing daily development, the team missed one instance when implementing the fix, which caused the production issue.&lt;/p&gt;
+
+&lt;p&gt;This demonstrates that while our testing strategy worked effectively, human coordination challenges can still occur at scale. With a project of this scale, having only one small production issue is considered a highly successful rollout.&lt;/p&gt;
+
+&lt;p&gt;This approach transformed an “impossible” comprehensive testing problem into a manageable, systematic validation process, reducing what would have been months of coordinated testing effort to days, proving that a smart strategy can overcome resource constraints.&lt;/p&gt;
+
+&lt;h3 id=&quot;innovation-3-optimized-feedback-loop&quot;&gt;Innovation 3: Optimized feedback loop&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Solving challenge 3&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;The slow feedback challenge—2-hour CI builds and QA configuration misalignment—created a bottleneck for R8 debugging. We addressed this through a comprehensive infrastructure strategy targeting these critical areas:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Remote compilation to enable local build and fast feedback loop&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;At Grab, we used to use &lt;a href=&quot;https://github.com/buildfoundation/mainframer&quot;&gt;Mainframer&lt;/a&gt; for remote execution to handle slow performance on local Gradle builds. However, since &lt;a href=&quot;https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration&quot;&gt;migrating to Bazel&lt;/a&gt; (only for the debug build without R8 enabled), we removed the large-scale Mainframer setup for every engineer. From that experience, to tackle the local compilation blocker for R8 builds, we decided to deploy a new Mainframer setup, a much smaller one with one powerful Amazon Elastic Compute Cloud (EC2) instance, serving as a solution for local compilation in a short time.&lt;/p&gt;
+
+&lt;p&gt;This targeted deployment transformed physically impossible local R8 builds into a manageable remote process, enabling engineers to test R8 changes without requiring powerful local hardware.&lt;/p&gt;
+
+&lt;p&gt;The performance improvement was substantial: from up to 2 hours in CI to around 1 hour with Mainframer—a ~50% reduction that enabled rapid iteration cycles essential for R8 debugging.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;QA build configuration alignment&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;We eliminated the critical gap between QA and production R8 behavior by aligning build configurations exactly. The key change was setting &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;debuggable = false&lt;/code&gt; for QA builds while maintaining the environment configuration.&lt;/p&gt;
+
+&lt;div class=&quot;language-groovy highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;buildTypes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;debug&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;isQaBuild&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;minifyEnabled&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;shrinkResources&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;debuggable&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;buildConfigField&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;boolean&apos;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;DEBUG&apos;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;true&apos;&lt;/span&gt;
+            &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;From our understanding, R8 applies different optimization levels based on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;debuggable&lt;/code&gt; flag, with more aggressive optimizations when debuggable=false. This ensured our QA testing reflected actual production R8 processing. We preserved &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DEBUG = true&lt;/code&gt; to maintain staging environment routing while achieving R8 parity.&lt;/p&gt;
+
+&lt;p&gt;This infrastructure foundation was essential, providing faster feedback loops that accelerated verification and investigation, while the QA build configuration matching production exactly was critical for catching real production issues during testing.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-lucky-break&quot;&gt;A lucky break&lt;/h2&gt;
+
+&lt;p&gt;Perhaps most surprising: the R8 flakiness issue that blocked us in 2022 (&lt;a href=&quot;https://issuetracker.google.com/u/0/issues/240077160&quot;&gt;Issue #240077160&lt;/a&gt;) appears to have been resolved by the R8 team. We encountered no build determinism issues during this attempt, which significantly smoothed our path to production.&lt;/p&gt;
+
+&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
+
+&lt;p&gt;After ~10 weeks of systematic implementation led by one engineer collaborating with multiple teams across the organization, we achieved substantial improvements using &lt;strong&gt;Android Gradle Plugin 8.6.1 with R8 version 8.6.39&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Stability&lt;/strong&gt;: Around 25% reduction in ANR rates.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;App size:&lt;/strong&gt; Reduced by 21.6MB (16% decrease) in download size on our reference device (zipped APK).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Performance:&lt;/strong&gt; Nearly 27% improvement in startup time. After enabling R8 optimization, we saw ~12% app startup improvement. However, during our analysis, we discovered that our existing baseline and startup profiles implementation was incorrect. After proper implementation, the combination of R8 optimization plus the corrected profiles delivered the full 27% improvement.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;These results exceeded our initial targets and validated the significant effort required to enable R8 optimization at scale.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;Our journey doesn’t end here. We’re exploring several areas for continued optimization:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;R8 full mode&lt;/strong&gt;: More extreme/aggressive optimization than the current mode for additional performance benefits.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Revisit R8 keep rules&lt;/strong&gt;: Clean up unnecessary rules that prevent optimization, and implement a governance solution to guardrail R8 rules in our pre-merge CI pipeline.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Dead code removal for experiment framework&lt;/strong&gt;: We discovered a solution to help R8 understand our experiment framework flags and remove dead branches for fully turned-off features.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Enabling R8 optimization for the Grab Android app at scale required innovation beyond traditional debugging approaches. By combining AI-assisted debugging, pragmatic testing strategies, and infrastructure investment, we overcame challenges that had blocked previous attempts for many years.&lt;/p&gt;
+
+&lt;p&gt;For other teams considering R8 optimization at scale: the journey is challenging, but the results speak for themselves. With the right tools, strategy, and team collaboration, it’s achievable even for the largest codebases.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 12 Mar 2026 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging</link>
+        <guid isPermaLink="true">https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging</guid>
+        
+        <category>AI</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Reclaiming Terabytes: Optimizing Android image caching with TLRU</title>
@@ -2290,438 +2604,6 @@ As pioneers in Southeast Asia, we began the program with 23 initial researchers,
         <category>Engineering</category>
         
         <category>Data</category>
-        
-      </item>
-    
-      <item>
-        <title>Grab&apos;s Mac Cloud Exit supercharges macOS CI/CD</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In our mission to optimize continuous integration and delivery (CI/CD), we have taken a bold step by relocating our infrastructure from a cloud vendor in the US to a colocation cluster within Southeast Asia, closer to our Git server infrastructure. This change has dramatically improved the performance of our macOS builds, primarily by reducing the network traffic delays associated with distant data centers. By bringing our infrastructure closer to home, we have not only accelerated CI/CD job completion times but also massively slashed operational costs.&lt;/p&gt;
-
-&lt;p&gt;Join us as we delve into the Mac Cloud Exit journey and the significant improvements it has brought to our workflows.&lt;/p&gt;
-
-&lt;p&gt;Our macOS CI/CD infrastructure has evolved from 1 Physical Mac Pro running in our office to a cluster of 250 Mac minis fully occupied during peak hours of the day. There were multiple stages in the journey to transition to the current state. The following diagram shows the focus area for this blog post.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image1.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Infrastructure transition path&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;before-and-after-visualizing-the-evolution&quot;&gt;Before and after: Visualizing the evolution&lt;/h3&gt;
-
-&lt;p&gt;We began our journey with a much simpler setup.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image2.png&quot; alt=&quot;&quot; style=&quot;width:40%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Photo of the setup when we started&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Today, that infrastructure has scaled significantly to meet the growing demands of Grab&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image3.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Mac mini cluster today&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;economy-at-scale-the-rent-vs-own-equation&quot;&gt;Economy at scale: The rent vs. own equation&lt;/h2&gt;
-
-&lt;p&gt;At the beginning, it was a no-brainer to rent when our demand for macOS hardware increased from 1 MacPro to 20 times that size. However, when that grew to over 200 machines, the total cost became significant, prompting us to consider:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;What is the desired reliability for this cluster?&lt;/li&gt;
-  &lt;li&gt;What would be the total cost of ownership for us to build this cluster ourselves compared to cloud-based options?&lt;/li&gt;
-  &lt;li&gt;What kind of operational leverage would it bring us by controlling end-to-end stack by ourselves?&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;what-is-grabs-scale&quot;&gt;What is Grab’s scale&lt;/h3&gt;
-
-&lt;p&gt;At Grab, our iOS build needs have scaled quite significantly, so we went from running some builds on a single Mac Pro to running them on an army of 250+ Mac minis. And so did the cost.&lt;/p&gt;
-
-&lt;h4 id=&quot;active-jobs-trend&quot;&gt;Active jobs trend&lt;/h4&gt;
-
-&lt;p&gt;The total number of jobs trend is one of the data points to understand the demand situation. The following chart is a snapshot from our demand curve in 2022. Peak demand often started to exceed the available supply, creating queues for the jobs.&lt;/p&gt;
-
-&lt;p&gt;We estimated we would need 200+ machines to comfortably supply for the peak demand and projected a demand for 400+ machines in 2025.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Active macOS CI/CD jobs&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;what-is-our-workload&quot;&gt;What is our workload&lt;/h3&gt;
-
-&lt;p&gt;We have several iOS apps that share a common macOS compute cluster for their CI/CD workloads. &lt;br /&gt;
-This includes, but is not limited to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/sg/app/grab-taxi-ride-food-delivery/id647268330&quot;&gt;Grab app&lt;/a&gt; (Largest iOS code base with approximately 2.5M+ total lines of code)&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/sg/app/grab-driver-app-for-partners/id1257641454&quot;&gt;Grab Driver app&lt;/a&gt; (Second largest iOS code base with approximately 0.7M+ total lines of code)&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/sg/app/kartalink/id6450411148&quot;&gt;KartaLink&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/sg/app/grabmerchant/id1282271764&quot;&gt;GrabMerchant&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/sg/app/kartaview/id1089548849&quot;&gt;KartaView&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/us/app/ovo/id1142114207&quot;&gt;OVO&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/ph/app/move-it-fast-moto-taxi-ride/id1481198245&quot;&gt;Move It: Fast Moto Taxi Ride&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://apps.apple.com/ph/app/move-it-driver-app/id6446633186&quot;&gt;Move It Driver App&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The workload primarily involves:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Building apps&lt;/li&gt;
-  &lt;li&gt;Execution of tests&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;the-evaluation-cloud-vs-colocation-vs-on-premises&quot;&gt;The evaluation: Cloud vs colocation vs on-premises&lt;/h2&gt;
-
-&lt;p&gt;We did a comprehensive comparison and total cost of ownership (TCO) estimation to compare many different options, including cloud vendors and colocation in different places.&lt;/p&gt;
-
-&lt;h3 id=&quot;cost-of-macos-compute&quot;&gt;Cost of macOS compute&lt;/h3&gt;
-
-&lt;p&gt;The expense of macOS compute is notably higher, particularly in continuous integration (CI) setups, posing challenges for optimal configuration. Several factors contribute to these increased costs:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Apple’s restrictive EULA mandates a minimum lease period of 24 hours for macOS instances, which alters the utilization equation.&lt;/li&gt;
-  &lt;li&gt;Economies of scale are not favorable for available macOS hardware configurations compared to alternatives. Optimized server hardware designed for racking offers various configurations that reduce operational costs, unlike macOS options such as Mac Mini and Mac Pro.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;For instance, although not a direct comparison, the &lt;a href=&quot;https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions#per-minute-rates-for-standard-runners&quot;&gt;pricing for GitHub Actions build minutes&lt;/a&gt; shows macOS is ten times more costly than Linux. This reflects the pricing GitHub can offer after &lt;a href=&quot;https://www.youtube.com/watch?v=I2J2MzKjcqY&quot;&gt;implementing racking optimizations.&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;Initially, we conducted rough estimations to assess the total cost of ownership differences between cloud, colocation, and on-premises setups. Even with conservative estimates for manpower and engineering costs, colocation or on-premises setups proved more cost-effective at our scale. This cost disparity became even more pronounced when focusing on cloud vendors providing macOS compute physically located in Southeast Asia.&lt;/p&gt;
-
-&lt;p&gt;We opted to conduct an in-depth evaluation of the following options:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Establishing a macOS cluster at our headquarters in Singapore, which was swiftly dismissed due to scalability and cost concerns making it an unsuitable long-term solution.&lt;/li&gt;
-  &lt;li&gt;Colocating in a Southeast Asian country where we have operational presence.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;choice-of-location&quot;&gt;Choice of location&lt;/h3&gt;
-
-&lt;p&gt;As a Southeast Asian company, we maintain offices in each country where we operate, some of which boast advanced data center infrastructures. We focused our location choices on Singapore and Malaysia, assessing them based on several criteria, including:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The maturity of existing data center infrastructure.&lt;/li&gt;
-  &lt;li&gt;The proximity of the data centers to our offices, ensuring staff availability for infrastructure setup.&lt;/li&gt;
-  &lt;li&gt;The cost and reliability of power.&lt;/li&gt;
-  &lt;li&gt;The proximity to our Git servers and the expense of establishing direct network connections.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Eventually we concluded to go ahead with a decision to colocate in a data center in Malaysia &lt;a href=&quot;https://www.edgeconnex.com/news/edge-blog/southeast-asias-data-center-powerhouse-malaysia/&quot;&gt;which is one of the emerging data center powerhouses in the region&lt;/a&gt; with relatively low energy cost compared to Singapore.&lt;/p&gt;
-
-&lt;h3 id=&quot;choice-of-mac-hardware&quot;&gt;Choice of Mac hardware&lt;/h3&gt;
-
-&lt;p&gt;Our choice of hardware model for our build and test workload was guided by a cost-benefit analysis. We decided to use bare-metal setups without virtualization, simplifying migration processes, which may be revisited in the future. We ensured we neither over-specified nor under-specified the bare-metal hardware. We had a clear understanding of the resource consumption of our most demanding workload on a few reference models, as illustrated in the following graphs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. User and system CPU usage during build&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Memory usage&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;virtualization-vs-bare-metal&quot;&gt;Virtualization vs bare-metal&lt;/h3&gt;
-
-&lt;p&gt;Virtualization offers significant advantages in managing and provisioning clusters, including the flexibility to create ephemeral builds. However, our experience with macOS virtualization has been mixed. While off-the-shelf virtualization solutions provide maintenance benefits, they often come at the cost of performance or stability.&lt;/p&gt;
-
-&lt;p&gt;Key points:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Improved utilization&lt;/strong&gt;: Virtualization can improve resource utilization by consolidating multiple workloads on fewer physical servers, thereby reducing the overall cost.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Performance penalty&lt;/strong&gt;: However, the performance penalty associated with virtualization can sometimes negate these cost benefits. This is particularly true for macOS virtualization, where we have observed trade-offs in performance or stability.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Evolution of virtualization&lt;/strong&gt;: The virtualization space has been evolving and making good progress. We may re-evaluate these solutions in the future as they continue to mature and potentially address current performance and stability issues.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Our conclusion was to stick to bare-metal for the time-being as the benefits didn’t justify the downside and cost.&lt;/p&gt;
-
-&lt;h2 id=&quot;execution&quot;&gt;Execution&lt;/h2&gt;
-
-&lt;h3 id=&quot;progressive-migration&quot;&gt;Progressive migration&lt;/h3&gt;
-
-&lt;p&gt;Any disruption to the macOS CI/CD cluster would be hugely disruptive to the company given our scale highlighted above. So, we enabled new cluster partially for part of the workload for a reasonably long period of time and monitored and compared:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Job failure rate&lt;/li&gt;
-  &lt;li&gt;Jobs performance&lt;/li&gt;
-  &lt;li&gt;Reliability&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Once we were confident, we made the full switch and terminated vendor contracts at due.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image7.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Total active jobs trend&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;result&quot;&gt;Result&lt;/h2&gt;
-
-&lt;p&gt;The migration yielded better results overall than our initial conservative estimates.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Cost savings: Estimated over 2.4 million USD over three years&lt;/li&gt;
-  &lt;li&gt;Performance improvement: Between 20-40% depending on the use case&lt;/li&gt;
-  &lt;li&gt;Stability: No compromise&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;A strategic investment in our mission to drive Southeast Asia forward by onshoring critical Mac infrastructure into the region.&lt;/p&gt;
-
-&lt;h3 id=&quot;cost&quot;&gt;Cost&lt;/h3&gt;
-
-&lt;p&gt;We anticipate a three-year replacement cycle for our hardware. While some equipment may be utilized beyond this period, it provides a reasonable lifespan for cost estimation purposes.&lt;/p&gt;
-
-&lt;p&gt;The lifecycle of networking equipment involves both physical reliability, following the bathtub curve, and technological obsolescence, often necessitating replacement every 3 to 5 years. Mac minis could become outdated after approximately three years, making the opportunity cost of extended use potentially higher than the net replacement cost after benefits.&lt;/p&gt;
-
-&lt;p&gt;Importantly, the experience gained during this cycle could significantly reduce the engineering costs associated with future replacements.&lt;/p&gt;
-
-&lt;p&gt;Overall, we project total cost of ownership savings of approximately 2.4 million USD over a three-year period compared to our last cloud-based setup rented from a vendor.&lt;/p&gt;
-
-&lt;h3 id=&quot;performance&quot;&gt;Performance&lt;/h3&gt;
-
-&lt;p&gt;We measured the performance gains in two of our largest iOS apps:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Grab app&lt;/li&gt;
-  &lt;li&gt;Grab Driver app&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;overall-gains&quot;&gt;Overall gains&lt;/h4&gt;
-
-&lt;p&gt;The following table summarizes the total time measured before and after the migration for total CI pipeline time and building the app codebase. Measurements are presented in 3 percentiles (p50, p75, p95).&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-    &lt;thead&gt;
-        &lt;tr&gt;
-            &lt;th rowspan=&quot;2&quot;&gt;App / Metric&lt;/th&gt;
-            &lt;th rowspan=&quot;2&quot;&gt;&lt;/th&gt;
-            &lt;th colspan=&quot;3&quot;&gt;Time (Minutes)&lt;/th&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;th&gt;p50&lt;/th&gt;
-            &lt;th&gt;p75&lt;/th&gt;
-            &lt;th&gt;p95&lt;/th&gt;
-        &lt;/tr&gt;
-    &lt;/thead&gt;
-    &lt;tbody&gt;
-        &lt;tr&gt;
-            &lt;td rowspan=&quot;3&quot;&gt;CI pipeline time trend for the Grab app&lt;/td&gt;
-            &lt;td&gt;Before&lt;/td&gt;
-            &lt;td&gt;43&lt;/td&gt;
-            &lt;td&gt;54&lt;/td&gt;
-            &lt;td&gt;67&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;After&lt;/td&gt;
-            &lt;td&gt;33&lt;/td&gt;
-            &lt;td&gt;42&lt;/td&gt;
-            &lt;td&gt;49&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;&lt;b&gt;Gain&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;23.26%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;22.22%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;26.87%&lt;/b&gt;&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td rowspan=&quot;3&quot;&gt;App build time trend for the Grab app&lt;/td&gt;
-            &lt;td&gt;Before&lt;/td&gt;
-            &lt;td&gt;10.7&lt;/td&gt;
-            &lt;td&gt;13.2&lt;/td&gt;
-            &lt;td&gt;17.6&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;After&lt;/td&gt;
-            &lt;td&gt;6.45&lt;/td&gt;
-            &lt;td&gt;9&lt;/td&gt;
-            &lt;td&gt;10.8&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;&lt;b&gt;Gain&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;39.72%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;31.82%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;38.64%&lt;/b&gt;&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td rowspan=&quot;3&quot;&gt;Pipeline time trend for the Grab Driver app&lt;/td&gt;
-            &lt;td&gt;Before&lt;/td&gt;
-            &lt;td&gt;47&lt;/td&gt;
-            &lt;td&gt;50&lt;/td&gt;
-            &lt;td&gt;52&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;After&lt;/td&gt;
-            &lt;td&gt;26&lt;/td&gt;
-            &lt;td&gt;31&lt;/td&gt;
-            &lt;td&gt;32&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;&lt;b&gt;Gain&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;44.68%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;38.00%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;38.46%&lt;/b&gt;&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td rowspan=&quot;3&quot;&gt;App build time trend for the Grab Driver app&lt;/td&gt;
-            &lt;td&gt;Before&lt;/td&gt;
-            &lt;td&gt;10&lt;/td&gt;
-            &lt;td&gt;13&lt;/td&gt;
-            &lt;td&gt;14&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;After&lt;/td&gt;
-            &lt;td&gt;6&lt;/td&gt;
-            &lt;td&gt;8&lt;/td&gt;
-            &lt;td&gt;8.5&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;&lt;b&gt;Gain&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;40.00%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;38.46%&lt;/b&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;b&gt;39.29%&lt;/b&gt;&lt;/td&gt;
-        &lt;/tr&gt;
-    &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h4 id=&quot;a-different-perspective-trends&quot;&gt;A different perspective: Trends&lt;/h4&gt;
-
-&lt;p&gt;The following trend illustrations show how the performance of various tasks has improved while we progressively migrated to the new colocation setup.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image8.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8. 14 day aggregate percentiles of p50, p75 and p95 for total CI pipeline times for the Grab app codebase&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image9.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 9. Pipeline time pulse for the Grab app codebase&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/mac-cloud-exit/image10.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 10. 14 day aggregate percentiles of p50, p75 and p95 for total CI pipeline times for the Grab Driver app codebase&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;stability&quot;&gt;Stability&lt;/h3&gt;
-
-&lt;p&gt;We measured overall job failure rates between both clusters for extended periods as a guardrail metric and ensured the stability of the new cluster before shutting down the old one.&lt;/p&gt;
-
-&lt;h2 id=&quot;colocation-setup-and-rack-configuration&quot;&gt;Colocation setup and rack configuration&lt;/h2&gt;
-
-&lt;p&gt;The following table provides an overview of the layout of our new Mac mini cluster.&lt;/p&gt;
-
-&lt;table class=&quot;table&quot;&gt;
-    &lt;thead&gt;
-        &lt;tr&gt;
-            &lt;th&gt;Component&lt;/th&gt;
-            &lt;th&gt;Description&lt;/th&gt;
-            &lt;th&gt;Redundancy&lt;/th&gt;
-        &lt;/tr&gt;
-    &lt;/thead&gt;
-    &lt;tbody&gt;
-        &lt;tr&gt;
-            &lt;td&gt;Rack&lt;/td&gt;
-            &lt;td&gt;We have got four 42RU (600x1200x42RU) racks housing 200+ Mac minis, plus some spare racks to house upcoming scheduled capacity upgrades.&lt;/td&gt;
-            &lt;td&gt;Racks have shared resources which have their own redundancy. Generally rack separation does provide some level of redundancy for total compute.&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;Power&lt;/td&gt;
-            &lt;td&gt;2 power sources power the cluster. Each rack is powered by these 2 power sources. It is 1U, 2-post rack mount.&lt;/td&gt;
-                &lt;td&gt;Losing 1 power source will reduce 50% of capacity.&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;Mac Mini&lt;/td&gt;
-            &lt;td&gt;We rack 2 Mac minis in a row on a mounting tray, typically racking 70 minis in one rack in total. Except for the first rack which requires extra rack units (RUs) for core switches and firewalls.&lt;/td&gt;
-            &lt;td&gt;&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;KVM&lt;/td&gt;
-            &lt;td&gt;KVM switches with adaptor for keyboard and mouse emulation when required.&lt;/td&gt;
-            &lt;td&gt;N/A&lt;/td&gt;
-        &lt;/tr&gt;
-        &lt;tr&gt;
-            &lt;td&gt;Networking Setup&lt;/td&gt;
-            &lt;td&gt;Networking consists of Core Switches, Access Switches, Firewalls, Internet and Direct Connect Links.&lt;/td&gt;
-            &lt;td&gt;Mostly active/active redundancy.&lt;/td&gt;
-        &lt;/tr&gt;
-    &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h2 id=&quot;provisioning-and-configuration&quot;&gt;Provisioning and configuration&lt;/h2&gt;
-
-&lt;h3 id=&quot;zero-touch-provisioning&quot;&gt;Zero-touch provisioning&lt;/h3&gt;
-
-&lt;p&gt;Zero-touch provisioning is a streamlined method for setting up and configuring devices with minimal manual intervention. This section outlines the process and benefits of zero-touch provisioning using Jamf for Mac minis.&lt;/p&gt;
-
-&lt;p&gt;We have a setup that enables these machines to start accepting jobs once they are racked up and connected (Power and network cables). Here is how it works:&lt;/p&gt;
-
-&lt;h4 id=&quot;mobile-device-management-mdm-configuration-and-automated-device-enrollment-ade&quot;&gt;Mobile Device Management (MDM) configuration and Automated Device Enrollment (ADE)&lt;/h4&gt;
-
-&lt;p&gt;ADE, previously known as Device Enrollment Program (DEP), is an Apple service that facilitates automatic enrollment. When a new Mac Mini is acquired and registered in the organization’s ADE account, it is primed for automatic enrollment. Administrators create a PreStage enrollment configuration within Jamf Pro, encompassing account settings (e.g., creating a local admin account, hiding it in Users &amp;amp; Groups, skipping account creation for the user), configuration profiles (defining device settings, security policies, and restrictions), and enrollment packages (including necessary software and scripts).&lt;/p&gt;
-
-&lt;h4 id=&quot;device-setup-activation-and-redirection&quot;&gt;Device setup: Activation and redirection&lt;/h4&gt;
-
-&lt;p&gt;Upon powering on and connecting to the internet, the Mac Mini communicates with Apple’s activation servers. The activation servers identify the device as part of the organization’s ADE and redirect it to the Jamf MDM server, ensuring automatic enrollment without user input.&lt;/p&gt;
-
-&lt;h4 id=&quot;enrollment-and-configuration&quot;&gt;Enrollment and configuration&lt;/h4&gt;
-
-&lt;p&gt;The Mac Mini enrolls into the Jamf MDM system automatically. Jamf applies predefined configuration profiles to set up the device’s settings, installs required applications based on configured policies, and enforces security policies such as encryption and authentication settings to ensure compliance.&lt;/p&gt;
-
-&lt;h4 id=&quot;key-benefits-of-zero-touch-provisioning&quot;&gt;Key benefits of zero-touch provisioning&lt;/h4&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Efficiency&lt;/strong&gt;: Devices are ready to use right out of the box, reducing the time and effort required by IT staff.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Consistency&lt;/strong&gt;: Ensures that all devices are configured uniformly according to organizational policies.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Security&lt;/strong&gt;: Enforces security policies from the moment the device is first powered on, reducing vulnerabilities.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Scalability&lt;/strong&gt;: Easily manage and configure a large number of devices without manual intervention.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;learnings-and-insights&quot;&gt;Learnings and insights&lt;/h2&gt;
-
-&lt;h3 id=&quot;supply-chain-is-as-fast-as-the-last-essential-component-you-need&quot;&gt;Supply chain is as fast as the last essential component you need&lt;/h3&gt;
-
-&lt;p&gt;The efficiency of a supply chain hinges on the delivery of its final essential component. Despite being a fundamental principle, it’s worth reiterating. Our timely launch was facilitated by a buffer period for unexpected delays. Interestingly, one of the last critical items to arrive was the rack mounting trays. The brief delay underscored the importance of prioritizing and planning for on-time delivery of every essential component, irrespective of its manufacturing simplicity.&lt;/p&gt;
-
-&lt;h3 id=&quot;consistently-address-the-question-how-will-this-scale&quot;&gt;Consistently address the question: How will this scale?&lt;/h3&gt;
-
-&lt;p&gt;From the outset, our goal was to develop a scalable infrastructure. As the cluster expands, tasks such as preparing Mac minis for job acceptance require increasing manual input, which ultimately impacts costs. Hence, zero-touch provisioning becomes essential, as scalability is not merely a desirable feature but a necessity.&lt;/p&gt;
-
-&lt;h3 id=&quot;plan-and-opt-in-for-a-power-cost-structure-best-suits-for-your-need&quot;&gt;Plan and opt in for a power cost structure best suits for your need&lt;/h3&gt;
-
-&lt;h4 id=&quot;power-cost-structures&quot;&gt;Power cost structures&lt;/h4&gt;
-
-&lt;p&gt;In a colocation setup power costs can be billed in several ways, each with pros and cons:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Flat rate per circuit&lt;/strong&gt;: A fixed monthly fee, predictable but limits flexibility (e.g., can’t exceed 80% without extra circuits).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Allocated kW&lt;/strong&gt;: Commit to a fixed power amount (e.g., 100 kW), potentially cheaper but with penalties for overages.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Metered usage&lt;/strong&gt;: Pay for actual consumption (kWh), good for variable loads but may still charge for space.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;All-in Sspace and power&lt;/strong&gt;: Single rate covering both, easy to compare but less flexible for upgrades.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We ultimately opted for an allocated kW commitment, a phased approach based on conservative equipment power ratings and historical usage. We structured this into phases of commitment increases for future capacity growth.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;The Mac Cloud Exit wasn’t just a technical migration; it was a strategic move that fundamentally enhanced our engineering efficiency. By onshoring our infrastructure into Southeast Asia, we have achieved $2.4 million USD in projected savings and supercharged our CI pipeline, delivering performance gains of 20-40%. This project proves that taking ownership of our core infrastructure can be a major competitive advantage, allowing us to deliver faster and more reliably for our users across the region.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebmacos&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 06 Nov 2025 00:00:05 +0000</pubDate>
-        <link>https://engineering.grab.com/mac-cloud-exit</link>
-        <guid isPermaLink="true">https://engineering.grab.com/mac-cloud-exit</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Performance</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
