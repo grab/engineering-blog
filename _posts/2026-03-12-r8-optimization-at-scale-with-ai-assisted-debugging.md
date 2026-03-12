@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-03-15-r8-optimization-at-scale-with-ai-assisted-debugging
+id: 2026-03-12-r8-optimization-at-scale-with-ai-assisted-debugging
 title: 'Enabling R8 optimization at scale with AI-assisted debugging'
-date: 2026-03-15 00:23:00
+date: 2026-03-12 00:23:00
 authors: [van.minh]
 categories: [Engineering]
 tags: [AI]
