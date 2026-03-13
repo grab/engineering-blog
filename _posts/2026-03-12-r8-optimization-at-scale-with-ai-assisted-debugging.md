@@ -76,7 +76,7 @@ The challenge was compounded by limited bandwidth and high labor requirements. M
 
 R8 optimization affects every corner of the app. Unlike feature-specific changes, enabling optimization transforms how the entire codebase is compiled, inlined, and optimized. A single misconfiguration or missing keep rule can break seemingly unrelated features across different modules and Software Development Kits (SDKs).
 
-When we first enabled R8 optimization, the impact was immediate and widespread—most of the app's features simply stopped working correctly. This presented us with a deeper problem: not just how to test, but what kind of testing strategy would actually give us confidence to roll out to production.
+When we first enabled R8 optimization, the impact was immediate and widespread: most of the app's features simply stopped working correctly. This presented us with a deeper problem, not just how to test, but what kind of testing strategy would actually give us confidence to roll out to production.
 
 In theory, R8 optimization works reliably with standard codebases that follow Google's and the community's best practices. However, considering the large scale of Grab's project, legacy code patterns, reflection usage, and SDK integrations have been accumulated over the years, creating numerous edge cases.
 
@@ -212,7 +212,7 @@ This approach transformed an "impossible" comprehensive testing problem into a m
 
 **Solving challenge 3**:
 
-The slow feedback challenge—2-hour CI builds and QA configuration misalignment—created a bottleneck for R8 debugging. We addressed this through a comprehensive infrastructure strategy targeting these critical areas:
+The 2-hour CI builds, and the QA configuration misalignment created a bottleneck for R8 debugging. We addressed this through a comprehensive infrastructure strategy targeting three critical areas:
 
 **Remote compilation to enable local build and fast feedback loop**:
 
@@ -220,7 +220,7 @@ At Grab, we used to use [Mainframer](https://github.com/buildfoundation/mainfram
 
 This targeted deployment transformed physically impossible local R8 builds into a manageable remote process, enabling engineers to test R8 changes without requiring powerful local hardware.
 
-The performance improvement was substantial: from up to 2 hours in CI to around 1 hour with Mainframer—a ~50% reduction that enabled rapid iteration cycles essential for R8 debugging.
+The performance improvement was substantial: from up to 2 hours in CI to around 1 hour with Mainframer — a ~50% reduction that enabled rapid iteration cycles essential for R8 debugging.
 
 **QA build configuration alignment**:
 
