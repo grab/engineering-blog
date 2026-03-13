@@ -76,7 +76,7 @@ Our limited resources compound the challenge: with only one engineer leading the
 
 ### Challenge 2: Testing at scale
 
-R8 optimization affects every corner of the app. Unlike feature-specific changes, enabling optimization transforms how the entire codebase is compiled, inlined, and optimized. A single misconfiguration or missing keep rule can break seemingly unrelated features across different modules and Software Development Kits (SDKs).
+R8 optimization affects every corner of the app. Unlike feature-specific changes, enabling optimization transforms how the entire codebase is compiled, inlined, and optimized. A single misconfiguration or missing keep rule can break seemingly unrelated features across different modules and libraries.
 
 When we first enabled R8 optimization, the impact was immediate and widespread: most of the app's features simply stopped working correctly. This presented us with a deeper problem, not just how to test, but what kind of testing strategy would actually give us confidence to roll out to production.
 
@@ -165,7 +165,7 @@ While investigating a single R8 issue might still take time, our MCP tools drama
 
 **Solving challenge 2**:
 
-How do we do testing at scale? How do we validate R8 optimization across a mature codebase containing more than seven million lines of code when comprehensive testing is necessary but impossible? Our solution came from a critical insight about R8 issues at scale.
+How do we do testing at scale? How do we validate R8 optimization across a mature codebase containing more than nine million lines of code when comprehensive testing is necessary but impossible? Our solution came from a critical insight about R8 issues at scale.
 
 **Key insight**:
 
@@ -258,7 +258,7 @@ After ~10 weeks of systematic implementation **led by one engineer** collaborati
 
 - **Stability**: Around 25% reduction in ANR rates.  
 - **App size:** A 16% decrease in download size on our reference device (zipped APK).   
-- **Performance:** Nearly 27% improvement in startup time.*An interesting discovery: After enabling R8 optimization, we saw ~12% app startup improvement. However, during our analysis, we discovered that our existing Baseline and Startup Profiles implementation was incorrect. We reimplemented it properly, and the combination of R8 optimization plus the corrected profiles delivered the full 27% improvement.*
+- **Performance:** Nearly 27% improvement in startup time. *An interesting discovery: After enabling R8 optimization, we saw ~12% app startup improvement. However, during our analysis, we discovered that our existing Baseline and Startup Profiles implementation was incorrect. We reimplemented it properly, and the combination of R8 optimization plus the corrected profiles delivered the full 27% improvement.*
 
 These results exceeded our initial targets and validated the significant effort required to enable R8 optimization at scale.
 
