@@ -15,7 +15,7 @@ Grab is Southeast Asia's leading superapp, providing a suite of services that br
 
 ## Introduction
 
-Since 2024, our team observed a concerning trend: Application Not Responding (ANR) rates were spiking across the Grab app. Unlike typical isolated issues, the data revealed that ANRs were happening everywhere, not confined to specific features or modules. This pattern pointed to platform-level causes, with our analysis showing strong correlations between ANRs and several factors like memory pressure (particularly when garbage collection was triggered), ad-heavy user flows, overhead from heavy use of Jetpack Compose within XML layouts, and XML views within Compose code.
+Since 2024, our team observed a concerning trend: Application Not Responding (ANR) rates were spiking across the Grab app. Unlike typical isolated issues, the data revealed that ANRs were happening everywhere, not confined to specific features or modules. This pattern pointed to platform-level causes, with our analysis showing strong correlations between ANRs and several factors like memory pressure (particularly when garbage collection was triggered), ad-heavy user flows, complex layouts involving Jetpack Compose embedded within XML layouts, and XML views embedded within Compose code.
 
 The Android community had long proven that R8 optimization (beyond basic code shrinking) could deliver substantial performance gains and app size reductions. As Grab has been adopting Jetpack Compose over the last two years, [Google's Jetpack Compose performance documentation](https://developer.android.com/develop/ui/compose/performance#config) specifically recommends R8 optimization for Compose-heavy apps. This made it a natural solution for our systemic performance issues.
 
@@ -264,7 +264,6 @@ Our journey doesn't end here. We're exploring several areas for continued optimi
 
 - **R8 full mode**: More extreme/aggressive optimization than the current mode for additional performance benefits.  
 - **Revisit R8 keep rules**: Clean up unnecessary rules that prevent optimization, and implement a governance solution to guardrail R8 rules in our pre-merge CI pipeline.
-- **Dead code removal for experiment framework**: We discovered a solution to help R8 understand our experiment framework flags and remove dead branches for fully turned-off features.
 
 ## Conclusion
 
