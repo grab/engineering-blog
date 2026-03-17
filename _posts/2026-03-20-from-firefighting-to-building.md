@@ -102,7 +102,7 @@ Why is the workflow semi-automated by design? Code changes to production pipelin
 
 For questions like *"Why does this data look wrong?"* or *"Where does this metric come from?"*, the system uses a coordinated team of specialists.
 
-**Classifier Agent** is the first responder for investigation questions. It:
+**The Classifier** is the first responder for investigation questions. It:
 
 * Parses the question to extract key information (tables, scripts, specific data requests).  
 * Detects guardrail violations (PII requests, out-of-scope queries).  
