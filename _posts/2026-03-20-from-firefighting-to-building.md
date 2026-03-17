@@ -1,11 +1,11 @@
 ---
 layout: post
-id: 2026-03-24-from-firefighting-to-building
+id: 2026-03-20-from-firefighting-to-building
 title: 'From firefighting to building: How AI agents restored our team’s core productivity'
 date: 2026-03-20 00:23:00
 authors: [sneh.agrawal, rishi.raj, ayan.chatterjee, wenzhong.tan, sai.kakumanu]
 categories: [Engineering]
-tags: [AI]
+tags: [AI, Analytics, Database, Automation]
 comments: true
 cover_photo: /img/firefighting/banner.png
 excerpt: "The Analytics Data Warehouse (ADW) team at Grab supports over 1,000 users and manages more than 15,000 tables. To alleviate the time-consuming demands of repetitive tasks, the team implemented a multi-agent AI system. This system autonomously handles simpler inquiries and collaborates on more complex requests, reclaiming significant engineering bandwidth and unlocking hundreds of hours of productivity each month."
@@ -45,8 +45,8 @@ We deployed a **multi-agent AI system** that autonomously answers simpler questi
 
 The journey begins in Slack. When a user submits a request, it is categorized into one of two streams:
 
-1. Enhancement requests: These are routed to the Enhancement Agent, which interacts directly with our core engineering tools like GitLab, Apache Spark, and Airflow to propose and test code changes.  
-2. General questions: These are funneled through our investigation pathway. The system orchestrates a "huddle" between the Data Agent (querying Trino, Hive, or Delta Lake), the Code Search Agent (analyzing GitLab), and the On-call Agent (checking Confluence and Slack for ongoing incidents).
+* Enhancement requests: These are routed to the Enhancement Agent, which interacts directly with our core engineering tools like GitLab, Apache Spark, and Airflow to propose and test code changes.  
+* General questions: These are funneled through our investigation pathway. The system orchestrates a "huddle" between the Data Agent (querying Trino, Hive, or Delta Lake), the Code Search Agent (analyzing GitLab), and the On-call Agent (checking Confluence and Slack for ongoing incidents).
 
 By decoupling the "brain" (the LLM) from the "hands" (the specialized agents and tools), we created a system that is both capable and easy to debug.
 
@@ -67,8 +67,8 @@ We chose the multi-agent approach because maintainability and accuracy mattered 
 
 When a question arrives through Slack, the system first determines which pathway to take:
 
-* **Pathway 1**: Enhancement requests → Enhancement Agent (handles code changes)  
-* **Pathway 2**: Investigation questions → Classifier Agent → Specialized agents → Summarizer
+* **Enhancement pathway**: Enhancement requests → Enhancement Agent (handles code changes)  
+* **Investigation pathway**: Investigation questions → Classifier Agent → Specialized agents → Summarizer
 
 <div class="post-image-section"><figure>
   <img src="/img/firefighting/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Agent workflows.</figcaption>
@@ -153,7 +153,7 @@ The best way to understand how this multi-agent system works is to see it handle
 
 ### Scenario 1: Adding a new column
 
-The Request: A stakeholder raises a JIRA ticket requesting, "Please add a *customer_segment* column to the *rides* table. Source data is available in the *user_profiles* table."
+The request: A stakeholder raises a JIRA ticket requesting, "Please add a *customer_segment* column to the *rides* table. Source data is available in the *user_profiles* table."
 
 In the traditional workflow, a data engineer would spend a significant portion of their afternoon clarifying requirements, developing and testing code, similar to the workflow steps in *“Figure 2: Agent workflows”*.
 
