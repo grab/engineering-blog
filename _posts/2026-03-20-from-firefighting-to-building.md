@@ -68,7 +68,7 @@ We chose the multi-agent approach because maintainability and accuracy mattered 
 When a question arrives through Slack, the system first determines which pathway to take:
 
 * **Enhancement pathway**: Enhancement requests → Enhancement Agent (handles code changes)  
-* **Investigation pathway**: Investigation questions → Classifier Agent → Specialized agents → Summarizer agent
+* **Investigation pathway**: Investigation questions → Classifier → Specialized agents → Summarizer agent
 
 <div class="post-image-section"><figure>
   <img src="/img/firefighting/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Agent workflows.</figcaption>
@@ -189,7 +189,7 @@ Traditionally, the data engineer typically performs these steps:
 
 This is how it looks with agents:
 
-**Step 1: Classifier Agent analyzes the question**
+**Step 1: Classifier analyzes the question**
 
 * Parses the question: determines all three specialist agents are needed.  
 * Plans the sequence: Data Agent → Code Search Agent → On-call Agent  
