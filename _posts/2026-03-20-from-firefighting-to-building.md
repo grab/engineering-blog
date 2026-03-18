@@ -71,7 +71,7 @@ When a question arrives through Slack, the system first determines which pathway
 * **Investigation pathway**: Investigation questions → Classifier → Specialized agents → Summarizer agent
 
 <div class="post-image-section"><figure>
-  <img src="/img/firefighting/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Agent workflows, using a Supervisor that controls communication flow and task delegation.</figcaption>
+  <img src="/img/firefighting/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Agent workflows, using a Classifier that controls communication flow and task delegation.</figcaption>
   </figure>
 </div>
 
