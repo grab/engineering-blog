@@ -37,7 +37,7 @@ We deployed a **multi-agent AI system** that autonomously answers simpler questi
   </figure>
 </div>
 
-* **Hubble:** A centralized metadata management platform and data catalog, built on open-source DataHub.  
+* **Hubble:** A centralized metadata management platform and data catalog.  
 * **Genchi:** A data quality observability platform that enforces data contracts.
 * **Lighthouse:** A platform that tracks execution status and monitors pipeline health.
 
