@@ -13,7 +13,7 @@ excerpt: "The Analytics Data Warehouse (ADW) team at Grab supports over 1,000 us
 
 ## Abstract
 
-Grab's Analytics Data Warehouse (ADW) team supports over 1,000 users each month and manages an extensive repository of more than 15,000 tables, which powers approximately 50% of all queries within our data lake.  
+Grab's Analytics Data Warehouse (ADW) team supports over 1,000 users each month. These users support an extensive repository of more than 15,000 tables, which powers approximately 50% of all queries within our data lake.  
 However, the manual process of addressing "quick questions" is time-consuming and labor-intensive, thus creating a bottleneck in our operations.
 
 The team was drowning in repetitive requests, spending approximately 40% of their time or an equivalent of roughly 2 days every week, on tasks like:
@@ -25,11 +25,19 @@ The team was drowning in repetitive requests, spending approximately 40% of thei
 
 We deployed a **multi-agent AI system** that autonomously answers simpler questions and collaboratively addresses more complex requests. This led us to reclaim significant engineering bandwidth and unlock hundreds of hours of productivity monthly.
 
+## Introduction
+
+It's 5:00 PM on a Friday. You're wrapping up for the week when you receive a Slack message: "The vehicle_id in our production table looks gibberish. Is the pipeline broken?"
+
+We tracked the anatomy of these 'simple' questions. It involved a fragmented journey through data catalogs, manual lineage tracing, SQL validation, and log diving. By the time a stakeholder received an answer, hours of high-value engineering time had been diverted into investigative overhead.
+
+This process consumed nearly half of our team's bandwidth. We recognized that while problems differed, the process of solving them was consistent. This led us to build a multi-agent AI system to automate the context hunt, allowing engineers to focus on complex challenges.
+
 ### Solution
 
 ### Tech stack
 
-* **FastAPI and LangGraph**: We use FastAPI to handle requests and LangGraph to manage the complex state and cyclical logic required for multi-agent collaboration. Unlike simple Large Language Model (LLM) calls, LangGraph allows our agents to loop back, ask for more information, or hand off tasks to one another.  
+* **FastAPI & LangGraph**: We use FastAPI to handle requests and LangGraph to manage the complex state and cyclical logic required for multi-agent collaboration. Unlike simple Large Language Model (LLM) calls, LangGraph allows our agents to loop back, ask for more information, or hand off tasks to one another.  
 * **Redis & PostgreSQL**: Redis handles our caching and real-time session needs, while PostgreSQL serves as the persistent memory, storing conversation history and agent metadata.
 
 <div class="post-image-section"><figure>
@@ -67,11 +75,11 @@ We chose the multi-agent approach because maintainability and accuracy mattered 
 
 When a question arrives through Slack, the system first determines which pathway to take:
 
-* **Enhancement pathway**: Enhancement requests → Enhancement Agent (handles code changes)  
-* **Investigation pathway**: Investigation questions → Classifier → Specialized agents → Summarizer agent
+* **Pathway 1**: Enhancement Requests → Enhancement Agent (handles code changes)  
+* **Pathway 2**: Investigation Questions → Classifier → Specialized agents → Summarizer
 
 <div class="post-image-section"><figure>
-  <img src="/img/firefighting/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Agent workflows, using a Classifier that controls communication flow and task delegation.</figcaption>
+  <img src="/img/firefighting/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Agent workflows, using a Supervisor that controls communication flow and task delegation.</figcaption>
   </figure>
 </div>
 
@@ -249,7 +257,7 @@ Provides a structured answer to: *"Why is the ID in the vehicles table unreadabl
 </div>
 
 **Step 6: Human review and delivery**  
-The answer is posted on Slack, and a data engineer can review the response and approve it.
+We publish answers to Slack immediately and mark them as unreviewed. This provides users with quick responses while they await an engineer's review.
 
 The initial response time has been reduced to just a few minutes, in contrast to the previous hours-long manual search.
 
@@ -292,7 +300,7 @@ Agents can handle extended investigations without drowning in excessive context,
 
 ### Challenge 2: Excessive tool usage
 
-Our initial design presented a significant performance bottleneck due to excessive tool usage. Early models were equipped with a large and unwieldy set of over 30 distinct tools, each structured similarly to a generic API. Since tool calling is part of an agent's prompt, agents had to process verbose tool descriptions and outputs, which degraded efficiency.
+Our initial design presented a significant performance bottleneck due to excessive context. Early models were equipped with a large and unwieldy set of over 30 distinct tools, each structured similarly to a generic API. Since tool calling is part of an agent's prompt, agents had to process verbose tool descriptions and outputs, which degraded efficiency.
 
 **Our solution**:  
 We focused on tool design based on real-world usage scenarios:
@@ -381,7 +389,7 @@ This approach maintains a crucial balance between response speed and quality:
 
 ### Challenge 6: Closing the feedback loop
 
-Collecting feedback through annotations was just the first step. Without systematic analysis, we had a gold mine of information about what worked and what didn't, but we weren't learning from it. Every rejected response was a lesson unlearned, every annotation a pattern unrecognized. We needed to close the loop.
+Collecting feedback through annotations was just the first step. Without systematic analysis, we had a goldmine of information about what worked and what didn't, but we weren't learning from it. Every rejected response was a lesson unlearned, every annotation a pattern unrecognized. We needed to close the loop.
 
 **Our solution**:  
 We transformed annotations from passive records into an active improvement engine through five mechanisms:
@@ -423,10 +431,10 @@ Our journey from overwhelmed data engineers to a team empowered by AI agents rev
 Specialized AI agents outperform a single generalist by mastering specific domains (e.g., data quality, code analysis). This modularity allows for independent improvement, easy additions, and clear responsibilities, boosting maintainability and flexibility.
 
 **Strategic human oversight: Building trust through transparency**  
-Routing AI responses through human reviewers achieved rapid adoption through trust and continuous system improvement by generating annotated training feedback.
+Routing AI responses through human reviewers achieved rapid adoption via trust and continuous system improvement by generating annotated training feedback.
 
 **Focus on augmentation: Automating repetitive tasks**  
-AI agents operate autonomously on repetitive tasks (context gathering, running queries, checking logs) with human oversight if needed, and collaborate with us in augmenting higher-value work: architectural decisions and building new capabilities.  
+AI agents operate autonomously in repetitive tasks (context gathering, running queries, checking logs) with human oversight if needed, and collaborate with us in augmenting higher-value work: architectural decisions and building new capabilities.  
 
 ## Join us
 
