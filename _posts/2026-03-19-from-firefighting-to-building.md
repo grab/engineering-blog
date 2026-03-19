@@ -1,8 +1,8 @@
-c---
+---
 layout: post
-id: 2026-03-20-from-firefighting-to-building
+id: 2026-03-19-from-firefighting-to-building
 title: 'From firefighting to building: How AI agents restored our team’s core productivity'
-date: 2026-03-20 00:23:00
+date: 2026-03-19 00:23:00
 authors: [sneh.agrawal, rishi.raj, ayan.chatterjee, wenzhong.tan, sai.kakumanu]
 categories: [Engineering]
 tags: [AI, Analytics, Database, Automation]
