@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2026-04-22-ai-test-generation-ios.md
+id: 2026-04-22-ai-test-generation-ios
 title: 'Record, generate, run: AI-powered UI test generation for iOS'
 date: 2026-04-22 00:23:00
 authors: [anshul.jain, abyan.dafa, bunty.madan, junpeng.ong]
