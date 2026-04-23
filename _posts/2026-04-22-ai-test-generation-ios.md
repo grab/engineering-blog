@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2026-04-27-ios
+id: 2026-04-22-ai-test-generation-ios.md
 title: 'Record, generate, run: AI-powered UI test generation for iOS'
 date: 2026-04-22 00:23:00
 authors: [anshul.jain, abyan.dafa, bunty.madan, junpeng.ong]
@@ -9,6 +9,9 @@ tags: [AI, iOS, mobile]
 comments: true
 cover_photo: /img/ai-powered-ui/banner.png
 excerpt: "Discover how Grab's innovative Mobile UI Testing AI Workflow transforms the way developers create and execute UI tests. By leveraging AI-powered automation, our system captures real user interactions to generate comprehensive, executable test scripts in minutes. Join us on this journey to enhance test coverage, improve reliability, and accelerate development cycles. Dive into our blog post to learn more about the architecture, best practices, and how you can be part of this exciting advancement in mobile app testing."
+redirect_from:
+  - /ios
+  - /ios/
 ---
 
 ## Introduction
