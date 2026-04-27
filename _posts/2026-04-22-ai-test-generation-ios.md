@@ -7,6 +7,7 @@ authors: [anshul.jain, abyan.dafa, bunty.madan, junpeng.ong]
 categories: [Engineering]
 tags: [AI, iOS, mobile]
 comments: true
+draft: true
 cover_photo: /img/ai-powered-ui/banner.png
 excerpt: "Discover how Grab's innovative Mobile UI Testing AI Workflow transforms the way developers create and execute UI tests. By leveraging AI-powered automation, our system captures real user interactions to generate comprehensive, executable test scripts in minutes. Join us on this journey to enhance test coverage, improve reliability, and accelerate development cycles. Dive into our blog post to learn more about the architecture, best practices, and how you can be part of this exciting advancement in mobile app testing."
 redirect_from:
