@@ -6,9 +6,266 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 27 Apr 2026 02:54:32 +0000</pubDate>
-    <lastBuildDate>Mon, 27 Apr 2026 02:54:32 +0000</lastBuildDate>
+    <pubDate>Thu, 30 Apr 2026 01:03:22 +0000</pubDate>
+    <lastBuildDate>Thu, 30 Apr 2026 01:03:22 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Data Mesh at Grab Part II: The Foundational Tools behind Certification</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;In &lt;a href=&quot;https://engineering.grab.com/signals-market-place&quot;&gt;Part I&lt;/a&gt;, we discussed why Grab is investing in a data mesh, referred to as the &lt;strong&gt;Signals Marketplace&lt;/strong&gt; within Grab, as part of our evolving data culture. We also explained how data certification aids teams in reliably reusing data across different domains. However, cultural change doesn’t occur through principles alone; it happens when tools reshape people’s daily behaviors. Therefore, it is crucial for us to develop effective platforms that integrate these practices.&lt;/p&gt;
+
+&lt;p&gt;This follow-up focuses on these platforms that make certification work at Grab:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Hubble&lt;/strong&gt; – the central metadata management platform with a built-in certification engine.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Genchi&lt;/strong&gt; – the data quality observability platform.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Data Contract Registry&lt;/strong&gt; – the central service for managing data contracts.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Together, these platforms turn data mesh principles into an operational system that scales across hundreds of thousands of datasets, streams, attributes, and metrics.&lt;/p&gt;
+
+&lt;h2 id=&quot;hubble-the-data-discovery-and-governance-layer&quot;&gt;Hubble: The data discovery and governance layer&lt;/h2&gt;
+
+&lt;p&gt;Hubble is Grab’s central metadata management platform and data catalog for all data assets, including datasets, dashboards, metrics, Machine learning (ML) models, and more. Built on top of the open‑source &lt;a href=&quot;https://datahub.com/&quot;&gt;DataHub&lt;/a&gt; and heavily extended for Grab’s needs, it is the discovery and governance layer for the Signals Marketplace.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/datamesh-part-two/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Hubble cataloging data assets across various data platforms in Grab.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;what-hubble-does-for-data-mesh&quot;&gt;What Hubble does for data mesh&lt;/h3&gt;
+
+&lt;p&gt;For certification and data mesh, Hubble provides a few key capabilities:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Search and discovery&lt;/strong&gt;: Data analysts/scientists, engineers, and product managers use Hubble to search the rich swath of data assets, then inspect schemas, documentation, lineage, and usage statistics in one place. This replaces back-channel questions and tribal knowledge with a single, self-serve catalog.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Ownership and domains&lt;/strong&gt;: Every asset is tied to a domain and explicit technical and business owners. This enforces the domain ownership model that Signals Marketplace depends on. Producers are clearly accountable for the quality and lifecycle of the data products they publish.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Data contracts and documentation&lt;/strong&gt;: Data contracts, classifications, and rich documentation live as structured metadata attached to each asset, not scattered across wikis and slide decks. Producers and consumers share the same source of truth when they ask questions like, “what does this table guarantee?”.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Lineage and impact analysis&lt;/strong&gt;: Hubble provides table, column, and metric-level lineage so owners can see which teams and pipelines depend on their data before making breaking changes or deprecations. Instead of guessing, they can answer “what will I break?” with a single click.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Certification status&lt;/strong&gt;: The familiar “Hubble green tick” turns trust into a first-class signal in the catalog. Assets that meet Grab’s certification criteria are clearly marked with a drill-down view of which criteria are satisfied (ownership, documentation, contracts, quality tests, upstream certification) and which are still missing.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;From a consumer’s point of view, this collapses a lot of uncertainty into a simple workflow: search → filter to “certified” → pick the most suitable asset. They don’t need to reverse-engineer reliability from table names and hearsay.&lt;/p&gt;
+
+&lt;h3 id=&quot;hubbles-system-architecture&quot;&gt;Hubble’s system architecture&lt;/h3&gt;
+
+&lt;p&gt;The &lt;a href=&quot;https://datahub.com/&quot;&gt;open-source DataHub&lt;/a&gt; architecture is fundamentally event-driven and designed for high extensibility, moving away from the “passive” catalogs of the past, towards a “living” metadata graph. DataHub models everything as an &lt;em&gt;Entity&lt;/em&gt; (e.g., a Dataset), composed of multiple &lt;em&gt;Aspects&lt;/em&gt; (atomic versioned metadata like SchemaMetadata or Ownership), connected by &lt;em&gt;Relationships&lt;/em&gt; (e.g., DownstreamOf).&lt;/p&gt;
+
+&lt;p&gt;Since introducing DataHub as Grab’s central data catalog in 2022, we’ve tailored it to Grab’s specific needs while continuously rebasing onto the latest open-source DataHub releases. This lets us adopt new capabilities from the community quickly, contribute improvements back, and evolve Hubble without forking away from the main project.&lt;/p&gt;
+
+&lt;p&gt;On top of the DataHub foundation, Hubble ingests metadata from Grab’s source platforms in two ways. Source systems either push changes as they happen, or Hubble periodically pulls metadata via Airflow jobs into the central metadata service that exposes GraphQL and REST APIs. Every change is then published to Kafka as metadata events (low-level change logs for indexers and audits, and higher-level semantic events for workflows), keeping Hubble’s search and lineage indices fresh and allowing downstream integrations like certification, deprecation notices, and governance automation to react to metadata changes in near real time.&lt;/p&gt;
+
+&lt;p&gt;This architecture is crucial for a data mesh because metadata evolves more rapidly than organizational changes. As domains change, tables are relocated, or pipelines are refactored, Hubble continuously updates, allowing certification to keep pace without the need for manual re-audits.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/datamesh-part-two/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Hubble’s system architecture.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;computational-certification-via-the-certification-engine-on-hubble&quot;&gt;Computational certification via the certification engine on Hubble&lt;/h3&gt;
+
+&lt;p&gt;A data asset’s certification state is not a manual label, it is computed by an event-driven certification engine built on the &lt;a href=&quot;https://docs.datahub.com/docs/actions&quot;&gt;DataHub Actions&lt;/a&gt; framework. As source platforms for tables, streams, metrics, and user attributes push metadata into Hubble, every change becomes a metadata event. The engine subscribes to these events and re-evaluates the certification state of the data asset based on the predetermined certification criteria.&lt;/p&gt;
+
+&lt;p&gt;Conceptually, assets move between four states:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Uncertified&lt;/strong&gt;: Never met all criteria.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Certified&lt;/strong&gt;: Asset itself meets all required criteria.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;CertifiedPlus&lt;/strong&gt;: Stricter conditions than Certified, requiring both the asset and all of its upstreams to meet the criteria.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Revoked&lt;/strong&gt;: Previously certified but now out of compliance.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The state diagram below captures how assets move between these states as metadata and upstream health change.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/datamesh-part-two/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Certification state diagram.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;While each asset type can add its own nuances (for example, metrics and attributes may also require explicit endorsement from business data owners), the core certification criteria are consistent:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Ownership and domain&lt;/strong&gt;: Clear domain assignment plus accountable technical and business data owners.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Documentation and semantics&lt;/strong&gt;: Table/metric documentation and, where relevant, column-level descriptions so consumers understand what the data means.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Lineage and upstream trust&lt;/strong&gt;: For stronger levels like CertifiedPlus, upstream lineage must be present, and upstream assets must themselves be certified.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Contracts and runtime quality&lt;/strong&gt;: Linked data contracts that spell out expectations, backed by required Genchi tests for freshness, volume/completeness, schema stability, and critical business checks.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Governance signals&lt;/strong&gt;: No conflicting deprecation flags or policy violations (for example, missing required classifications on sensitive data).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If an asset satisfies the base criteria, the engine writes a certification aspect back into Hubble and surfaces it as a green tick; if the asset later falls out of compliance, certification is revoked, and downstream assets are re-evaluated as needed. This is because all certification changes are stored as time-series metadata and driven by events rather than a one-off checklist; certification becomes a continuous, metadata-driven process that keeps pace as the entity evolves.&lt;/p&gt;
+
+&lt;h2 id=&quot;genchi-the-data-quality-observability-layer&quot;&gt;Genchi: The data quality observability layer&lt;/h2&gt;
+
+&lt;p&gt;Genchi is Grab’s in-house, self-service data quality observability platform. It allows teams to define and run data quality tests on their datasets, receive alerts when something goes wrong, and integrate those tests directly into data contracts so that issues are caught and contained before they impact downstream consumers.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/datamesh-part-two/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Genchi job configuration page, where dataset owners enroll a table and set up freshness, volume, schema, and other data quality tests for it.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;what-genchi-does-for-data-mesh&quot;&gt;What Genchi does for data mesh&lt;/h3&gt;
+
+&lt;p&gt;In a data mesh, every domain is responsible for the quality of the data products it publishes. Genchi is the guardrail that makes that responsibility practical at scale. At its core, Genchi turns “good data” into clear, testable pillars that a data asset must satisfy:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Freshness and timeliness&lt;/strong&gt;: Is the data recent enough to trust? Genchi runs data freshness and pipeline-freshness checks so owners know when today’s numbers are really “today’s” and can spot delayed loads before they hit dashboards or models.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Completeness and volume&lt;/strong&gt;: Are we seeing all the records we expect? Volume and completeness tests compare current loads against historical baselines or source systems to flag partial backfills, silent drops, or suspicious spikes.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Structural stability (schema)&lt;/strong&gt;: Did the shape of the data change? Schema checks detect added/removed columns and type changes so that teams don’t discover breaking changes only after pipelines or reports start failing.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Semantic validity (values and business rules)&lt;/strong&gt;: Do the values themselves make sense? Column-level and X-Validation tests enforce constraints like uniqueness, ranges, patterns, cross-table reconciliations, and more advanced anomaly detection on row counts and null percentages.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Wrapped around these pillars is the operational layer:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Genchi runs these checks continuously (on schedule or on pipeline completion), emits real-time alerts, and helps teams drill into failing records and trends instead of debugging blind.&lt;/li&gt;
+  &lt;li&gt;Its health signals flow into the catalog and incident tooling, so consumers see quality status alongside metadata and contract breaches are handled consistently.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The result is a mesh where domains publish data products with explicit, machine-enforced quality guarantees, and consumers can safely reuse them without a central team hand-holding every request.&lt;/p&gt;
+
+&lt;h3 id=&quot;genchis-system-architecture&quot;&gt;Genchi’s system architecture&lt;/h3&gt;
+
+&lt;p&gt;The Genchi system is designed to handle validation workflows triggered by user actions or automated schedules. It utilizes Temporal for reliable workflow orchestration and Kafka for event-driven data distribution to downstream consumers.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/datamesh-part-two/figure-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Genchi’s system architecture.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;triggering-tests-on-pipeline-completion-with-sync-with-pipeline-swp&quot;&gt;Triggering tests on pipeline completion with Sync with Pipeline (SWP)&lt;/h3&gt;
+
+&lt;p&gt;Before SWP, Genchi tests lived on their own cron schedules, completely decoupled from the Airflow pipelines that actually produced the data. Teams had to manually copy pipeline crons into Genchi, juggle offset/lookback math to point at the “right” pipeline batch, and hope that nothing drifted over time. The result: misconfigured pipeline duration Service Level Agreement (SLA) checks, and tests sometimes running too early, too late, or against the wrong batch. This leads to noisy alerts and false-positive Data Production Issue (DPI).&lt;/p&gt;
+
+&lt;p&gt;To solve this, Genchi leans on &lt;em&gt;Lighthouse&lt;/em&gt;, Grab’s pipeline execution and monitoring service. Lighthouse tracks when Airflow jobs start, finish, and which data interval they cover, and exposes that as structured execution events that the rest of the observability stack can consume.&lt;/p&gt;
+
+&lt;p&gt;SWP then flips Genchi from “best-effort cron alignment” to event-driven orchestration. Instead of guessing when a pipeline should have finished, Genchi listens to Lighthouse execution events. When a pipeline run is completed, Lighthouse emits an event with the run’s schedule and data interval; Genchi consumes that event, spins up an ad-hoc validation run aligned to that execution, and runs data-quality tests on the corresponding slice of data.&lt;/p&gt;
+
+&lt;p&gt;Pipeline-freshness is modeled as its own run type, separate from the data-quality tests that run on pipeline completion. Instead of inspecting rows, it is triggered asynchronously on the same schedule as the pipeline and tracks when each run actually completes in Lighthouse. This gives data producers an intuitive way to get alerted when a pipeline exceeds its expected runtime, and to review historical runtime behavior for any drift over time.&lt;/p&gt;
+
+&lt;p&gt;In practice, this makes test orchestration both simpler and more trustworthy. Users no longer need to think about crons or offsets for their data validation jobs. “Run after my pipeline finishes” becomes the default, with advanced overrides for custom schedules when needed. Misconfigured freshness tests and noisy DPIs drop, because Genchi is now anchored to real pipeline execution signals rather than approximations.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/datamesh-part-two/figure-6.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Genchi pipeline-freshness run page for a table, showing the historical runtime patterns and the SLA status.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;data-contract-registry-the-producerconsumer-agreement-layer&quot;&gt;Data Contract Registry: The producer–consumer agreement layer&lt;/h2&gt;
+
+&lt;p&gt;At Grab, a data contract is the explicit, versioned agreement between a producer and its consumers that defines the data’s shape and semantics, the quality and availability guarantees around it, and the rules for how and for how long it may be used. The Data Contract Registry is the source of truth for these agreements, while Genchi and platform-specific observability stacks continuously verify that reality still matches what the contract promises.&lt;/p&gt;
+
+&lt;h3 id=&quot;what-data-contract-registry-does-for-data-mesh&quot;&gt;What Data Contract Registry does for data mesh&lt;/h3&gt;
+
+&lt;p&gt;Within Grab’s data mesh, the Data Contract Registry is the producer–consumer agreement layer: it centralizes contracts for key assets (data lake tables, Kafka streams, metrics) so expectations on shape, quality, SLAs, and lifecycle live in one canonical place instead of being scattered across individual platforms. That single source of truth underpins Hubble certification (only assets with valid contracts can be certified), gives Kinabalu (Grab’s central incident lifecycle orchestrator) the context it needs to open and route DPIs when checks fail, and lets Ouroboros (a table lifecycle management tool) interpret lifecycle clauses consistently.&lt;/p&gt;
+
+&lt;p&gt;This is important for a data mesh because it transforms the concept of “data as a product” from a mere slogan into an operational reality. Contracts provide domain teams with a clear and enforceable method to specify their guarantees, offering consumers a solid foundation for trust and data reuse across domains. Importantly, a contract is only valuable if its promises are verifiable and enforceable. Schema expectations, quality checks, and SLAs are all connected to concrete tests and health endpoints, enabling downstream platforms to automatically detect breaches and manage or mitigate breaking changes, rather than treating the contract as static documentation.&lt;/p&gt;
+
+&lt;p&gt;On top of storing contracts, the registry also manages contract changes. When a contract evolves, say a schema tweak, a new freshness SLA, or a planned deprecation, it identifies the right stakeholders (direct downstream owners, heavy query users, and, for critical assets, deeper dependencies) and pushes targeted Slack notifications. Producers get a structured way to roll out changes safely while consumers get timely, actionable signals instead of surprise breakages so that both enforcement and change management are baked into the mesh.&lt;/p&gt;
+
+&lt;p&gt;In addition to storing contracts, the registry also manages contract changes. When a contract evolves such as a schema adjustment, a new freshness SLA, or a planned deprecation, it identifies the appropriate stakeholder (direct downstream owners, heavy query users, and critical assets with deeper dependencies) and then sends targeted Slack notifications to these stakeholders. This process provides producers with a structured method to implement changes safely, while consumers receive timely and actionable alerts, preventing unexpected disruptions. As a result, both enforcement and change management are seamlessly integrated into the data mesh.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-data-contract-specification&quot;&gt;The data contract specification&lt;/h3&gt;
+
+&lt;p&gt;Under the hood, a data contract in the registry is a JSON construct that follows the contract specification. Grab’s data contract specification is inspired by the public &lt;a href=&quot;https://datacontract-specification.com/&quot;&gt;Data Contract Specification&lt;/a&gt;, but adapted to our environment so that contracts plug directly into our observability stack and automated incident management workflows.&lt;/p&gt;
+
+&lt;p&gt;Notably, we embed data health and test health URLs in the contract itself. Each data-quality rule points to a concrete health endpoint, so Kinabalu can determine contract breaches and create DPIs by calling those test health URLs, without hard-coding what “healthy” means. For example, a completeness test on the latest partition can be marked healthy only if the last &lt;em&gt;N&lt;/em&gt; days are complete, not just because the most recent test run happened to pass. The data health URL at the contract root then lets Kinabalu fetch the overall diagnosis and decide who the DPI should be assigned to. More on this will be covered in Part III.&lt;/p&gt;
+
+&lt;p&gt;Here’s a simplified example of a contract for a data-lake table:&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;specification_version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;asset_urn&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;urn:li:dataset:(urn:li:dataPlatform:hive,genchi.validation_jobs,PROD)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;entity_type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;datalake_table&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-hugo.grab.com/assets/genchi.validation_jobs/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;contract_details&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;contact&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;oncall_group&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;oncall-genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;slack_channel&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ask-genchi&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;terms&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;usage&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Source of truth for all genchi validation jobs.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;limitations&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Not suitable for real-time use cases.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;notice_period_in_days&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;14&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;schema&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-genchi.grab.com/assets/genchi.validation_jobs/tests/fundamental_schema_test/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;uid&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;fundamental_schema_test&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;sla&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;freshness&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-genchi.grab.com/assets/genchi.validation_jobs/tests/fundamental_freshness_test/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;uid&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;fundamental_freshness_test&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;lifecycle&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;data_quality&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-genchi.grab.com/assets/genchi.validation_jobs/tests/fundamental_completeness_test/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;uid&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;fundamental_completeness_test&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The contract in the registry only stores references to enforceable rules, which are an identifier and version, like the example above, rather than the full configuration body. This keeps contracts lightweight and tool-agnostic, while giving rule-enforcement tools (Genchi for data-quality tests, Ouroboros for table lifecycle) and Kinabalu a stable handle to resolve the actual rule definition in their own systems, without duplicating configuration or letting it drift across platforms.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;By bringing Hubble, Genchi, and the Data Contract Registry together, we provide the foundational tools to build trust in certified data assets. Hubble enables discovery and establishes domains and ownership; the Data Contract Registry captures explicit expectations between producers and consumers; and Genchi continuously validates those promises with tests on freshness, volume, schema, and business rules. Hubble’s certification engine then evaluates these ownership, contract, and quality signals to decide whether an asset meets Grab’s standards and surfaces that as a visible certification state. As a result, consumers can confidently default to certified assets, usage converges on a smaller, better-governed pool of datasets, and certification becomes a mechanism that changes producer behavior and guides consumer choice. We saw this convergence in practice. In just one year since the Signals Marketplace campaign began in 2024, the number of P80 datasets (the most used tables that account for 80% of all queries) has dropped by over 58%.&lt;/p&gt;
+
+&lt;p&gt;This data foundation is especially important in an AI-first future for Grab. Certified streams, tables, metrics, and attributes give AI agents and automated analytics a default substrate they can rely on. With Hubble and Genchi, data producers have clear ownership, contracts, and observability. Data consumers can discover and trust certified assets without guesswork, and platform teams can measure and improve Signals Marketplace health over time (for example, queries on certified assets, lineage depth, and cost). Together, these capabilities turn “data mesh” from a slogan into an operational, AI-ready marketplace of reliable, reusable signals that power decisions across Grab.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/datamesh-part-two/figure-7.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Building trust in certified data assets through discovery, contracts, and continuous validation.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;In the next blog, we’ll zoom into the DPI process itself with Kinabalu as the incident lifecycle orchestrator:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;How Genchi test failures and data contract breaches turn into DPIs.&lt;/li&gt;
+  &lt;li&gt;How DPI is assigned based on root causes and what sets the priority level.&lt;/li&gt;
+  &lt;li&gt;The patterns we’ve seen in “noisy” vs actionable DPIs, and what we’ve changed in our platforms.&lt;/li&gt;
+  &lt;li&gt;How we’re using automation and agents to reduce DPI toil and close the loop back into certification.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We’ll walk through concrete case studies showing how a single broken table moves from first failure, to diagnosis and fix, to updated contracts and a more resilient certified data asset.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors, serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 30 Apr 2026 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/data-mesh-2</link>
+        <guid isPermaLink="true">https://engineering.grab.com/data-mesh-2</guid>
+        
+        <category>Data</category>
+        
+        <category>Database</category>
+        
+        <category>Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>From firefighting to building: How AI agents restored our team’s core productivity</title>
@@ -2854,165 +3111,6 @@ As pioneers in Southeast Asia, we began the program with 23 initial researchers,
         <category>Engineering</category>
         
         <category>Performance</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data</category>
-        
-      </item>
-    
-      <item>
-        <title>Real-time data quality monitoring: Kafka stream contracts with syntactic and semantic test</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In today’s data-driven landscape, monitoring data quality has become a critical need for ensuring reliable and efficient data usage across domains. High-quality data is the backbone of AI innovation, driving efficiency and unlocking new opportunities. As decentralized data ownership grows, the ability to effectively monitor data quality is essential for maintaining reliability in data systems.&lt;/p&gt;
-
-&lt;p&gt;Kafka streams, as a vital component of real-time data processing, play a significant role in this ecosystem. However, unreliable data within Kafka streams can lead to errors and inefficiencies for downstream users, and monitoring the quality of data within these streams has always been a challenge. This blog introduces a solution that empowers stream users to define a data contract, specifying the rules that Kafka stream data must adhere to. By leveraging this user-defined data contract, the solution performs automated real-time data quality checks, identifies problematic data as it occurs, and promptly notifies stream owners. This ensures timely action, enabling effective monitoring and management of Kafka stream data quality while supporting the broader goals of data mesh and AI-driven innovation.&lt;/p&gt;
-
-&lt;h2 id=&quot;problem-statement&quot;&gt;Problem statement&lt;/h2&gt;
-
-&lt;p&gt;In the past, monitoring Kafka stream data processing lacked an effective solution for data quality validation. This limitation made it challenging to identify bad data, notify users in a timely manner, and prevent the cascading impact on downstream users from further escalating.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Challenges in syntactic and semantic issue identification&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Syntactic issues&lt;/strong&gt;: Refers to schema mismatches between producers and consumers, which can lead to deserialization errors. While schema backward compatibility can be validated upon schema evolution, there are scenarios where the actual data in the Kafka topic does not align with the defined schema. For example, this can occur when a rogue Kafka producer is not using the expected schema for a given Kafka topic. Identifying the specific fields causing these syntactic issues is a typical challenge.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Semantic issues&lt;/strong&gt;: Refers to inconsistencies or misalignments between producers and consumers about the expected pattern or significance of each field. Unlike Kafka stream schemas, which act as a data structure contract between producers and consumers, there is no existing framework for stakeholders to define and enforce field-level semantic rules, for example, the expected length or pattern of an identifier.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Timeliness challenge in data quality monitoring&lt;/strong&gt;: There is no real-time mechanism to automatically validate data against predefined rules, timely identify quality issues, and promptly alert stream stakeholders. Without real-time stream validation, data quality issues can sometimes persist for periods of time, impacting various online and offline downstream systems before being discovered.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Observability challenge for troubleshooting bad data&lt;/strong&gt;: Even when problematic data is identified, stream users face difficulties in pinpointing the exact “poison data” and understanding which fields are incompatible with the schema or violate semantic rules. This lack of visibility complicates Root Cause Analysis and resolution efforts.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;Our &lt;a href=&quot;https://engineering.grab.com/an-elegant-platform&quot;&gt;Coban platform&lt;/a&gt; offers a standardized data quality test and observability solution at the platform level, consisting of the following components:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Data Contract Definition&lt;/strong&gt;: Enables Kafka stream stakeholders to define contracts that include schema agreements, semantic rules that Kafka topic data must comply with, and Kafka stream ownership details for alerting and notifications.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Automated Test Execution&lt;/strong&gt;: Provides a long running Test Runner to automatically execute real-time tests based on the defined contract.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Real-time Data Quality Issue Identification&lt;/strong&gt;: Detects data issues at both syntactic and semantic levels in real-time.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Alerts and Result Observability&lt;/strong&gt;: Alerts users, simplifying observation of data quality issues via the platform.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h3&gt;
-
-&lt;p&gt;The solution includes three components: &lt;em&gt;Data Contract Definition, Test Execution &amp;amp; Data Quality Issue Identification, and Result Observability as shown in the architecture diagram in figure 1&lt;/em&gt;. All mentions of “Flow” from here onwards refer to the corresponding processes illustrated in figure 1.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/real-time-data-quality-monitoring/coban-architecture.jpg&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Real-time Kafka Stream Data Quality Monitoring Architecture diagram.
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;data-contract-definition&quot;&gt;Data Contract Definition&lt;/h4&gt;
-
-&lt;p&gt;The Coban Platform streamlines the process of defining Kafka stream data contracts, serving as a formal agreement among Kafka stream stakeholders. This includes the following components:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Kafka Stream Schema&lt;/strong&gt;: Represents the schema used by the Kafka topic under test and helps the Test Runner to validate schema compatibility across data streams (Flow 1.1).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Kafka Stream Configuration&lt;/strong&gt;: Encompasses essential configurations such as the endpoint and topic name, which the platform automatically populates (Flow 1.2).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Observability Metadata&lt;/strong&gt;: Provides contact information for notifying Kafka stream stakeholders about data quality issues and includes alert configurations for monitoring (Flow 1.3).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Kafka Stream Semantic Test Rules&lt;/strong&gt;: Empowers users to define intuitive semantic test rules at the field level. These rules include checks for string patterns, number ranges, constant values, etc. (Flow 1.5).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;LLM-Based Semantic Test Rules Recommendation&lt;/strong&gt;: Defining dozens if not hundreds of field-specific test rules can overwhelm users. To simplify this process, the Coban Platform uses LLM-based recommendations to predict semantic test rules using provided Kafka stream schemas and anonymized sample data (Flow 1.4). This feature helps users set up semantic rules efficiently, as demonstrated in the sample UI in figure 2.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/real-time-data-quality-monitoring/sample-ui.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Sample UI showcasing LLM-based Kafka stream schema field-level semantic test rules. Note that the data shown is entirely fictional.
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;data-contract-transformation&quot;&gt;Data Contract Transformation&lt;/h4&gt;
-
-&lt;p&gt;Once defined, the Coban Platform’s transformation engine converts the data contract into configurations that the Test Runner can interpret (Flow 2.1). This transformation process includes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Kafka Stream Schema&lt;/strong&gt;: Translates the schema defined in the data contract into a schema reference that the Test Runner can parse.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Kafka Stream Configuration&lt;/strong&gt;: Sets up the Kafka stream as a source for the Test Runner.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Observability metadata&lt;/strong&gt;: Sets contact information as configurations of the Test Runner.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Kafka Stream Semantic Test Rules&lt;/strong&gt;: Transforms human-readable semantic test rules into an inverse SQL query to capture the data that violates the defined rules.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/real-time-data-quality-monitoring/semantic-test-rules.jpg&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Illustration of semantic test rules being converted from human-readable formats into inverse SQL queries.
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;test-execution--data-quality-issue-identification&quot;&gt;Test Execution &amp;amp; Data Quality Issue Identification&lt;/h3&gt;
-
-&lt;p&gt;Once the Test Configuration Transformation Engine generates the Test Runner configuration (Flow 2.1), the platform automatically deploys the Test Runner.&lt;/p&gt;
-
-&lt;h4 id=&quot;test-runner&quot;&gt;Test Runner&lt;/h4&gt;
-
-&lt;p&gt;The Test Runner utilises FlinkSQL as the compute engine to execute the tests. FlinkSQL was selected for its flexibility in defining test rules as straightforward SQL statements, enabling our platform to efficiently convert data contracts into enforceable rules.&lt;/p&gt;
-
-&lt;h4 id=&quot;test-execution-workflow-and-problematic-data-identification&quot;&gt;Test Execution Workflow And Problematic Data Identification&lt;/h4&gt;
-
-&lt;p&gt;FlinkSQL consumes data from the Kafka topic under test (Flow 2.2) using its own consumer group, ensuring it doesn’t impact other consumers. It runs the inverse SQL query (Flow 2.3) to identify any data that violates the semantic rules or that is syntactically incorrect in the first place. Test Runner captures such data, packages it into a data quality issue event enriched with a test summary, the total count of bad records, and sample bad data, and publishes it to a dedicated Kafka topic (Flow 3.2). Additionally, the platform sinks all such data quality events to an AWS S3 bucket (Flow 3.1) to enable deeper observability and analysis.&lt;/p&gt;
-
-&lt;h3 id=&quot;result-observability&quot;&gt;Result Observability&lt;/h3&gt;
-
-&lt;p&gt;Grab’s in-house data quality observability platform, Genchi, consumes problematic data captured by the Test Runner (Flow 3.3).&lt;/p&gt;
-
-&lt;h4 id=&quot;alerting&quot;&gt;Alerting&lt;/h4&gt;
-&lt;p&gt;Genchi sends Slack notifications (Flow 3.5) to stream owners specified in the data contract observability metadata. These notifications include detailed information about stream issues, such as links to sample data in Coban UI, observed windows, counts of bad records, and other relevant details.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/real-time-data-quality-monitoring/slack-notification.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Sample Slack notifications
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;observability&quot;&gt;Observability&lt;/h4&gt;
-
-&lt;p&gt;Users can access the Coban UI (Flow 3.4), displaying Kafka stream test rules and sample bad records, highlighting fields and values that violate rules.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/real-time-data-quality-monitoring/sample-test-result.jpg&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. In this Sample Test Result, the highlighted fields indicate violations of the semantic test rules.
-&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
-
-&lt;p&gt;Since its deployment earlier this year, the solution has enabled Kafka stream users to define contracts with syntactic and semantic rules, automate test execution, and alert users when problematic data is detected, prompting timely action. It has been actively monitoring data quality across 100+ critical Kafka topics. The solution offers the capability to immediately identify and halt the propagation of invalid data across multiple streams.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;We implemented and rolled out a solution to assist Grab engineers in effectively monitoring data quality in their Kafka streams. This solution empowers them to establish syntactic and semantic tests for their data. Our platform’s automatic testing feature enables real-time tracking of data quality, with instant alerts for any discrepancies. Additionally, we provide detailed visibility into test results, facilitating the easy identification of specific data fields that violate the rules. This accelerates the process of diagnosing and resolving issues, allowing users to swiftly address production data challenges.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;While our current solution emphasizes monitoring the quality of Kafka streaming data, further exploration will focus on tracing producers to pinpoint the origin of problematic data, as well as enabling more advanced semantic tests such as cross-field validations. Additionally, we aim to expand monitoring capabilities to cover broader aspects like data completeness and freshness, and integrate with &lt;a href=&quot;https://www.gable.ai/&quot;&gt;Gable AI&lt;/a&gt; to detect Data Transfer Object (DTO) changes and semantic regressions in Go producers upon committing code to the Git repository. These enhancements will pave the way for a more robust, multidimensional data quality testing solution across a wider range.&lt;/p&gt;
-
-&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://www.oreilly.com/library/view/driving-data-quality/9781837635009/&quot;&gt;Driving Data Quality with Data Contracts: A Comprehensive Guide to Building Reliable, Trusted, and Effective Data Platforms&lt;/a&gt; by &lt;a href=&quot;https://www.oreilly.com/search?q=author:%22Andrew%20Jones%22&quot;&gt;Andrew Jones&lt;/a&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebdatam&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Wed, 26 Nov 2025 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/real-time-data-quality-monitoring</link>
-        <guid isPermaLink="true">https://engineering.grab.com/real-time-data-quality-monitoring</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Kafka</category>
-        
-        <category>Performance</category>
-        
-        <category>Data Science</category>
-        
-        <category>Data processing</category>
-        
-        <category>Real-time streaming</category>
         
         
         <category>Engineering</category>
