@@ -140,7 +140,7 @@ These enhancements are just one step in our broader vision to establish Flink as
 
 * **Lightweight extract, transform, and load (ETL) with Flink Structured Query Language (FlinkSQL)**: We are exploring the possibility of leveraging FlinkSQL to empower users to perform lightweight ETL directly within their Hugo pipelines. While this could unlock powerful new transformation capabilities, we are carefully considering the support model to manage potential query complexity.  
 
-* **Next-Generation formats**: We are investigating the adoption of Apache Iceberg as a data lake table format to further reduce latency and improve performance.  
+* **Next-generation formats**: We are investigating the adoption of Apache Iceberg as a data lake table format to further reduce latency and improve performance.  
 
 * **Enhanced developer experience**: Our goals include streamlining schema evolution management and further automating database configuration for CDC to simplify prerequisite steps.
 
