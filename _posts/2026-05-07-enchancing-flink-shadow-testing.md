@@ -15,9 +15,9 @@ excerpt: "Discover how Grab's data streaming team has revolutionized Apache Flin
 
 Ensuring the reliability of Apache Flink deployments in Grab is crucial for the availability of our business-critical, real-time applications. While all applications are tested in a staging environment before getting promoted to the production environment, there is still a class of issues that can only surface when deploying in the production environment, e.g.:
 
-1. The new version of the application is unable to cope with the volume or the nature of production traffic.  
-2. The new version of the application is unable to resume from a production checkpoint or savepoint taken by the previous version of the application.  
-3. Certain environment-specific dependencies or configurations are malfunctioning or misconfigured.
+* The new version of the application is unable to cope with the volume or the nature of production traffic.  
+* The new version of the application is unable to resume from a production checkpoint or savepoint taken by the previous version of the application.  
+* Certain environment-specific dependencies or configurations are malfunctioning or misconfigured.
 
 When an application faces such issues upon deployment in production, our in-house deployment system automatically rolls it back after 10 minutes of observation, leading to a downtime of the application for about the same duration.
 
@@ -32,7 +32,7 @@ In this article, we will describe how Grab’s data streaming team (Coban) has e
   </figure>
 </div>
 
-We integrated Shadow Testing directly into the production environment, alongside the Main application (1). The Shadow application is deployed next to it via the same deployment process (2). An environment variable `isShadow=true` as well as a distinct job ID are injected for runtime differentiation, enabling the Shadow application to produce its results to distinct, isolated sinks that do not interfere with those of the Main application (3).
+We integrated Shadow Testing directly into the production environment, alongside the Main application (1). The Shadow application is deployed next to it via the same deployment process (2). An environment variable `isShadow=true` as well as a distinct `jobID` are injected for runtime differentiation, enabling the Shadow application to produce its results to distinct, isolated sinks that do not interfere with those of the Main application (3).
 
 ## Deployment flow
 
@@ -51,7 +51,7 @@ The deployment flow is as follows.
 4. The Shadow Kubernetes manifest is baked with its set of distinctive parameters:  
    * The application name is prefixed with *shadow-* which propagates to all the Kubernetes objects that are part of the Shadow application  
    * An environment variable `isShadow` is injected and set to *true*. It instructs the Shadow application to produce its results to the shadow sinks.  
-   * A distinct *Job ID* is attributed  
+   * A distinct Job ID is attributed  
    * The target Kubernetes namespace is overridden with a *shadow* namespace  
 5. The Shadow application is deployed into the *shadow* Kubernetes namespace.  
 6. The Shadow application runs for a configured period of 1 hour by default to reach a steady state. The status of the job manager is monitored to determine the success of the Shadow Testing. If the Shadow application is stable, the Shadow Testing is considered successful.  
