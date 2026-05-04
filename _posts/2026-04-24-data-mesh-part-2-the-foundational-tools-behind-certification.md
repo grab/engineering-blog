@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2026-04-24-data-mesh-2
+id: 2026-04-24-data-mesh-part-2-the-foundational-tools-behind-certification
 title: 'Data Mesh at Grab Part II: The Foundational Tools behind Certification'
 date: 2026-04-30 00:23:00
 authors: [aezo.teo, harvey.li, houren.chen, feng.cheng]
@@ -9,6 +9,9 @@ tags: [Data, Database, Engineering]
 comments: true
 cover_photo: /img/datamesh-part-two/banner.png
 excerpt: "How does Grab manage quality across hundreds of thousands of data assets? Discover the foundational tools powering our Signals Marketplace. We dive into Hubble for discovery, Genchi for observability, and our Data Contract Registry to see how event-driven certification turns 'data as a product' into a reliable, AI-ready reality. Stop guessing and start trusting your data."
+redirect_from:
+  - /data-mesh-2
+  - /data-mesh-2/
 ---
 
 ## Introduction
