@@ -105,17 +105,17 @@ With the current workflow, the onboarding time has been reduced significantly.
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Kafka Flink.</figcaption>
+  <img src="/img/flink-in-hugo/figure-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Kafka Flink onboarding time.</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. CDC Flink.</figcaption>
+  <img src="/img/flink-in-hugo/figure-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. CDC Flink onboarding time.</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. Hudi.</figcaption>
+  <img src="/img/flink-in-hugo/figure-6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. Hudi onboarding time.</figcaption>
   </figure>
 </div>
 
