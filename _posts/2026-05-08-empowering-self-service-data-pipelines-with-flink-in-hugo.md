@@ -28,7 +28,7 @@ Hugo was originally designed to facilitate self-service ingestion of data from R
 
 Our journey with Apache Flink began as our data needs evolved toward near real-time analytics. To achieve this, we introduced Apache Hudi as our near-real-time table format, and Flink was the clear choice for a powerful streaming engine to write to it. While developing the automation for this advanced Flink-to-Hudi pipeline, we had a breakthrough. We realized that the robust automation framework we built could be repurposed to revolutionize our most common ingestion path to Apache Hive (Hive) as well. 
 
-This led us to expand Flink's role, using it to replace older, more complex systems like Kafka Connect (KC)and Sprinkler. By adapting the automations created for a specific use case, we were able to create a single, unified, and dramatically simplified self-service experience for all data ingestion, fulfilling our core mission on a whole new level.
+This led us to expand Flink's role, using it to replace older, more complex systems like Kafka Connect (KC) and Sprinkler. By adapting the automations created for a specific use case, we were able to create a single, unified, and dramatically simplified self-service experience for all data ingestion, fulfilling our core mission on a whole new level.
 
 Several strategic goals drove the integration of Flink into Hugo:  
 
@@ -52,13 +52,13 @@ Ultimately, these weren't just technical hurdles; they were significant barriers
 
 Our answer to this complexity was to engineer a new, deeply automated ingestion framework for Hugo. To be clear, the true paradigm shift was not simply adopting Apache Flink, but rather building this new automation layer on top of it.
 
-A direct comparison between a vanilla Flink implementation and our legacy Sprinkler8 system would not show much improvement. The primary reason Sprinkler8 was lagging was its lack of integration with Grab's core infrastructure platforms, such as Heimdall for orchestration and Khone for infrastructure provisioning.
+A direct comparison between a Vanilla Flink implementation and our legacy Sprinkler8 system would not show much improvement. The primary reason Sprinkler8 was lagging was its lack of integration with Grab's core infrastructure platforms, such as Heimdall for orchestration and Khone for infrastructure provisioning.
 
 Our key innovation was developing a new framework that tightly integrates a data processing engine with these internal platforms. For the engine, we chose the powerful open-source framework, Apache Flink. This new automation layer, built by our team, now handles the entire pipeline lifecycle from provisioning and deployment to monitoring, and directly addresses the shortcomings of our previous setup.
 
 In essence, while Flink is the powerful engine, our custom automation is the intelligent chassis that delivers a seamless, one-click experience. This is more than just a technical upgrade; it's a complete reimagining of our data pipeline experience. Here’s a look at the powerful new functionalities that turn these principles into reality:
 
-### 1. One-Click MySQL Hive CDC ingestion pipelines: From days to a minute
+### One-click MySQL Hive CDC ingestion pipelines: From days to a minute
 
 <div class="post-image-section"><figure>
   <img src="/img/flink-in-hugo/figure-2.png" alt="" style="width:60%"><figcaption align="middle">Figure 2. Enabling CDC with one click.</figcaption>
@@ -71,7 +71,7 @@ We have completely reimagined the CDC onboarding experience.
 * **Built-in validation**: To ensure success, Hugo automatically validates all prerequisites on the source database, including essential binlog settings and vault configurations required for Flink to operate.  
 * **Schema compatibility**: For migrating users, Flink CDC maintains the same schema as the legacy KC-based CDC. 
 
-### 2. Automating Kafka Hive ingestion pipelines: The end of manual configuration
+### Automating Kafka Hive ingestion pipelines: The end of manual configuration
 
 <div class="post-image-section"><figure>
   <img src="/img/flink-in-hugo/figure-3.png" alt="" style="width:60%"><figcaption align="middle">Figure 3. Creating a sink from Kafka to Data Lake table with one click.</figcaption>
@@ -86,7 +86,7 @@ In addition to database sources, Hugo also handles the ingestion of streaming da
 
 * **Intelligent prerequisites**: The system validates prerequisites on the Kafka source before starting the process, ensuring that there is active data traffic and that the topic's schema is correctly registered.
 
-### 3. Near real-time analytics with Apache Hudi (Kafka and MySQL CDC ingestion)
+### Near real-time analytics with Apache Hudi (Kafka and MySQL CDC ingestion)
 
 Enabling immediate, data-driven decisions requires fresh data. To that end, Hugo now supports Apache Hudi as a first-class citizen, offering near real-time data access.
 
@@ -99,24 +99,23 @@ Enabling immediate, data-driven decisions requires fresh data. To that end, Hugo
 
 With the current workflow, the onboarding time has been reduced significantly.
 
-| Pipeline type | Onboarding time |
-| :---- | :---- |
-| Kafka Hive Flink | ~6 minutes |
-| MySQL Hive CDC Flink | ~3 minutes |
-| Hudi | ~3 minutes |
-
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-4.png" alt="" style="width:60%"><figcaption align="middle">Figure 4. Kafka Flink.</figcaption>
+  <img src="/img/flink-in-hugo/table.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-5.png" alt="" style="width:60%"><figcaption align="middle">Figure 5. CDC Flink.</figcaption>
+  <img src="/img/flink-in-hugo/figure-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Kafka Flink.</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-6.png" alt="" style="width:60%"><figcaption align="middle">Figure 6. Hudi.</figcaption>
+  <img src="/img/flink-in-hugo/figure-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. CDC Flink.</figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/figure-6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. Hudi.</figcaption>
   </figure>
 </div>
 
