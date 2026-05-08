@@ -1,0 +1,132 @@
+---
+layout: post
+id: 2026-05-20-one-click-data-ingestion-platform-with-apache-flink
+title: "The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink"
+date: 2026-05-04 00:23:00
+authors: [hung.nguyenphi, hung.tran, shikai.ng, shuguang.xiang]
+categories: [Engineering, Data]
+tags: [Database, Hugo, FlinkSQL]
+comments: true
+cover_photo: /img/flink-in-hugo/banner-image.png
+excerpt: "At Grab, we're transforming data ingestion and processing with Hugo, our self-service data platform. Now integrated with Apache Flink, Hugo empowers teams to build real-time data pipelines effortlessly. Discover how we've streamlined complex processes into a single, one-click experience that boosts productivity and enables rapid insights. Dive into our blog to explore this game-changing evolution!"
+---
+
+## Introduction
+
+Data drives every decision we make at Grab. As our operations scale, so does our need for robust, real-time data ingestion and processing frameworks. Enter Hugo: our self-service data platform that has long empowered teams to seamlessly route data into our Data Lake. Today, Hugo is evolving. We have taken previously siloed onboarding workflows and transformed them into one seamless, unified journey to truly democratize data ingestion and maximize efficiency.
+
+In this blog, we’ll share how we achieved a frictionless, self-service pipeline experience. We'll dive into how Hugo’s upgraded framework tackles complex engineering challenges, including integrating diverse sources like RDS and Kafka, automating schema evolution via our schema registry, and unlocking reactive auto-scaling driven by real-time Kafka throughput.
+
+## Background
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/figure-1.png" alt="" style="width:60%"><figcaption align="middle">Figure 1. Hugo ingests data from every source into Grab's data lake.</figcaption>
+  </figure>
+</div>
+
+Hugo was originally designed as a self-service platform for batch-oriented data ingestion into the Data Lake, built on a single computation engine — Spark. It provided a centralized and streamlined onboarding experience for data sources such as MySQL, Aurora, PostgreSQL, and DynamoDB.
+
+As the organization’s data platform evolved toward near [real-time ingestion](https://engineering.grab.com/real-time-data-ingestion), Hugo expanded to support streaming pipelines from Kafka and CDC binlog. This evolution introduced a more distributed architecture, where ingestion workflows spanned multiple systems, including Kafka Connect, Sprinkler (an in-house Go-based S3 writer), and Hugo.
+
+## The siloed past: A multi-platform hurdle
+
+While powerful, the expanded architecture introduced significant onboarding friction. Creating a single data pipeline now requires users to coordinate across multiple platforms, each with its own configuration model and operational semantics. As a result, the onboarding journey became fragmented and difficult to navigate, especially for new users.
+
+A common challenge emerged during onboarding: users struggled to understand how configurations mapped across systems. For example, after setting up a Kafka Connect job, users frequently asked, *“I have already configured Kafka Connect — what values do I need to provide in Hugo?”* This highlighted a lack of clear abstraction between systems, forcing users to manually bridge conceptual and operational gaps.
+
+The end-to-end setup often required specialized knowledge across three distinct systems:
+
+* **Kafka Connect**: for source configuration.
+* **Sprinkler8**: for handling streaming ingestion.
+* **Hugo**: for pipeline orchestration and validation.
+
+This multi-step, cross-system dependency increased cognitive load, slowed down onboarding, and created coordination overhead between platform teams and users.
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/figure-2.png" alt="" style="width:100%"><figcaption align="middle">Figure 2. Data ingestion with the legacy CDC pipeline.</figcaption>
+  </figure>
+</div>
+
+## The Hugo evolution: A unified ingestion platform
+
+Our answer to legacy complexity was to engineer a new, deeply automated ingestion framework within [Hugo](https://docs.google.com/document/d/1EEC-iSaTs5dxz4_bQ1g_ZXNoI2o06_rYRruEqn6Gap4/edit?tab=t.o62cfqpcyo23). The true paradigm shift wasn't just adopting Apache Flink, but building a custom automation layer that integrates it directly with our core infrastructure—Heimdall for lifecycle management and Khone for resource provisioning.
+
+By unifying workflows under this single framework, we successfully retired Sprinkler8 and Kafka Connect. This transformation turned artisanal, manual work into a streamlined, self-service experience where our custom automation acts as the "intelligent chassis" for a seamless user journey.
+
+### The Hugo ingestion architecture: Engineering a unified flow
+
+#### One-click MySQL CDC pipelines
+
+We have completely reimagined the Change Data Capture (CDC) journey. What was once a multi-day hurdle is now a one-minute task.
+
+* **Fully automated**: A single click triggers Hugo to validate database prerequisites, provision right-sized resources, and manage the entire backfill process without manual intervention.
+* **Zero downtime**: The transition from Kafka Connect–based CDC pipelines to Flink-based CDC pipelines introduces zero downtime for downstream users.
+* **Schema reconciliation**: We engineered a custom schema reconciliation layer within the Spark compaction process to automatically resolve breaking schema changes introduced by a Debezium upgrade in our Flink CDC architecture.
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/figure-3.png" alt="" style="width:100%"><figcaption align="middle">Figure 3. Data ingestion with the new CDC pipeline.</figcaption>
+  </figure>
+</div>
+
+#### Self-service Kafka ingestion
+
+We have eliminated the need for code-based workflows and GitLab Merge Requests.
+
+* **Click-to-query**: Engineers can now ingest streaming data from Kafka topics into queryable Hive tables via a few clicks in the Hugo UI.
+* **Orchestrated flow**: The platform automatically handles the multi-stage background work—from Flink consumption and S3 writing to Spark compaction—ensuring data is query-optimized and ready for use immediately.
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/figure-4.png" alt="" style="width:100%"><figcaption align="middle">Figure 4. Data ingestion with the Kafka-to-Hive pipeline.</figcaption>
+  </figure>
+</div>
+
+## Impact
+
+The platform's new onboarding workflow has significantly reduced a previously multi-day process to mere minutes, enabling faster iteration and improving overall onboarding efficiency. This dramatic change has fundamentally altered how our teams interact with data.
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/table.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/figure-5.png" alt="" style="width:90%"><figcaption align="middle">Figure 5. Kafka Flink.</figcaption>
+  </figure>
+</div>
+
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/figure-6.png" alt="" style="width:90%"><figcaption align="middle">Figure 6. CDC Flink.</figcaption>
+  </figure>
+</div>
+
+The onboarding workflow is intentionally designed with early validation guardrails to proactively surface prerequisite and governance-related issues before pipeline creation proceeds.
+
+* For Kafka sources, user drop-offs between the “Create Kafka Source” and “Kafka Sink” stages are primarily driven by validation checks such as topic ownership verification and topic activity requirements (for example, topics with zero message volume). Additional drop-offs between the “Kafka Sink” and “Create Source Pipeline” stages typically occur when the proposed output table name already exists in the data lake, preventing duplicate table creation.
+
+* For MySQL sources, drop-offs are mainly associated with unmet database onboarding prerequisites, including credential setup, binlog user configuration, binlog format requirements, and binlog expiration settings.
+
+In addition, the streamlined self-service experience encourages exploratory usage, allowing teams to familiarize themselves with the onboarding workflow and platform capabilities before fully committing to pipeline creation.
+
+## Summary
+
+The new architecture relies on a custom automation layer that successfully retired reliance on Kafka Connect and Sprinkler8 for the data lake, turning artisanal work into a streamlined, one-click experience. This transformation provides a direct boost to developer productivity.
+
+Key impact metrics include:
+
+* **Onboarding time reduction**: The time required to set up data pipelines has been dramatically reduced and is now measured in minutes.
+  * **Kafka pipelines**: approximately 6 minutes.
+  * **MySQL CDC pipelines**: approximately 3 minutes.
+* **Adoption**: Since the release, the number of new Kafka and CDC pipelines onboarded in the last year exceeds the total number of pipelines onboarded in the previous five years.
+
+## What’s next
+
+These enhancements are just one step in our broader vision to establish Flink as the default, optimized, and self-service framework for all data ingestion and processing at Grab. Our strategic roadmap includes:
+
+* **Lightweight ETL with FlinkSQL:** We are exploring FlinkSQL to enable users to perform lightweight ETL (Extract, Transform, Load) directly within their Hugo pipelines. While this could unlock powerful new transformation capabilities, we are carefully considering the support model to manage potential query complexity.
+* **Next-generation formats:** We are investigating adopting Apache Iceberg as the data lake table format to further reduce latency and improve performance.
+
+## Join us
+
+Grab is Southeast Asia's leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab's mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.
+
+Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, [join our team today](https://grab.careers/)!
