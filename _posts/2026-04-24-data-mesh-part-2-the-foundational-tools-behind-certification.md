@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2026-04-24-data-mesh-part-2-the-foundational-tools-behind-certification
-title: 'Data Mesh at Grab Part II: The Foundational Tools behind Certification'
+title: 'Data Mesh at Grab (Part II): The foundational tools behind certification'
 date: 2026-04-30 00:23:00
 authors: [aezo.teo, harvey.li, houren.chen, feng.cheng]
 categories: [Engineering]

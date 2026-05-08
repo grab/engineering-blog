@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2026-05-07-enhancing-flink-shadow-testing
-title: 'Enhancing Flink Deployment with Shadow Testing'
+title: 'Enhancing Flink deployment with shadow testing'
 date: 2026-05-07 00:23:00
 authors: [fabrice.harbulot, shikai.ng, teelong.lang]
 categories: [Engineering, Data]
