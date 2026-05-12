@@ -3,7 +3,7 @@ layout: post
 id: 2026-05-07-enhancing-flink-shadow-testing
 title: 'Enhancing Flink deployment with shadow testing'
 date: 2026-05-07 00:23:00
-authors: [fabrice.harbulot, shikai.ng, teelong.lang]
+authors: [teelong.lang, fabrice.harbulot, shikai.ng]
 categories: [Engineering, Data]
 tags: [Database, Testing, FlinkSQL]
 comments: true
