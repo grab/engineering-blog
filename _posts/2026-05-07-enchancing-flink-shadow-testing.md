@@ -98,32 +98,32 @@ The following table shows how some typical connectors are dynamically configured
     <tr>
       <td>Source</td>
       <td>Kafka</td>
-      <td>The consumer group ID for the Shadow application is suffixed with <em>-shadow</em>. This is crucial so as to consume a full copy of the data stream without interfering with the Main application. <br/> Main application: consumerGroup = &lt;application_name&gt; <br/> Shadow application: consumerGroup = &lt;application_name&gt;-shadow</td>
+      <td>The consumer group ID for the Shadow application is suffixed with <em>-shadow</em>. This is crucial so as to consume a full copy of the data stream without interfering with the Main application. <br/> Main application: <code>consumerGroup = &lt;application_name&gt;</code> <br/> Shadow application: <code>consumerGroup = &lt;application_name&gt;-shadow</code></td>
     </tr>
     <tr>
       <td>Source</td>
       <td>Change Data Capture</td>
-      <td>The Server ID range of <a href="https://debezium.io/">Debezium</a> is shifted to the next non-overlapping range of the same size. This enables the Shadow application to get a full copy of the database binlog stream without interfering with the Main application. Note that the misleading <em>Server ID</em> naming is because Debezium acts as a pseudo-replica of the database server. <br/> Main application: serverId = 1001-2000 <br/> Shadow application: serverId = 2001 - 3000</td>
+      <td>The Server ID range of <a href="https://debezium.io/">Debezium</a> is shifted to the next non-overlapping range of the same size. This enables the Shadow application to get a full copy of the database binlog stream without interfering with the Main application. Note that the misleading <em>Server ID</em> naming is because Debezium acts as a pseudo-replica of the database server. <br/> Main application: <code>serverId = 1001-2000</code> <br/> Shadow application: <code>serverId = 2001 - 3000</code></td>
     </tr>
     <tr>
       <td>Sink</td>
       <td>Kafka</td>
-      <td>The cluster endpoint is replaced with that of a Kafka cluster dedicated to Shadow Testing, set up with <em>auto.create.topics.enable=true</em> and 8h retention. <br/> Main application: brokers = &lt;flink-kafka&gt;:9092 <br/> Shadow application: brokers = &lt;flink-kafka-shadow&gt;:9092</td>
+      <td>The cluster endpoint is replaced with that of a Kafka cluster dedicated to Shadow Testing, set up with <em>auto.create.topics.enable=true</em> and 8h retention. <br/> Main application: <code>brokers = &lt;flink-kafka&gt;:9092</code> <br/> Shadow application: <code>brokers = &lt;flink-kafka-shadow&gt;:9092</code></td>
     </tr>
     <tr>
       <td>Sink</td>
       <td>S3</td>
-      <td>The S3 bucket name is replaced with that of a bucket dedicated to Shadow Testing, set up with a 7-day retention lifecycle policy.<br/>  Main application: s3://&lt;flink-s3&gt;/&lt;application_name&gt; <br/>  Shadow application: s3://&lt;flink-s3-shadow&gt;/&lt;application_name&gt;</td>
+      <td>The S3 bucket name is replaced with that of a bucket dedicated to Shadow Testing, set up with a 7-day retention lifecycle policy.<br/>  Main application: <code>s3://&lt;flink-s3&gt;/&lt;application_name&gt;</code> <br/>  Shadow application: <code>s3://&lt;flink-s3-shadow&gt;/&lt;application_name&gt;</code></td>
     </tr>
     <tr>
       <td>Sink</td>
       <td>Metrics</td>
-      <td>The StatsD prefix configuration is overridden. A <em>shadow.</em> prefix is added. <br/>  Main application: flink.&lt;application_name&gt;.&lt;metric_name&gt;<br/> Shadow application: shadow.flink.&lt;application_name&gt;.&lt;metric_name&gt;</td>
+      <td>The StatsD prefix configuration is overridden. A <em>shadow.</em> prefix is added. <br/>  Main application: <code>flink.&lt;application_name&gt;.&lt;metric_name&gt;</code><br/> Shadow application: <code>shadow.flink.&lt;application_name&gt;.&lt;metric_name&gt;</code></td>
     </tr>
     <tr>
       <td>Sink</td>
       <td>Logs</td>
-      <td>The <em>Shadow</em> Kubernetes manifest prefixes the Shadow application name with <em>shadow-</em>. The resulting name becomes available as a field in Kibana, enabling discriminated filtering. This tweak is done at the Kubernetes manifest level, not at the Flink application level.<br/> Main application: app_name = &lt;application_name&gt; <br/> Shadow application: app_name = shadow-&lt;application_name&gt;</td>
+      <td>The <em>Shadow</em> Kubernetes manifest prefixes the Shadow application name with <em>shadow-</em>. The resulting name becomes available as a field in Kibana, enabling discriminated filtering. This tweak is done at the Kubernetes manifest level, not at the Flink application level.<br/> Main application: <code>app_name = &lt;application_name&gt;</code> <br/> Shadow application: <code>app_name = shadow-&lt;application_name&gt;</code></td>
     </tr>
   </tbody>
 </table>
