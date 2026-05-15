@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-05-18-how-we-improved-android-studio-in-large-monorepo
+id: 2026-05-15-how-we-improved-android-studio-in-large-monorepo
 title: 'Scaling Developer Experience: How We Improved Android Studio in a Large Monorepo'
-date: 2026-05-18 00:23:00
+date: 2026-05-15 00:23:00
 authors: [rifqi.fahmi, arun.sampathkumar]
 categories: [Engineering, Android]
 tags: [Engineering, Android, Performance, Monorepo]
