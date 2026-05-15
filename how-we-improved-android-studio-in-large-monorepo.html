@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Scaling Developer Experience: How We Improved Android Studio in a Large Monorepo</title>
+    <meta name="description" content="Frustrated by 35-minute integrated development environment (IDE) syncs? In a large monorepo, slow builds were eroding productivity. Discover how we built a custom Focus plugin to slash sync times to under 2 minutes and drop memory usage from 10 GB to 2 GB. Learn how we leveraged Gradle and Bazel to reclaim developer flow without changing a single team's workflow.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/how-we-improved-android-studio-in-large-monorepo">
+    <meta property="og:title" content="Scaling Developer Experience: How We Improved Android Studio in a Large Monorepo">
+    <meta property="og:description" content="Frustrated by 35-minute integrated development environment (IDE) syncs? In a large monorepo, slow builds were eroding productivity. Discover how we built a custom Focus plugin to slash sync times to under 2 minutes and drop memory usage from 10 GB to 2 GB. Learn how we leveraged Gradle and Bazel to reclaim developer flow without changing a single team's workflow.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/android-studio-in-monorepo/banner-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/how-we-improved-android-studio-in-large-monorepo">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/android-studio-in-monorepo/banner-image.png" class="post-cover-photo" alt="Scaling Developer Experience: How We Improved Android Studio in a Large Monorepo cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+        
+          &middot;
+        
+          <a class="post-category" href="/categories/android/">Android </a>
+      
+
+      <h1 class="post-title">Scaling Developer Experience: How We Improved Android Studio in a Large Monorepo</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/rifqi-fahmi.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/arun-sampathkumar.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#rifqi.fahmi">Rifqi Fahmi</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#arun.sampathkumar">Arun Sampathkumar</a>
+                  
+                
+              </span>
+              <span class="post-date-large">15 May 2026 | 15 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>Long integrated development environment (IDE) sync/indexing times can quietly erode developer productivity, making code navigation sluggish, spiking memory usage, and slowing down Jetpack Compose preview updates, turning the IDE into a bottleneck rather than a helpful tool. For Android engineers working in a large monorepo, this was a daily reality. In this post, we will share how we built a custom Focus plugin that dramatically reduced Android Studio sync times by leveraging our existing investments, such as the Gradle-to-Bazel migration workflow.</p>
+
+<h2 id="our-android-monorepo-at-scale">Our Android monorepo at scale</h2>
+
+<p>The Grab passenger Android (PAX) repository contains roughly 2,000 Android modules and 11,000,000 lines of code. As the repository grows year over year, a natural consequence of scaling our superapp, which combines ride-hailing, food delivery, payments, and more into a single application, is the increase in time required to build and sync the project.</p>
+
+<p>What makes this growth especially pronounced today is the shift in how code gets written. Development assisted by artificial intelligence (AI) has enabled engineers to produce more code faster than before. At the same time, non-engineering personnel such as designers, product managers, and other non-technical contributors have started making changes to low-risk features under engineering provision. Together, these two forces are pushing the codebase to grow at its fastest rate ever, which in turn compounds the pressure on every developer’s IDE and build tooling to keep up.</p>
+
+<p>We previously adopted <a href="https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration">Bazel</a> to speed up incremental and cached builds, but build time was only part of the picture. We intentionally kept Android Studio syncing with Gradle, so developers get fast Bazel builds while the IDE uses the standard Gradle toolchain, thereby preserving compatibility and avoiding the friction and tooling gaps of full Bazel IDE integration. This trade-off gives us the best of both worlds, but it also means Gradle sync remains a first-class concern. Even though Bazel handles the builds, Android Studio still depends on Gradle sync to import the project model that powers IDE features such as code navigation, autocompletion, and error highlighting. That sync process, which evaluates every module declared in <code class="language-plaintext highlighter-rouge">settings.gradle</code>, had quietly become a major pain point.</p>
+
+<h2 id="the-problem">The problem</h2>
+
+<p>Over time, we noticed a growing number of reports stating that IDE syncs were too slow and memory-intensive. A single full sync could take more than 35 minutes on a cold start. The pain was especially acute after a rebase or branch checkout. Since these operations often modify build configuration files, Android Studio would detect the changes and trigger a full re-sync just to restore basic IDE functionality.</p>
+
+<p>We conducted a developer experience survey to quantify the issue. From 55 responses, the results painted a clearer picture:</p>
+
+<ul>
+  <li>76% said long sync times significantly or very significantly impacted their productivity.</li>
+  <li>60% were unsatisfied or very unsatisfied with IDE sync time.</li>
+  <li>47% were unsatisfied or very unsatisfied with Compose preview update speed.</li>
+  <li>82% said they would benefit from the option to exclude modules from syncing.</li>
+</ul>
+
+<div class="post-image-section"><figure>
+  <img src="/img/android-studio-in-monorepo/figure-1.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1. Results of developer experience survey.</figcaption>
+  </figure>
+</div>
+
+<p>The survey validated our anecdotal feedback: developers were frustrated. Slow, sluggish IDE performance was eroding productivity and disrupting flow. We set out to determine whether developers really needed to load every module to work on just one.</p>
+
+<h2 id="investigation">Investigation</h2>
+
+<h3 id="root-cause">Root cause</h3>
+
+<p>The root cause was straightforward: module count. With roughly 2,000 modules in the codebase, a full sync required Gradle to configure every single module, including parsing build files, resolving dependencies, and generating IDE project models, regardless of whether the developer actually needed them. A developer working on the Payments feature still had to wait for Gradle to process Food, Transport, Mart, and every other module. The configuration time and resulting memory consumption grew roughly in proportion to module count, and the count kept rising.</p>
+
+<h3 id="exploring-community-solutions">Exploring community solutions</h3>
+
+<p>We looked at existing solutions in the Android community. One promising candidate was the <a href="https://github.com/dropbox/focus">Focus plugin from Dropbox</a>. Here’s how the Focus plugin works:</p>
+
+<ol>
+  <li>The developer runs a Gradle command to focus on a specific module (e.g. <code class="language-plaintext highlighter-rouge">./gradlew :module:focus</code>).</li>
+  <li>The Gradle task calculates the dependency graph, generates a separate focused settings file, and writes a <code class="language-plaintext highlighter-rouge">.focus</code> marker file that tells Gradle to use it instead of the full project settings.</li>
+  <li>The developer syncs the IDE, which now only configures the focused modules.</li>
+</ol>
+
+<p>This approach works because instead of syncing the entire repository, the developer only configures the module they are working on, along with its required dependencies. Everything else is excluded.</p>
+
+<p>For example, if you are working on the Payments module, only Payments and its dependency chain get loaded. Food, Transport, and Mart modules are excluded entirely.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/android-studio-in-monorepo/figure-2.png" alt="" style="width:80%" /><figcaption align="middle">Figure 2. Focus mode sync vs. full sync.</figcaption>
+  </figure>
+</div>
+
+<p>Depending on the size of the target module, this approach can cut the number of loaded modules by 50% or more, especially with a well-structured modularization architecture. We wanted to adopt this approach and saw an opportunity to improve it further by leveraging our existing Gradle-to-Bazel migration workflow.</p>
+
+<h2 id="our-solution-building-a-custom-focus-plugin">Our solution: Building a custom Focus plugin</h2>
+
+<p>The Dropbox Focus plugin was a great starting point, but it introduced several friction points in our setup:</p>
+
+<ul>
+  <li>We would need to move all non-essential declarations from <code class="language-plaintext highlighter-rouge">settings.gradle</code> into a separate <code class="language-plaintext highlighter-rouge">settings-all.gradle</code> file.</li>
+  <li>We would need guardrails to ensure new modules are declared in the correct file.</li>
+  <li>Most critically, focusing on a module requires running a Gradle task (e.g., <code class="language-plaintext highlighter-rouge">./gradlew :module:focus</code>), which itself goes through Gradle’s configuration phase and adds a noticeable delay before a developer can even start an IDE sync.</li>
+</ul>
+
+<p>We set out to address each of these issues.</p>
+
+<h3 id="challenge-1-eliminating-the-configuration-phase">Challenge 1: Eliminating the configuration phase</h3>
+
+<p>The Dropbox Focus plugin recalculates the dependency graph every time a developer runs the focus command. This means every Focus operation pays the cost of Gradle’s configuration phase, parsing every <code class="language-plaintext highlighter-rouge">build.gradle</code> file in the project to resolve the full dependency tree.</p>
+
+<p>We realized we already had this information. Our build infrastructure includes Grazel, which migrates Gradle build files to their Bazel equivalents via a <code class="language-plaintext highlighter-rouge">migrateToBazel</code> task, and our Continuous Integration (CI) validations ensure that both are aligned. This task already traverses the full dependency graph for migration purposes.</p>
+
+<p>Our insight: generate a dependency graph as a static file during <code class="language-plaintext highlighter-rouge">migrateToBazel</code> and reuse it for focus operations.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/android-studio-in-monorepo/figure-3.png" alt="" style="width:60%" /><figcaption align="middle">Figure 3. Focus flow vs. Grab’s customized focus flow.</figcaption>
+  </figure>
+</div>
+
+<p>By pre-computing and persisting the dependency graph, we skip the Gradle configuration phase entirely. The focus operation becomes a fast, local file lookup instead of a lengthy Gradle computation. The developer simply selects their module and syncs.</p>
+
+<p>The dependency graph is stored as a JSON file, which is lightweight and fast to read. The trade-off is that it requires a <code class="language-plaintext highlighter-rouge">migrateToBazel</code> run to stay up-to-date. When creating a new module or changing module dependencies, developers need to rerun <code class="language-plaintext highlighter-rouge">./gradlew migrateToBazel</code> to regenerate the graph. We accepted this because developers already had to run <code class="language-plaintext highlighter-rouge">migrateToBazel</code> before merging to master (to ensure Bazel files are current). The graph stays fresh as part of their existing workflow, and no extra step is required.</p>
+
+<h3 id="challenge-2-minimizing-developer-friction-with-a-gradle-plugin">Challenge 2: Minimizing developer friction with a Gradle plugin</h3>
+
+<p>We did not want to introduce a process that adds cognitive load. Migrating all module declarations to a new <code class="language-plaintext highlighter-rouge">settings.gradle</code> file would require every team to change their workflow. Instead, we adopted a more elegant approach.</p>
+
+<h4 id="the-include-shadow-trick">The <code class="language-plaintext highlighter-rouge">include</code> shadow trick</h4>
+
+<p>In a standard Android project, modules are declared in <code class="language-plaintext highlighter-rouge">settings.gradle</code> using the <code class="language-plaintext highlighter-rouge">include</code> function:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>include 'app'
+include 'payment'
+include 'food'
+// ... hundreds more
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">include</code> function is part of the Gradle Settings API. In Groovy, you can define a local closure variable with the same name as an existing method. Since Groovy resolves local variables before delegate methods, the closure effectively shadows the original include method and all subsequent include calls in the script invoke the closure instead.</p>
+
+<p>We created a custom Gradle plugin with a focusInclude function that decides whether to include or exclude a module based on the current focus configuration. By adding just three lines to the top of <code class="language-plaintext highlighter-rouge">settings.gradle</code>, we redirect all include calls through our plugin:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// After applying the focus plugin in the buildscript block
+def include = { module -&gt;
+ com.grab.focus.GradleFocusPluginKt.focusInclude(settings, module)
+}
+include 'app'
+include 'payment'
+include 'food'
+</code></pre></div></div>
+
+<p>The rest of the file remains untouched. Every existing include call now passes through <code class="language-plaintext highlighter-rouge">focusInclude</code>, which checks whether the module should be loaded based on the developer’s focus selection. If no focus is active, all modules are included as usual with zero behavior change.</p>
+
+<p>This approach meant zero migration effort for feature teams. The <code class="language-plaintext highlighter-rouge">settings.gradle</code> file stays as-is, and the plugin integrates seamlessly.</p>
+
+<h4 id="early-implementation-property-based-focus">Early implementation: Property-based focus</h4>
+
+<p>In the early days of this plugin’s development, the way to specify focus modules was via a Gradle property in the command line:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew build -Pmodules-to-sync=":app,:payment"
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">focusInclude</code> function reads this Gradle property. If present, it activates focus mode and only includes the specified modules (and their transitive dependencies resolved from the graph file). If absent, all modules are included normally.</p>
+
+<h3 id="challenge-3-making-it-seamless-with-an-android-studio-plugin">Challenge 3: Making it seamless with an Android Studio plugin</h3>
+
+<div class="post-image-section"><figure>
+  <img src="/img/android-studio-in-monorepo/figure-4.png" alt="" style="width:60%" /><figcaption align="middle">Figure 4. User flow.</figcaption>
+  </figure>
+</div>
+
+<p>Manually passing Gradle properties on the command line was functional but not ideal. We needed a better developer experience. The Gradle property approach opened the door to IDE integration; this led to an Android Studio plugin (an IntelliJ plugin) being built that automates the entire flow through a user interface (UI):</p>
+
+<ol>
+  <li><strong>Module selection</strong>: The plugin presents a list of all available modules, parsed from the pre-computed dependency graph file. Developers select which modules they want to work on.</li>
+  <li><strong>Dependency count indicator</strong>: Since we have the full dependency graph, the plugin displays how many transitive dependencies each module requires. This gives developers immediate visibility into module “weight” and encourages teams to keep their modules lean.</li>
+  <li><strong>Automatic argument injection</strong>: The plugin uses two IntelliJ Gradle extension points to inject the <code class="language-plaintext highlighter-rouge">-Pmodules-to-sync</code> property: a <code class="language-plaintext highlighter-rouge">GradleResolverExtension</code> that adds the argument during project sync, and a <code class="language-plaintext highlighter-rouge">GradleTaskManagerExtension</code> that injects it before any Gradle task execution (including Compose preview builds). The developer just clicks sync; the plugin handles the rest.</li>
+</ol>
+
+<div class="post-image-section"><figure>
+  <img src="/img/android-studio-in-monorepo/figure-5.png" alt="" style="width:60%" /><figcaption align="middle">Figure 5. Example of Automatic Argument Injection.</figcaption>
+  </figure>
+</div>
+
+<p>Beyond the core functionality, we added several usability enhancements to the plugin:</p>
+
+<ul>
+  <li><strong>Indirect focus indicator</strong>: Modules that will be synced as a transitive dependency of a focused module are marked as “indirectly focused,” giving developers visibility into exactly what will be loaded.</li>
+  <li><strong>Search and filtering</strong>: With hundreds of modules, finding the right one matters. The plugin supports fuzzy matching and regular expression (regex) search to quickly narrow down the module list.</li>
+  <li><strong>Sort by dependency count</strong>: Modules can be sorted by name or by dependency count, making it easy to spot the heaviest modules at a glance.</li>
+  <li><strong>Status bar widget</strong>: A persistent “Focus: X/Y” indicator in the IDE status bar shows how many modules are currently focused out of the total, with a click-through to the Focus tool window.</li>
+  <li><strong>State persistence</strong>: The developer’s focus selection is saved and restored between IDE sessions, so they do not need to reselect modules after restarting Android Studio.</li>
+</ul>
+
+<h3 id="encouraging-lean-module-architecture">Encouraging lean module architecture</h3>
+
+<p>An unplanned but welcome side effect of the focus plugin was that it nudged teams toward a cleaner module architecture. With dependency counts now visible in the IDE, developers became more aware of their module’s size, which in turn encouraged a clearer separation between interface and implementation.</p>
+
+<ul>
+  <li><strong>Interface module</strong> (e.g., <code class="language-plaintext highlighter-rouge">:payment-api</code>): Contains only the public API definitions (interfaces, data classes, contracts). This is the module that other teams depend on. Because it has no implementation details, it carries very few transitive dependencies.</li>
+  <li><strong>Implementation module</strong> (e.g., <code class="language-plaintext highlighter-rouge">:payment-impl</code>): Contains the actual implementation of those interfaces. This module typically has a larger dependency footprint, but only the owning team needs to load it.</li>
+</ul>
+
+<p>By depending on the interface module rather than the implementation module, teams avoid pulling in a large tree of transitive dependencies. This keeps the dependency count low for consumers, which directly translates to faster focus sync times and leaner Compose preview builds.</p>
+
+<h2 id="how-we-measure">How we measure</h2>
+
+<h3 id="instrumentation-the-pax-ide-plugin">Instrumentation: The PAX IDE plugin</h3>
+
+<p>The PAX IDE plugin is a mandatory install for every PAX Android engineer in Grab. This gives us a consistent, organization-wide data collection baseline without requiring any opt-in. The plugin registers four IntelliJ Platform listeners that automatically capture metrics on every relevant IDE event:</p>
+
+<table border="1" cellpadding="8" cellspacing="10">
+  <thead>
+    <tr>
+      <th align="left">IntelliJ API</th>
+      <th align="left">What it tracks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>GradleSyncListenerWithRoot</code></td>
+      <td>Sync time</td>
+    </tr>
+    <tr>
+      <td><code>ProjectIndexingActivityHistoryListener</code></td>
+      <td>Indexing time</td>
+    </tr>
+    <tr>
+      <td><code>ProjectIndexingActivityHistoryListener</code></td>
+      <td>Scanning time</td>
+    </tr>
+    <tr>
+      <td><code>PerformanceListener</code></td>
+      <td>IDE freezes</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Each metric event is enriched with shared context captured at event time: IDE version and build number, heap memory usage, focus state (enabled/disabled, number of focused modules), Operating System (OS) info, and project name. This means every data point is automatically segmented by whether focus mode was active, which is exactly what we need for before/after comparisons.</p>
+
+<h3 id="what-each-metric-captures">What each metric captures</h3>
+
+<ul>
+  <li>
+    <p><strong>Sync time</strong>: We implement <code class="language-plaintext highlighter-rouge">GradleSyncListenerWithRoot</code> and calculate wall-clock duration from <code class="language-plaintext highlighter-rouge">syncStarted()</code> to <code class="language-plaintext highlighter-rouge">syncSucceeded()</code> or <code class="language-plaintext highlighter-rouge">syncFailed()</code>. This covers the full Gradle configuration, dependency resolution, and IDE model generation phase.</p>
+  </li>
+  <li>
+    <p><strong>Indexing time</strong>: <code class="language-plaintext highlighter-rouge">ProjectIndexingActivityHistoryListener.onFinishedDumbIndexing()</code> provides a <code class="language-plaintext highlighter-rouge">ProjectDumbIndexingHistory</code> object. We read <code class="language-plaintext highlighter-rouge">history.times.totalUpdatingTime</code>, the time IntelliJ spent updating its symbol index after the sync.</p>
+  </li>
+  <li>
+    <p><strong>Scanning time</strong>: <code class="language-plaintext highlighter-rouge">ProjectIndexingActivityHistoryListener.onFinishedScanning()</code> provides a <code class="language-plaintext highlighter-rouge">ProjectScanningHistory</code> object. We read <code class="language-plaintext highlighter-rouge">history.times.totalUpdatingTime</code> and <code class="language-plaintext highlighter-rouge">history.times.scanningType</code> (full vs. partial) for additional segmentation.</p>
+  </li>
+  <li>
+    <p><strong>IDE freezes</strong>: <code class="language-plaintext highlighter-rouge">PerformanceListener.uiFreezeFinished(durationMs)</code> is called by the platform whenever the Event Dispatch Thread (EDT) is blocked long enough to be classified as a freeze. The duration arrives directly as a parameter.</p>
+  </li>
+  <li>
+    <p><strong>IDE memory usage</strong>: Captured at the moment of each metric event via <code class="language-plaintext highlighter-rouge">Runtime.getRuntime()</code>. Captures used memory (totalMemory - freeMemory) and max heap. Attached to every event as part of the shared context.</p>
+  </li>
+  <li>
+    <p><strong>IDE version</strong>: From <code class="language-plaintext highlighter-rouge">ApplicationInfo.getInstance()</code>, captures version name, full version string, and build number. Also attached to every event, enabling per-version breakdowns.</p>
+  </li>
+</ul>
+
+<h3 id="survey">Survey</h3>
+
+<p>After each successful sync, the plugin triggers an in-IDE notification prompting developers to fill out a short survey. The notification respects developer attention; it uses a weekly reset cycle with a “Don’t remind me again” option that appears after the second prompt. These periodic qualitative check-ins complement the telemetry data and help surface pain points that raw numbers alone may not capture.</p>
+
+<h3 id="establishing-the-baseline">Establishing the baseline</h3>
+
+<p>The plugin collects <code class="language-plaintext highlighter-rouge">focus_enabled</code> on every event. Therefore, baseline numbers come directly from the same pipeline; they are simply the subset of metric events where <code class="language-plaintext highlighter-rouge">focus_enabled = false</code>. This means the before/after comparison is an apples-to-apples measurement from the same instrumentation, same engineers, same codebase, with no separate manual benchmarking required.</p>
+
+<h2 id="results">Results</h2>
+
+<h3 id="compose-preview-build">Compose preview build</h3>
+
+<p>The focus approach also improved Jetpack Compose preview builds. Compose previews require a module build to render, and with fewer modules loaded, the IDE has significantly less indexing overhead. A typical UI module has just 5–10 local dependencies. With the focus plugin, a developer configures only those modules instead of all 2,000. Developers consistently report that Compose previews feel significantly more responsive in focus mode.</p>
+
+<p>As a best practice, we recommend that teams separate their UI into dedicated modules containing only composable functions and minimal dependencies. This maximizes the benefit of focus mode for preview builds.</p>
+
+<h3 id="memory-usage">Memory usage</h3>
+
+<p>In focus mode, excluded modules are not configured by Gradle and not indexed by the IDE, significantly reducing both build-process and editor memory consumption from approximately 10 GB down to 2 GB. This frees up memory for Bazel builds and other tooling. Developers reported fewer freezes, faster code navigation, and more responsive autocompletion.</p>
+
+<h3 id="sync-time">Sync time</h3>
+
+<p>We observed a dramatic reduction in per-sync IDE sync time. A full sync previously took around 26 minutes at the 95th percentile (p95). With the Focus plugin, sync times dropped to under 2 minutes for typical feature work. The p95 remains higher for modules with deep dependency trees, but in practice, sync times vary significantly depending on module size. A typical UI module with 5 to 10 dependencies syncs in roughly 2 minutes, while heavier modules with deep dependency graphs take longer. For most developers working on focused feature work, the improvement is dramatic.</p>
+
+<h3 id="tradeoffs">Tradeoffs</h3>
+
+<p>Focus mode does come with limitations. IDE features like “Find Usages” and cross-module refactoring only cover the focused modules; developers occasionally need to expand their focus set or temporarily switch to a full sync for repo-wide operations. In practice, this has been a minor inconvenience compared to the productivity gained.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>IDE sync time is one of those problems that slowly degrades the developer experience without a single dramatic breaking point.</p>
+
+<p>Our solution combined three key ideas:</p>
+
+<ul>
+  <li>
+    <p><strong>Reuse existing infrastructure</strong>: By generating the dependency graph during <code class="language-plaintext highlighter-rouge">migrateToBazel</code>, we eliminated the expensive Gradle configuration phase without adding a new build step.</p>
+  </li>
+  <li>
+    <p><strong>Minimize adoption friction</strong>: The Groovy include shadow trick let us integrate the focus mechanism with just three lines of code, requiring zero changes from feature teams.</p>
+  </li>
+  <li>
+    <p><strong>Invest in user experience (UX)</strong>: The Android Studio plugin turned a manual, error-prone process into a one-click operation with useful module health indicators.</p>
+  </li>
+</ul>
+
+<p>The results spoke for themselves. IDE sync time dropped from 35 minutes to under 1 minute <em>(depending on module size)</em>. IDE memory consumption fell from 10 GB down to 2 GB, freeing up headroom for Bazel builds to run alongside the IDE. Compose preview update times improved significantly due to reduced indexing overhead. And adoption was frictionless. Engineers went from a manual, multi-step process to a simple Select → Focus → Sync flow with native IntelliJ integration.</p>
+
+<p>As the codebase continues to grow, accelerated by AI-assisted development and a broader contributor base, we are also investing in guardrails to keep quality in check. An area we are actively exploring is using <code class="language-plaintext highlighter-rouge">skills.md</code> to guide AI coding agents when they generate new modules, encoding architectural conventions and dependency rules directly into the context that AI tools consume. This helps ensure that AI-generated code lands in the right shape from the start, rather than accumulating structural debt that compounds the sync and build problems described above.</p>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors, serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#android" class="label tags-label">Android</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#monorepo" class="label tags-label">Monorepo</a>
+  
+    <a href="/tags#performance" class="label tags-label">Performance</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Scaling Developer Experience: How We Improved Android Studio in a Large Monorepo&url=https://engineering.grab.com/how-we-improved-android-studio-in-large-monorepo&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/how-we-improved-android-studio-in-large-monorepo" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/how-we-improved-android-studio-in-large-monorepo&title=Scaling Developer Experience: How We Improved Android Studio in a Large Monorepo
+&summary=Frustrated by 35-minute integrated development environment (IDE) syncs? In a large monorepo, slow builds were eroding productivity. Discover how we built a custom Focus plugin to slash sync times to under 2 minutes and drop memory usage from 10 GB to 2 GB. Learn how we leveraged Gradle and Bazel to reclaim developer flow without changing a single team's workflow.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/how-we-improved-android-studio-in-large-monorepo';
+    this.page.identifier = '/how-we-improved-android-studio-in-large-monorepo';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
