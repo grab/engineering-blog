@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-05-20-one-click-data-ingestion-platform-with-apache-flink
+id: 2026-05-22-one-click-data-ingestion-platform-with-apache-flink
 title: "The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink"
-date: 2026-05-04 00:23:00
+date: 2026-05-22 00:23:00
 authors: [hung.nguyenphi, hung.tran, shikai.ng, shuguang.xiang]
 categories: [Engineering, Data]
 tags: [Database, Hugo, FlinkSQL]
