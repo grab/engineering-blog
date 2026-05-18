@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2026-05-22-one-click-data-ingestion-platform-with-apache-flink
-title: "The Hugo Evolution: Engineering Grab's Unified, One-Click Data Ingestion Platform with Apache Flink"
+title: "The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink"
 date: 2026-05-22 00:23:00
 authors: [hung.nguyenphi, hung.tran, shikai.ng, shuguang.xiang]
 categories: [Engineering, Data]
@@ -47,15 +47,15 @@ This multi-step, cross-system dependency increased cognitive load, slowed down o
   </figure>
 </div>
 
-## The Hugo Evolution: A Unified Ingestion Platform
+## The Hugo evolution: A unified ingestion platform
 
-Our answer to legacy complexity was to engineer a new, deeply automated ingestion framework within Hugo. The true paradigm shift wasn't just adopting Apache Flink, but building a custom automation layer that integrates it directly with our core infrastructure—Heimdall for lifecycle management and Khone for resource provisioning.
+Our answer to legacy complexity was to engineer a new, deeply automated ingestion framework within [Hugo](https://docs.google.com/document/d/1EEC-iSaTs5dxz4_bQ1g_ZXNoI2o06_rYRruEqn6Gap4/edit?tab=t.o62cfqpcyo23). The true paradigm shift wasn't just adopting Apache Flink, but building a custom automation layer that integrates it directly with our core infrastructure—Heimdall for lifecycle management and Khone for resource provisioning.
 
-By unifying workflows under this single framework, we successfully retired Sprinkler8 and Kafka Connect. This transformation turned artisanal, manual work into a streamlined, self-service experience where our custom automation acts as the intelligent chassis for a seamless user journey.
+By unifying workflows under this single framework, we successfully retired Sprinkler8 and Kafka Connect. This transformation turned artisanal, manual work into a streamlined, self-service experience where our custom automation acts as the "intelligent chassis" for a seamless user journey.
 
-### The Hugo Ingestion Architecture: Engineering a Unified Flow
+### The Hugo ingestion architecture: Engineering a unified flow
 
-#### 1. One-Click MySQL CDC Pipelines
+#### One-click MySQL CDC pipelines
 
 We have completely reimagined the Change Data Capture (CDC) journey. What was once a multi-day hurdle is now a one-minute task.
 
@@ -68,7 +68,7 @@ We have completely reimagined the Change Data Capture (CDC) journey. What was on
   </figure>
 </div>
 
-#### 2. Self-Service Kafka Ingestion
+#### Self-service Kafka ingestion
 
 We have eliminated the need for code-based workflows and GitLab Merge Requests.
 
@@ -84,10 +84,10 @@ We have eliminated the need for code-based workflows and GitLab Merge Requests.
 
 The platform's new onboarding workflow has significantly reduced a previously multi-day process to mere minutes, enabling faster iteration and improving overall onboarding efficiency. This dramatic change has fundamentally altered how our teams interact with data.
 
-| **Pipeline Type** | **Onboarding Time** |
-| --- | --- |
-| Kafka Hive Flink | ~6 minutes |
-| MySQL Hive CDC Flink | ~3 minutes |
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/table.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
+  </figure>
+</div>
 
 <div class="post-image-section"><figure>
   <img src="/img/flink-in-hugo/figure-5.png" alt="" style="width:90%"><figcaption align="middle">Figure 5. Kafka Flink.</figcaption>
@@ -101,7 +101,7 @@ The platform's new onboarding workflow has significantly reduced a previously mu
 
 The onboarding workflow is intentionally designed with early validation guardrails to proactively surface prerequisite and governance-related issues before pipeline creation proceeds.
 
-* For Kafka sources, user drop-offs between the “Create Kafka Source” and “Kafka Sink” stages are primarily driven by validation checks such as topic ownership verification and topic activity requirements, for example topics with zero message volume. Additional drop-offs between the “Kafka Sink” and “Create Source Pipeline” stages typically occur when the proposed output table name already exists in the data lake, preventing duplicate table creation.
+* For Kafka sources, user drop-offs between the “Create Kafka Source” and “Kafka Sink” stages are primarily driven by validation checks such as topic ownership verification and topic activity requirements (for example, topics with zero message volume). Additional drop-offs between the “Kafka Sink” and “Create Source Pipeline” stages typically occur when the proposed output table name already exists in the data lake, preventing duplicate table creation.
 
 * For MySQL sources, drop-offs are mainly associated with unmet database onboarding prerequisites, including credential setup, binlog user configuration, binlog format requirements, and binlog expiration settings.
 
@@ -118,12 +118,12 @@ The key impact metrics are:
   * **MySQL CDC pipelines**: approximately 3 minutes.
 * **Adoption**: Since the release, the number of new Kafka and CDC pipelines onboarded in the last year is more than the total number of pipelines onboarded in the previous five years.
 
-## What’s Next
+## What’s next
 
 These enhancements are just one step in our broader vision for optimized and self-service data ingestion. Currently, Flink is the default only for Kafka source pipelines. Flink onboarding for MySQL CDC pipelines is impact and cost-driven, as we have not proven the cost of making Flink the default for all ingestion. Our strategic roadmap includes:
 
-* **Next-Generation Formats:** We are investigating the adoption of Apache Iceberg as the data lake table format to further improve pipeline SLA and costs, and improve performance.
-* **Seamless Schema Evolution:** Schema changes are operationally painful for pipeline owners. Altering MySQL tables or Kafka Protobuf schemas currently risks manual intervention and data loss. We aim to make schema evolution a zero-touch experience in Hugo by automatically detecting changes, validating compatibility, and updating tables without disruption.
+* **Next-generation formats:** We are investigating the adoption of Apache Iceberg as the data lake table format to further improve pipeline SLA and costs, and improve performance.
+* **Seamless schema evolution:** Schema changes are operationally painful for pipeline owners. Altering MySQL tables or Kafka Protobuf schemas currently risks manual intervention and data loss. We aim to make schema evolution a zero-touch experience in Hugo by automatically detecting changes, validating compatibility, and updating tables without disruption.
 
 ## Join us
 
