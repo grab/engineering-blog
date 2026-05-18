@@ -20,7 +20,7 @@ In this blog, we'll share how Hugo turns complex engineering hurdles into a fric
 ## Background
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-1.png" alt="" style="width:60%"><figcaption align="middle">Figure 1. Hugo ingests data from every source into Grab's data lake.</figcaption>
+  <img src="/img/flink-in-hugo/figure-1.png" alt="" style="width:60%"><figcaption align="middle">Figure 1. Hugo - Ingests data from every source into Grab's data lake.</figcaption>
   </figure>
 </div>
 
@@ -56,7 +56,7 @@ The transition to a **unified modernized pipeline powered by Flink CDC** shifts 
 - **Instant onboarding:** It shifts deployment from a multi-team, ticket-heavy process taking **days** to a single-engineer, self-service setup completed in **minutes**.
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-2.png" alt="" style="width:100%"><figcaption align="middle">Figure 2. Data ingestion with MySQL CDC to the data lake.</figcaption>
+  <img src="/img/flink-in-hugo/figure-2.png" alt="" style="width:100%"><figcaption align="middle">Figure 2. Data ingestion with MySQL CDC to data lake</figcaption>
   </figure>
 </div>
 
@@ -77,7 +77,7 @@ The most significant architectural shift in the self-service Kafka ingestion pip
 - **Click-to-query:** Engineers can now ingest streaming data from Kafka topics into queryable Hive tables through a few clicks in the Hugo UI. Hugo automatically orchestrates the multi-stage background work — from Flink consumption and S3 writing to Spark compaction — ensuring data is query-optimized and ready for immediate use.
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-3.png" alt="" style="width:100%"><figcaption align="middle">Figure 3. Data ingestion with Kafka to the data lake.</figcaption>
+  <img src="/img/flink-in-hugo/figure-3.png" alt="" style="width:100%"><figcaption align="middle">Figure 3. Data ingestion with Kafka to Datalake.</figcaption>
   </figure>
 </div>
 
