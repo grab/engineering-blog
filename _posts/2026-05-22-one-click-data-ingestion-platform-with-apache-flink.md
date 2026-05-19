@@ -123,7 +123,7 @@ The key impact metrics are:
 These enhancements are just one step in our broader vision for optimized and self-service data ingestion. Currently, Flink is the default only for Kafka source pipelines. Flink onboarding for MySQL CDC pipelines is impact- and cost-driven. Our strategic roadmap includes:
 
 - **Next-generation formats:** We are investigating the adoption of Apache Iceberg as the data lake table format to further improve pipeline SLA and costs, and improve performance.
-- **Seamless schema evolution:** Schema changes stil require some extent of manual efforts for pipeline owners. Schema evolution still requires manual restart the flink pipelines. We aim to make schema evolution a zero-touch experience in Hugo by automatically detecting changes, validating compatibility, and updating tables without disruption.
+- **Seamless schema evolution:** Schema changes still require some manual effort from pipeline owners, including manually restarting Flink pipelines. In Hugo, we aim to make schema evolution a zero-touch experience by automatically detecting changes, validating compatibility, and updating tables without disruption.
 
 ## Join us
 
