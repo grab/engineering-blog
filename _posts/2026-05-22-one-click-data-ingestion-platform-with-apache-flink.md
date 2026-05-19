@@ -32,7 +32,7 @@ As the organization's data platform evolved toward near [real-time ingestion](ht
 
 While powerful, the expanded architecture introduced significant onboarding friction. Creating a single data pipeline now requires users to coordinate across multiple platforms, each with its own configuration model and operational semantics. As a result, the onboarding journey became fragmented and difficult to navigate, especially for new users.
 
-A common challenge during onboarding was helping users understand how configurations mapped across systems.
+The common challenge during onboarding was helping users understand how configurations mapped across systems.
 
 For MySQL CDC pipelines, users often asked, *"I've already configured Kafka Connect, what values do I need to provide in Hugo?"* after setting up a Kafka Connect job. This revealed a gap in abstraction between systems, requiring users to manually translate concepts and configurations across different platforms.
 
@@ -42,7 +42,7 @@ This multi-step, cross-system dependency increased cognitive load, slowed down o
 
 ## The Hugo evolution: A unified ingestion platform
 
-Hugo's new, deeply automated ingestion framework, built with a custom automation layer and Apache Flink, has unified workflows and retired Sprinkler8 and Kafka Connect. This evolution converted manual, artisanal work into a streamlined, self-service experience, with custom automation serving as the "intelligent chassis" for the entire user journey.
+Hugo's new, deeply automated ingestion framework, built with a custom automation layer and Apache Flink, has unified workflows and retired Sprinkler and Kafka Connect. This evolution converted manual, artisanal work into a streamlined, self-service experience, with custom automation serving as the "intelligent chassis" for the entire user journey.
 
 ### The Hugo ingestion architecture: Engineering a unified flow
 
@@ -73,7 +73,7 @@ The most significant architectural shift in the self-service Kafka ingestion pip
 **New Flink approach (automated and dynamic)**
 
 - **Dynamic runtime fetching:** Flink pipelines dynamically retrieve the Protobuf schema from Confluent Schema Registry on startup, removing the need for hardcoding and manual stream registration.
-- **Automatic schema evolution:** Schema changes are handled through an automated CI pipeline update to the Schema Registry. The Flink pipeline automatically detects the change, restarts from its last checkpoint, and applies the new schema without requiring pipeline owner intervention.
+- **Reduced operational overhead for schema changes:** Schema updates are propagated through the CI pipeline to the Schema Registry, removing the need for hardcoded mapping changes. The Flink pipeline can detect updated schemas and resume from the latest checkpoint after restart, though manual restart intervention is still required.
 - **Click-to-query:** Engineers can now ingest streaming data from Kafka topics into queryable Hive tables through a few clicks in the Hugo UI. Hugo automatically orchestrates the multi-stage background work, from Flink consumption and S3 writing to Spark compaction, ensuring data is query-optimized and ready for immediate use.
 
 <div class="post-image-section"><figure>
@@ -109,7 +109,7 @@ In addition, the streamlined self-service experience encourages exploratory usag
 
 ## Summary
 
-The new architecture engineered a custom automation layer that successfully retired the reliance on Kafka Connect and Sprinkler8 for the data lake, turning artisanal work into a streamlined, one-click experience. This transformation provides a direct boost to developer productivity.
+The new architecture engineered a custom automation layer that successfully retired the reliance on Kafka Connect and Sprinkler for the data lake, turning artisanal work into a streamlined, one-click experience. This transformation provides a direct boost to developer productivity.
 
 The key impact metrics are:
 
@@ -120,10 +120,10 @@ The key impact metrics are:
 
 ## What's next
 
-These enhancements are just one step in our broader vision for optimized and self-service data ingestion. Currently, Flink is the default only for Kafka source pipelines. Flink onboarding for MySQL CDC pipelines is impact- and cost-driven, as we have not proven the cost of making Flink the default for all ingestion. Our strategic roadmap includes:
+These enhancements are just one step in our broader vision for optimized and self-service data ingestion. Currently, Flink is the default only for Kafka source pipelines. Flink onboarding for MySQL CDC pipelines is impact- and cost-driven. Our strategic roadmap includes:
 
 - **Next-generation formats:** We are investigating the adoption of Apache Iceberg as the data lake table format to further improve pipeline SLA and costs, and improve performance.
-- **Seamless schema evolution:** Schema changes are operationally painful for pipeline owners. Altering MySQL tables or Kafka Protobuf schemas currently risks manual intervention and data loss. We aim to make schema evolution a zero-touch experience in Hugo by automatically detecting changes, validating compatibility, and updating tables without disruption.
+- **Seamless schema evolution:** Schema changes stil require some extent of manual efforts for pipeline owners. Schema evolution still requires manual restart the flink pipelines. We aim to make schema evolution a zero-touch experience in Hugo by automatically detecting changes, validating compatibility, and updating tables without disruption.
 
 ## Join us
 
