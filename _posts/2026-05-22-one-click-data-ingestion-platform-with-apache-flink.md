@@ -85,10 +85,10 @@ The most significant architectural shift in the self-service Kafka ingestion pip
 
 The platform's new onboarding workflow has significantly reduced a previously multi-day process to mere minutes, enabling faster iteration and improving overall onboarding efficiency. This dramatic change has fundamentally altered how our teams interact with data.
 
-| **Pipeline Type** | **Onboarding Time** |
-| --- | --- |
-| Kafka Hive Flink | ~6 minutes |
-| MySQL Hive CDC Flink | ~3 minutes |
+<div class="post-image-section"><figure>
+  <img src="/img/flink-in-hugo/table.png" alt="" style="width:80%"><figcaption align="middle"></figcaption>
+  </figure>
+</div>
 
 <div class="post-image-section"><figure>
   <img src="/img/flink-in-hugo/figure-4.png" alt="" style="width:90%"><figcaption align="middle">Figure 4. Kafka Flink.</figcaption>
