@@ -24,7 +24,7 @@ In this blog, we'll share how Hugo turns complex engineering hurdles into a fric
   </figure>
 </div>
 
-Hugo was originally designed as a self-service platform for batch-oriented data ingestion into the Data Lake, built on a single computation engine — Spark. It provided a centralized and streamlined onboarding experience for data sources such as MySQL, Aurora, PostgreSQL, and DynamoDB.
+Hugo was originally designed as a self-service platform for batch-oriented data ingestion into the Data Lake, built on a single computation engine, Spark. It provided a centralized and streamlined onboarding experience for data sources such as MySQL, Aurora, PostgreSQL, and DynamoDB.
 
 As the organization's data platform evolved toward near [real-time ingestion](https://engineering.grab.com/real-time-data-ingestion), Hugo expanded to support streaming pipelines from Kafka and MySQL binlog. This evolution introduced a more distributed architecture, where ingestion workflows spanned multiple systems, including Kafka Connect, Sprinkler (an in-house Go-based S3 writer), and Hugo.
 
@@ -34,9 +34,9 @@ While powerful, the expanded architecture introduced significant onboarding fric
 
 A common challenge during onboarding was helping users understand how configurations mapped across systems.
 
-For MySQL CDC pipelines, users often asked, *"I've already configured Kafka Connect — what values do I need to provide in Hugo?"* after setting up a Kafka Connect job. This revealed a gap in abstraction between systems, requiring users to manually translate concepts and configurations across different platforms.
+For MySQL CDC pipelines, users often asked, *"I've already configured Kafka Connect, what values do I need to provide in Hugo?"* after setting up a Kafka Connect job. This revealed a gap in abstraction between systems, requiring users to manually translate concepts and configurations across different platforms.
 
-For Kafka pipelines, users frequently struggled with schema evolution in the data lake. Common questions included: *"How should I update the data lake schema?"* and *"I've already updated the Protobuf schema for this Kafka topic — why isn't the latest schema reflected in the data lake?"* These issues highlighted unclear expectations around schema propagation and synchronization across the pipeline.
+For Kafka pipelines, users frequently struggled with schema evolution in the data lake. Common questions included: *"How should I update the data lake schema?"* and *"I've already updated the Protobuf schema for this Kafka topic, why isn't the latest schema reflected in the data lake?"* These issues highlighted unclear expectations around schema propagation and synchronization across the pipeline.
 
 This multi-step, cross-system dependency increased cognitive load, slowed down onboarding, and created coordination overhead between platform teams and users.
 
@@ -46,7 +46,7 @@ Hugo's new, deeply automated ingestion framework, built with a custom automation
 
 ### The Hugo ingestion architecture: Engineering a unified flow
 
-#### 1. One-click MySQL CDC pipelines
+#### One-click MySQL CDC pipelines
 
 The transition to a **unified modernized pipeline powered by Flink CDC** shifts the data ingestion architecture from a fragmented, high-maintenance toolchain into a single, end-to-end orchestrated platform. By reading the database binlog directly and embedding the lifecycle within a centralized control plane, the modernized approach drastically reduces operational overhead, eliminates data mismatch risks, and cuts onboarding times from days to minutes. Below are the core advantages of adopting Flink:
 
@@ -60,21 +60,21 @@ The transition to a **unified modernized pipeline powered by Flink CDC** shifts 
   </figure>
 </div>
 
-#### 2. Self-service Kafka ingestion
+#### Self-service Kafka ingestion
 
 The most significant architectural shift in the self-service Kafka ingestion pipeline is the move from manual, fragile schema handling to an automated, resilient system. This comparison highlights the operational pain points eliminated by adopting Flink's approach.
 
-##### Legacy Sprinkler approach (manual and static)
+**Legacy Sprinkler approach (manual and static)**
 
 - **Static registration and hardcoding:** It required manual registration of streams within the Go monorepo and relied on hardcoded mappings in `entities.go` to convert Protobuf to Avro.
 - **Custom dependencies:** Avro schema was generated indirectly from custom DTO structs, not directly from the Protobuf definition.
 - **Manual schema evolution:** Any field change required a multi-step manual process: updating `.pb.go` and entity files, followed by a manual pipeline rebuild.
 
-##### New Flink approach (automated and dynamic)
+**New Flink approach (automated and dynamic)**
 
 - **Dynamic runtime fetching:** Flink pipelines dynamically retrieve the Protobuf schema from Confluent Schema Registry on startup, removing the need for hardcoding and manual stream registration.
 - **Automatic schema evolution:** Schema changes are handled through an automated CI pipeline update to the Schema Registry. The Flink pipeline automatically detects the change, restarts from its last checkpoint, and applies the new schema without requiring pipeline owner intervention.
-- **Click-to-query:** Engineers can now ingest streaming data from Kafka topics into queryable Hive tables through a few clicks in the Hugo UI. Hugo automatically orchestrates the multi-stage background work — from Flink consumption and S3 writing to Spark compaction — ensuring data is query-optimized and ready for immediate use.
+- **Click-to-query:** Engineers can now ingest streaming data from Kafka topics into queryable Hive tables through a few clicks in the Hugo UI. Hugo automatically orchestrates the multi-stage background work, from Flink consumption and S3 writing to Spark compaction, ensuring data is query-optimized and ready for immediate use.
 
 <div class="post-image-section"><figure>
   <img src="/img/flink-in-hugo/figure-3.png" alt="" style="width:100%"><figcaption align="middle">Figure 3. Data ingestion with Kafka to Datalake.</figcaption>
