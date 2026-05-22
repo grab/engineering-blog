@@ -6,9 +6,163 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 20 May 2026 06:19:06 +0000</pubDate>
-    <lastBuildDate>Wed, 20 May 2026 06:19:06 +0000</lastBuildDate>
+    <pubDate>Fri, 22 May 2026 01:33:40 +0000</pubDate>
+    <lastBuildDate>Fri, 22 May 2026 01:33:40 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>The Hugo evolution: Engineering Grab&apos;s unified, one-click data ingestion platform with Apache Flink</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Data drives every decision we make at Grab. As our operations scale, so does our need for robust, real-time data ingestion and processing frameworks. Enter Hugo: our self-service data platform that has long empowered teams to seamlessly route data into our Data Lake. Today, Hugo is evolving. We have taken previously siloed onboarding workflows and transformed them into one seamless, unified journey to truly democratize data ingestion and maximize efficiency.&lt;/p&gt;
+
+&lt;p&gt;In this blog, we’ll share how Hugo turns complex engineering hurdles into a frictionless, self-service reality. By moving away from siloed workflows, we’ve achieved a unified pipeline experience where one-click RDS CDC and self-service Kafka ingestion are the new standard.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/flink-in-hugo/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Hugo - Ingests data from every source into Grab&apos;s data lake.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Hugo was originally designed as a self-service platform for batch-oriented data ingestion into the Data Lake, built on a single computation engine, Spark. It provided a centralized and streamlined onboarding experience for data sources such as MySQL, Aurora, PostgreSQL, and DynamoDB.&lt;/p&gt;
+
+&lt;p&gt;As the organization’s data platform evolved toward near &lt;a href=&quot;https://engineering.grab.com/real-time-data-ingestion&quot;&gt;real-time ingestion&lt;/a&gt;, Hugo expanded to support streaming pipelines from Kafka and MySQL binlog. This evolution introduced a more distributed architecture, where ingestion workflows spanned multiple systems, including Kafka Connect, Sprinkler (an in-house Go-based S3 writer), and Hugo.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-siloed-past-a-multi-platform-hurdle&quot;&gt;The siloed past: A multi-platform hurdle&lt;/h2&gt;
+
+&lt;p&gt;While powerful, the expanded architecture introduced significant onboarding friction. Creating a single data pipeline now requires users to coordinate across multiple platforms, each with its own configuration model and operational semantics. As a result, the onboarding journey became fragmented and difficult to navigate, especially for new users.&lt;/p&gt;
+
+&lt;p&gt;The common challenge during onboarding was helping users understand how configurations mapped across systems.&lt;/p&gt;
+
+&lt;p&gt;For MySQL CDC pipelines, users often asked, &lt;em&gt;“I’ve already configured Kafka Connect, what values do I need to provide in Hugo?”&lt;/em&gt; after setting up a Kafka Connect job. This revealed a gap in abstraction between systems, requiring users to manually translate concepts and configurations across different platforms.&lt;/p&gt;
+
+&lt;p&gt;For Kafka pipelines, users frequently struggled with schema evolution in the data lake. Common questions included: &lt;em&gt;“How should I update the data lake schema?”&lt;/em&gt; and &lt;em&gt;“I’ve already updated the Protobuf schema for this Kafka topic, why isn’t the latest schema reflected in the data lake?”&lt;/em&gt; These issues highlighted unclear expectations around schema propagation and synchronization across the pipeline.&lt;/p&gt;
+
+&lt;p&gt;This multi-step, cross-system dependency increased cognitive load, slowed down onboarding, and created coordination overhead between platform teams and users.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-hugo-evolution-a-unified-ingestion-platform&quot;&gt;The Hugo evolution: A unified ingestion platform&lt;/h2&gt;
+
+&lt;p&gt;Hugo’s new, deeply automated ingestion framework, built with a custom automation layer and Apache Flink, has unified workflows and retired Sprinkler and Kafka Connect. This evolution converted manual, artisanal work into a streamlined, self-service experience, with custom automation serving as the “intelligent chassis” for the entire user journey.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-hugo-ingestion-architecture-engineering-a-unified-flow&quot;&gt;The Hugo ingestion architecture: Engineering a unified flow&lt;/h3&gt;
+
+&lt;h4 id=&quot;one-click-mysql-cdc-pipelines&quot;&gt;One-click MySQL CDC pipelines&lt;/h4&gt;
+
+&lt;p&gt;The transition to a &lt;strong&gt;unified modernized pipeline powered by Flink CDC&lt;/strong&gt; shifts the data ingestion architecture from a fragmented, high-maintenance toolchain into a single, end-to-end orchestrated platform. By reading the database binlog directly and embedding the lifecycle within a centralized control plane, the modernized approach drastically reduces operational overhead, eliminates data mismatch risks, and cuts onboarding times from days to minutes. Below are the core advantages of adopting Flink:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Minimal operational overhead:&lt;/strong&gt; It reduces the footprint from &lt;strong&gt;4 disparate components&lt;/strong&gt; (Kafka Connect, topics, Sprinkler app, and Spark) to just &lt;strong&gt;2 core components&lt;/strong&gt; managed via a single control plane.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Eliminated schema risk:&lt;/strong&gt; It replaces brittle, manually coded Go DTOs, which caused frequent schema deviations, with &lt;strong&gt;automated schema detection&lt;/strong&gt; and dynamic validation.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Streamlined architecture:&lt;/strong&gt; It eliminates the intermediary Kafka hop. Flink reads the MySQL binlog directly and pushes straight to a queryable Hive table via an integrated Spark compaction process.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Instant onboarding:&lt;/strong&gt; It shifts deployment from a multi-team, ticket-heavy process taking &lt;strong&gt;days&lt;/strong&gt; to a single-engineer, self-service setup completed in &lt;strong&gt;minutes&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/flink-in-hugo/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Data ingestion with MySQL CDC to data lake&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h4 id=&quot;self-service-kafka-ingestion&quot;&gt;Self-service Kafka ingestion&lt;/h4&gt;
+
+&lt;p&gt;The most significant architectural shift in the self-service Kafka ingestion pipeline is the move from manual, fragile schema handling to an automated, resilient system. This comparison highlights the operational pain points eliminated by adopting Flink’s approach.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Legacy Sprinkler approach (manual and static)&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Static registration and hardcoding:&lt;/strong&gt; It required manual registration of streams within the Go monorepo and relied on hardcoded mappings in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;entities.go&lt;/code&gt; to convert Protobuf to Avro.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Custom dependencies:&lt;/strong&gt; Avro schema was generated indirectly from custom DTO structs, not directly from the Protobuf definition.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Manual schema evolution:&lt;/strong&gt; Any field change required a multi-step manual process: updating &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.pb.go&lt;/code&gt; and entity files, followed by a manual pipeline rebuild.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;New Flink approach (automated and dynamic)&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Dynamic runtime fetching:&lt;/strong&gt; Flink pipelines dynamically retrieve the Protobuf schema from Confluent Schema Registry on startup, removing the need for hardcoding and manual stream registration.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Reduced operational overhead for schema changes:&lt;/strong&gt; Schema updates are propagated through the CI pipeline to the Schema Registry, removing the need for hardcoded mapping changes. The Flink pipeline can detect updated schemas and resume from the latest checkpoint after restart, though manual restart intervention is still required.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Click-to-query:&lt;/strong&gt; Engineers can now ingest streaming data from Kafka topics into queryable Hive tables through a few clicks in the Hugo UI. Hugo automatically orchestrates the multi-stage background work, from Flink consumption and S3 writing to Spark compaction, ensuring data is query-optimized and ready for immediate use.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/flink-in-hugo/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Data ingestion with Kafka to Datalake.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
+
+&lt;p&gt;The platform’s new onboarding workflow has significantly reduced a previously multi-day process to mere minutes, enabling faster iteration and improving overall onboarding efficiency. This dramatic change has fundamentally altered how our teams interact with data.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/flink-in-hugo/table.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/flink-in-hugo/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Kafka Flink.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/flink-in-hugo/figure-5.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. CDC Flink.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The onboarding workflow is intentionally designed with early validation guardrails to proactively surface prerequisite and governance-related issues before pipeline creation proceeds.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;For Kafka sources, user drop-offs between the “Create Kafka Source” and “Kafka Sink” stages are primarily driven by validation checks such as topic ownership verification and topic activity requirements, for example topics with zero message volume. Additional drop-offs between the “Kafka Sink” and “Create Source Pipeline” stages typically occur when the proposed output table name already exists in the data lake, preventing duplicate table creation.&lt;/li&gt;
+  &lt;li&gt;For MySQL sources, drop-offs are mainly associated with unmet database onboarding prerequisites, including credential setup, binlog user configuration, binlog format requirements, and binlog expiration settings.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In addition, the streamlined self-service experience encourages exploratory usage, allowing teams to familiarize themselves with the onboarding workflow and platform capabilities before fully committing to pipeline creation.&lt;/p&gt;
+
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+
+&lt;p&gt;The new architecture engineered a custom automation layer that successfully retired the reliance on Kafka Connect and Sprinkler for the data lake, turning artisanal work into a streamlined, one-click experience. This transformation provides a direct boost to developer productivity.&lt;/p&gt;
+
+&lt;p&gt;The key impact metrics are:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Onboarding time reduction:&lt;/strong&gt; The time required to set up data pipelines has been dramatically reduced and is now measured in minutes.
+    &lt;ul&gt;
+      &lt;li&gt;&lt;strong&gt;Kafka pipelines:&lt;/strong&gt; approximately 6 minutes.&lt;/li&gt;
+      &lt;li&gt;&lt;strong&gt;MySQL CDC pipelines:&lt;/strong&gt; approximately 3 minutes.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Adoption:&lt;/strong&gt; Since the release, the number of new Kafka and CDC pipelines onboarded in the last year is more than the total number of pipelines onboarded in the previous five years.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;These enhancements are just one step in our broader vision for optimized and self-service data ingestion. Currently, Flink is the default only for Kafka source pipelines. Flink onboarding for MySQL CDC pipelines is impact- and cost-driven. Our strategic roadmap includes:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Next-generation formats:&lt;/strong&gt; We are investigating the adoption of Apache Iceberg as the data lake table format to further improve pipeline SLA and costs, and improve performance.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Seamless schema evolution:&lt;/strong&gt; Schema changes still require some manual effort from pipeline owners, including manually restarting Flink pipelines. In Hugo, we aim to make schema evolution a zero-touch experience by automatically detecting changes, validating compatibility, and updating tables without disruption.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 22 May 2026 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/one-click-data-ingestion-platform-with-apache-flink</link>
+        <guid isPermaLink="true">https://engineering.grab.com/one-click-data-ingestion-platform-with-apache-flink</guid>
+        
+        <category>Database</category>
+        
+        <category>Hugo</category>
+        
+        <category>FlinkSQL</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Data</category>
+        
+      </item>
     
       <item>
         <title>Scaling developer experience: How we improved Android Studio in a large monorepo</title>
@@ -3182,149 +3336,6 @@ Users forgive missing features. They don’t forgive unreliability. One slow res
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Demystifying user journeys: Revolutionizing troubleshooting with auto tracking</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Troubleshooting critical issues by deciphering a user’s journey on the Grab app is an extremely challenging task. With countless user journeys and multiple paths through the User Interface (UI), it’s akin to searching for a needle in a vast haystack. This challenge frequently resonates with us, the dedicated developers at Grab, as we strive to understand user behaviors, views, and interactions.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-challenge&quot;&gt;The challenge&lt;/h2&gt;
-
-&lt;p&gt;The distinction between resolving an issue effectively versus spending hours on a wild goose chase is understanding our user journey in real-time.&lt;/p&gt;
-
-&lt;p&gt;The development team initially attempted to address the issue of the incomplete user journey tracking by implementing a system where a click stream event would be sent with every user interaction. However, this approach presented significant challenges due to the sheer volume of UI components—often numbering in the hundreds—and the reliance on individual developers to correctly instrument each one.&lt;/p&gt;
-
-&lt;p&gt;A common pitfall was that developers would occasionally overlook or forget to instrument certain user interactions, leading to breaks in the recorded user journey. This created a highly frustrating situation for both the development and product teams, as the integrity of the user journey data was consistently compromised. Despite continuous efforts to patch these bugs and address the omissions, the team found themselves in a perpetual state of reaction, constantly trying to catch up with newly discovered breaches rather than proactively preventing them. This reactive approach consumed valuable resources and hindered the ability to gain a complete and accurate understanding of user behavior.&lt;/p&gt;
-
-&lt;p&gt;Diagnosing system failures, application bugs, or poor user experiences in complex applications becomes inefficient without real-time performance metrics and detailed session tracking. When engineering teams rely on outdated or fragmented data, they are forced to piece together issue narratives reactively, long after the issues occur. This significantly delays the Mean Time To Resolution (MTTR). Such a reactive approach leads to increased downtime, higher operational costs, customer dissatisfaction, and a waste of developers’ time, as they spend more time “hunting” for clues rather than deploying solutions or new features.&lt;/p&gt;
-
-&lt;h2 id=&quot;our-eureka-moment-autotrack-sdk&quot;&gt;Our ‘Eureka’ moment: AutoTrack SDK&lt;/h2&gt;
-
-&lt;p&gt;The pivotal breakthrough that provides our unique advantage was the creation of auto tracking user journeys—our “Eureka” moment. To deliver this, we developed the new Software Development Kit (SDK) called AutoTrack.&lt;/p&gt;
-
-&lt;p&gt;AutoTrack is system that comprehensively records application state, UI view state, as well as user interactions - a solution that pieces together a chronicle of the user journey, from launch to interactions, as they navigate through the screens. AutoTrack SDK is built on the three core pillars:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Application state&lt;/li&gt;
-  &lt;li&gt;User interactions&lt;/li&gt;
-  &lt;li&gt;UI screens&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Let’s delve deeper into the mechanics of how this operates.&lt;/p&gt;
-
-&lt;h3 id=&quot;application-state&quot;&gt;Application state&lt;/h3&gt;
-
-&lt;p&gt;Understanding the application state is fundamental to comprehending user behavior and, consequently, executing effective troubleshooting. The application state provides crucial insights into how a user interacts with the app, particularly concerning its visibility and how it was initiated. This encompasses tracking when the app moves between the background and foreground, as well as the various launch mechanisms.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/auto-tracking/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:50%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Application state user flow.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Key aspects of application state that are vital to monitor include:&lt;br /&gt;
-&lt;strong&gt;Application lifecycle transitions:&lt;/strong&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Background state:&lt;/strong&gt; When the app is running but not actively displayed to the user (e.g., the user switches to another app, or the device is locked). Understanding how frequently and for how long an app resides in the background can inform power consumption analysis and the effectiveness of background tasks.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Foreground state:&lt;/strong&gt; When the app is actively in use and displayed to the user. Monitoring transitions into and out of the foreground provides a real-time view of user engagement.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Inactive state:&lt;/strong&gt; A temporary state where the app is in the foreground but not receiving events (e.g., an incoming call temporarily interrupts the app).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Suspended state:&lt;/strong&gt; An app that is in the background and has been explicitly suspended by the operating system to free up resources.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Terminated state:&lt;/strong&gt; When the app has been completely closed or crashed. Differentiating between intentional termination and crashes is critical for identifying stability issues.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Application launch mechanisms:&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;The way an app is launched significantly impacts the initial user experience and can influence subsequent interactions. Tracking these different launch types is essential for understanding user entry points and for debugging issues that might be specific to a particular launch method.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Explicit user launch:&lt;/strong&gt; This is the most straightforward launch mechanism, where the user directly taps on the app icon from their device’s home screen or app drawer. This indicates a deliberate intent to use the app and often signifies a primary entry point for regular users.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Deeplinks:&lt;/strong&gt; Deeplinks are URLs that, when clicked, open a specific page or section within a mobile app rather than a web page. They are powerful tools for enhancing user experience and engagement by providing direct access to relevant content.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Push notifications:&lt;/strong&gt; Push notifications are messages sent by an app to a user’s device even when the app is not actively in use. Tapping on a push notification often launches the app and directs the user to a specific context related to the notification’s content.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/auto-tracking/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Code sample for tracking application lifecycle transition.&lt;/figcaption&gt; &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;user-interactions&quot;&gt;User interactions&lt;/h3&gt;
-
-&lt;p&gt;Real-time session tracking is a crucial component in understanding user behavior and optimizing app performance. By meticulously tracking a wide array of user interactions, the system provides invaluable insights into how users navigate and engage with the app. This granular data forms the bedrock for constructing comprehensive user journeys, allowing development teams to visualise the path a user takes from their initial entry point to achieving their goals within the app.&lt;/p&gt;
-
-&lt;p&gt;This deep understanding of user interactions is the most important pillar in creating accurate and insightful user journey maps. These maps, in turn, are instrumental in identifying patterns of user behavior, both positive and negative. For instance, tracking helps to identify pain points, bugs, or areas of confusion that might lead to user frustration or abandonment.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/auto-tracking/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Sample code for real-time session tracking.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;ui-screen&quot;&gt;UI screen&lt;/h3&gt;
-
-&lt;p&gt;The system leverages lifecycle events from UIViewController (iOS), Activity (Android), and Fragments (Android) to accurately identify and track which specific screen is currently displayed to the user. This granular level of screen tracking is crucial because it significantly enriches the contextual information available to us. By understanding the precise UI that users are interacting with, we can account for the dynamic nature of our app. Different geographical regions, diverse user segments, and varying operational scenarios can lead to distinct user interfaces being presented. This capability ensures that our analysis and troubleshooting efforts are always based on the actual user experience, allowing for more precise problem identification and more effective solutions.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/auto-tracking/figure-4-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt; &lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/auto-tracking/figure-6.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Sample code of UIViewController configuration.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;ui-screen-data&quot;&gt;UI screen data&lt;/h3&gt;
-&lt;p&gt;On top of that, whenever the screen appears, we capture the screen metadata where we read the full screen hierarchy. With the Screen hierarchy JSON data at hand, we employ it to train an AI model. This model, consequently, can generate an HTML file, which mirrors the user’s screen and interaction.&lt;/p&gt;
-
-&lt;p&gt;Disclaimer: information is redacted in compliance with GDPR/PDPA, personal data protection laws.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/auto-tracking/figure-7.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Screen hierarchy.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;applications-of-autotrack&quot;&gt;Applications of AutoTrack&lt;/h2&gt;
-
-&lt;p&gt;&lt;strong&gt;Key applications of AutoTrack data:&lt;/strong&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Reconstructing user journeys and reproducing elusive bugs:&lt;/strong&gt; One of the most significant benefits of AutoTrack is its ability to meticulously record user interactions within the app. This detailed session data allows our teams to precisely recreate the user journey that led to a reported issue. For bugs that are notoriously difficult to reproduce, this capability is a game-changer, eliminating hours of manual guesswork and dramatically accelerating the identification and resolution of underlying problems.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Automated issue assignment:&lt;/strong&gt; When an issue is reported, AutoTrack data can be leveraged to automatically assign it to the most relevant team. By analysing the context of the issue within the recorded session, including the specific features or modules involved, the system can intelligently route the problem to the engineers best equipped to address it. This automation reduces triage time, ensures issues are handled by subject matter experts, and improves overall response efficiency.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Automating UI test case generation:&lt;/strong&gt; The rich dataset provided by AutoTrack offers a powerful foundation for automating the creation of UI test cases. By observing how users interact with the interface, we can automatically generate test scripts that mimic real-world usage patterns. This not only speeds up the testing phase but also leads to more comprehensive test coverage, identifying edge cases and user flows that might otherwise be missed by manually written tests.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Understanding analytics event triggers:&lt;/strong&gt; AutoTrack data provides a granular view into when and why specific analytics events are triggered within the application. This allows us to validate the accuracy of our analytics instrumentation, ensure that events are firing as expected, and gain deeper insights into user behavior. By understanding the precise context surrounding event triggers, we can refine our data collection strategies and derive more meaningful insights from our analytics.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;key-takeaways-and-whats-next&quot;&gt;Key takeaways and what’s next&lt;/h2&gt;
-
-&lt;p&gt;AutoTrack replaces fragile manual instrumentation with a unified, real-time view of application state, screen context, and user interactions. That end-to-end trace makes elusive bugs reproducible, routes issues to the right owners, and seeds reliable UI tests—turning guesswork into grounded evidence so teams can ship fixes faster and with greater confidence.&lt;/p&gt;
-
-&lt;p&gt;Looking ahead, we are expanding AutoTrack across surfaces and deepening the context it captures—pairing sessions with network and performance signals, strengthening privacy guardrails, and integrating with automated triage and test generation. Look forward to reading more of our deep dives on auto-generated UI tests and how these journeys will power proactive quality across Grab’s app.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebautocheck&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Tue, 23 Dec 2025 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/auto-track-sdk</link>
-        <guid isPermaLink="true">https://engineering.grab.com/auto-track-sdk</guid>
-        
-        <category>Mobile</category>
-        
-        <category>iOS</category>
-        
-        <category>Android</category>
-        
-        <category>Tracking</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Design</category>
-        
-        <category>Product</category>
         
       </item>
     
