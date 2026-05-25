@@ -6,7 +6,7 @@ date: 2026-05-29 00:00:00
 authors: [karen.kue, athar.hameed, preeti.karkera, aaqib.kurfan, anna.ooi]
 categories: [Engineering]
 tags: [Blog, TechDocs, Helix, Engineering]
-cover_photo: /img/journey-of-doc/banner-enhanced.png
+cover_photo: /img/journey-of-doc/banner-original.png
 comments: true
 excerpt: "Building on Grab's Docs-as-Code approach, we reflect on our documentation journey, uncovering the benefits, challenges, and limitations along the way. Learn why we made the shift, what we gained in search and quality assurance, and when each approach works best."
 ---
