@@ -1,7 +1,7 @@
 ---
 layout: post
 id: 2026-05-29-evolving-documentation-strategy
-title: "From Decentralized Docs-as-Code to a Centralized Repository: Evolving Grab's Documentation Strategy"
+title: "From decentralized Docs-as-Code to a centralized repository: Evolving Grab's documentation strategy"
 date: 2026-05-29 00:00:00
 authors: [karen.kue, athar.hameed, preeti.karkera, aaqib.kurfan, anna.ooi]
 categories: [Engineering]
@@ -10,7 +10,6 @@ cover_photo: /img/journey-of-doc/banner.png
 comments: true
 excerpt: "Building on Grab's Docs-as-Code approach, we reflect on our documentation journey, uncovering the benefits, challenges, and limitations along the way. Learn why we made the shift, what we gained in search and quality assurance, and when each approach works best."
 ---
-
 
 ## Introduction: The journey of documentation at Grab
 
@@ -76,7 +75,7 @@ The unified search experience changes how engineers access information. They can
 
 While the decentralized model allowed engineers to use the GitLab web IDE, local editors, and GitLab CLI commands for faster updates, the transition to a centralized system helped streamline this process by offering a consistent editing environment. Even with these advanced tools, the centralized repository provided a unified location for all documentation, reducing the need to navigate across multiple repositories.
 
-Centralization also gives the TechDocs team clearer visibility into documentation behavior and health. After implementing a centralized repository, the team extracted statistics on user activity: a new update is merged roughly every 52 minutes, with roughly 27 commits per day, and approximately 63% of changes being small to medium improvements. These signals point to ongoing documentation maintenance, with frequent touch-ups that fix typos, clarify steps, and keep guidance current rather than sporadic bulk updates. The image below illustrates how Grabbers use the centralized repository in practice.
+Centralization also gives the TechDocs team clearer visibility into documentation behavior and health. After implementing a centralized repository, the team extracted statistics on user activity: a new update is merged roughly every 50 minutes, with roughly 27 commits per day, and approximately 63% of changes being small to medium improvements. These signals point to ongoing documentation maintenance, with frequent touch-ups that fix typos, clarify steps, and keep guidance current rather than sporadic bulk updates. The image below illustrates how Grabbers use the centralized repository in practice.
 
 ## Reflecting on the evolution
 
@@ -99,7 +98,7 @@ Docs-as-Code with decentralized and centralized repositories are not mutually ex
 
 At Grab, decentralized Docs-as-Code fostered strong ownership early on. As we scaled and our audience broadened, a centralized repository and unified discovery surface became essential to maintain consistency, improve findability, and support diverse user needs. Documentation strategies evolve with the organization. The goal is not picking one model forever, but recognizing the signals to pivot and adapting so engineers can reliably find the right information at the right time.
 
-## Join Us
+## Join us
 
 Grab is Southeast Asia's leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab's mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.
 
