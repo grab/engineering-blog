@@ -5,7 +5,7 @@ title: "The journey of building a comprehensive attribution platform"
 date: 2024-02-20 00:22:10
 authors: [kang.huang, suvi.murugan, sharathbabu.s]
 categories: [Engineering, Product, Design]
-tags: [Attribution platform, User journeys, Advertising]
+tags: [Attribution Platform, User Journeys, Advertising]
 comments: true
 cover_photo: /img/attribution-platform/cover.png
 excerpt: "The Grab superapp offers a comprehensive array of services from ride-hailing and food delivery to financial services. This creates multifaceted user journeys, covering homepages, product pages, checkouts, and interactions with diverse content, including advertisements and promo codes. Read this to find out more."

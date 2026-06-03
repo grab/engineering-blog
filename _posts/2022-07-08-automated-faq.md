@@ -5,7 +5,7 @@ title: How we automated FAQ responses at Grab
 date: 2022-07-13 00:20:55
 authors: [preeti.karkera]
 categories: [Engineering]
-tags: [Automation, Knowledge management, Productivity]
+tags: [Automation, Knowledge Management, Productivity]
 comments: true
 cover_photo: /img/automated-faq/cover.png
 excerpt: "Most frequently asked questions (FAQ) are repetitive, which hinder on-call engineers' productivity. Read to find out how we automated FAQ responses at Grab, allowing engineers to focus on operational tasks."

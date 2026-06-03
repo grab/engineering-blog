@@ -5,7 +5,7 @@ title: Zero traffic cost for Kafka consumers
 date: 2023-07-07 00:23:05
 authors: [fabrice.harbulot, quangminh.tran]
 categories: [Engineering, Security]
-tags: [Engineering, Kafka, Performance, Access control]
+tags: [Engineering, Kafka, Performance, Access Control]
 comments: true
 cover_photo: /img/zero-traffic-cost/cover.jpg
 excerpt: "Grab's data streaming infrastructure runs in the cloud across multiple Availability Zones for high availability and resilience, but this also incurs staggering network traffic cost. In this article, we describe how enabling our Kafka consumers to fetch from the closest replica helped significantly improve the cost efficiency of our design."

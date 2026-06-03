@@ -5,7 +5,7 @@ title: How We Designed the Quotas Microservice to Prevent Resource Abuse
 date: 2018-08-10 02:00:00
 authors: [chengjun.zhan, gao.chao]
 categories: [Engineering]
-tags: [Quota, Back End, Service]
+tags: [Quota, Backend, Service]
 comments: true
 cover_photo: /img/quotas-service/cover.jpg
 excerpt: "Reliable, scalable, and high performing solutions for common system level issues are essential for microservice success, and there is a Grab-wide initiative to provide those common solutions. As an important component of the initiative, we wrote a microservice called Quotas, a highly scalable API request rate limiting solution to mitigate the problems of service abuse and cascading service failures."

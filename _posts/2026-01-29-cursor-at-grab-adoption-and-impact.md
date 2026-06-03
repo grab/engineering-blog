@@ -5,7 +5,7 @@ title: 'Cursor at Grab: Adoption and impact'
 date: 2026-01-29 00:23:00
 authors: [akshay.misra, ngocphuc.nguyen]
 categories: [Engineering]
-tags: [AI] 
+tags: [AI, Artificial Intelligence]
 comments: true
 cover_photo: /img/cursor-at-grab/banner-cursor.png
 excerpt: "A look inside how we scaled AI-assisted coding across Grab, moving Cursor from pilot to daily use to help us work faster and more reliably. Read what changed in our workflows with Cursor, how we integrated it responsibly, and what’s next for Cursor within Grab's ecosystem."

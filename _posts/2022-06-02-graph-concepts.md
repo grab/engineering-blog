@@ -5,7 +5,7 @@ title: Graph concepts and applications
 date: 2022-06-02 00:20:55
 authors: [wenxiang.lu, muqi.li, jia.chen]
 categories: [Engineering, Security]
-tags: [Security, Graphs concepts, Graph technology]
+tags: [Security, Graphs Concepts, Graph Technology]
 comments: true
 cover_photo: /img/graph-concepts/cover.png
 excerpt: "Graph theory-based approaches show the concepts underlying the behaviour of massively complex systems and networks. Read to find out how graphs came about, where they can be used and the part they play in graph technology."

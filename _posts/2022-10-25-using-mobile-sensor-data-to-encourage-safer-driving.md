@@ -5,7 +5,7 @@ title: Using mobile sensor data to encourage safer driving
 date: 2022-10-25 11:30:00
 authors: [laiyi.lin]
 categories: [Engineering, Data Science, Security]
-tags: [Analytics, Driving patterns, Data Science, GPS, Security]
+tags: [Analytics, Driving Patterns, Data Science, GPS, Security]
 comments: true
 cover_photo: /img/using-mobile-sensor-data-to-encourage-safer-driving/cover.jpg
 excerpt: "Telematics is most commonly used to monitor vehicle movements and track driving safety, profiling, fleet optimisation and possible productivity improvements. Read this to find out more about how Grab uses telematics to encourage safer driving across our driver and delivery partner fleet."

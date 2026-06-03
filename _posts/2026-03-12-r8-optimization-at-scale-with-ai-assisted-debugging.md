@@ -5,7 +5,7 @@ title: 'Enabling R8 optimization at scale with AI-assisted debugging'
 date: 2026-03-12 00:23:00
 authors: [van.minh]
 categories: [Engineering]
-tags: [AI]
+tags: [AI, Artificial Intelligence]
 comments: true
 cover_photo: /img/r8-optimization/banner.png
 excerpt: "How Grab enabled R8 optimization for its Android app at scale, over 9 million lines of code and more than engineers. Read how we achieved 25% ANR reduction, 16% app size decrease, and 27% faster startup through AI-assisted debugging with MCP tools, pragmatic testing strategies, and optimized feedback loops"

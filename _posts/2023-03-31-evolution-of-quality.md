@@ -5,7 +5,7 @@ title: Evolution of quality at Grab
 date: 2023-03-31 01:23:05
 authors: [abby.alcantara, xuanthu.doan, renu.yadav]
 categories: [Engineering, Design]
-tags: [Engineering, Technology stack, Exploration]
+tags: [Engineering, Technology Stack, Exploration]
 comments: true
 cover_photo: /img/evolution-of-quality/cover.png
 excerpt: "Testing is typically done after development is complete, which often results in bugs being discovered late in the process. Read to find out how Grab has improved its quality to scale and support the superapp experience. This evolution also brings a cultural shift for quality mindset in teams, enabling us to deliver faster with a better experience for our users."

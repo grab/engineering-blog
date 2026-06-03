@@ -5,7 +5,7 @@ title: "Managing dynamic marketplace content at scale: Grab's approach to conten
 date: 2024-02-01 00:22:10
 authors: [poonam.gambhire]
 categories: [Product]
-tags: [Dynamic marketplace, Content moderation, Scaling]
+tags: [Dynamic Marketplace, Content Moderation, Scalability]
 comments: true
 cover_photo: /img/dynamic-marketplace/cover.png
 excerpt: "Understand how Grab employs a combination of automated and manual content moderation to manage its dynamic marketplace content efficiently, while also collaborating with Google to ensure marketplace safety."

@@ -5,7 +5,7 @@ title: Zero trust with Kafka
 date: 2022-12-07 00:23:05
 authors: [fabrice.harbulot, thanhtung.dao, quangminh.tran]
 categories: [Engineering, Security]
-tags: [Engineering, Kafka, Performance, Zero trust, Access control]
+tags: [Engineering, Kafka, Performance, Zero Trust, Access Control]
 comments: true
 cover_photo: /img/zero-trust-with-kafka/cover.jpg
 excerpt: "In addition to ensuring the high performance and availability of our services, security continues to be one of our highest priorities. Read this article to find out how the Coban team enhances security by moving from network-based access control to zero trust with Kafka."

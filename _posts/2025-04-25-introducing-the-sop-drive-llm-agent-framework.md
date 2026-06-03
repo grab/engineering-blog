@@ -5,7 +5,7 @@ title: 'Introducing the SOP-driven LLM agent frameworks'
 date: 2025-04-25 00:00:10
 authors: [fujiao.liu, shuqi.wang, wenhui.wu, muqi.li, jia.chen, haitao.bao, meichen.lu] 
 categories: [Engineering, Data Analytics, Data Science]
-tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
+tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/sop-llm-agent-framework-img/banner-figure-1.png
 excerpt: "The SOP-driven Large Language Model (LLM) agent framework, revolutionises enterprise AI by integrating Standard Operating Procedures (SOPs) to ensure reliable execution and boost productivity. Achieving over 99.8% accuracy, it offers versatile automation tools and app development, making AI solutions 10 times faster. The framework addresses LLM challenges by structuring SOPs as a tree, enabling intuitive workflow creation. The framework aims to transform enterprise operations and explore industry applications."

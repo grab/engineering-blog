@@ -5,7 +5,7 @@ title: New zoom freezing feature for Geohash plugin
 date: 2023-02-21 01:18:05
 authors: [maria.mitisor]
 categories: [Engineering, Product]
-tags: [Engineering, Geohash, Maps, Open source]
+tags: [Engineering, Geohash, Maps, Open Source]
 comments: true
 cover_photo: /img/geohash-plugin/cover.png
 excerpt: "Built by Grab, the Geohash Java OpenStreetMap Editor (JOSM) plugin is widely used in map-making, but a common pain point is the inability to zoom in to a specific region without displaying new geohashes. Read to find out more about the issue and how the latest update addresses it."

@@ -5,7 +5,7 @@ title: Building Grab’s Experimentation Platform
 date: 2018-07-13 02:00:00
 authors: [thomas.stephen, roman.atachiants]
 categories: [Engineering]
-tags: [Experiment, Back End, Front End]
+tags: [Experiment, Backend, Frontend]
 comments: true
 cover_photo: /img/building-grab-s-experimentation-platform/cover.png
 excerpt: "At Grab, we continuously strive to improve the user experience of our app for both our passengers and driver-partners. To do that, we’re constantly experimenting, and in fact, many of the improvements we roll out  to the Grab app are a direct result of successful experiments."

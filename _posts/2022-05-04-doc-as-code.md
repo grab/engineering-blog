@@ -5,7 +5,7 @@ title: Embracing a Docs-as-Code approach
 date: 2022-05-04 03:55:55
 authors: [shujuan.cheong]
 categories: [Engineering]
-tags: [Docs-as-Code, Documentation, Technical documentation, Engineering practices]
+tags: [Docs-as-Code, Documentation, TechDocs, Engineering]
 comments: true
 cover_photo: /img/doc-as-code/cover.png
 excerpt: "Read to find out how Grab is using the Docs-as-Code approach to improve technical documentation."

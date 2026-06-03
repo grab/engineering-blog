@@ -5,7 +5,7 @@ title: 'TechDocs at Grab: Cultivating a culture of quality documentation'
 date: 2025-02-27 08:23:00
 authors: [david.khusmadilan, karen.kue, preeti.karkera, sita.yadav]
 categories: [Engineering]
-tags: [Blog, TechDocs, Helix, Engineering]
+tags: [Blog, TechDocs, Engineering]
 comments: true
 cover_photo: /img/TechDocs-at-Grab/banner-img3.png
 excerpt: "Discover the steps taken in building a strong documentation culture that produces high-quality content, while making the tools easy to use for everyone involved in Grab."

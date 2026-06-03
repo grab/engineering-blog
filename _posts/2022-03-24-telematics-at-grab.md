@@ -5,7 +5,7 @@ title: How telematics helps Grab to improve safety
 date: 2022-03-24 00:20:00
 authors: [wilson.burhan]
 categories: [Engineering, Data Science]
-tags: [Engineering, Data Science, Driving patterns, Safety, Analytics]
+tags: [Engineering, Data Science, Driving Patterns, Safety, Analytics]
 comments: true
 cover_photo: /img/telematics/cover.jpg
 excerpt: "Coupled with data science, telematics can help to detect traffic events such as harsh braking and unsafe lane changes so we can provide a safer experience for our users. Read on to find out more about the challenges faced and how we addressed them with telematics."

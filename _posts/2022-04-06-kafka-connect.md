@@ -5,7 +5,7 @@ title: How Kafka Connect helps move data seamlessly
 date: 2022-04-06 00:20:00
 authors: [wenli.wan, karan.kamath, thanhtung.dao]
 categories: [Engineering]
-tags: [Kafka, Data processing, Real-Time]
+tags: [Kafka, Data Processing, Real-Time]
 comments: true
 cover_photo: /img/kafka-connect/cover.jpg
 excerpt: "Grab’s real-time data platform team (Coban) covers the importance of moving data in and out of Kafka easily and how Kafka Connect helps with that."

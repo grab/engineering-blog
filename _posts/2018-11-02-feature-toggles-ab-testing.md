@@ -5,7 +5,7 @@ title: Reliable and Scalable Feature Toggles and A/B Testing SDK at Grab
 date: 2018-11-02 06:00:00
 authors: [roman.atachiants]
 categories: [Engineering]
-tags: [Experiment, Back End, Front End, Feature Toggle, A/B Testing]
+tags: [Experiment, Backend, Frontend, Feature Toggle, A/B Testing]
 comments: true
 cover_photo: /img/feature-toggles-ab-testing/cover.png
 excerpt: "Grab’s feature toggle SDK provides a dynamic feature toggle capability to our engineering, data, product, and even business teams. Feature toggles also let teams modify system behaviour without changing code. Developers use the feature flags to keep new features hidden until product and marketing teams are ready to share and to run experiments (A/B tests) by dynamically changing feature toggles for specific users, rides, etc."

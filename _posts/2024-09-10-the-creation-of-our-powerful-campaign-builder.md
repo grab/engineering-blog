@@ -5,7 +5,7 @@ title: 'Unveiling the process: The creation of our powerful campaign builder'
 date: 2024-09-10 00:00:10
 authors: [jie.zhang, kevin.hutama, abdullah.mamun]
 categories: [Engineering, Design]
-tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
+tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/the-creation-of-our-powerful-campaign-builder/cover.png
 excerpt: "Dive into Trident, our real-time event-driven marketing tool at Grab. Explore the build of the core units powering our If This, Then That (IFTTT) logic. Learn how we deal with complex campaigns and discover the secret behind how we support various processing mechanisms"

@@ -5,7 +5,7 @@ title: Loki, a Dynamic Mock Server for HTTP/TCP Testing
 date: 2019-04-10 02:41:42
 authors: [thuy.nguyent, mayank.gupta, vishal.prakash, vineet.nair]
 categories: [Engineering]
-tags: [Back End, Service, Mobile, Testing]
+tags: [Backend, Service, Mobile, Testing]
 comments: true
 cover_photo: /img/loki-dynamic-mock-server-http-tcp-testing/cover.png
 excerpt: "Read our blog to know how Loki, a dynamic mock server, makes local box testing of mobile apps easy, repeatable, and exhaustive. It supports both HTTP and TCP protocols and can provide dynamic runtime responses."

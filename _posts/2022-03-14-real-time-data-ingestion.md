@@ -5,7 +5,7 @@ title: Real-time data ingestion in Grab
 date: 2022-03-14 00:20:00
 authors: [shuguang.xiang, irfan.hanif, feng.cheng]
 categories: [Engineering, Data Science]
-tags: [Engineering, Data ingestion]
+tags: [Engineering, Data Ingestion]
 comments: true
 cover_photo: /img/real-time-data-ingestion/cover.jpg
 excerpt: "When it comes to data ingestion, there are several prevailing issues that come to mind: data inconsistency, integrity and maintenance. Find out how the Caspian team leveraged real-time data ingestion to help address these pain points."

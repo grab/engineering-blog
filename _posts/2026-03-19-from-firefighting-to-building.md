@@ -5,7 +5,7 @@ title: 'From firefighting to building: How AI agents restored our team’s core 
 date: 2026-03-19 00:23:00
 authors: [sneh.agrawal, rishi.raj, ayan.chatterjee, wenzhong.tan, sai.kakumanu]
 categories: [Engineering]
-tags: [AI, Analytics, Database, Automation]
+tags: [AI, Artificial Intelligence, Analytics, Database, Automation]
 comments: true
 cover_photo: /img/firefighting/banner.png
 excerpt: "The Analytics Data Warehouse (ADW) team at Grab supports over 1,000 users. These users support an extensive repository of more than 15,000 tables. To alleviate the time-consuming demands of repetitive tasks, the team implemented a multi-agent AI system. This system autonomously handles simpler inquiries and collaborates on more complex requests, reclaiming significant engineering bandwidth and unlocking hundreds of hours of productivity each month."

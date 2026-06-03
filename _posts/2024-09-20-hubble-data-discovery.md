@@ -5,7 +5,7 @@ title: 'Enabling conversational data discovery with LLMs at Grab'
 date: 2024-09-26 00:00:40
 authors: [shreyas.parbat, amanda.ng, yucheng.zeng, vinnson.lee, feng.cheng, varun.torka]
 categories: [Engineering]
-tags: [Data Discovery, AI, LLM, Documentation, Elasticsearch]
+tags: [Data Discovery, AI, Artificial Intelligence, LLM, Documentation, Elasticsearch]
 comments: true
 cover_photo: /img/hubble-data-discovery/cover.png
 excerpt: "Discover how Grab is revolutionising data discovery with the power of AI and LLMs. Dive into our journey as we overcome challenges, build groundbreaking tools like HubbleIQ, and transform the way our employees find and access data. Get ready to be inspired by our innovative approach and learn how you can harness the potential of AI to unlock the full value of your organisation's data."

@@ -5,7 +5,7 @@ title: Supporting large campaigns at scale
 date: 2022-04-1 00:20:00
 authors: [jie.zhang, abdullah.mamun]
 categories: [Engineering]
-tags: [Kafka, Scheduling, Stream processing, Batch processing, Scheduled job]
+tags: [Kafka, Scheduling, Stream Processing, Batch Processing, Scheduled Job]
 comments: true
 cover_photo: /img/supporting-large-campaigns-at-scale/cover.jpg
 excerpt: "Running batch jobs targeting a large user base is a challenge. Find out how we designed our system to tackle the challenge at scale."

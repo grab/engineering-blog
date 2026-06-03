@@ -5,7 +5,7 @@ title: 'Streamlining RiskOps with the SOP agent framework'
 date: 2025-05-08 00:00:10
 authors: [fujiao.liu, haitao.bao, jia.chen, meichen.lu, muqi.li] 
 categories: [Engineering, Data Analytics, Data Science]
-tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
+tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/riskops-sop-img/banner-figure-1.png
 excerpt: "Discover how the SOP-driven Large Language Model (LLM) agent framework is revolutionising Risk Operations (RiskOps) by automating Account Takeover (ATO) investigations. Explore the potential of this transformative tool to unlock unprecedented levels of productivity and innovation across industries."

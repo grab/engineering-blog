@@ -5,7 +5,7 @@ title: "Introducing Grab-Kit: Distributed Service Design at Grab"
 date: 2018-06-08 02:00:00
 authors: [karen.kue, michael.cartmell]
 categories: [Engineering]
-tags: [Back End, Engineering, Golang]
+tags: [Backend, Engineering, Golang]
 comments: true
 cover_photo: /img/introducing-grab-kit/cover.jpg
 excerpt: "As we evolved from a single monolithic application to a microservices-based architecture, we were faced with a new challenge. How do we support exponential growth while maintaining consistency, coordination, and quality?"

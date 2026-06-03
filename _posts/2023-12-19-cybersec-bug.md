@@ -5,7 +5,7 @@ title: "Championing CyberSecurity: Grab's bug bounty programme in 2023"
 date: 2023-12-19 00:00:10
 authors: [nathaniel.callens, prithvinder.singh, peishan.yap, tarun.modi]
 categories: [Engineering, Security]
-tags: [Security, Bug bounty, HackerOne]
+tags: [Security, Bug Bounty, HackerOne]
 comments: true
 cover_photo: /img/cybersec-bug/cover.png
 excerpt: "Since its launch in 2015, Grab’s Bug Bounty programme has made strides in giving back to the global security community and aiding research. Read this article to find out more about our quarterly campaigns in collaboration with HackerOne and other achievements we’ve had in 2023."

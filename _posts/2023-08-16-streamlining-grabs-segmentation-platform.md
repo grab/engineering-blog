@@ -5,7 +5,7 @@ title: Streamlining Grab's Segmentation Platform with faster creation and lower 
 date: 2023-08-15 00:00:10
 authors: [jake.ng]
 categories: [Engineering]
-tags: [Back End, Performance]
+tags: [Backend, Performance]
 comments: true
 cover_photo: /img/streamlining-grabs-segmentation-platform/cover.jpeg
 excerpt: "Since 2019, Grab's Segmentation Platform has served as a comprehensive solution for user segmentation and audience creation across all business verticals. This article offers an insider look at the platform's design and the team's efforts to optimise segment storage, ultimately reducing read latency and unlocking new segmentation possibilities."

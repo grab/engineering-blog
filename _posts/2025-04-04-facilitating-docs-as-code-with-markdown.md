@@ -5,7 +5,7 @@ title: 'Facilitating Docs-as-Code implementation for users unfamiliar with Markd
 date: 2025-04-04 00:23:00
 authors: [david.khusmadilan, preeti.karkera, sita.yadav, ziqin.yeow]
 categories: [Engineering]
-tags: [Blog, TechDocs, Helix, Engineering]
+tags: [Blog, TechDocs, Engineering]
 comments: true
 cover_photo: /img/Facilitating-Docs-as-Code/banner-img-2.png
 excerpt: "In this article, we'll discuss how we've streamlined the Docs-as-Code process for technical contributors, specifically engineers, who are already familiar with GitLab but might face challenges with Markdown. Discover how we plan to improve the workflow for non-engineering teams contributing to service and standalone documentation."

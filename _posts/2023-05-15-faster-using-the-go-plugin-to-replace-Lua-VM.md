@@ -5,7 +5,7 @@ title: 2.3x faster using the Go plugin to replace Lua virtual machine
 date: 2023-05-15 01:23:05
 authors: [yonghao.hu, fabianto.wangsamulya]
 categories: [Engineering]
-tags: [Engineering, Virtual machines, Faster, Go plugin, Lua VM]
+tags: [Engineering, Virtual Machines, Faster, Go Plugin, Lua VM]
 comments: true
 cover_photo: /img/faster_using_the_go_plugin_to_replace_Lua_VM/cover.png
 excerpt: "The Talaria open-source project has made significant improvements by replacing Lua VM with the Go plugin resulting in 2.3x faster performance and memory usage reduction. Talaria is a time-series database designed for Big Data systems used to process millions of transactions and connections daily at Grab, requiring scalable data-driven decision-making."

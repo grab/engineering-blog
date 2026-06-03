@@ -5,7 +5,7 @@ title: "Grab's service mesh evolution: From Consul to Istio"
 date: 2025-07-16 00:00:10
 authors: [hilman.kurniawan, jay.chin, shiyu.chen, sokann.yap]
 categories: [Engineering]
-tags: [Microservice, Service mesh, Kubernetes, AWS, GCP]
+tags: [Microservice, Service Mesh, Kubernetes, AWS, GCP]
 comments: true
 cover_photo: /img/service-mesh-evolution/cover.png
 excerpt: "When you're running 1000+ microservices across Southeast Asia's most complex transport and delivery platform, 'good enough' stops being good enough. Discover how Grab tackled the challenge of migrating from Consul to Istio across a hybrid infrastructure spanning AWS and GCP, separate AWS organizations, and diverse deployment models. This isn't your typical service mesh migration story. We share the real challenges of designing resilient architecture for massive scale, the unconventional decisions that paid off, and the lessons learned from coordinating migrations while keeping critical services like food delivery and ride-hailing running seamlessly. From evaluation criteria to architecture decisions, migration strategies to operational insights - get an inside look at how we're building the backbone of Grab's microservices future, one service at a time."

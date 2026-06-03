@@ -5,7 +5,7 @@ title: 'Graph modelling guidelines'
 date: 2023-11-08 00:00:10
 authors: [wenxiang.lu, muqi.li, weiyang.wang, wenhui.wu]
 categories: [Engineering, Security]
-tags: [Graph technology, Graphs, Graph networks, Security, Data]
+tags: [Graph Technology, Graphs, Graph Networks, Security, Data]
 comments: true
 cover_photo: /img/graph-modelling-guidelines/cover.jpg
 excerpt: "Graphs are powerful data representations that detect relationships and data linkages between devices. This is very helpful in revealing fraudulent or malicious users. Graph modelling is the key to leveraging graph capabilities. Read to find out how the GrabDefence team performs graph modelling to create graphs that can help discover potentially malicious data linkages."

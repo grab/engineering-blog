@@ -5,7 +5,7 @@ title: How we improved our iOS CI infrastructure with observability tools
 date: 2023-05-18 04:39:00
 authors: [bunty.madan, krist.foo, denis.sakhapov]
 categories: [Engineering]
-tags: [iOS, Mobile, Engineering, UITesting]
+tags: [iOS, Mobile, Engineering, UI Tests]
 comments: true
 cover_photo: /img/iOS-CI-infrastructure-with-observability-tools/cover.png
 excerpt: "After upgrading to Xcode 13.1, we noticed a few issues such as instability of the CI tests and high CPU utilisation. Read to find out how the Test Automation - Mobile team investigated these issues and resolved them by integrating observability tools into our iOS CI development process."

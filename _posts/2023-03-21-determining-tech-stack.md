@@ -5,7 +5,7 @@ title: How OVO determined the right technology stack for their web-based project
 date: 2023-03-21 01:23:05
 authors: [george.matthew, sandy.ys]
 categories: [Engineering, Design]
-tags: [Engineering, Technology stack, Exploration]
+tags: [Engineering, Technology Stack, Exploration]
 comments: true
 cover_photo: /img/determining-tech-stack/cover.jpg
 excerpt: "As companies grow in today's technology landscape, it often leads to a diverse set of technology stacks being used in different teams, which can lead to bigger problems in the future. Find out how the OVO team compared and analysed different technologies to find the one that best met their needs."

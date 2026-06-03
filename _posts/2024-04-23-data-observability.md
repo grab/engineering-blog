@@ -5,7 +5,7 @@ title: "Ensuring data reliability and observability in risk systems"
 date: 2024-04-23 00:15:10
 authors: [yini.ong, kamesh.chandran, jialong.loh]
 categories: [Data Science, Engineering, Security]
-tags: [Data Science, Security, Risk, Data observability, Data reliability]
+tags: [Data Science, Security, Risk, Data Observability, Data Reliability]
 comments: true
 cover_photo: /img/data-observability/cover.png
 excerpt: "As the amount of data Grab handles grows, there is an increased need for quick detections for data anomalies (incompleteness or inaccuracy), while keeping it secure. Read this to learn how the Risk Data team utilised Flink and Datadog to enhance data observability within Grab’s services."

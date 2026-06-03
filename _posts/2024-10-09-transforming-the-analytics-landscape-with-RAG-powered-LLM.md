@@ -5,7 +5,7 @@ title: 'Leveraging RAG-powered LLMs for analytical tasks'
 date: 2024-10-09 00:00:10
 authors: [edmund.hong, yini.ong]
 categories: [Engineering, Analytics, Data Science]
-tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
+tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
 comments: true
 cover_photo: "/img/rag-llm/rag-llm-banner.png"
 excerpt: "The emergence of Retrieval-Augmented Generation (RAG) has significantly revolutionised Large Language Models (LLMs), propelling them to unprecedented heights. This development prompts us to consider its integration into the field of Analytics. Explore how Grab harnesses this technology to optimise our analytics processes."

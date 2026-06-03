@@ -5,7 +5,7 @@ title: Message Center - Redesigning the messaging experience on the Grab supera
 date: 2023-04-17 01:23:05
 authors: [jonathan.lee, jie.zhang, vasu.krishnamoorthy]
 categories: [Engineering, Design]
-tags: [Engineering, GrabChat, Redesign, Messaging, Chat support]
+tags: [Engineering, GrabChat, Redesign, Messaging, Chat Support]
 comments: true
 cover_photo: /img/message-center/cover.jpg
 excerpt: "Grab’s messaging feature was designed for two-party communications, but as our superapp grew to include more features, we became more aware of the limitations in our app. Read to find out how we redesigned the messaging experience to make it more extensible and future-proof."

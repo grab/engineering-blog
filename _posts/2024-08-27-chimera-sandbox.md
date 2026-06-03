@@ -5,7 +5,7 @@ title: 'Chimera Sandbox: A scalable experimentation and development platform for
 date: 2024-08-27 00:00:10
 authors: [arkarmin.aung, yiyang.liao, xian.zhou, padarn.wilson, dheeraj.pidatala]
 categories: [Engineering, Design]
-tags: [Engineering, Generative AI, LLM, Experiment, Machine learning]
+tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/chimera-sandbox/cover.png
 excerpt: "Unleashing the potential of machine learning (ML) with Grab's Chimera Sandbox. This scalable platform facilitates rapid development and experimentation of ML solutions, offering deep integration with Large Language Models and a variety of compute instances. Discover how it's driving AI innovation at Grab."

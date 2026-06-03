@@ -5,7 +5,7 @@ title: PII masking for privacy-grade machine learning
 date: 2023-06-01 01:18:00
 authors: [fabrice.harbulot]
 categories: [Engineering, Security]
-tags: [Engineering, Privacy, Data masking, Machine learning]
+tags: [Engineering, Privacy, Data Masking, Machine Learning]
 comments: true
 cover_photo: /img/pii-masking/cover.png
 excerpt: "Data engineers at Grab work with large sets of data to build and train advanced machine learning models to continuously improve our user experience. However, as with any data-handling company, dealing with users' data may present a potential privacy risk as it contains Personally Identifiable Information (PII). Read this article to find out more about Grab’s mature privacy protective measures and how our data streaming team uses PII tagging and masking on data streaming pipelines to protect our users."

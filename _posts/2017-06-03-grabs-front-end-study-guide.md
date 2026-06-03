@@ -5,7 +5,7 @@ title: Grab's Front End Study Guide
 date: 2017-06-03 18:43:40
 authors: [yangshun.tay]
 categories: [Engineering]
-tags: [Front End, JavaScript, Web]
+tags: [Frontend, JavaScript, Web]
 comments: true
 cover_photo: /img/grabs-front-end-study-guide/front-end-at-grab-banner.png
 excerpt: "Grab is Southeast Asia (SEA)’s leading transportation platform and our mission is to drive SEA forward, leveraging on the latest technology and the talented people we have in the company. As of May 2017, we handle 2.3 million rides daily and we are growing and hiring at a rapid scale.

@@ -5,7 +5,7 @@ title: 'Effortless enterprise authentication at Grab: Dex in action'
 date: 2025-05-23 00:00:10
 authors: [kahwei.lee, jack.wang, weibin.wu, jan.bissinger]
 categories: [Engineering]
-tags: [Access control, Engineering, Security]
+tags: [Access Control, Engineering, Security]
 comments: true
 cover_photo: /img/dex-in-action/cover.png
 excerpt: "This article outlines Grab's journey towards enabling a seamless single sign-on experience for its numerous internal applications. It addresses the challenges of fragmented authentication and authorisation systems and introduces Dex, an open-source federated OpenID Connect provider, as the chosen solution. The document details the implementation of Dex, its key features, and discusses future plans for an unified authorisation model."

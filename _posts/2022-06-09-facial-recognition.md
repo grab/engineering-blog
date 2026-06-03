@@ -5,7 +5,7 @@ title: How facial recognition technology keeps you safe
 date: 2022-06-09 00:20:55
 authors: [kaifeng.tee, wentao.xie]
 categories: [Engineering, Security, Data Science]
-tags: [Security, Facial recognition]
+tags: [Security, Facial Recognition]
 comments: true
 cover_photo: /img/facial-recognition/cover.png
 excerpt: "Facial recognition technology has grown tremendously in recent years due to the rise of deep learning techniques and accelerated digital transformation. Read to find out more about facial recognition technology in Grab and the components that help keep you safe."

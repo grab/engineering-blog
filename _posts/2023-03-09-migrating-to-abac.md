@@ -5,7 +5,7 @@ title: Migrating from Role to Attribute-based Access Control
 date: 2023-03-09 01:23:05
 authors: [minhkhoi.nguyen]
 categories: [Engineering, Security]
-tags: [Engineering, Access control, Security]
+tags: [Engineering, Access Control, Security]
 comments: true
 cover_photo: /img/migrating-to-abac/cover.jpg
 excerpt: "To ensure our consumers continue to be well-protected, we need to ensure our data access measures are compliant with evolving security standards. With more services and resources to manage, it becomes increasingly difficult to maintain a frictionless process. Read to find out how we solve this by migrating from role to attribute-based access control."

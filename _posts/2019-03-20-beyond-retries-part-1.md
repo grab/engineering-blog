@@ -5,7 +5,7 @@ title: "Designing Resilient Systems Beyond Retries (Part 1): Rate-Limiting"
 date: 2019-03-20 14:39:33
 authors: [michael.cartmell]
 categories: [Engineering]
-tags: [Resiliency, Microservice, Rate-limiting]
+tags: [Resiliency, Microservice, Rate-Limiting]
 comments: true
 cover_photo: /img/beyond-retries-part-1/cover.jpg
 excerpt: "This post is the first of a three-part series on going beyond retries to improve system resiliency. In this series, we will discuss other techniques and architectures that can be used as part of a strategy to improve resiliency. To start off the series, we will cover rate-limiting."

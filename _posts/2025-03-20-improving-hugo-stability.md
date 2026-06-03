@@ -5,7 +5,7 @@ title: 'Improving Hugo stability and addressing oncall challenges through automa
 date: 2025-03-20 00:00:10
 authors: [shuguang.xiang, hung.nguyenphi, hung.tran, hualin.liu, bowen.wang, chamal.sapumohotti]
 categories: [Engineering, Data Analytics]
-tags: [Data Pipeline, Data reliability, Data observability, Platform, System Architecture]
+tags: [Data Pipeline, Data Reliability, Data Observability, Platform, System Architecture]
 comments: true
 cover_photo: /img/improving-hugo-stability/cover.jpg
 excerpt: "Managing 4,000+ data pipelines demanded a smarter approach to stability. We built a comprehensive automation solution that enhances Hugo's monitoring capabilities, streamlines issue diagnosis, and significantly reduces on-call workload. Explore our architecture, implementation, and the impact of automated healing features."

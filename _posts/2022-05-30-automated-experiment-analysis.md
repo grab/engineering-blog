@@ -5,7 +5,7 @@ title: Automated Experiment Analysis - Making experimental analysis scalable
 date: 2022-05-30 00:20:55
 authors: [albert.cheng, ankit.sinha, saubhagya.awaneesh, kenneth.rithvik, ruike.zhang]
 categories: [Engineering, Data Science]
-tags: [Experiment, Experimental analysis, Azure Databricks]
+tags: [Experiment, Experimental Analysis, Azure Databricks]
 comments: true
 cover_photo: /img/automated-experiment-analysis/cover.png
 excerpt: "Analysts and data scientists invest lots of time into creating trustworthy experiments, which are key to making sound decisions. Read to find out how Automated Experiment Analysis helps make experimental analysis more scalable."

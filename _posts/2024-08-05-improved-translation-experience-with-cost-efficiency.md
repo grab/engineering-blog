@@ -5,7 +5,7 @@ title: 'How we improved translation experience with cost efficiency'
 date: 2024-08-05 00:00:10
 authors: [jie.zhang, yuxin.goh, christian.coffrant, wira.ikbal, tra.tran, pengxuan.xu]
 categories: [Engineering, Design]
-tags: [Chat, Chat support, Engineering, GrabChat, Messaging, Translation, Generative AI, LLM]
+tags: [Chat, Chat Support, Engineering, GrabChat, Messaging, Translation, Generative AI, LLM]
 comments: true
 cover_photo: /img/improved-translation-experience-with-cost-efficiency/cover.png
 excerpt: "Dive into our journey of improving in-app translation experience amidst a post-COVID tourism boom. Discover how we overcame language detection hurdles, crafted an in-house translation model, and implemented stringent quality checks, all while maintaining cost efficiency."

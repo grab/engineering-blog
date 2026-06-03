@@ -5,7 +5,7 @@ title: 'Building a Spark observability product with StarRocks: Real-time and his
 date: 2025-03-06 00:00:10
 authors: [huong.vuong, hainam.cao]
 categories: [Engineering, Data Analytics]
-tags: [Spark Observability, StarRocks, Data Engineering, Real-time Analytics, System Architecture, Generative AI, LLM]
+tags: [Spark Observability, StarRocks, Data Engineering, Real-Time Analytics, System Architecture, Generative AI, LLM]
 comments: true
 cover_photo: /img/spark-observability-image/cover.png
 excerpt: "Discover how Grab revolutionised its Spark observability with StarRocks! We transformed our monitoring capabilities by moving from a fragmented system to a unified, high-performance platform. Learn about our journey from the initial Iris tool to a robust solution that tackles limitations with real-time and historical data analysis, all powered by StarRocks. Explore the architecture, data model, and advanced analytics that enable us to provide deeper insights and recommendations for optimising Spark jobs at Grab."

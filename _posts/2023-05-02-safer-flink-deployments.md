@@ -5,7 +5,7 @@ title: Safer deployment of streaming applications
 date: 2023-05-02 01:23:05
 authors: [shikai.ng]
 categories: [Engineering]
-tags: [Engineering, Deployments, Streaming applications]
+tags: [Engineering, Deployment, Streaming Applications]
 comments: true
 cover_photo: /img/safer-flink-deployments/cover.png
 excerpt: "As Flink becomes more popular with real-time stream applications, we realise that Flink deployments are sometimes stressful and prone to errors. The Coban team deep dives into the issues with our existing Flink deployment process, possible mitigations, and the eventual solution to ensure safer deployments of Flink streaming applications."
