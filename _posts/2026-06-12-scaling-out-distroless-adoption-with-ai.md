@@ -23,13 +23,13 @@ This migration is more than a compliance mandate; it is a strategic security dec
 
 However, shifting to Distroless images introduces a critical technical risk: **runtime failure**. A service might build perfectly in Continuous Integration (CI), but fail at the deployment stage due to:
 
-- **Missing shared objects**: Binaries might require specific libraries (`.so` files) present in Ubuntu but absent in Distroless.
-- **Implicit links**: Third-party tools may expect specific system utilities or directory structures.
+* **Missing shared objects**: Binaries might require specific libraries (`.so` files) present in Ubuntu but absent in Distroless.
+* **Implicit links**: Third-party tools may expect specific system utilities or directory structures.
 
 Testing is required to ensure two things:
 
-1. The service spins up with the correct config.
-2. All runtime dependencies remain intact.
+* The service spins up with the correct config.
+* All runtime dependencies remain intact.
 
 Scaling this verification across thousands of services manually? That would take years unless we found a way to automate the trust.
 
@@ -39,14 +39,14 @@ As we perform changes to the Dockerfile definition of our services, it is crucia
 
 ### Medium tests in Grab
 
-In Grab, we categorize our test suites into three main sizes: small, medium and large. Small tests refer to functional tests whereby mocks are introduced via dependency injection. Large tests refer to end-to-end tests that run on actual services in our staging environment where nothing is mocked.
+At Grab, we categorize our test suites into three main sizes: small, medium and large. Small tests refer to functional tests whereby mocks are introduced via dependency injection. Large tests refer to end-to-end tests that run on actual services in our staging environment where nothing is mocked.
 
 <div class="post-image-section"><figure>
   <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-1.png" alt="Architecture diagram of a medium test environment." style="width:70%"><figcaption align="middle">Figure 1. Architecture diagram of a medium test environment.</figcaption>
   </figure>
 </div>
 
-Medium tests belong in the middle ground, whereby external dependencies (such as service to service dependencies) are mocked with a network proxy layer in a similar concept as [WireMock](https://wiremock.org/), but internal dependencies like MySQL are not mocked and instead spun up using [Testcontainers](https://testcontainers.com/). In this setup, systems under test are actually built into Docker containers and run in Docker before their endpoints are being hit by test inputs, with the corresponding responses being asserted on. As such, we could now effectively test if any changes of the Dockerfile definition broke the service. An added bonus is that all of these could occur within the Continuous Integration (CI) environment, without reaching the Continuous Deployment (CD) stage.
+Medium tests belong in the middle ground, whereby external dependencies (such as service to service dependencies) are mocked with a network proxy layer in a similar concept as [WireMock](https://wiremock.org/), but internal dependencies like MySQL are not mocked and instead spun up using [Testcontainers](https://testcontainers.com/). In this setup, systems under test are actually built into Docker containers and run in Docker before their endpoints are being hit by test inputs, with the corresponding responses being asserted on. As such, we could now effectively test if any changes of the Dockerfile definition broke the service. An added bonus is that all of these could occur within the CI environment, without reaching the Continuous Deployment (CD) stage.
 
 <div class="post-image-section"><figure>
   <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-2.png" alt="Happy path for Distroless changes." style="width:80%"><figcaption align="middle">Figure 2. Happy path for Distroless changes.</figcaption>
@@ -55,9 +55,9 @@ Medium tests belong in the middle ground, whereby external dependencies (such as
 
 This makes Medium Test effective and efficient for testing changes to the services associated with distroless adoption. We could now largely scale up our adoption process by:
 
-1. Raise batch Merge Requests for Dockerfile definitions for distroless adoption.
-2. Trigger Medium Tests in CI.
-3. Upon passing the Medium Tests, automatically merge the changes and trigger CD.
+1. Raising batch Merge Requests to dockerfile definitions for Distroless adoption.
+2. Running medium tests in CI.
+3. Upon passing the medium tests, automatically merge the changes and trigger CD. 
 
 ## Introduction of toil
 
