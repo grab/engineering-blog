@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Scaling out Distroless adoption with AI</title>
+    <meta name="description" content="Grab is moving hundreds of services to Distroless images to cut CVEs but only if workloads still run cleanly. Learn how Medium Tests became the migration gate, where the scaffolding toil stalled the campaign, and how an agentic workflow (skills, MCP, guardrails) generated tests and Docker changes at fleet scale; with humans still approving every MR.">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://engineering.grab.com/scaling-out-distroless-adoption-with-ai">
+    <meta property="og:title" content="Scaling out Distroless adoption with AI">
+    <meta property="og:description" content="Grab is moving hundreds of services to Distroless images to cut CVEs but only if workloads still run cleanly. Learn how Medium Tests became the migration gate, where the scaffolding toil stalled the campaign, and how an agentic workflow (skills, MCP, guardrails) generated tests and Docker changes at fleet scale; with humans still approving every MR.">
+    <meta property="og:site_name" content="Grab Tech">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://engineering.grab.com/img/scaling-out-distroless-adoption-with-ai/banner-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- CSS -->
+    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="https://engineering.grab.com/scaling-out-distroless-adoption-with-ai">
+
+    <!-- RSS -->
+    <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
+    <!-- OneTrust Cookies Consent Notice start for grab.com -->
+    <script type="text/javascript" src="https://cdn-apac.onetrust.com/consent/a3be3527-7455-48e0-ace6-557ddbd506d5/OtAutoBlock.js" ></script>
+    <script src="https://cdn-apac.onetrust.com/scripttemplates/otSDKStub.js" data-document-language="true" type="text/javascript" charset="UTF-8" data-domain-script="a3be3527-7455-48e0-ace6-557ddbd506d5" ></script>
+    <script type="text/javascript">
+    function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end for grab.com -->
+  </head>
+
+  <body>
+    <header class="site-header">
+  <div class="wrapper-navbar">
+    <div class="site-title-wrapper">
+      <div class="row site-title-wrapper-inner">
+        <div class="col-xs-1 visible-xs hamburger-nav" id="mobile-menu-btn">
+          <div class="menu-btn"></div>
+        </div>
+        <div class="col-sm-3 col-xs-3">
+          <div class="site-title-container">
+            <a class="site-title" href="/"></a>
+            <span class="site-subtitle">&nbsp;Tech Blog</span>
+          </div>
+        </div>
+        <div class="col-sm-9 col-xs-8 text-right">
+          <ul class="nav-category hidden-xs">
+            
+              
+              <li>
+                <a href="/categories/engineering/">Engineering</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/data-science/">Data Science</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/design/">Design</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/product/">Product</a>
+              </li>
+            
+              
+              <li>
+                <a href="/categories/security/">Security</a>
+              </li>
+            
+          </ul>
+          <div class="site-search text-right">
+            <form action="/search.html" role="search" class="search-form">
+  <div class="search-icon"> </div>
+  <input type="search" name="q" class="search-text" placeholder="Search...">
+  <button class="search-submit"><i class="fa fa-chevron-right"></i></button>
+</form>
+    
+
+          </div>
+        </div>
+      </div>
+      <!--  Only visible on mobile view -->
+      <div class="mobile-menu-container">
+        <ul class="mobile-menu">
+          
+            
+            <li>
+              <a href="/categories/engineering/">Engineering</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/data-science/">Data Science</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/design/">Design</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/product/">Product</a>
+            </li>
+          
+            
+            <li>
+              <a href="/categories/security/">Security</a>
+            </li>
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="/js/main.js"></script>
+
+    <div class="page-content">
+      
+<div class="wrapper">
+  <div class="post">
+    <header class="post-header">
+      <img src="/img/scaling-out-distroless-adoption-with-ai/banner-image.png" class="post-cover-photo" alt="Scaling out Distroless adoption with AI cover photo">
+      
+        
+          <a class="post-category" href="/categories/engineering/">Engineering </a>
+      
+
+      <h1 class="post-title">Scaling out Distroless adoption with AI</h1>
+      
+      <div class="post-meta">
+        <div class="row">
+          <div class="col-xs-12">
+            <div class="post-author-thumbnail-container">
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/jiayee-chong.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/kevin-junhong-lee.png">
+                
+              
+                
+                
+                  <img class="post-author-thumbnail-large img-circle" src="/img/authors/shikai-ng.png">
+                
+              
+            </div>
+
+            <div class="post-meta-text-container">
+              <span class="post-author-large">
+                
+                  
+                  
+                    
+                    <a href="/authors#jiayee.chong">Jia Yee Chong</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#kevin.leejunhong">Kevin Jun Hong Lee</a>
+                  
+                
+                  
+                  
+                    
+                      &middot;
+                    
+                    <a href="/authors#shikai.ng">Shi Kai Ng</a>
+                  
+                
+              </span>
+              <span class="post-date-large">12 Jun 2026 | 11 min read</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </header>
+    <div class="wrapper-content">
+      <article class="post-content">
+        <h2 id="introduction">Introduction</h2>
+
+<p>Grab is migrating from heavy base images like Ubuntu to <strong>Distroless images</strong> to reduce security risks. By stripping containers down to the bare application and its runtime, we eliminate unnecessary binaries and Common Vulnerabilities and Exposures (CVEs).</p>
+
+<p>This migration is more than a compliance mandate; it is a strategic security decision to build a more resilient and defensible production environment. By moving to Distroless, we are fundamentally shrinking our attack surface; eliminating the binaries and shells that attackers use for lateral movement. With over 900 services already transitioned, we are on track for 80% adoption by mid-2026.</p>
+
+<h2 id="why-distroless-requires-rigorous-testing">Why Distroless requires rigorous testing</h2>
+
+<h3 id="distroless-adoption-risk-runtime-failure">Distroless adoption risk: runtime failure</h3>
+
+<p>However, shifting to Distroless images introduces a critical technical risk: <strong>runtime failure</strong>. A service might build perfectly in Continuous Integration (CI), but fail at the deployment stage due to:</p>
+
+<ul>
+  <li><strong>Missing shared objects</strong>: Binaries might require specific libraries (<code class="language-plaintext highlighter-rouge">.so</code> files) present in Ubuntu but absent in Distroless.</li>
+  <li><strong>Implicit links</strong>: Third-party tools may expect specific system utilities or directory structures.</li>
+</ul>
+
+<p>Testing is required to ensure two things:</p>
+
+<ul>
+  <li>The service spins up with the correct config.</li>
+  <li>All runtime dependencies remain intact.</li>
+</ul>
+
+<p>Scaling this verification across thousands of services manually? That would take years unless we found a way to automate the trust.</p>
+
+<h2 id="the-testing-methodology">The testing methodology</h2>
+
+<p>As we perform changes to the Dockerfile definition of our services, it is crucial for us to include the corresponding test strategy so that changes we make do not introduce regressions in our running services. Assessing the change introduced to our services, the lowest possible testing boundary would be that of what we define as Medium Tests in Grab.</p>
+
+<h3 id="medium-tests-in-grab">Medium tests in Grab</h3>
+
+<p>At Grab, we categorize our test suites into three main sizes: small, medium and large. Small tests refer to functional tests whereby mocks are introduced via dependency injection. Large tests refer to end-to-end tests that run on actual services in our staging environment where nothing is mocked.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-1.png" alt="Architecture diagram of a medium test environment." style="width:70%" /><figcaption align="middle">Figure 1. Architecture diagram of a medium test environment.</figcaption>
+  </figure>
+</div>
+
+<p>Medium tests belong in the middle ground, whereby external dependencies (such as service to service dependencies) are mocked with a network proxy layer in a similar concept as <a href="https://wiremock.org/">WireMock</a>, but internal dependencies like MySQL are not mocked and instead spun up using <a href="https://testcontainers.com/">Testcontainers</a>. In this setup, systems under test are actually built into Docker containers and run in Docker before their endpoints are being hit by test inputs, with the corresponding responses being asserted on. As such, we could now effectively test if any changes of the Dockerfile definition broke the service. An added bonus is that all of these could occur within the CI environment, without reaching the Continuous Deployment (CD) stage.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-2.png" alt="Happy path for Distroless changes." style="width:80%" /><figcaption align="middle">Figure 2. Happy path for Distroless changes.</figcaption>
+  </figure>
+</div>
+
+<p>This makes Medium Test effective and efficient for testing changes to the services associated with distroless adoption. We could now largely scale up our adoption process by:</p>
+
+<ol>
+  <li>Raising batch Merge Requests to dockerfile definitions for Distroless adoption.</li>
+  <li>Running medium tests in CI.</li>
+  <li>Upon passing the medium tests, automatically merge the changes and trigger CD.</li>
+</ol>
+
+<h2 id="introduction-of-toil">Introduction of toil</h2>
+
+<p>The approach above works nicely for services that already have Medium Tests defined. However, we quickly hit a blocker running this rollout methodology for services without a Medium Test setup. Inherently, scaffolding Medium Tests for a service is a tedious task. Most of the toil comes from first figuring out the internal dependencies, then spinning up their corresponding test containers in test time before wiring the internal dependencies up with the service under test by updating the test environment configurations.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-3.png" alt="Current gap in Medium Test coverage." style="width:80%" /><figcaption align="middle">Figure 3. Services without Medium Test setup blocked the rollout.</figcaption>
+  </figure>
+</div>
+
+<p>These tasks are not challenging but are generally tedious to set up. At the same time, they cannot be automated completely given the different internal dependency combinations that each service uses, as well as the difference in how the configurations are being defined and used in each service. With ~400 services in scope without Medium Test setup, this became a huge blocker for our distroless migration campaign.</p>
+
+<p>The need for flexibility in how each task is executed, together with each task’s fairly low complexity, made artificial intelligence (AI) a natural tool to accelerate distroless adoption work.</p>
+
+<h2 id="ai-the-toil-buster">AI: The toil buster</h2>
+
+<div class="post-image-section"><figure>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-4.png" alt="Solution leveraging AI." style="width:70%" /><figcaption align="middle">Figure 4. Solution overview: AI-driven workflow for Medium Test scaffolding and migration.</figcaption>
+  </figure>
+</div>
+
+<p>AI was a good fit because the work we needed to automate had <strong>clearly defined output</strong>, and we could tell, deterministically, whether it worked. Success was straightforward: the CI pipeline would turn <strong>green</strong>, running <strong>basic Medium test health checks</strong>. With a measurable end goal and a reliable success signal, we pursued an <strong>agentic workflow</strong> rather than a one-off generation attempt.</p>
+
+<h3 id="the-starting-point">The starting point</h3>
+
+<p>We started by adopting <strong><a href="https://code.claude.com/docs/en/skills">skills</a></strong> to guide the agent on how to proceed with Medium test work and how to unblock itself when it hit repo-specific friction. These skills gave context for scaffolding basic Medium tests, setting up internal dependencies, and debugging issues in the code. Once those foundations were in place, we rolled the approach out to a batch of <strong>20 services</strong>, completed by the AI in about <strong>two working days</strong>. That batch validated the core hypothesis: the AI could scaffold Medium tests first, then use those tests to verify that our Dockerfile change (building <strong>distroless images</strong>) introduced no regressions.</p>
+
+<h3 id="teaching-an-agent-to-test">Teaching an agent to test</h3>
+
+<p>At that point, the real shift was turning “can do the task” into “can repeat the behavior.” We captured the Medium-test knowledge as a <strong>list of skills</strong> grounded in Grab’s internal Medium test SDK.</p>
+
+<p>Then DevSecOps wrapped those skills into an <strong>Entrypoint Skill</strong>, an orchestrator that runs a <strong>multi-phase</strong> workflow across services. The result is a single agent loop that moves from candidate detection, to scaffolding, to fixing failures, and onward to CI verification without treating each service as a brand-new, one-off problem.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-5.png" alt="Workflow overview for Medium Test generation." style="width:70%" /><figcaption align="middle">Figure 5. Workflow overview for Medium Test generation.</figcaption>
+  </figure>
+</div>
+
+<p>Leveraging the skills we’ve acquired, we utilized <a href="https://docs.anthropic.com/en/docs/claude-code/overview">Claude Code</a>, Anthropic’s agentic coding tool. This tool operates by accepting a list of services and then processing them in a batch.</p>
+
+<ul>
+  <li><strong>Detect</strong>: Is this a deployable service or is it a library? Is it still maintained? The agent skips anything that doesn’t qualify, so human time is only spent on real candidates.</li>
+  <li><strong>Scaffold</strong>: Using Grab’s scaffolding tool, the agent generates the medium test boilerplate.</li>
+  <li><strong>Fix</strong>: The scaffold rarely works on the first try due to the unique setup of each repository like missing environment variables, database dependencies at startup, port mismatches, and similar issues. The agent reviews its knowledge base and pattern-matches errors against known fixes.</li>
+  <li><strong>Raise MR</strong>: Once the medium test passes locally, the agent creates a draft merge request on GitLab with a description explaining what changes were done for that specific service and why.</li>
+  <li><strong>Monitor CI</strong>: The agent polls the pipeline, reads job logs on failure, and attempts CI-specific fixes. If the same error persists after two attempts, it flags the issue for human review.</li>
+  <li><strong>Repeat</strong>: Push the fix and move to the next service while the pipeline runs. The agent doesn’t sit idle waiting for CI! It starts scaffolding the next service asynchronously, checking back on previous pipelines as results come in.</li>
+</ul>
+
+<h3 id="what-made-it-work">What made it work</h3>
+
+<p>Getting the workflow to <em>function</em> was the easy part. Getting it to function <em>reliably across hundreds of services</em> required deliberate design choices.</p>
+
+<p><strong>Model Context Protocol (MCP)</strong>: The agent never leaves Claude Code. GitLab interactions like creating branches, raising MRs, reading pipeline error logs, all happen through a <a href="https://modelcontextprotocol.io/">MCP</a> server. When the agent needs Grab-specific context like what a service does, or who owns it, it queries Glean, an enterprise search tool used by Grab through its MCP integration rather than guessing. For code-level context, finding how a service is structured or how dependencies are wired across repositories, it queries Sourcegraph through its own MCP integration.</p>
+
+<p><strong>Guardrails over autonomy</strong>: The agent can only touch test files and CI configs.  Application code is off-limits, enforced before every commit. It can’t gut tests to make them pass. If it can’t fix the problem, it escalates.</p>
+
+<p><strong>Knowledge that compounds</strong>: We maintain a feedback loop for scaffolding, mocking, and known failure patterns. After each batch, we review what the agent hit and promote recurring fixes into the skill. The agent improves not because the model gets better, but because its instructions do.</p>
+
+<p><strong>Integrating scripts with skills</strong>: For deterministic tasks like boilerplate generation, scripts are far more reliable than raw AI logic. By integrating these scripts as “skills,” we also optimize the agent’s performance in context window management. During test execution, standard output often produces hundreds of lines of repetitive logs that could exhaust token limits or distract the model. Using a script as an intermediary allows us to programmatically filter logs, extracting only the specific error messages or stack traces required for debugging. This ensures the AI receives a clean, actionable summary rather than being overwhelmed by noisy data.</p>
+
+<p><strong>Token efficiency</strong>: Batch runs across dozens of services burn through tokens fast. We configured a compressed communication style that cuts output by ~75%, keeping technical substance while stripping filler. Proper communication is reserved for MR descriptions and messages to service owners.</p>
+
+<p><strong>Isolated execution</strong>: Each batch run spawns the agent in its own context window. Long sessions processing dozens of services don’t bloat the main conversation, keeping the agent focused and responsive.</p>
+
+<p><strong>Human-in-the-loop</strong>: Every MR is raised as a draft; a human reviews before anything merges. A human also decides which learnings become permanent knowledge. The agent proposes; people approve.</p>
+
+<h3 id="from-tests-to-migration-at-scale">From tests to migration at scale</h3>
+
+<p>With medium tests in place across our service fleet, we had the safety net we needed. The next step was automating the distroless migration itself.</p>
+
+<h4 id="the-patch-test-compare-loop">The patch-test-compare loop</h4>
+
+<div class="post-image-section"><figure>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-6.png" alt="Patch–test–compare loop for Distroless migration." style="width:70%" /><figcaption align="middle">Figure 6. Patch–test–compare loop: baseline Medium Tests, apply Distroless Dockerfile changes, re-run tests, and triage results.</figcaption>
+  </figure>
+</div>
+
+<p>Before touching a single Dockerfile, the system runs the service’s existing medium tests to establish a baseline. Pre-existing test failures are baselined, allowing for a clear distinction between legacy issues and new regressions introduced by the distroless patch.</p>
+
+<p>Then comes the distroless patching. The system inspects each service’s Dockerfile for OS-level package dependencies by scanning for <strong><code class="language-plaintext highlighter-rouge">apt-get install</code></strong> lines and filtering out packages already included in the distroless base image. Two scenarios to consider here:</p>
+
+<ul>
+  <li>If no extra packages are needed, it’s a straightforward base image swap.</li>
+  <li>If packages are detected, the system generates a multi-stage build: a builder stage installs the required packages, then copies only the necessary shared libraries into the distroless runtime stage. The result is a minimal image that still has everything the service needs to run.</li>
+</ul>
+
+<p>After patching, the same medium tests run again. Results fall into clear categories: <strong>pass</strong> (tests still green - safe to migrate), <strong>regression</strong> (tests broke - the patch caused a problem), or <strong>already failing</strong> (was broken before we touched it). Regressions trigger an automated remediation step. A separate AI agent inspects the container for missing shared libraries and attempts to fix the Dockerfile. If it can’t resolve the issue, the service is flagged for human review.</p>
+
+<h4 id="scaling-with-batch-changes">Scaling with batch changes</h4>
+
+<p>The previous section explains the patch-test-compare loop, but how can we scale to handle more than one service at a time? To migrate at scale, we use batch change tooling that applies the Dockerfile transformation across dozens of repositories simultaneously, creating merge requests automatically. The system handles both standalone GitLab repositories and Grab’s shared Go monorepo, adapting the patching and MR strategy to each.</p>
+
+<h2 id="impact-on-our-services">Impact on our services</h2>
+
+<h3 id="medium-test-generation-at-scale">Medium test generation at scale</h3>
+
+<p>With medium tests in place, services with possible regressions have higher chances of being caught before reaching staging, providing the safety guarantee we needed. Each generated test also became a permanent safety net for the service, not just for the distroless migration but for all future changes. Over 1.5 months, the agent raised 100+ medium test MRs across repositories, bringing more services into compliance with Grab’s “shift-left” testing initiative.</p>
+
+<h3 id="distroless-adoption">Distroless adoption</h3>
+
+<p>The campaign moved the needle significantly across our service fleet. Overall distroless adoption for our scope grew from 52.7% in December 2025 to 70.8% by April 2026, covering 997 out of 1,408 services.</p>
+
+<h3 id="autonomous-with-oversight">Autonomous with oversight</h3>
+
+<p>The agent autonomously handles the majority of medium test generation and Dockerfile migration work with little human intervention for standard cases. Engineers remain in the loop, reviewing every draft MR and making the final call on what merges.</p>
+
+<h3 id="engineering-bandwidth-reclaimed">Engineering bandwidth reclaimed</h3>
+
+<p>Manually generating a basic medium test requires familiarity with Grab’s internal SDK, typically 1–3 days per repository for developers new to the framework. Across ~400 services without medium tests, that adds up to 400–1,200 engineer-days. By leveraging AI we brought this down to roughly 0.1 days per service, compressing what would have taken well over a year into a fraction of the calendar time. This freed the team to focus on higher-leverage work like improving migration tooling, handling edge cases, and advancing the roadmap beyond distroless.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>With distroless images and stronger medium test coverage, we made Grab’s services more secure and easier to verify. We demonstrated that AI can shoulder much of the scale-up effort.</p>
+
+<h2 id="join-us">Join us</h2>
+
+<p>Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+      </article>
+      <div>
+        
+          <div class="post-tags">
+  
+  
+    <a href="/tags#artificial-intelligence" class="label tags-label">Artificial Intelligence</a>
+  
+    <a href="/tags#containers" class="label tags-label">Containers</a>
+  
+    <a href="/tags#devsecops" class="label tags-label">DevSecOps</a>
+  
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#security" class="label tags-label">Security</a>
+  
+</div>
+
+        
+        <br>
+      </div>
+      <div class="sharing-links text-right">
+  Share on &nbsp;
+  <a href="https://twitter.com/intent/tweet?text=Scaling out Distroless adoption with AI&url=https://engineering.grab.com/scaling-out-distroless-adoption-with-ai&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/scaling-out-distroless-adoption-with-ai" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/scaling-out-distroless-adoption-with-ai&title=Scaling out Distroless adoption with AI
+&summary=Grab is moving hundreds of services to Distroless images to cut CVEs but only if workloads still run cleanly. Learn how Medium Tests became the migration gate, where the scaffolding toil stalled the campaign, and how an agentic workflow (skills, MCP, guardrails) generated tests and Docker changes at fleet scale; with humans still approving every MR.&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+</div>
+<script>
+  function onShareButtonClick(button) {
+    var width = 600;
+    var height = 600;
+    var left = (window.screen.width / 2) - (width / 2);
+    var top = (window.screen.height / 2) - (height / 2);
+    window.open(button.href, '', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=' + height + ',width=' + width + ',top=' + top + ',left=' + left);
+    return false;
+  }
+</script>
+
+      <hr class="section-divider">
+
+      <br/>
+      <!-- 
+        <div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://engineering.grab.com/scaling-out-distroless-adoption-with-ai';
+    this.page.identifier = '/scaling-out-distroless-adoption-with-ai';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = '//grabengineering.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+       -->
+
+    </div>
+  </div>
+</div>
+
+    </div>
+    <div class="progress-wrap">
+    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
+        <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
+    </svg>
+    <i class="fa fa-chevron-up btt-btn"></i>
+</div>
+    <footer class="site-footer">
+  <div class="wrapper">
+    <div class="row">
+      <div class="col-sm-6 col-xs-12">
+        <h2 class="footer-heading">Grab Tech</h2>
+        <ul class="social-media-list">
+  
+    <li>
+      <a href="https://github.com/grab" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-github fa-lg"></i>
+      </a>
+    </li>
+  
+  
+    <li>
+      <a href="https://www.linkedin.com/company/grabapp" target="_blank" rel="nofollow noreferrer">
+        <i class="fa fa-linkedin fa-lg"></i>
+      </a>
+    </li>
+  
+  <li>
+    <a href="https://engineering.grab.com/feed.xml" target="_blank">
+      <i class="fa fa-rss fa-lg"></i>
+    </a>
+  </li>
+</ul>
+
+        <div>
+          <script src="//platform.linkedin.com/in.js" type="text/javascript"> lang: en_US</script>
+          <script type="IN/FollowCompany" data-id="5382086" data-counter="right"></script>
+        </div>        
+        <br>
+      </div>
+      <div class="col-sm-6 col-xs-12 hiring-section">
+        <h2 class="footer-heading">Join Us</h2>
+        <p class="text">
+          Want to join us in our mission to revolutionize transportation?
+        </p>
+        <a class="btn" href="https://grab.careers" target="_blank">View open positions</a>
+
+      </div>
+    </div>
+    
+  <!-- Google Tag Manager -->
+  <script>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({
+        'gtm.start': new Date().getTime(),
+        event: 'gtm.js'
+      });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src =
+        'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-T3CT72T');
+  </script>
+  <!-- End Google Tag Manager -->
+
+  <!-- Old script 
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    ga('create', 'GTM-T3CT72T', 'auto');
+    ga('send', 'pageview');
+  </script> -->
+<!-- End of olf script -->
+
+
+  </body>
+</html>
