@@ -13,7 +13,7 @@ excerpt: "Grab is moving hundreds of services to Distroless images to cut CVEs b
 
 ## Distroless Adoption at Grab
 
-Grab is migrating from heavy base images to Distroless images to reduce security risks. By limiting each container to the application and its runtime dependencies, we shed non-essential binaries and associated CVEs.
+Grab is migrating from heavy base images to Distroless images to reduce security risks. By limiting each container to the application and its runtime dependencies, we shed non-essential binaries and associated Common Vulnerabilities and Exposures (CVEs).
 
 This migration is more than a compliance mandate; it is a strategic security decision to build a more resilient environment.
 
@@ -21,7 +21,7 @@ This migration is more than a compliance mandate; it is a strategic security dec
 
 ### Distroless Adoption Risk: Runtime Failure
 
-Shifting to Distroless images introduces a critical technical risk: **Runtime Failure.** A service might build perfectly in CI, but fail at the deployment stage due to:
+Shifting to Distroless images introduces a critical technical risk: **Runtime Failure.** A service might build perfectly in Continuous Integration (CI), but fail at the deployment stage due to:
 
 * **Missing Shared Objects** - Binaries might require specific libraries (**.so** files) present in Ubuntu but absent in Distroless.
 * **Implicit Links** - Third-party tools might expect specific system utilities or directory structures.
