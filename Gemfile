@@ -6,4 +6,5 @@ gem 'jekyll-paginate', group: :jekyll_plugins
 gem 'jekyll-redirect-from', group: :jekyll_plugins
 gem 'jgd'
 
+gem 'logger'
 gem "webrick", "~> 1.7"
