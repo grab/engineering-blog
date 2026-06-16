@@ -14,6 +14,18 @@ mobileMenuBtn.addEventListener('click', () => {
 });
 
 $(document).ready(function() {
+  if ($.fn.tooltip) {
+    $('[data-toggle="tooltip"]').tooltip({
+      container: 'body'
+    });
+  }
+
+  if ($.fn.popover) {
+    $('[data-toggle="popover"]').popover({
+      container: 'body'
+    });
+  }
+
   var progressPath = document.querySelector('.progress-wrap path');
   var pathLength = progressPath.getTotalLength();
 
