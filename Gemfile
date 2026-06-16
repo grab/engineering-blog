@@ -7,3 +7,4 @@ gem 'jekyll-redirect-from', group: :jekyll_plugins
 gem 'jgd'
 
 gem "webrick", "~> 1.7"
+gem "logger"
