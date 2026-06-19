@@ -6,9 +6,165 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 19 Jun 2026 01:02:55 +0000</pubDate>
-    <lastBuildDate>Fri, 19 Jun 2026 01:02:55 +0000</lastBuildDate>
+    <pubDate>Fri, 19 Jun 2026 01:20:53 +0000</pubDate>
+    <lastBuildDate>Fri, 19 Jun 2026 01:20:53 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Palana (Part 1): Why Grab built a secure platform for autonomous AI Agents</title>
+        <description>&lt;h2 id=&quot;abstract&quot;&gt;Abstract&lt;/h2&gt;
+
+&lt;p&gt;Artificial intelligence (AI) agents are moving from experiments into everyday engineering workflows. They can read code, call application programming interfaces (APIs), run tests, create merge requests, answer Slack messages, and keep long-running state. That makes them useful, but it also changes the risk model - especially as agents get more autonomous in their use of tools. An agent with network access, credentials, tools, and memory is no longer just a chat interface. It is a workload that can act.&lt;/p&gt;
+
+&lt;p&gt;The more capability we give to the agents, the more valuable they get - but they also get riskier, and maintaining controls and oversight gets more challenging. We need isolated environments, with clear intentional capabilities added rather than just inheriting “everything on your laptop”.&lt;/p&gt;
+
+&lt;p&gt;Palana is Grab’s Kubernetes-native platform for running those workloads safely. It gives each agent an isolated namespace, persistent storage, controlled ingress, proxy-mediated egress, Vault-backed credential injection, large language model (LLM) routing, Git access controls, structured audit logs, and emergency kill switches. It is currently used to run hundreds of agents, including remote development environments, Slack automation, OpenClaw workers, Hermes agents, and other long-running internal systems.&lt;/p&gt;
+
+&lt;p&gt;In this post, we share why we built Palana, what it does, and how its architecture lets teams experiment with autonomous agents without giving up control over identity, secrets, network access, and operational visibility.&lt;/p&gt;
+
+&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;The first wave of AI coding tools lived close to the user: an integrated development environment (IDE) plugin, a chat window, or a command-line assistant running on a developer’s laptop. That model is familiar and easy to adopt, but it has limits. Long-running agents need persistent state. Team workflows need shared access through Slack or web user interfaces (UIs). Security teams need to inspect what an agent is doing, and apply highly granular controls over what an agent can do. Platform teams need a way to stop, resume, update, and audit the workload.&lt;/p&gt;
+
+&lt;p&gt;As usage grew, we started seeing the same question in different forms:&lt;/p&gt;
+
+&lt;p&gt;How do we let agents do useful work inside the company without treating every new agent as a bespoke infrastructure project?&lt;/p&gt;
+
+&lt;p&gt;The answer was not simply to “run agents in containers”. Containers help package the runtime, but they do not answer the harder platform questions:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Which user does this agent act on behalf of?&lt;/li&gt;
+  &lt;li&gt;What credentials can it use?&lt;/li&gt;
+  &lt;li&gt;Can it see another user’s state?&lt;/li&gt;
+  &lt;li&gt;Can it connect directly to the internet?&lt;/li&gt;
+  &lt;li&gt;How do we inspect LLM, Git, and Hypertext Transfer Protocol (HTTP) activity after something goes wrong?&lt;/li&gt;
+  &lt;li&gt;How do we stop an agent quickly without trusting the agent to cooperate?&lt;/li&gt;
+  &lt;li&gt;How do we give teams a self-service experience without handing them cluster-admin access?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Palana is our answer to those questions.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-palana-is&quot;&gt;What Palana is&lt;/h2&gt;
+
+&lt;p&gt;Palana, an in-house proprietary system built by the CyberSecurity team at Grab, is a secure execution substrate for autonomous and semi-autonomous agents. The name comes from a Sanskrit root associated with protection, maintenance, and care. That maps well to the platform’s purpose: Palana is not trying to be the agent’s brain. It is the environment that contains, observes, and sustains the agent while it works.&lt;/p&gt;
+
+&lt;p&gt;At a high level, Palana provides:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A Kubernetes namespace per agent, with role-based access control (RBAC), resource quotas, network policy, and storage scoped to that agent.&lt;/li&gt;
+  &lt;li&gt;A command-line and portal experience for creating, running, stopping, configuring, and inspecting agents.&lt;/li&gt;
+  &lt;li&gt;Persistent &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/data&lt;/code&gt; storage so long-running agents can preserve memory, caches, repositories, and session state across restarts.&lt;/li&gt;
+  &lt;li&gt;Browser and shell access for interactive workloads such as Claude Code UI, OpenCode, IDEs, ttyd, or Secure Shell (SSH)-backed development flows.&lt;/li&gt;
+  &lt;li&gt;LLM access through a LiteLLM wrapper that injects per-agent GrabGPT credentials from Vault.&lt;/li&gt;
+  &lt;li&gt;HTTP and HTTPS egress through an Envoy and ext-authz proxy path, with Open Policy Agent (OPA) policy checks and structured request logs.&lt;/li&gt;
+  &lt;li&gt;Proxy-only secrets, where agents can reference placeholder tokens but cannot read the underlying credentials directly.&lt;/li&gt;
+  &lt;li&gt;Git access through a bastion path so repository operations are attributable and policy-controlled.&lt;/li&gt;
+  &lt;li&gt;Kill switches and idle shutdown so the control plane can isolate or stop workloads from outside the agent process.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This combination lets Palana support several categories of work:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Secure OpenClaw and agent-framework testing.&lt;/li&gt;
+  &lt;li&gt;Cloud development environments accessible from a browser or SSH client.&lt;/li&gt;
+  &lt;li&gt;Fast prototyping and testing for agentic workloads in a secure environment.&lt;/li&gt;
+  &lt;li&gt;Slack-connected agents such as cts-aergia and Claude-to-Slack workflows.&lt;/li&gt;
+  &lt;li&gt;Long-running task agents such as Hermes, Matlock, Butler, and custom team automations.&lt;/li&gt;
+  &lt;li&gt;Higher-order systems where agentic supervisors launch or route work to scoped agents.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;why-we-built-it&quot;&gt;Why we built it&lt;/h2&gt;
+
+&lt;p&gt;The immediate need came from security research. We wanted a place to run and investigate OpenClaw and related agent frameworks without exposing the broader internal network or placing raw credentials inside the agent runtime. That use case forced us to design for containment from the beginning.&lt;/p&gt;
+
+&lt;p&gt;The broader need quickly became developer productivity. Once the basic primitives existed, Palana became useful for remote coding, Slack automation, internal assistants, long-lived experiments, and agentic operational workflows. Grabbers wanted agents that could keep context over days or weeks, run from corporate infrastructure, access approved internal services, and survive laptop sleep, local dependency drift, or network changes.&lt;/p&gt;
+
+&lt;p&gt;The security and productivity goals reinforce each other. &lt;strong&gt;If the safe path is self-service and ergonomic, teams are more likely to use it&lt;/strong&gt;. If the productive path is observable and policy-controlled by default, and the appropriate security is baked into the system automatically, platform teams do not have to retrofit controls after adoption.&lt;/p&gt;
+
+&lt;h2 id=&quot;design-principles&quot;&gt;Design principles&lt;/h2&gt;
+
+&lt;p&gt;Palana’s architecture follows a few principles that shaped most of the implementation.&lt;/p&gt;
+
+&lt;h3 id=&quot;isolation-is-the-unit-of-trust&quot;&gt;Isolation is the unit of trust&lt;/h3&gt;
+
+&lt;p&gt;Each agent gets its own namespace, service account, storage, network policy, and Vault scope. Agents should not see each other’s pods, secrets, or filesystem state by default. Inter-agent communication is possible, but it goes through explicit peering rules rather than ambient pod-to-pod reachability.&lt;/p&gt;
+
+&lt;p&gt;This means the platform does not have to assume every agent framework has perfect multi-tenant isolation internally. A framework designed as a single-user assistant can still be hosted safely by giving each user or worker its own Palana boundary.&lt;/p&gt;
+
+&lt;h3 id=&quot;credentials-are-never-given-to-the-agent&quot;&gt;Credentials are never given to the agent&lt;/h3&gt;
+
+&lt;p&gt;Traditional application hosting often gives credentials to the workload as environment variables or mounted files. That is risky for agent workloads because the agent may execute tools, run untrusted code, summarize files, install packages, or expose a web UI.&lt;/p&gt;
+
+&lt;p&gt;Palana separates two kinds of secrets:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Agent-readable secrets live under the agent’s own Vault path and are available only to that agent’s service account.&lt;/li&gt;
+  &lt;li&gt;Proxy-only secrets are stored under a separate Vault path and are read by the proxy layer, not by the agent.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;For proxy-only secrets, the agent sees a placeholder such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;TOKEN_GITHUB_PAT&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;TOKEN_GRABGPT_API_KEY&lt;/code&gt;. When an outbound request travels through the proxy path, the proxy replaces the placeholder header with the real credential from Vault. The remote service receives a valid token, but the agent process never stores the token in its own environment or config.&lt;/p&gt;
+
+&lt;p&gt;This pattern is especially important for LLMs, source control, API integrations, and browser-like tools where prompt injection or dependency compromise could otherwise expose long-lived credentials.&lt;/p&gt;
+
+&lt;h3 id=&quot;egress-is-a-control-point&quot;&gt;Egress is a control point&lt;/h3&gt;
+
+&lt;p&gt;Agents can be useful only if they can call tools and services. Instead of forbidding network access, Palana makes network access observable and policy-mediated.&lt;/p&gt;
+
+&lt;p&gt;Agent pods receive proxy configuration automatically. External HTTP and HTTPS traffic flows through Envoy. Envoy asks ext-authz-proxy to identify the calling pod, evaluate policy with OPA, log the request, and optionally inject credentials. HTTPS traffic can be terminated by the proxy’s man-in-the-middle (MITM) listener for header inspection and replacement, with the generated certificate authority (CA) distributed to agent pods.&lt;/p&gt;
+
+&lt;p&gt;This gives the platform a place to answer questions that normal Kubernetes networking cannot answer alone:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Which agent made this request?&lt;/li&gt;
+  &lt;li&gt;Which user owns that agent?&lt;/li&gt;
+  &lt;li&gt;Which host and method were requested?&lt;/li&gt;
+  &lt;li&gt;Was the request allowed or denied?&lt;/li&gt;
+  &lt;li&gt;Which placeholder credentials were replaced?&lt;/li&gt;
+  &lt;li&gt;Did the request go to an internal service, an LLM gateway, GitLab, or the public internet?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;the-control-plane-must-stay-outside-the-agent&quot;&gt;The control plane must stay outside the agent&lt;/h3&gt;
+
+&lt;p&gt;Palana assumes an agent might become confused, compromised, or uncooperative. Operational controls therefore live outside the agent process. The operator reconciles namespaces and policies. The proxy controls egress. The portal and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pcli&lt;/code&gt; (Palana command-line interface) manage lifecycle. The kill switch is enforced with network policy. Idle shutdown is handled by a separate reaper CronJob.&lt;/p&gt;
+
+&lt;p&gt;That separation matters. A kill switch that asks the agent to stop is a feature. A kill switch that removes the agent’s network path is a safety control.&lt;/p&gt;
+
+&lt;h3 id=&quot;use-kubernetes-primitives-where-they-fit&quot;&gt;Use Kubernetes primitives where they fit&lt;/h3&gt;
+
+&lt;p&gt;Palana is intentionally Kubernetes-native. Agents are represented by custom resources. The operator reconciles namespaces, RBAC, storage, services, ingress, and network policies. Users can interact through &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pcli&lt;/code&gt; or the portal, while platform engineers can still inspect the underlying Kubernetes objects when debugging.&lt;/p&gt;
+
+&lt;p&gt;This gives us a layered experience: simple workflows for users, direct primitives for advanced operators, and infrastructure-as-code for the deployed platform.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;By centering the design around isolation, controlled egress, and proxy-mediated secrets, Palana provides a secure foundation for AI agents to operate within Grab. In Part 2, we will dive deeper into the under-the-hood architecture of Palana, exploring how it orchestrates agent lifecycles, handles LLM routing, and maintains operational visibility.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 19 Jun 2026 00:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/palana-part-1-secure-platform-for-ai-agents</link>
+        <guid isPermaLink="true">https://engineering.grab.com/palana-part-1-secure-platform-for-ai-agents</guid>
+        
+        <category>Security</category>
+        
+        <category>Artificial Intelligence</category>
+        
+        <category>Kubernetes</category>
+        
+        <category>DevSecOps</category>
+        
+        <category>Platform</category>
+        
+        <category>Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Scaling out Distroless adoption With AI</title>
@@ -2407,78 +2563,6 @@ CLEAN [Cache-Key] [File-Size]-[Access-Timestamp]
         <category>Optimization</category>
         
         <category>Scalability</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Cursor at Grab: Adoption and impact</title>
-        <description>&lt;h2 id=&quot;adoption-overview&quot;&gt;Adoption overview&lt;/h2&gt;
-
-&lt;p&gt;The illustration below encapsulates how Cursor is scaled across Grab, achieving rapid and widespread adoption that accelerated software development and empowered non-technical teams to build solutions.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/cursor-at-grab/cursor-figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: Adoption overview of AI tool Cursor in Grab.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;multi-tool-strategy&quot;&gt;Multi-tool strategy&lt;/h3&gt;
-
-&lt;p&gt;Grab embraces a multi-tool strategy for AI coding assistants. Rather than committing to a single solution, we experiment with multiple tools simultaneously, allowing us to compare outcomes and adopt what works. This approach keeps us flexible in a space that evolves quickly. We covered this philosophy in a &lt;a href=&quot;https://www.grab.com/sg/inside-grab/stories/beyond-one-size-fits-all-why-grab-embraces-multiple-ai-coding-assistants/&quot;&gt;previous post&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;growth&quot;&gt;Growth&lt;/h3&gt;
-
-&lt;p&gt;We introduced Cursor in late 2024 as one of several tools in our AI engineering toolkit. Adoption grew quickly: 98% of Tech Grabbers became monthly active users, and about 75% use it weekly. For comparison, Google’s &lt;a href=&quot;https://services.google.com/fh/files/misc/2025_state_of_ai_assisted_software_development.pdf&quot;&gt;2025 State of AI-Assisted Software Development&lt;/a&gt; report highlights that even among high-performing teams, AI coding tool adoption seldom surpasses 70%. Notably, Cursor’s appeal extended beyond engineering, with non-technical teams incorporating it into their workflows.&lt;/p&gt;
-
-&lt;p&gt;A standout metric is Cursor’s suggestion acceptance rate, which is around 50%, surpassing the industry average of 30%. This indicates two key insights: first, the suggestions are sufficiently relevant for engineers to accept them half of the time; second, engineers maintain a critical review process rather than accepting suggestions indiscriminately. We attribute this relevance to continuous feedback loops and environment-specific tuning, ensuring suggestions remain aligned with Grab’s codebase and conventions.&lt;/p&gt;
-
-&lt;h2 id=&quot;extent-of-adoption&quot;&gt;Extent of adoption&lt;/h2&gt;
-
-&lt;p&gt;Raw adoption figures don’t provide the complete picture. We aimed to determine whether engineers were truly incorporating Cursor into their daily workflows or merely experimenting with it sporadically.&lt;/p&gt;
-
-&lt;p&gt;The data indicates genuine integration. Approximately half of Cursor users engage with it 10 or more consecutive days each month, with some teams achieving full adoption. Over a third of merge requests now incorporate Cursor in some capacity. Engineers actively share tips and workflows via a dedicated Slack channel, fostering an organic knowledge base.&lt;/p&gt;
-
-&lt;p&gt;Across various teams, we’ve observed significant transitions from light usage to moderate and power user levels over the past six months.&lt;/p&gt;
-
-&lt;h2 id=&quot;engineer-utilization-patterns&quot;&gt;Engineer utilization patterns&lt;/h2&gt;
-
-&lt;p&gt;The most common patterns we see are unit test generation, code refactoring, cross-repository navigation, bug fixing, and automation of routine tasks like API scaffolding or commit messages.&lt;/p&gt;
-
-&lt;p&gt;Test generation is particularly popular. Writing tests manually is tedious, and Cursor’s ability to generate and iteratively refine tests has become a standard part of many engineers’ workflows. Cross-repository navigation helps with onboarding and context-switching: engineers can ask Cursor questions about unfamiliar codebases rather than hunting through documentation.&lt;/p&gt;
-
-&lt;p&gt;Qualitative feedback confirms what the adoption numbers suggest: tasks that took a full day to complete now take hours. Engineers report tackling refactors and test additions they would have otherwise skipped due to time pressure. Cursor doesn’t just speed up existing work; it makes previously impractical work feasible.&lt;/p&gt;
-
-&lt;h2 id=&quot;integration-with-grabs-stack&quot;&gt;Integration with Grab’s stack&lt;/h2&gt;
-
-&lt;p&gt;Integrating Cursor effectively at Grab required custom tooling. We built solutions for monorepo indexing to handle Grab’s scale and to distribute preconfigured rules that align Cursor’s suggestions with Grab-specific coding conventions. This integration ensures that Cursor understands our environment rather than offering generic suggestions.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;Cursor is one tool in a broader toolkit. Our multi-tool strategy means we’re also investing in terminal-based workflows and &lt;a href=&quot;https://engineering.grab.com/the-birth-of-grab-gpt&quot;&gt;GrabGPT&lt;/a&gt; for internal knowledge retrieval. Different tools suit different workflows. The aim is to empower users, not to restrict them.&lt;/p&gt;
-
-&lt;p&gt;Beyond engineering, we’re expanding AI-assisted development to new personas. Our AI Upskilling workshops have trained several hundred Grabbers across five countries, including executive committee members and senior leaders who built and deployed their own apps. Non-engineers in Financial Planning and Analysis (FP&amp;amp;A), Operations, and regional teams are now building tools to solve their own pain points.&lt;/p&gt;
-
-&lt;p&gt;Our product design team has launched an initiative empowering designers to directly implement production fixes. Designers have successfully merged hundreds of merge requests, often with same-day turnaround, facilitating quicker iterations on UI fixes without the engineering queue delay. This process requires designers to be trained in Git fundamentals prior to gaining access, with initial reviews conducted by design managers.&lt;/p&gt;
-
-&lt;p&gt;Cursor has become part of daily work at Grab. But adoption is only half the question — the other half is impact. We’ve been running a parallel effort to measure productivity effects rigorously, using fixed-effects regression to isolate Cursor’s contribution from other factors. Early findings show a dose-response relationship: productivity gains scale with usage intensity, and the effects hold up to statistical scrutiny.&lt;/p&gt;
-
-&lt;p&gt;We will address the measurement methodology and present our findings in a subsequent post.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries, Grab enables millions of people everyday to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line – we aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/cursoratgrab1&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 29 Jan 2026 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/cursor-at-grab-adoption-and-impact</link>
-        <guid isPermaLink="true">https://engineering.grab.com/cursor-at-grab-adoption-and-impact</guid>
-        
-        <category>AI</category>
-        
-        <category>Artificial Intelligence</category>
         
         
         <category>Engineering</category>
