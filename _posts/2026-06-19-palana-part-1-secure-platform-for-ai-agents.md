@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-06-22-part-1-palana-for-autonomous-ai-agents
+id: 2026-06-19-part-1-palana-for-autonomous-ai-agents
 title: 'Palana (Part 1): Why Grab built a secure platform for autonomous AI Agents'
-date: 2026-06-22 00:00:00
+date: 2026-06-19 00:00:00
 authors: [kevin.littlejohn]
 categories: [Engineering]
 tags: [Security, Artificial Intelligence, Kubernetes, DevSecOps, Platform, Engineering]
