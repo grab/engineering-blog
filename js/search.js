@@ -1,22 +1,12 @@
-// Code taken from: https://github.com/CloudCannon/bakery-store-jekyll-template
-(function() {
-  function displaySearchResults(results, store) {
-    var CONTENT_MAX_LENGTH = 150;
-    var searchResults = document.getElementById('search-results');
+(function () {
+  'use strict';
 
-    if (results.length) { // Are there any results?
-      var appendString = '';
+  var CONTENT_MAX_LENGTH = 180;
 
-      for (var i = 0; i < results.length; i++) {  // Iterate over the results
-        var item = store[results[i].ref];
-        appendString += '<li class="posts-summary-posts-list-item"><a href="' + item.url + '"><h3>' + item.title + '</h3></a>';
-        appendString += '<p class="post-content">' + item.content.substring(0, CONTENT_MAX_LENGTH) + '...</p></li>';
-      }
-
-      searchResults.innerHTML = appendString;
-    } else {
-      searchResults.innerHTML = '<li>No results found.</li>';
-    }
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   function getQueryVariable(variable) {
@@ -25,42 +15,153 @@
 
     for (var i = 0; i < vars.length; i++) {
       var pair = vars[i].split('=');
-
       if (pair[0] === variable) {
         return decodeURIComponent(pair[1].replace(/\+/g, '%20'));
       }
     }
+
+    return '';
   }
 
-  var searchTerm = getQueryVariable('q');
-
-  if (searchTerm) {
-    var searchBox = document.getElementById('search');
-    if (searchBox) {
-      searchBox.setAttribute('value', searchTerm);
+  function normalizeListField(value) {
+    if (Array.isArray(value)) {
+      return value.join(' ');
     }
 
-    // Initalize lunr with the fields it will be searching on. I've given title
-    // a boost of 10 to indicate matches on this field are more important.
+    return value || '';
+  }
+
+  function buildLunrIndex(store) {
     var idx = lunr(function () {
-      this.field('id');
-      this.field('title', { boost: 10 });
-      this.field('author');
-      this.field('category');
+      this.ref('id');
+      this.field('title', { boost: 12 });
+      this.field('tags', { boost: 8 });
+      this.field('excerpt', { boost: 6 });
+      this.field('author', { boost: 4 });
+      this.field('category', { boost: 4 });
       this.field('content');
     });
 
-    for (var key in window.store) { // Add the data to lunr
+    Object.keys(store).forEach(function (key) {
+      var item = store[key];
       idx.add({
-        'id': key,
-        'title': window.store[key].title,
-        'author': window.store[key].author,
-        'category': window.store[key].category,
-        'content': window.store[key].content
+        id: key,
+        title: item.title || '',
+        tags: normalizeListField(item.tags),
+        excerpt: item.excerpt || '',
+        author: normalizeListField(item.author),
+        category: item.category || '',
+        content: item.content || ''
       });
+    });
 
-      var results = idx.search(searchTerm); // Get lunr to perform a search
-      displaySearchResults(results, window.store); // We'll write this in the next section
-    }
+    return idx;
   }
+
+  function formatTagsHtml(tags) {
+    if (!tags || !tags.length) {
+      return '';
+    }
+
+    return tags.map(function (tag) {
+      return '<span class="search-result-tag">' + escapeHtml(tag) + '</span>';
+    }).join('');
+  }
+
+  function displaySearchResults(results, store, searchTerm) {
+    var searchResults = document.getElementById('search-results');
+    var searchSummary = document.getElementById('search-results-summary');
+    if (!searchResults) {
+      return;
+    }
+
+    if (!results.length) {
+      if (searchSummary) {
+        searchSummary.textContent = 'No results found for “' + searchTerm + '”.';
+      }
+      searchResults.innerHTML = '<li class="search-result-empty">Try different keywords, or use the header search for title matches.</li>';
+      return;
+    }
+
+    if (searchSummary) {
+      var label = results.length === 1 ? 'result' : 'results';
+      searchSummary.textContent = results.length + ' ' + label + ' for “' + searchTerm + '”.';
+    }
+
+    var appendString = '';
+
+    results.forEach(function (result) {
+      var item = store[result.ref];
+      if (!item) {
+        return;
+      }
+
+      var snippet = item.excerpt || item.content || '';
+      if (snippet.length > CONTENT_MAX_LENGTH) {
+        snippet = snippet.substring(0, CONTENT_MAX_LENGTH) + '…';
+      }
+
+      appendString += '<li class="posts-summary-posts-list-item search-result-item">';
+      appendString += '<a href="' + escapeHtml(item.url) + '">';
+      appendString += '<h3>' + escapeHtml(item.title) + '</h3>';
+      appendString += '</a>';
+
+      if (item.date || item.tags) {
+        appendString += '<p class="search-result-meta">';
+        if (item.date) {
+          appendString += '<span class="search-result-date">' + escapeHtml(item.date) + '</span>';
+        }
+        if (item.tags && item.tags.length) {
+          appendString += '<span class="search-result-tags">' + formatTagsHtml(item.tags) + '</span>';
+        }
+        appendString += '</p>';
+      }
+
+      if (snippet) {
+        appendString += '<p class="post-content">' + escapeHtml(snippet) + '</p>';
+      }
+
+      appendString += '</li>';
+    });
+
+    searchResults.innerHTML = appendString;
+  }
+
+  function runSearch(searchTerm) {
+    if (!searchTerm || !window.searchStore) {
+      return;
+    }
+
+    var input = document.getElementById('blog-search-input') || document.getElementById('search-page-input');
+    if (input) {
+      input.value = searchTerm;
+    }
+
+    var idx = buildLunrIndex(window.searchStore);
+    var results = idx.search(searchTerm);
+    displaySearchResults(results, window.searchStore, searchTerm);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var searchTerm = getQueryVariable('q');
+    if (searchTerm) {
+      runSearch(searchTerm);
+    }
+
+    var searchPageForm = document.getElementById('search-page-form');
+    if (searchPageForm) {
+      searchPageForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var pageInput = document.getElementById('search-page-input');
+        var query = pageInput ? pageInput.value.trim() : '';
+        if (!query) {
+          return;
+        }
+
+        var nextUrl = '/search.html?q=' + encodeURIComponent(query);
+        window.history.replaceState({}, '', nextUrl);
+        runSearch(query);
+      });
+    }
+  });
 })();
