@@ -7,7 +7,7 @@ authors: [jie.zhang, abdullah.mamun]
 categories: [Engineering]
 tags: [A/B Testing, Event Processing]
 comments: true
-cover_photo: /img/trident-real-time-event-processing-at-scale/cover.png
+cover_photo: /img/trident-real-time-event-processing-at-scale/cover.jpeg
 excerpt: "Find out where the messages and rewards come from, that arrive on your Grab app. Walk through scaling and processing optimisations that achieve tremendous throughput."
 ---
 

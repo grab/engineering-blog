@@ -7,7 +7,7 @@ authors: [jessica.sean]
 categories: [Engineering]
 tags: [Engineering, Android, Exploration]
 comments: true
-cover_photo: /img/live-activity/live-activity-banner.jpg
+cover_photo: /img/live-activity/live-activity-banner.png
 excerpt: "Unleashing Live Activity feature for iOS. Live Activity is a feature that enhances user experience by displaying a user interface (UI) outside of the app, delivering real-time updates and interactive content. Discover how its was solutionised at Grab."
 ---
 

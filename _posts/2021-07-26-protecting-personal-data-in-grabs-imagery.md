@@ -7,7 +7,7 @@ authors: [sever.popovici, zsolt.vadaszi, adrian.margin, hannes.kruppa]
 categories: [Engineering]
 tags: [Engineering, Machine Learning, Data, Datasets, Data Science]
 comments: true
-cover_photo: /img/protecting-personal-data-in-grabs-imagery/figure-2-sample-blurred-picture.jpg
+cover_photo: /img/protecting-personal-data-in-grabs-imagery/banner.jpg
 excerpt: "Learn how Grab improves privacy protection to cater to various geographical locations."
 ---
 

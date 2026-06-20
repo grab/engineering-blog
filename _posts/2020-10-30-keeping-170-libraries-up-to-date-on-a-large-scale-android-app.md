@@ -7,7 +7,7 @@ authors: [lucas.nelaupe]
 categories: [Engineering]
 tags: [Mobile, Android, Engineering]
 comments: true
-cover_photo: /img/keeping-170-libraries-up-to-date/cover.jpg
+cover_photo: /img/keeping-170-libraries-up-to-date/cover.png
 excerpt: "Learn how we maintain our libraries and prevent defect leaks in our Grab Passenger app."
 ---
 
