@@ -2,7 +2,7 @@
 layout: post
 id: 2026-06-12-scaling-out-distroless-adoption-with-ai
 title: 'Scaling out Distroless adoption With AI'
-date: 2026-06-12 00:00:00
+date: 2026-06-22 00:00:00
 authors: [jiayee.chong, kevin.leejunhong, shikai.ng]
 categories: [Engineering]
 tags: [Security, Containers, Artificial Intelligence, DevSecOps, Engineering]
