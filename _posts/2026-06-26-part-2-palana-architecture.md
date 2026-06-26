@@ -2,7 +2,7 @@
 layout: post
 id: 2026-06-26-part-2-palana-architecture
 title: 'Palana (Part 2): Architecting isolation, identity, and auditability for AI agents'
-date: 2026-06-26 00:00:00
+date: 2026-06-21 00:00:00
 authors: [kevin.littlejohn]
 categories: [Engineering]
 tags: [Security, Artificial Intelligence, Kubernetes, DevSecOps, Platform, Engineering]
