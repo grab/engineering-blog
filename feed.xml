@@ -6,9 +6,193 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 22 Jun 2026 02:46:45 +0000</pubDate>
-    <lastBuildDate>Mon, 22 Jun 2026 02:46:45 +0000</lastBuildDate>
+    <pubDate>Fri, 26 Jun 2026 00:11:34 +0000</pubDate>
+    <lastBuildDate>Fri, 26 Jun 2026 00:11:34 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Palana (Part 2): Architecting isolation, identity, and auditability for AI agents</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;In &lt;a href=&quot;https://engineering.grab.com/part-1-palana-for-autonomous-ai-agents&quot;&gt;Part 1&lt;/a&gt;, we introduced &lt;strong&gt;Palana&lt;/strong&gt;, Grab’s Kubernetes-native secure execution platform for autonomous AI agents. We discussed the underlying need for isolated environments and covered its core design principles: treating isolation as the unit of trust, keeping credentials out of agent hands, and mediating all network access. In this second part, we’ll dive under the hood into Palana’s architecture, look at the agent lifecycle, and share the key lessons we learned from putting this system into production.&lt;/p&gt;
+
+&lt;h2 id=&quot;architecture-overview&quot;&gt;Architecture overview&lt;/h2&gt;
+
+&lt;p&gt;The core request path looks like this:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/palana-part-2/palana-architecture.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Palana architecture overview.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The agent pod runs in a namespace owned by one user and one agent. It gets default-deny style network policy, domain name system (DNS), access to required platform services, and a persistent &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/data&lt;/code&gt; volume. Browser traffic enters through Traefik. LLM traffic goes to the LiteLLM wrapper in the gateway namespace. General Hypertext Transfer Protocol (HTTP) and Hypertext Transfer Protocol Secure (HTTPS) egress goes through the proxy namespace. Secrets are read from Vault only by the component authorized to use them.&lt;/p&gt;
+
+&lt;p&gt;The operator is responsible for turning a user request into the concrete Kubernetes shape:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;The user creates an agent through &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pcli&lt;/code&gt; (Palana command-line interface) or the portal.&lt;/li&gt;
+  &lt;li&gt;Palana writes a UserAgent or Agent custom resource with the raw user identity.&lt;/li&gt;
+  &lt;li&gt;The operator creates the user and agent namespaces, service accounts, role bindings, storage, network policies, and ingress.&lt;/li&gt;
+  &lt;li&gt;The user runs a template or container image.&lt;/li&gt;
+  &lt;li&gt;Admission webhooks inject proxy environment variables and enforce pod-level restrictions.&lt;/li&gt;
+  &lt;li&gt;Logs, policy decisions, and activity signals are emitted to observability systems.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;agent-lifecycle&quot;&gt;Agent lifecycle&lt;/h2&gt;
+
+&lt;p&gt;From a user’s perspective, the basic workflow is intentionally small:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;./pcli login
+./pcli create demo
+./pcli secrets add demo GRABGPT_API_KEY token=&amp;lt;token&amp;gt;
+./pcli run demo --template claudecodeui
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Behind those commands, Palana provisions an isolated execution environment:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Namespace: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;agent-{sanitized-user}-{agent}&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Service account: bound only to that namespace&lt;/li&gt;
+  &lt;li&gt;Storage: an Amazon Elastic File System (EFS)-backed persistent volume claim (PVC) mounted at &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/data&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Ingress: an agent-specific hostname protected by Concedo-backed browser auth&lt;/li&gt;
+  &lt;li&gt;Egress: forced through platform proxies, except for approved internal platform services&lt;/li&gt;
+  &lt;li&gt;Secrets: split between agent-readable and proxy-only Vault paths&lt;/li&gt;
+  &lt;li&gt;Policies: proxy egress, network egress, and optional inter-agent peering rules&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The same lifecycle is exposed in the portal for users who prefer a browser user interface (UI).&lt;/p&gt;
+
+&lt;h2 id=&quot;how-palana-handles-identity&quot;&gt;How Palana handles identity&lt;/h2&gt;
+
+&lt;p&gt;Human authentication uses Concedo OpenID Connect (OIDC). &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pcli login&lt;/code&gt; performs a browser-based authorization code flow with Proof Key for Code Exchange (PKCE) and stores the resulting identity in an isolated kubeconfig. Browser access to agent UIs is protected by OAuth2-Proxy through Traefik forward auth.&lt;/p&gt;
+
+&lt;p&gt;The important detail is that Palana keeps the raw user identity, such as an email address, as the authoritative owner on the custom resource. That raw identity is used for Kubernetes role-based access control (RBAC) subject matching. Sanitized forms are used only where Kubernetes object names, labels, namespaces, or Vault paths require safer strings.&lt;/p&gt;
+
+&lt;p&gt;This split prevents a common class of identity bugs: the display-safe or path-safe version of a user ID should not accidentally become the authorization subject.&lt;/p&gt;
+
+&lt;p&gt;In the future, we will integrate Palana via SPIFFE (Secure Production Identity Framework for Everyone) and SPIRE (SPIFFE Runtime Environment) with the rest of our service mesh, to provide an agentic identity — a combination of user and agent instance id — that can then be controlled as a subset of a user’s capabilities. This gives us a first step into “agents on behalf of users” with cut-down permissions while the wider industry firms up the approaches via Open Authorization (OAuth) and other controls.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-palana-handles-secrets&quot;&gt;How Palana handles secrets&lt;/h2&gt;
+
+&lt;p&gt;Palana’s Vault layout is designed around least privilege:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kv/agents/{user}/{agent}/{secret}
+kv/proxy-secrets/{user}/{agent}/{secret}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The first path is for secrets the agent is allowed to read through its per-agent Vault role. The second path is for credentials the agent can use only through the proxy. For each proxy-only secret, Palana can create an agent-visible placeholder value. The placeholder is inert unless the request goes through the approved proxy path.&lt;/p&gt;
+
+&lt;p&gt;This gives teams a practical migration path. Existing clients can often be configured with a token-looking value, while Palana keeps the real token out of the runtime.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-palana-handles-llm-access&quot;&gt;How Palana handles LLM access&lt;/h2&gt;
+
+&lt;p&gt;LLM calls go through &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;litellm-proxy-wrapper&lt;/code&gt;, which sits in front of LiteLLM and GrabGPT. The wrapper derives agent identity from Kubernetes context rather than trusting client-provided headers. It then looks up the per-agent GrabGPT credential in Vault and forwards the request to the correct upstream route.&lt;/p&gt;
+
+&lt;p&gt;The agent config uses internal base URLs such as:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;http://litellm-proxy.gateway:4000/aws/v1
+http://litellm-proxy.gateway:4000/unified/v1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;That design gives us three useful properties:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Agents do not need raw upstream LLM credentials.&lt;/li&gt;
+  &lt;li&gt;LLM traffic is attributable to a specific agent.&lt;/li&gt;
+  &lt;li&gt;Provider routing and credential handling can evolve centrally.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;how-palana-handles-network-access&quot;&gt;How Palana handles network access&lt;/h2&gt;
+
+&lt;p&gt;Network control is split into two layers.&lt;/p&gt;
+
+&lt;p&gt;At Layer 3 and Layer 4, Kubernetes NetworkPolicy and Cilium enforce which pods can talk to which namespaces, services, and classless inter-domain routing (CIDR) blocks. Agent namespaces are locked down to the platform paths they need: DNS, Vault, the egress proxy, the LLM gateway, and the Kubernetes application programming interface (API) patterns the platform explicitly supports.&lt;/p&gt;
+
+&lt;p&gt;At Layer 7, the proxy policy controls HTTP and HTTPS destinations by host, method, and agent identity. Open Policy Agent (OPA) evaluates per-agent policy. The proxy logs allow and deny decisions in structured form.&lt;/p&gt;
+
+&lt;p&gt;This split is deliberate. NetworkPolicy is good at containment. The proxy is good at application-aware decisions and audit. This allows us to be very expressive in the restrictions we place on our agents — by default, they get nothing; if they should have access to an internal service they get only that service, and cannot be used as an entry point to the wider internal environment.&lt;/p&gt;
+
+&lt;h2 id=&quot;observability-and-operations&quot;&gt;Observability and operations&lt;/h2&gt;
+
+&lt;p&gt;Palana treats observability as part of the safety model, not a nice-to-have. The platform emits structured logs for proxy decisions, Git activity, LLM requests, agent lifecycle, and idle-shutdown decisions. Operators can query activity by namespace, user, host, decision, or component.&lt;/p&gt;
+
+&lt;p&gt;One example is idle shutdown. Long-running agents are useful, but idle workloads consume cluster resources and expand the surface area that platform teams must monitor. Palana’s reaper records the most recent observable activity for each UserAgent. It combines signals from gateway/proxy logs, Git activity, Slack-routed agent messages, and Prometheus network activity. After a configurable idle threshold, it can warn the user and stop the workload while preserving &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/data&lt;/code&gt;, RBAC, namespace, and Vault state.&lt;/p&gt;
+
+&lt;p&gt;This is a good example of the platform philosophy: stop the compute, keep the state, and make resumption easy.&lt;/p&gt;
+
+&lt;p&gt;In addition, as we move into agentic operations, we use the many signals generated by Palana itself to aid our agents. For example, we have an agent that can monitor user workloads and provide advice and assistance if it spots issues — say, an agent is consistently out of memory (OOM), the ops agent can see that and message the user with instructions on how to increase the allocated memory. We don’t need to special-case every possible issue; instead we have agents that understand Palana logs and are able to communicate with the users themselves.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-we-learned&quot;&gt;What we learned&lt;/h2&gt;
+
+&lt;h3 id=&quot;agent-platforms-need-security-controls-at-the-platform-layer&quot;&gt;Agent platforms need security controls at the platform layer&lt;/h3&gt;
+
+&lt;p&gt;Prompt-level guardrails and model policies are useful, but they are not enough. Agents call tools, tools call services, and services use credentials. Palana puts controls where the action crosses a trust boundary: identity, egress, secrets, ingress, Git, and Kubernetes API access.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-user-experience-matters-as-much-as-the-control&quot;&gt;The user experience matters as much as the control&lt;/h3&gt;
+
+&lt;p&gt;If the secure path requires every team to learn Terraform, Vault policy syntax, Kubernetes RBAC, and proxy configuration before they can try an agent, teams will work around it. Palana uses &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pcli&lt;/code&gt;, templates, and the portal to make the safe path the easy path.&lt;/p&gt;
+
+&lt;h3 id=&quot;separating-can-read-a-credential-from-can-cause-a-credentialed-request-is-powerful&quot;&gt;Separating “can read a credential” from “can cause a credentialed request” is powerful&lt;/h3&gt;
+
+&lt;p&gt;Proxy-only secrets are one of the highest-leverage design choices. They let agents perform authenticated work without turning the agent filesystem, logs, process environment, or prompt context into a credential store.&lt;/p&gt;
+
+&lt;h3 id=&quot;a-namespace-boundary-is-simple-but-it-compounds&quot;&gt;A namespace boundary is simple, but it compounds&lt;/h3&gt;
+
+&lt;p&gt;Per-agent namespaces give us a consistent place to apply RBAC, storage, network policy, logging labels, resource quotas, and lifecycle controls. The pattern is easy to reason about during incidents: identify the namespace, identify the owner, inspect the policy, and isolate if needed.&lt;/p&gt;
+
+&lt;h3 id=&quot;long-running-agents-need-lifecycle-management&quot;&gt;Long-running agents need lifecycle management&lt;/h3&gt;
+
+&lt;p&gt;Once agents persist for days or weeks, “run a container” becomes an incomplete product. Users need resume semantics. Operators need idle cleanup. Security teams need audit history. Platform teams need a way to rotate credentials, update images, and stop workloads externally.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;Palana is increasingly becoming a substrate for larger autonomous systems rather than only a place to run individual agents. Emerging patterns include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Supervisor systems that route work to a pool of scoped agents.&lt;/li&gt;
+  &lt;li&gt;Slack-native agents that wake up, handle a task, and scale back down.&lt;/li&gt;
+  &lt;li&gt;Remote development environments backed by persistent cloud state.&lt;/li&gt;
+  &lt;li&gt;Agent swarms where each worker has a separate namespace and credential scope.&lt;/li&gt;
+  &lt;li&gt;Operational agents that investigate platform health and propose or apply small fixes under policy.&lt;/li&gt;
+  &lt;li&gt;Security experiments around supply chain monitoring, token rotation, transport layer security (TLS) inspection, and automated isolation.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;The north star is not “let every agent do anything”&lt;/strong&gt;. It is to make useful autonomy boring to operate: attributable, inspectable, revocable, and recoverable.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;AI agents are most valuable when they can act in real environments. That is also when they become risky. Palana gives Grab a way to keep both sides of that tradeoff in view: teams can move quickly with self-service agent environments, while the platform keeps isolation, identity, secrets, network access, and auditability as defaults.&lt;/p&gt;
+
+&lt;p&gt;We expect the underlying tools and models to keep changing. The platform primitives are more durable. Agents will vary, but they will still need a place to run, a way to authenticate, a boundary around their actions, and a record of what happened.&lt;/p&gt;
+
+&lt;p&gt;That is the role Palana is designed to play.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 26 Jun 2026 00:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/part-2-palana-architecture</link>
+        <guid isPermaLink="true">https://engineering.grab.com/part-2-palana-architecture</guid>
+        
+        <category>Security</category>
+        
+        <category>Artificial Intelligence</category>
+        
+        <category>Kubernetes</category>
+        
+        <category>DevSecOps</category>
+        
+        <category>Platform</category>
+        
+        <category>Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Scaling out Distroless adoption With AI</title>
@@ -2205,364 +2389,6 @@ AI agents operate autonomously in repetitive tasks (context gathering, running q
         <category>AI</category>
         
         <category>Artificial Intelligence</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Reclaiming Terabytes: Optimizing Android image caching with TLRU</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In a previous post, we discussed &lt;a href=&quot;https://engineering.grab.com/project-bonsai&quot;&gt;Project Bonsai&lt;/a&gt;, our initiative to reduce the Grab app’s download size. We successfully reduced the Android Application Package (APK) download size by 26%. This reduction offers a substantial advantage: it minimizes download friction, allowing users to download the app, even on slower networks. However, the battle for storage doesn’t end after installation.&lt;/p&gt;
-
-&lt;p&gt;The Grab app includes a wide range of features and workflows that heavily depend on image content, particularly in services like transportation and e-commerce. Although some images are packaged within the app binary, a large majority are downloaded from Grab’s server at runtime. To optimize the app’s performance and minimize server expenses, the downloaded images are cached in the app’s storage. This reduces both load times and traffic to Grab’s image server, resulting in better user experience and lower costs. Although we use Least Recently Used (LRU) cache to manage storage, many images can remain in the app storage for extended periods, even if they are no longer relevant.&lt;/p&gt;
-
-&lt;p&gt;This blog details how we addressed this challenge in our Grab Android app by evolving our standard LRU cache into a &lt;strong&gt;Time-Aware Least Recently Used (TLRU)&lt;/strong&gt; cache. This evolution allows us to reclaim storage space without compromising user experience or increasing server costs.&lt;/p&gt;
-
-&lt;h2 id=&quot;understanding-lru-cache-limitations&quot;&gt;Understanding LRU cache limitations&lt;/h2&gt;
-
-&lt;p&gt;&lt;em&gt;Note: In this article, when “cache” or “image cache” is mentioned, it specifically refers to &lt;strong&gt;disk cache&lt;/strong&gt;, which is the persistent storage on the device’s file system, rather than in-memory cache.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;The Grab Android app uses the &lt;a href=&quot;https://github.com/bumptech/glide&quot;&gt;Glide library&lt;/a&gt; as its primary image loading framework. Glide provides excellent features for efficient image loading, caching, and display. At its core, by default, Glide uses a cloned version of &lt;a href=&quot;https://github.com/bumptech/glide/blob/master/third_party/disklrucache/src/main/java/com/bumptech/glide/disklrucache/DiskLruCache.java&quot;&gt;Jake Wharton’s DiskLruCache&lt;/a&gt; for disk-based caching.&lt;/p&gt;
-
-&lt;p&gt;To prevent unlimited cache growth, we configured the LRU cache with a maximum size limit of 100 MB. However, our analytics revealed that the 90th percentile (P90) of users were consistently reaching this 100 MB limit, meaning the cache was constantly at capacity. Conversely, for users whose cache hadn’t yet reached the 100 MB threshold, images were never removed, even if they were outdated by several months and no longer relevant.&lt;/p&gt;
-
-&lt;p&gt;Our analysis revealed that image caching was a major contributor to the app’s disk footprint, and without proactive management, this would only worsen as we continued adding features and content to Grab’s superapp.&lt;/p&gt;
-
-&lt;h3 id=&quot;how-disklrucache-works&quot;&gt;How DiskLruCache works&lt;/h3&gt;
-
-&lt;p&gt;The LRU cache algorithm manages storage by maintaining entries in access order and automatically evicting the oldest unused entries when space is needed.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Figure 1 and 2&lt;/strong&gt; illustrates how LRU cache trimming works. These diagrams present an LRU cache with a maximum size of 100 MB containing three cache entries totaling 95 MB. When a new 25 MB cache entry is added, it exceeds the cache’s maximum size.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. A new cache entry is added to an LRU cache that&apos;s near its 100 MB capacity, exceeding the limit.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. The LRU cache automatically trims the least recently used entry to bring the total size back within the 100 MB limit.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;the-challenge&quot;&gt;The challenge&lt;/h2&gt;
-
-&lt;p&gt;While DiskLruCache efficiently manages cache size, it has a critical limitation: It does not account for the age of cached content. Due to the lack of time-based eviction rules, the cache does not remove outdated entries until it exceeds the maximum size. This meant that stale promotional images, images from infrequently used features, and outdated content continued occupying disk space indefinitely, as long as the cache remained under the size limit.&lt;/p&gt;
-
-&lt;p&gt;What we needed was a cache mechanism that could:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Maintain LRU cache benefits&lt;/strong&gt;: Preserve efficient caching for users who actively use the app features.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Remove stale content based on time:&lt;/strong&gt; Automatically identify and evict outdated entries, not just rely on storage constraints.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Protect user experience&lt;/strong&gt;: Ensure images still load quickly without cache misses.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Keep server costs low&lt;/strong&gt;: Avoid increased server requests from premature cache evictions.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These requirements pointed us toward an enhanced LRU approach. We needed to enhance LRU with time awareness while preserving its proven size-management capabilities.&lt;/p&gt;
-
-&lt;h2 id=&quot;tlru-cache-the-solution&quot;&gt;TLRU cache: The solution&lt;/h2&gt;
-
-&lt;p&gt;To address these limitations, we developed a new LRU cache variant named TLRU that extends traditional LRU by introducing time-based eviction while maintaining size-based cache management.&lt;/p&gt;
-
-&lt;h3 id=&quot;core-tlru-attributes&quot;&gt;Core TLRU attributes&lt;/h3&gt;
-
-&lt;p&gt;TLRU introduces three core attributes to manage cache entries:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Time-To-Live (TTL)&lt;/strong&gt;: A threshold that determines when a cache entry is considered expired. An entry is expired if &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(current_time - last_accessed) &amp;gt; TTL&lt;/code&gt;. Expired entries are automatically removed during cache operations.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Minimum cache size threshold&lt;/strong&gt;: A safety net that ensures a baseline set of essential images always remains cached, even when entries expire. This prevents complete cache deletion when users haven’t used the app for more than the TTL period, maintaining app responsiveness for returning users instead of starting with an empty cache.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Maximum cache size&lt;/strong&gt;: Inherited from LRU cache, this enforces the upper storage limit (100 MB in our case). When exceeded, the least recently used entries are evicted regardless of their age.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Together, these attributes ensure TLRU maintains optimal cache size by managing both storage constraints and temporal relevance, reducing app disk footprint without impacting user experience.&lt;/p&gt;
-
-&lt;h3 id=&quot;tlru-cache-trimming-in-action&quot;&gt;TLRU cache trimming in action&lt;/h3&gt;
-
-&lt;p&gt;To better understand how TLRU works in practice, let’s walk through a comprehensive example. The following diagrams demonstrate how the TLRU cache evaluates and trims entries based on both time and size constraints.&lt;/p&gt;
-
-&lt;p&gt;Our TLRU cache configuration includes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Maximum cache size&lt;/strong&gt;: 100 MB - the storage limit that triggers size-based eviction.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Minimum size threshold&lt;/strong&gt;: 20 MB - the safety net that protects essential cached content.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;TTL&lt;/strong&gt;: 20 days - entries older than this are considered expired.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Each cache entry includes &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;last_accessed&lt;/code&gt; metadata containing the timestamp of its most recent access. When an entry is first created, this timestamp is initialized with the creation time. This timestamp determines whether an entry has expired based on the formula:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Entry is expired if: (current_time - last_accessed) &amp;gt; TTL
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;For this walkthrough, we’ll use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_time = Day 100&lt;/code&gt; as our starting point.&lt;/p&gt;
-
-&lt;h4 id=&quot;initial-cache-state-analysis&quot;&gt;Initial cache state analysis&lt;/h4&gt;
-
-&lt;p&gt;Our example begins with three existing cache entries totaling 95 MB, approaching the 100 MB limit:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Item 1&lt;/strong&gt; (8 MB, last accessed Day 82): At 18 days old&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Item 2&lt;/strong&gt; (30 MB, last accessed Day 81): At 19 days old&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Item 3&lt;/strong&gt; (57 MB, last accessed Day 80): At exactly 20 days old, valid at the TTL threshold&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;When a new 10 MB item is added on Day 100, the cache grows to 105 MB, exceeding our 100 MB limit and triggering size-based eviction.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Initial TLRU cache state and the impact of adding new entries.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;size-based-eviction-process&quot;&gt;Size-based eviction process&lt;/h4&gt;
-
-&lt;p&gt;When the cache exceeds its 100 MB limit, TLRU applies traditional LRU eviction logic. &lt;strong&gt;Item 3&lt;/strong&gt; is selected for eviction because:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;It is the least recently used entry (oldest access time).&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;This demonstrates TLRU maintaining LRU behavior for size enforcement, regardless of expiration status.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Size-based eviction removes the least recently used entry to enforce storage limits.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;time-based-eviction-process&quot;&gt;Time-based eviction process&lt;/h4&gt;
-
-&lt;p&gt;Five days later (Day 105), Item 1 and Item 2 cross the expiration threshold:&lt;/p&gt;
-
-&lt;p&gt;Despite operating well below the size limit (48 MB &amp;lt; 100 MB), TLRU evaluates expired entries for time-based eviction. Item 2 is removed because it’s expired, and the cache remains above the minimum threshold. Item 1, although also expired, is protected by the minimum threshold rule; removing it would leave only 10 MB, which falls below the 20 MB minimum.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-5.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Time-based eviction and minimum threshold protection working together.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;tlru-behavior-summary&quot;&gt;TLRU behavior summary&lt;/h4&gt;
-
-&lt;p&gt;This comprehensive example demonstrates TLRU’s three core mechanisms:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Size-based eviction&lt;/strong&gt;: Enforces storage limits using traditional LRU ordering (Item 3 removed despite being valid).&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Time-based eviction&lt;/strong&gt;: Proactively removes expired content when safe to do so (Item 2 removed for age).&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Minimum threshold protection&lt;/strong&gt;: Preserves essential cache functionality even with expired content (Item 1 protected despite expiration).&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;technical-implementation&quot;&gt;Technical implementation&lt;/h2&gt;
-
-&lt;p&gt;Rather than building an image cache from scratch, we recognized that Glide’s bundled &lt;a href=&quot;https://github.com/bumptech/glide/blob/master/third_party/disklrucache/src/main/java/com/bumptech/glide/disklrucache/DiskLruCache.java&quot;&gt;DiskLruCache&lt;/a&gt; (originally from &lt;a href=&quot;https://github.com/JakeWharton/DiskLruCache&quot;&gt;Jake Wharton’s implementation&lt;/a&gt;) already provided a mature, battle-tested foundation. This implementation is widely adopted across the Android ecosystem and handles complex edge cases like crash recovery, thread safety, and performance optimization that would require substantial effort to replicate.&lt;/p&gt;
-
-&lt;p&gt;Our approach was pragmatic, we cloned Glide’s DiskLruCache and extended it to support time-based expiration. This strategy allowed us to inherit the existing reliability while adding the temporal awareness we needed for TLRU.&lt;/p&gt;
-
-&lt;p&gt;To understand our implementation, we’ll first explore how the original DiskLruCache works, then dive into the specific modifications we made to transform it into TLRU.&lt;/p&gt;
-
-&lt;h3 id=&quot;understanding-disklrucache&quot;&gt;Understanding DiskLruCache&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://github.com/bumptech/glide/blob/master/third_party/disklrucache/src/main/java/com/bumptech/glide/disklrucache/DiskLruCache.java&quot;&gt;DiskLruCache&lt;/a&gt; provides a simple cache solution that stores key-value pairs on disk, while also keeping track of their usage to evict the least recently used items when the cache reaches its maximum size. Here is an overview of how DiskLruCache is implemented:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Data storage&lt;/strong&gt;: DiskLruCache stores its data in a specified directory, creating files for each entry.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Key-based access&lt;/strong&gt;: Each entry has a unique key (typically a hash generated by the image loader) used to create the filename of the cached entry.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Atomic writes&lt;/strong&gt;: When adding an entry, it creates a temporary file and writes the data to it. If successful, it atomically renames the temporary file to the final filename.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Cache retrieval&lt;/strong&gt;: When reading from the cache, it looks up the key, opens the corresponding file on disk, and returns an InputStream to read the data.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Size management&lt;/strong&gt;: It maintains a maximum cache size limit. When exceeded, it removes the least recently used items until it is within the specified limit.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The central component that enables this functionality is the journaling mechanism, detailed in the following section.&lt;/p&gt;
-
-&lt;h4 id=&quot;the-journaling-mechanism&quot;&gt;The journaling mechanism&lt;/h4&gt;
-
-&lt;p&gt;The journaling mechanism in DiskLruCache is designed to maintain consistency and prevent data corruption in the cache. The journal file records all cache operations, such as adding, updating, or removing entries. The journaling mechanism is essential in rebuilding the cache metadata during initialization and performing journal compaction to clean up the journal file.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-6.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Example of the journaling mechanism in DiskLruCache.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Journal file format&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;The journal file is a plain text file that records cache operations line by line.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;DIRTY: Indicates the start of a write operation to a cache entry.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;CLEAN: Indicates that a cache entry was successfully written and closed.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;REMOVE: Indicates that a cache entry was removed from the cache.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;READ: Indicates that a cache entry was read.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;To gain a comprehensive understanding of the journal file format, refer to the following detailed explanation.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Key information&lt;/strong&gt;: Each line includes the key and other relevant information, such as the lengths of the cache entry files.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Cache initialization&lt;/strong&gt;: Upon initialization, DiskLruCache reads the journal file to reconstruct cache metadata in memory, determining file associations, lengths, and access order. If the journal file is corrupted or missing, the cache will be considered invalid, and DiskLruCache will remove all cache files and start fresh.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Cache operations and journal updates&lt;/strong&gt;: When performing cache operations like adding, updating, or removing entries, DiskLruCache appends corresponding lines to the journal file, recording the operation details. For example, when starting to write a new cache entry, it writes a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DIRTY&lt;/code&gt; line with the key, and when the write is successful, it appends a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CLEAN&lt;/code&gt; line with the key and lengths.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Synchronization and consistency:&lt;/strong&gt; DiskLruCache uses synchronization to ensure that only one thread can access the cache at a time, preventing race conditions and data corruption. It also uses a journalWriter (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;java.io.Writer&lt;/code&gt;) instance to append operations to the journal file, ensuring that the file is always in a consistent state.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Journal compaction&lt;/strong&gt;: Over time, the journal file may grow with redundant operations. DiskLruCache periodically compacts the journal by creating a new file that contains only the current cache metadata, then atomically replaces the old file. The compaction process usually happens when the journal file size exceeds a certain threshold.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;DiskLruCache ensures consistency and prevents data corruption by using this journaling mechanism, making it a reliable solution for disk-based caching.&lt;/p&gt;
-
-&lt;h3 id=&quot;modifying-disklrucache-for-tlru&quot;&gt;Modifying DiskLruCache for TLRU&lt;/h3&gt;
-
-&lt;p&gt;With a solid understanding of DiskLruCache’s architecture, we can now explore how we extended it to implement the TLRU cache attributes defined earlier.&lt;/p&gt;
-
-&lt;p&gt;Three primary modifications to DiskLruCache:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;#tracking-last-access-time&quot;&gt;Tracking last access time&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;#time-based-eviction-logic&quot;&gt;Time-based eviction logic&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;#backward-compatible-migration&quot;&gt;Backward-compatible migration&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;tracking-last-access-time&quot;&gt;Tracking last access time&lt;/h4&gt;
-
-&lt;p&gt;To support time-based eviction, the cache needs to track when each entry was last accessed. This information m  ust persist across app restarts, so it’s stored in the journal file itself.&lt;/p&gt;
-
-&lt;p&gt;Modified journal format:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;READ [Cache-Key] [Access-Timestamp]
-CLEAN [Cache-Key] [File-Size]-[Access-Timestamp]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The timestamps are added to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;READ&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CLEAN&lt;/code&gt; operations:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;READ&lt;/code&gt; entries record when a cache entry is accessed, updating its last-access time.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CLEAN&lt;/code&gt; entries record the creation time when a new entry is successfully added to the cache.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-7.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Example of a TLRU journal file.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h4 id=&quot;time-based-eviction-logic&quot;&gt;Time-based eviction logic&lt;/h4&gt;
-
-&lt;p&gt;The TLRU cache leverages the existing LRU ordering to optimize expiration checking. For each cache operation, it checks if the least recently accessed entry has expired before proceeding with time-based trimming.&lt;/p&gt;
-
-&lt;p&gt;The diagram below shows how the TLRU cache makes the decision to remove the cache entries.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/image-caching/figure-8.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8. TLRU eviction decision flow - evaluating cache entries based on time expiration and size constraints.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The algorithm leverages the sorted nature of the cache: if the least recently accessed entry hasn’t expired, no other entries need checking. If it has expired, the cache trim operation walks through entries from oldest to newest, removing all expired ones.&lt;/p&gt;
-
-&lt;h4 id=&quot;backward-compatible-migration&quot;&gt;Backward-compatible migration&lt;/h4&gt;
-
-&lt;p&gt;With an extensive user base, invalidating existing cached images would cause millions of users to experience poor performance while creating massive server traffic spikes and infrastructure costs.&lt;/p&gt;
-
-&lt;p&gt;One of the challenges was retrieving last-access timestamps from existing LRU entries, as file system APIs do not offer reliable access time data. Our solution was to set the last-access time of all existing entries to the migration timestamp. This approach preserves all cached content and establishes a consistent baseline, although it necessitates waiting one TTL period to realize the full benefits of eviction.&lt;/p&gt;
-
-&lt;p&gt;We also ensured bidirectional compatibility - the original LRU implementation can read TLRU journal files by ignoring timestamp suffixes, enabling safe rollbacks if needed.&lt;/p&gt;
-
-&lt;p&gt;Upon completing our TLRU implementation, we focused on determining optimal values for the three core attributes: &lt;strong&gt;TTL duration&lt;/strong&gt;, &lt;strong&gt;minimum threshold&lt;/strong&gt;, and &lt;strong&gt;maximum cache size&lt;/strong&gt;. These parameters are crucial for balancing storage optimization and cache performance, requiring careful tuning based on real user behavior.&lt;/p&gt;
-
-&lt;h2 id=&quot;finding-optimal-configuration-values&quot;&gt;Finding optimal configuration values&lt;/h2&gt;
-
-&lt;p&gt;Finding optimal configuration values requires systematic experimentation and data-driven decision-making. Controlled experiments to compare the cache hit ratio with baseline LRU performance must be conducted.&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Note: Cache hit ratio, our key success metric, gauges efficiency by the percentage of requests served from cache versus requiring server downloads. Lower ratios lead to higher server costs and increased user data consumption.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;Our success criteria is for a cache hit ratio decrease of no more than 3 percentage points (pp) during the transition to TLRU. For instance, a decrease from 59% to 56% hit ratio would result in 7% increase in server requests. This threshold balances storage optimization with acceptable performance impact.&lt;/p&gt;
-
-&lt;p&gt;To mitigate potential server cost impact from our maximum acceptable 3 pp cache hit ratio drop, we worked with the server team to optimize image delivery infrastructure, enabling a confident TLRU rollout without infrastructure cost concerns.&lt;/p&gt;
-
-&lt;h2 id=&quot;impact-and-results&quot;&gt;Impact and results&lt;/h2&gt;
-
-&lt;p&gt;After fully rolling out TLRU to production, we significantly optimized storage while preserving user experience. Post-implementation stabilization, the P95 total app size reduced by approximately 50 MB. This meant that 95% of our users experienced storage reduction up to 50 MB, with the top 5% seeing even greater savings.&lt;/p&gt;
-
-&lt;p&gt;With over 100 million downloads of the Grab Android app, even conservative estimates show terabytes of storage reclaimed across all user devices worldwide. This translates to better device performance, especially on low-end devices, and improved user satisfaction.&lt;/p&gt;
-
-&lt;p&gt;Critically, we maintained our success criteria: cache hit ratio stayed within target thresholds (no more than 3 pp decrease), with no increase in infrastructure costs. The seamless migration preserved all existing cache data without disruption.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;At Grab, we believe that every byte matters. Our users trust us with their device storage, and we take that responsibility seriously. The TLRU implementation exemplifies our commitment to user experience. We don’t just build features, we optimize them to ensure our app respects our users’ devices. The petabytes of storage reclaimed across millions of devices aren’t just a technical achievement; it’s a reflection of our dedication to creating a lighter, faster, more respectful mobile experience.&lt;/p&gt;
-
-&lt;p&gt;The implementation demonstrates that meaningful improvements can be achieved through thoughtful modifications to existing, well-tested libraries. Our focus on backward compatibility and safe migration ensured zero disruption for Grab’s users, proving that user experience and technical innovation can coexist.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join Us&lt;/h2&gt;
-
-&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebtlru&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 06 Mar 2026 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru</link>
-        <guid isPermaLink="true">https://engineering.grab.com/reclaiming-tetabytes-optimizing-android-image-caching-with-tlru</guid>
-        
-        <category>App Disk</category>
-        
-        <category>Disk Size</category>
-        
-        <category>Optimization</category>
-        
-        <category>Scalability</category>
         
         
         <category>Engineering</category>
