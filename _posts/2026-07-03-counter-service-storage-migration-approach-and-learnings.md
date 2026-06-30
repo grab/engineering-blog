@@ -17,11 +17,11 @@ excerpt: "Counter Service powers real-time fraud detection at massive scale, han
 
 For most of its life, Counter Service was backed by a wide-column database that served the workload reliably as the service scaled. As part of a broader infrastructure review mandated at an organizational level, our database team evaluated alternatives to this storage that many services relied on, including Counter Service. Based on their assessment, Aerospike emerged as a good fit for our use-case. We also used the migration as an opportunity to decouple storage concerns from business logic, a necessary first step for this migration, and one that would reduce the effort required for future storage changes. As part of the same effort, we revisited the data model and access patterns in detail, which helped us identify and apply several straightforward optimizations.
 
-This post walks through how we did it: what we built on the reader side to make the migration safe, how we redesigned the writer-side data model around the new backend, and what we ran into during the gradual rollout.
+This post walks through how we did it. What we built on the reader-side to make the migration safe, how we redesigned the writer-side data model around the new backend, and what we ran into during the gradual rollout.
 
 ## Setting the stage
 
-Counter data is stored in three time granularities: 15-minute, hourly, and daily buckets. A typical read is something like give me the count for key X over the last 90 minutes, which the service decomposes into the smallest possible set of buckets - one hourly in the middle, a few 15-minute buckets at the edges, fetches them, and sums.
+Counter data is stored in three time granularities: 15-minute, hourly, and daily buckets. A typical read would be along the lines of, "give me the count for key X over the last 90 minutes", which the service decomposes into the smallest possible set of buckets, one hourly in the middle, a few 15-minute buckets at the edges, fetches them, and sums.
 
 In the original setup, each granularity was stored in a separate table with a composite primary key:
 
@@ -34,7 +34,7 @@ TABLE daily_count (
 );
 ```
 
-The clustering column gave us convenient range queries, which is what we need for the Counter Service. On the write path, each incoming counter event triggered a read-modify-write, three parallel `SELECT` across the three tables, an in-memory increment, then a batch write. This produced four network round-trips per event.
+The clustering column gave us convenient range queries, that is needed for the Counter Service. On the write path, each incoming counter event triggered a read-modify-write, three parallel `SELECT` across the three tables, an in-memory increment, then a batch write. This produced four network round-trips per event.
 
 As this service is a core part of Grab's fraud detection ecosystem and handles high query volume, migrating its underlying storage required a careful rollout plan. We had three requirements:
 
@@ -42,13 +42,15 @@ As this service is a core part of Grab's fraud detection ecosystem and handles h
 - Monitor both the original and new storage paths to verify data integrity before switching over.
 - Complete the migration without downtime.
 
-We also wanted the migration machinery to be reusable for future storage changes.
+We also wanted the migration machinery to be reusable for future storage changes. The migration is divided into three workstreams, which we’ll walk through below:
 
-We break down the migration into three workstreams: preparing the reader service, identifying the best integration mechanism for the new storage, and updating the writer pipeline. We'll walk through each.
+- Preparing the reader service.
+- Identifying the best integration mechanism for the new storage.
+- Updating the writer pipeline.
 
 ## Reader: Separating the data access layer
 
-The reader is a Rust service. Before any of the migration work started, the reader's business logic had tight coupling with the storage layer. Session creation, query building, fan-out orchestration, and the data types those queries returned were all intertwined in a single flat file. The main application state struct (AppState) held a raw database session handle and prepared query references. Every handler, gRPC Remote Procedure Calls (gRPC) or HyperText Transfer Protocol (HTTP), received the bare session as a parameter. Variable names baked the storage technology into the business layer.
+The reader is a Rust service. Before any migration work began, the reader's business logic had tight coupling with the storage layer. Session creation, query building, fan-out orchestration, and the data types those queries returned were all intertwined in a single flat file. The main application state struct (AppState) held a raw database session handle and prepared query references. Every handler, gRPC Remote Procedure Calls (gRPC) or HyperText Transfer Protocol (HTTP), received the bare session as a parameter. Variable names baked the storage technology into the business layer.
 
 This made the storage migration difficult to attempt directly. We couldn't add a second storage backend without forking the orchestration logic, and we had no way to test the read path in isolation from a real database session. So we did the migration prep in three stages.
 
@@ -104,11 +106,11 @@ The mode and traffic percentages are read from a service config, allowing the re
 
 Each storage call carries metadata like backend, role (primary/secondary/shadow), and mode, attached as tags to every metric. When Aerospike was added, existing dashboards showed per-backend breakdowns without changes.
 
-We placed the mode dispatch at the handler level rather than inside the storage layer because we wanted to validate the full request path, not only the rows returned by storage. This also lets the response return as soon as the primary completes, while the shadow runs as a fire-and-forget background task.
+We placed the mode dispatch at the handler level rather than inside the storage layer to validate the full request path, not only the rows returned by storage. This also lets the response return as soon as the primary completes, while the shadow runs as a fire-and-forget background task.
 
 ## Writer: redesigning the data model
 
-The two systems have different storage engines, so it was not obvious that a one-to-one port of our original schema would work. We tried three approaches.
+Since the two systems use different storage engines, it wasn’t clear that a one-to-one port of our original schema would work. We tried three approaches.
 
 ### Approaches 1 and 2: Row-per-bucket
 
@@ -134,7 +136,7 @@ Bins:
 
 The map keys are bucket timestamps in milliseconds. The map values are running counts. One record holds the entire time series for one counter at one granularity.
 
-Reads become straightforward: fetch the record, iterate the map, sum the entries within the requested window. Each Get returns a bounded number of map entries (determined by Time To Live (TTL) + bucket size), and client-side filtering of that many entries is negligible.
+Reads become straightforward: fetch the record, iterate the map, sum the entries within the requested window. Each Get returns a bounded number of map entries (determined by Time To Live (TTL) and bucket size), and client-side filtering of that many entries is negligible.
 
 Writes use `MapIncrementOp`, an atomic server-side increment of a value at a given map key, creating the entry on first access. Combined with `MapRemoveByKeyRangeOp` for pruning stale entries, every write is one atomic operation:
 
@@ -165,19 +167,19 @@ The two storage backends sit behind the same `execute_queries` contract on the r
 </div>
 
 
-The reader takes a batch of counter queries and decomposes each into one or more sub-queries per granularity (a 90-minute window, for instance, becomes one hourly sub-query and two 15-minute sub-queries). On the original backend, each sub-query becomes its own prepared statement bound with `(start_ms, end_ms, key)`, and the storage layer fires all of them concurrently as a stream of futures with `buffer_unordered` capping in-flight queries to a tuned bound. Each query returns a paginated row iterator, the server uses the clustering column to filter by time range and rows stream through to per-index channels as they arrive. So a single user request can produce many small queries, each a separate network round-trip to the partition master holding key, with results dribbled back over a paginated stream.
+The reader takes a batch of counter queries and decomposes each into one or more sub-queries per granularity (a 90-minute window for instance, becomes one hourly sub-query and two 15-minute sub-queries). In the original backend, each sub-query becomes its own prepared statement bound with `(start_ms, end_ms, key)`, and the storage layer fires all of them concurrently as a stream of futures with `buffer_unordered` capping in-flight queries to a tuned bound. Each query returns a paginated row iterator, the server uses the clustering column to filter by time range and rows stream through to per-index channels as they arrive. So a single user request can produce many small queries, each a separate network round-trip to the partition master holding key, with results dribbled back over a paginated stream.
 
 On Aerospike, the storage layer first groups all sub-queries by granularity, then issues one `BatchOperate` per granularity. Each sub-query becomes a single primary-key read against the appropriate set; the server returns the entire counts map for that key in one record. The client iterates the map and emits only the entries whose timestamps fall inside the requested range. This keeps the code simple, and at our map sizes the overhead is negligible. There's no streaming, a batch read either succeeds or fails as a unit and there are at most three network round-trips per user request, one per granularity, regardless of how many sub-queries there are.
 
 This reflects the different design philosophies of the two systems. Wide-column stores typically expect client-side fan-out for reads, while Aerospike's batch API is designed for exactly this multi-key pattern.
 
-A few issues with the Aerospike Rust client also surfaced during rollout, as it was less mature than its Go counterpart for example. When we started, the officially available Rust client was synchronous, so every batch read had to be bridged through `tokio::task::spawn_blocking` with some amount of custom plumbing. Once the official async client was released, we removed that layer and saw measurable improvements in both p50 and p99 latency. The other issue was around DNS. The client resolved seed hostnames only during initialization and did not re-resolve them when the cluster topology refreshed. As a result, a full staging cluster replacement, with new IPs behind the same hostnames, left the client stuck on the old IPs until restart. We filed the bug upstream, and a fix shipped in a subsequent release. We also reproduced the scenario locally with a Docker-based end-to-end test and ran additional staging drills to confirm recovery before continuing the rollout.
+A few issues with the Aerospike Rust client also surfaced during rollout, as it was less mature than its Go counterpart. For example, when we started, the officially available Rust client was synchronous, so every batch read had to be bridged through `tokio::task::spawn_blocking` with some amount of custom plumbing. Once the official async client was released, we removed that layer and saw measurable improvements in both p50 and p99 latency. The other issue was Domain Name System (DNS). The client resolved seed hostnames only during initialization and did not re-resolve them when the cluster topology refreshed. As a result, a full staging cluster replacement, with new IPs behind the same hostnames, left the client stuck on the old IPs until restart. We filed the bug upstream, and a fix shipped in a subsequent release. We also reproduced the scenario locally with a Docker-based end-to-end test and ran additional staging drills to confirm recovery before continuing the rollout.
 
 ## Experiment with indexing
 
-We run Aerospike in its default storage configuration, Hybrid Memory Architecture (HMA), where the primary index sits in RAM and the data sits on Solid-State Drive (SSD). The other relevant mode keeps both index and data in Dynamic Random-Access Memory (DRAM), which is more expensive and not something that fits our use-case. Even in HMA, the primary index grows linearly with record count. At our scale, that growth was a foreseeable issue.
+We run Aerospike in its default storage configuration, Hybrid Memory Architecture (HMA), where the primary index sits in Random-Access Memory (RAM) and the data sits on Solid-State Drive (SSD). The other relevant mode keeps both index and data in Dynamic Random-Access Memory (DRAM), which is more expensive and not something that fits our use-case. Even in HMA, the primary index grows linearly with record count. At our scale, that growth was a foreseeable issue.
 
-To raise the memory ceiling, we tried moving the primary index itself from Random-Access Memory (RAM) to local Non-Volatile Memory Express (NVMe) while keeping data on SSD. We expected the extra index latency to be invisible within our overall request budget. In practice, we started seeing p99 spikes that did not track overall QPS. Instead, they followed I/O activity on hot keys. We observed that when many concurrent lookups land on the same record, the in-memory index handles them more prudently compared to a disk backed index. Adding more and better nodes improved things slightly but did not mitigate the issue. Consequently, we reverted back to in-memory index with a memory-optimized instance type.
+To raise the memory ceiling, we tried moving the primary index itself from RAM to local Non-Volatile Memory Express (NVMe) while keeping data on SSD. We expected the extra index latency to be invisible within our overall request budget. In practice, we started seeing p99 spikes that did not track overall QPS. Instead, they followed I/O activity on hot keys. We observed that when many concurrent lookups land on the same record, the in-memory index handles them more prudently compared to a disk backed index. Adding more and better nodes improved things slightly but did not mitigate the issue. Consequently, we reverted back to in-memory index with a memory-optimized instance type.
 
 ## Overall impact
 
