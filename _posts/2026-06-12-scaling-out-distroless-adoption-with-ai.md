@@ -42,14 +42,14 @@ As we perform changes to the Dockerfile definition of our services, it is import
 At Grab, we categorize our test suites into 3 main sizes: small, medium and large. Small tests refer to functional tests whereby mocks are introduced via dependency injection. Large tests refer to end-to-end tests that run on actual services in our staging environment where nothing is mocked.
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-1.png" alt="Architecture Diagram of a Medium Test Environment." style="width:70%"><figcaption align="middle">Figure 1: Architecture Diagram of a Medium Test Environment</figcaption>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-1.png" alt="Architecture Diagram of a Medium Test Environment." style="width:70%"><figcaption align="middle">Figure 1: Architecture diagram of a medium test environment</figcaption>
   </figure>
 </div>
 
 Medium tests sit between the small and large tests. External dependencies (such as service-to-service dependencies) are mocked with a network proxy layer similar to [WireMock](https://wiremock.org/), while internal dependencies like MySQL are left unmocked and are started instead with [Testcontainers](https://testcontainers.com/). The system under test is built into a Docker image, run as a container, and exercised through its endpoints; the tests then assert on the responses. That setup lets us catch Dockerfile changes that would break the service in production. A further benefit is that the whole flow can run inside Continuous Integration (CI) so that problems surface before anything reaches Continuous Deployment (CD).
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-2.png" alt="Happy Path for Distroless Changes." style="width:80%"><figcaption align="middle">Figure 2: Happy Path for Distroless Changes</figcaption>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-2.png" alt="Happy Path for Distroless Changes." style="width:80%"><figcaption align="middle">Figure 2: Happy path for Distroless changes</figcaption>
   </figure>
 </div>
 
@@ -64,7 +64,7 @@ This makes medium tests effective and efficient for testing changes to the servi
 The above methodology works well for services that already have medium tests. However, we soon ran into a blocker when rolling it out to services that do not yet have a medium test setup. Inherently, scaffolding medium tests for a service is a tedious task. Most of the toil comes from first identifying internal dependencies, then bringing up the corresponding test containers during tests, and then connecting those dependencies to the service under test by updating the test environment configuration.
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-3.png" alt="Current Gap." style="width:80%"><figcaption align="middle">Figure 3: Current Gap</figcaption>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-3.png" alt="Current Gap." style="width:80%"><figcaption align="middle">Figure 3: Current gap</figcaption>
   </figure>
 </div>
 
@@ -75,7 +75,7 @@ Since each step needs flexible execution and is only moderately complex, artific
 ## AI: The toil buster
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-4.png" alt="Solution Leveraging AI." style="width:70%"><figcaption align="middle">Figure 4: Solution Leveraging AI</figcaption>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-4.png" alt="Solution Leveraging AI." style="width:70%"><figcaption align="middle">Figure 4: Solution leveraging AI</figcaption>
   </figure>
 </div>
 
@@ -92,7 +92,7 @@ By then, the real shift was turning "can do the task" into "can repeat the behav
 Next, DevSecOps wrapped those skills into an **Entrypoint Skill**, an orchestrator that runs a **multi-phase** workflow across services. The result is a single agent loop that moves from candidate detection to scaffolding, fixing failures, and CI verification, without treating each service as a brand-new, one-off problem.
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-5.png" alt="Workflow Overview for Medium Test Generation." style="width:70%"><figcaption align="middle">Figure 5: Workflow Overview for Medium Test Generation</figcaption>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-5.png" alt="Workflow Overview for Medium Test Generation." style="width:70%"><figcaption align="middle">Figure 5: Workflow overview for medium test generation</figcaption>
   </figure>
 </div>
 
@@ -124,7 +124,7 @@ With medium tests in place across our service fleet, we had the safety net we ne
 ## The Patch-Test-Compare loop
 
 <div class="post-image-section"><figure>
-  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-6.png" alt="The Patch-Test-Compare Loop." style="width:70%"><figcaption align="middle">Figure 6: The Patch-Test-Compare Loop</figcaption>
+  <img src="/img/scaling-out-distroless-adoption-with-ai/mammoth-image-6.png" alt="The Patch-Test-Compare Loop." style="width:70%"><figcaption align="middle">Figure 6: The patch-test-compare loop</figcaption>
   </figure>
 </div>
 
