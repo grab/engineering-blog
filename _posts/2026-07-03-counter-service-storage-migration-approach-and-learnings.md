@@ -3,7 +3,7 @@ layout: post
 id: 2026-07-03-counter-service-storage-migration-approach-and-learnings
 title: 'Migrating Counter Service storage: Design choices and learnings'
 date: 2026-07-03 00:00:00
-authors: [riyadh.sharif, runze.cui, jialong.loh, yuanzhe.liu]
+authors: [jialong.loh, riyadh.sharif, runze.cui, yuanzhe.liu]
 categories: [Engineering]
 tags: [Security, Artificial Intelligence, Kubernetes, DevSecOps, Platform, Engineering]
 comments: true
