@@ -6,9 +6,225 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 02 Jul 2026 03:26:49 +0000</pubDate>
-    <lastBuildDate>Thu, 02 Jul 2026 03:26:49 +0000</lastBuildDate>
+    <pubDate>Fri, 03 Jul 2026 01:05:13 +0000</pubDate>
+    <lastBuildDate>Fri, 03 Jul 2026 01:05:13 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Migrating Counter Service storage: Design choices and learnings</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully&quot;&gt;Counter Service&lt;/a&gt; is used across Grab’s anti-fraud platform to answer time-windowed count questions, such as recent ride requests by a user or failed payment attempts on a card. The service handles tens of thousands of queries per second (QPS) with about a billion requests per day, while maintaining strict requirements around latency and reliability to support real-time fraud rule evaluation.&lt;/p&gt;
+
+&lt;p&gt;For most of its life, Counter Service was backed by a wide-column database that served the workload reliably as the service scaled. As part of a broader infrastructure review mandated at an organizational level, our database team evaluated alternatives to this storage that many services relied on, including Counter Service. Based on their assessment, Aerospike emerged as a good fit for our use-case. We also used the migration as an opportunity to decouple storage concerns from business logic, a necessary first step for this migration, and one that would reduce the effort required for future storage changes. As part of the same effort, we revisited the data model and access patterns in detail, which helped us identify and apply several straightforward optimizations.&lt;/p&gt;
+
+&lt;p&gt;This post walks through how we did it. What we built on the reader-side to make the migration safe, how we redesigned the writer-side data model around the new backend, and what we ran into during the gradual rollout.&lt;/p&gt;
+
+&lt;h2 id=&quot;setting-the-stage&quot;&gt;Setting the stage&lt;/h2&gt;
+
+&lt;p&gt;Counter data is stored in three time granularities: 15-minute, hourly, and daily buckets. A typical read would be along the lines of, “give me the count for key X over the last 90 minutes”, which the service decomposes into the smallest possible set of buckets, one hourly in the middle, a few 15-minute buckets at the edges, fetches them, and sums.&lt;/p&gt;
+
+&lt;p&gt;In the original setup, each granularity was stored in a separate table with a composite primary key:&lt;/p&gt;
+
+&lt;div class=&quot;language-sql highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;TABLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;daily_count&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;      &lt;span class=&quot;nb&quot;&gt;TEXT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;         &lt;span class=&quot;c1&quot;&gt;-- partition key&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;day_ts&lt;/span&gt;   &lt;span class=&quot;nb&quot;&gt;TIMESTAMP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;c1&quot;&gt;-- clustering key&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;count&lt;/span&gt;    &lt;span class=&quot;nb&quot;&gt;BIGINT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;PRIMARY&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;KEY&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;day_ts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The clustering column gave us convenient range queries, that is needed for the Counter Service. On the write path, each incoming counter event triggered a read-modify-write, three parallel &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT&lt;/code&gt; across the three tables, an in-memory increment, then a batch write. This produced four network round-trips per event.&lt;/p&gt;
+
+&lt;p&gt;As this service is a core part of Grab’s fraud detection ecosystem and handles high query volume, migrating its underlying storage required a careful rollout plan. We had three requirements:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Ramp traffic to the new backend gradually and roll back at any point with a config change.&lt;/li&gt;
+  &lt;li&gt;Monitor both the original and new storage paths to verify data integrity before switching over.&lt;/li&gt;
+  &lt;li&gt;Complete the migration without downtime.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We also wanted the migration machinery to be reusable for future storage changes. The migration is divided into three workstreams, which we’ll walk through below:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Preparing the reader service.&lt;/li&gt;
+  &lt;li&gt;Identifying the best integration mechanism for the new storage.&lt;/li&gt;
+  &lt;li&gt;Updating the writer pipeline.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;reader-separating-the-data-access-layer&quot;&gt;Reader: Separating the data access layer&lt;/h2&gt;
+
+&lt;p&gt;The reader is a Rust service. Before any migration work began, the reader’s business logic had tight coupling with the storage layer. Session creation, query building, fan-out orchestration, and the data types those queries returned were all intertwined in a single flat file. The main application state struct (AppState) held a raw database session handle and prepared query references. Every handler, gRPC Remote Procedure Calls (gRPC) or HyperText Transfer Protocol (HTTP), received the bare session as a parameter. Variable names baked the storage technology into the business layer.&lt;/p&gt;
+
+&lt;p&gt;This made the storage migration difficult to attempt directly. We couldn’t add a second storage backend without forking the orchestration logic, and we had no way to test the read path in isolation from a real database session. So we did the migration prep in three stages.&lt;/p&gt;
+
+&lt;h3 id=&quot;stage-1-extracting-the-storage-code&quot;&gt;Stage 1: Extracting the storage code&lt;/h3&gt;
+
+&lt;p&gt;The first stage shipped no behavioural change. We deleted the monolithic storage file and split its contents in two:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;storage/legacy.rs&lt;/code&gt;: wrapped session creation, prepared statements, and query execution behind a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LegacyStorage&lt;/code&gt; struct.&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;batch_read_ops.rs&lt;/code&gt;: kept only the orchestration logic: time-range splitting, channel-based fan-out, and aggregation.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;AppState&lt;/code&gt; started holding an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Arc&amp;lt;LegacyStorage&amp;gt;&lt;/code&gt; instead of a raw session handle. The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PreparedQueries&lt;/code&gt; struct lost its statements (those moved inside &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LegacyStorage&lt;/code&gt;). We renamed every storage-specific identifier in business code to generic &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;storage_*&lt;/code&gt; names.&lt;/p&gt;
+
+&lt;p&gt;The result was a hard fence. After Stage 1, the database driver crate was reachable only from inside the storage module. Nothing in the business logic or handlers imported it any more.&lt;/p&gt;
+
+&lt;h3 id=&quot;stage-2-the-storage-facade&quot;&gt;Stage 2: The storage facade&lt;/h3&gt;
+
+&lt;p&gt;With the seam in place, we introduced the actual abstraction. A new &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;storage/&lt;/code&gt; module with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mod.rs&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;legacy.rs&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;aerospike.rs&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mock_storage.rs&lt;/code&gt; as siblings became the only place driver crates were reachable from.&lt;/p&gt;
+
+&lt;p&gt;The idiomatic Rust approach would have been a trait with associated types, but our backend selection is runtime (a config string parsed at startup), and associated types propagate upwards through every consumer. The alternative, trait objects with boxed futures adds a heap allocation per query, which we wanted to avoid at our QPS.&lt;/p&gt;
+
+&lt;p&gt;We chose a concrete facade with enum dispatch:&lt;/p&gt;
+
+&lt;div class=&quot;language-rust highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Storage&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;legacy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;LegacyStorage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;aerospike&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AerospikeStorage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;mock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;MockStorage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;settings&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;StorageSettings&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;nf&quot;&gt;execute_queries&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;backend&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BackendType&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;match&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;backend&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;Legacy&lt;/span&gt;    &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;py&quot;&gt;.legacy&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.execute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;Aerospike&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;py&quot;&gt;.aerospike&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.execute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;Mock&lt;/span&gt;      &lt;span class=&quot;k&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;py&quot;&gt;.mock&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;.execute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;A match statement at the request boundary, which made it easier to reason about and debug. The facade then routes everything to the original backend without the rest of the code knowing or caring.&lt;/p&gt;
+
+&lt;p&gt;Each backend’s &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;execute_queries&lt;/code&gt; honours the same contract: take a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Vec&amp;lt;QueryCandidate&amp;gt;&lt;/code&gt; and a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;HashMap&amp;lt;BatchIndex, Sender&amp;lt;...&amp;gt;&amp;gt;&lt;/code&gt;, and emit &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(index, value, timestamp, granularity)&lt;/code&gt; tuples into those channels. The orchestration layer above doesn’t need to know whether a candidate became a paginated row stream or a single batch read with client-side map filtering, both write into the same channels in the same shape.&lt;/p&gt;
+
+&lt;p&gt;On top of the facade we layered three config-driven operating modes that map to the migration phases:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Single&lt;/strong&gt;: one backend serves the request.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;WithShadow&lt;/strong&gt;: the primary serves the response; the secondary runs asynchronously in the background for parity comparison.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;WithSplit&lt;/strong&gt;: a deterministic percentage of traffic is served by each backend. Used for the live cutover.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The mode and traffic percentages are read from a service config, allowing the reader to move from legacy-only to Aerospike-only without code changes. The transition starts in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Single(legacy)&lt;/code&gt;, then shadow reads are enabled with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;WithShadow(primary=legacy, secondary=aerospike, pct=X)&lt;/code&gt;. The shadow percentage is gradually ramped from 5% to 20%, 50%, and finally 100%, while parity is verified through metrics. Optionally, the system can then move into &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;WithSplit(primary=legacy, secondary=aerospike, split=X)&lt;/code&gt;, where live traffic is gradually shifted from the original backend to Aerospike, for example from 5% to 30%, 70%, and then 100%. Once Aerospike is fully validated and serving all traffic, the reader moves to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Single(aerospike)&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;stage-3-shadow-comparison-and-metrics&quot;&gt;Stage 3: Shadow comparison and metrics&lt;/h3&gt;
+
+&lt;p&gt;Each storage call carries metadata like backend, role (primary/secondary/shadow), and mode, attached as tags to every metric. When Aerospike was added, existing dashboards showed per-backend breakdowns without changes.&lt;/p&gt;
+
+&lt;p&gt;We placed the mode dispatch at the handler level rather than inside the storage layer to validate the full request path, not only the rows returned by storage. This also lets the response return as soon as the primary completes, while the shadow runs as a fire-and-forget background task.&lt;/p&gt;
+
+&lt;h2 id=&quot;writer-redesigning-the-data-model&quot;&gt;Writer: redesigning the data model&lt;/h2&gt;
+
+&lt;p&gt;Since the two systems use different storage engines, it wasn’t clear that a one-to-one port of our original schema would work. We tried three approaches.&lt;/p&gt;
+
+&lt;h3 id=&quot;approaches-1-and-2-row-per-bucket&quot;&gt;Approaches 1 and 2: Row-per-bucket&lt;/h3&gt;
+
+&lt;p&gt;We first tried mirroring our original row-per-bucket model. Approach 1 used Aerospike’s Secondary Index (SI) to recover range queries; approach 2 skipped SI and computed the exact set of primary keys client-side via BatchGet.&lt;/p&gt;
+
+&lt;p&gt;Both hit the same wall: Aerospike’s primary index is 64 bytes per record, kept in memory. At billions of records, index memory becomes the constraint. SI added overhead and operational complexity we didn’t need.&lt;/p&gt;
+
+&lt;h3 id=&quot;approach-3-map-based-schema&quot;&gt;Approach 3: Map-based schema&lt;/h3&gt;
+
+&lt;p&gt;The third approach was structurally different from the first two and was the most compact of the options. Rather than storing one record per bucket, which kept us in the same cardinality regime, we collapsed all bucket counts for a single counter into one record. The values were stored as a sorted map keyed by bucket timestamp:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Set:           helium_hourly
+Primary key:   &quot;{counterKey}&quot;
+Bins:
+   counts: KEY_ORDERED_MAP({
+        1773369000000: 1,
+        1773372600000: 3,
+        1773376200000: 7,
+        ...
+   })
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The map keys are bucket timestamps in milliseconds. The map values are running counts. One record holds the entire time series for one counter at one granularity.&lt;/p&gt;
+
+&lt;p&gt;Reads become straightforward: fetch the record, iterate the map, sum the entries within the requested window. Each Get returns a bounded number of map entries (determined by Time To Live (TTL) and bucket size), and client-side filtering of that many entries is negligible.&lt;/p&gt;
+
+&lt;p&gt;Writes use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MapIncrementOp&lt;/code&gt;, an atomic server-side increment of a value at a given map key, creating the entry on first access. Combined with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MapRemoveByKeyRangeOp&lt;/code&gt; for pruning stale entries, every write is one atomic operation:&lt;/p&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+    &lt;span class=&quot;nc&quot;&gt;MapIncrementOp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;counts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bucketTsMs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;delta&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;nc&quot;&gt;MapRemoveByKeyRangeOp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;counts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cutoffMs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;nc&quot;&gt;PutOp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key_bin&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;counterKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Operate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;policy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;For TTL management, we couldn’t use Aerospike’s record-level expiry directly. A single record holds many timestamps, so record-level TTL would either keep everything or drop everything. Instead, we prune stale map entries explicitly on every write using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;MapRemoveByKeyRangeOp&lt;/code&gt;. The record-level TTL stays as a safety net for counters that stop receiving writes.&lt;/p&gt;
+
+&lt;p&gt;The two backends produce very different network shapes for the same logical query. The original backend returns many small paginated row streams, one per (key, granularity). The server filters by time range using the clustering column. Aerospike returns one batch response with the entire counts map per key, and the client filters the map to the requested range. The reader’s storage layer hides this difference: both paths emit &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(index, value, timestamp, granularity)&lt;/code&gt; tuples into the same per-index channels, and the orchestrator above sums them the same way.&lt;/p&gt;
+
+&lt;p&gt;The third approach performed best in testing. By collapsing many bucket records into a single record per counter, we reduced the total record count by more than an order of magnitude, which also reduced primary index memory. It also produced a smaller on-disk footprint, since the long counter key is stored once per record instead of being repeated across every bucket. The schema was chosen to fit the access pattern, with the index and disk savings following naturally.&lt;/p&gt;
+
+&lt;p&gt;The pipeline continues writing to the original backend as the primary, while Aerospike is added as a separate asynchronous shadow write behind a deterministic rollout logic. This lets us ramp Aerospike gradually and eventually cut over to it fully.&lt;/p&gt;
+
+&lt;h2 id=&quot;reader-how-each-backend-actually-serves-a-query&quot;&gt;Reader: How each backend actually serves a query&lt;/h2&gt;
+
+&lt;p&gt;The two storage backends sit behind the same &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;execute_queries&lt;/code&gt; contract on the reader service, but what they do internally for a single batch read looks very different.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/migrating-counter-service/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. How a single read request flows through each backend.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The reader takes a batch of counter queries and decomposes each into one or more sub-queries per granularity (a 90-minute window for instance, becomes one hourly sub-query and two 15-minute sub-queries). In the original backend, each sub-query becomes its own prepared statement bound with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;(start_ms, end_ms, key)&lt;/code&gt;, and the storage layer fires all of them concurrently as a stream of futures with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;buffer_unordered&lt;/code&gt; capping in-flight queries to a tuned bound. Each query returns a paginated row iterator, the server uses the clustering column to filter by time range and rows stream through to per-index channels as they arrive. So a single user request can produce many small queries, each a separate network round-trip to the partition master holding key, with results dribbled back over a paginated stream.&lt;/p&gt;
+
+&lt;p&gt;On Aerospike, the storage layer first groups all sub-queries by granularity, then issues one &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;BatchOperate&lt;/code&gt; per granularity. Each sub-query becomes a single primary-key read against the appropriate set; the server returns the entire counts map for that key in one record. The client iterates the map and emits only the entries whose timestamps fall inside the requested range. This keeps the code simple, and at our map sizes the overhead is negligible. There’s no streaming, a batch read either succeeds or fails as a unit and there are at most three network round-trips per user request, one per granularity, regardless of how many sub-queries there are.&lt;/p&gt;
+
+&lt;p&gt;This reflects the different design philosophies of the two systems. Wide-column stores typically expect client-side fan-out for reads, while Aerospike’s batch API is designed for exactly this multi-key pattern.&lt;/p&gt;
+
+&lt;p&gt;A few issues with the Aerospike Rust client also surfaced during rollout, as it was less mature than its Go counterpart. For example, when we started, the officially available Rust client was synchronous, so every batch read had to be bridged through &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tokio::task::spawn_blocking&lt;/code&gt; with some amount of custom plumbing. Once the official async client was released, we removed that layer and saw measurable improvements in both p50 and p99 latency. The other issue was Domain Name System (DNS). The client resolved seed hostnames only during initialization and did not re-resolve them when the cluster topology refreshed. As a result, a full staging cluster replacement, with new IPs behind the same hostnames, left the client stuck on the old IPs until restart. We filed the bug upstream, and a fix shipped in a subsequent release. We also reproduced the scenario locally with a Docker-based end-to-end test and ran additional staging drills to confirm recovery before continuing the rollout.&lt;/p&gt;
+
+&lt;h2 id=&quot;experiment-with-indexing&quot;&gt;Experiment with indexing&lt;/h2&gt;
+
+&lt;p&gt;We run Aerospike in its default storage configuration, Hybrid Memory Architecture (HMA), where the primary index sits in Random-Access Memory (RAM) and the data sits on Solid-State Drive (SSD). The other relevant mode keeps both index and data in Dynamic Random-Access Memory (DRAM), which is more expensive and not something that fits our use-case. Even in HMA, the primary index grows linearly with record count. At our scale, that growth was a foreseeable issue.&lt;/p&gt;
+
+&lt;p&gt;To raise the memory ceiling, we tried moving the primary index itself from RAM to local Non-Volatile Memory Express (NVMe) while keeping data on SSD. We expected the extra index latency to be invisible within our overall request budget. In practice, we started seeing p99 spikes that did not track overall QPS. Instead, they followed I/O activity on hot keys. We observed that when many concurrent lookups land on the same record, the in-memory index handles them more prudently compared to a disk backed index. Adding more and better nodes improved things slightly but did not mitigate the issue. Consequently, we reverted back to in-memory index with a memory-optimized instance type.&lt;/p&gt;
+
+&lt;h2 id=&quot;overall-impact&quot;&gt;Overall impact&lt;/h2&gt;
+
+&lt;p&gt;The migration delivered gains across infrastructure, performance, and data footprint. Most of these improvements trace back to the schema redesign like collapsing rows into maps, rather than the database change itself.&lt;/p&gt;
+
+&lt;p&gt;The primary index currently uses about 50 GB of the roughly 100 GB usable memory per node. The same dataset is around 1 TB on disk, compared with around 3 TB on the original setup. This is primarily attributed to our adoption of the map-based schema discussed earlier.&lt;/p&gt;
+
+&lt;p&gt;In production, p99 read latency was consistently better than the original setup, with roughly 50% improvement across our read paths. The write path now uses a single atomic increment operation, replacing the read-modify-write pattern we had built previously.&lt;/p&gt;
+
+&lt;p&gt;The new setup costs roughly 45–50% less per node compared to our original setup. We also reduced the replication factor from 3 to 2, saving roughly a third of both storage and primary index memory. RF=2 can be awkward in databases that depend on write quorum, but Aerospike’s master-replica model still keeps an authoritative copy available after a single-node loss. That gives us meaningful fault tolerance even at RF=2. The remaining risk, a simultaneous multi-AZ failure, was acceptable for this workload because the writer continues producing increments from the source event stream. Any lost counter data can self-heal as new events arrive.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;This migration ultimately came down to aligning the storage design with the workload. These results would not have been achieved by simply swapping one storage system for another. As the service evolved over time, our initial design choices became less optimal, and the migration surfaced opportunities to rethink them. The gains came from focusing on optimization opportunities, redesigning the data model, and cleanly separating storage concerns. Through shadow reads and writes, followed by a gradual rollout, we completed the migration with zero downtime and no data-integrity issues. The result is a system that fits its workload well and a foundation that makes future storage changes safer and easier to attempt.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/counter-service-storage-migration-approach-and-learnings</link>
+        <guid isPermaLink="true">https://engineering.grab.com/counter-service-storage-migration-approach-and-learnings</guid>
+        
+        <category>Security</category>
+        
+        <category>Artificial Intelligence</category>
+        
+        <category>Kubernetes</category>
+        
+        <category>DevSecOps</category>
+        
+        <category>Platform</category>
+        
+        <category>Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Scaling out Distroless adoption With AI</title>
@@ -2070,325 +2286,6 @@ AI agents operate autonomously in repetitive tasks (context gathering, running q
         <category>Database</category>
         
         <category>Automation</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Enabling R8 optimization at scale with AI-assisted debugging</title>
-        <description>&lt;p&gt;Grab is Southeast Asia’s leading superapp, providing a suite of services that bring essential needs to users throughout the region. Its offerings include ride-hailing, food delivery, parcel delivery, mobile payments, and more. With safety, efficiency, and user-centered design at heart, Grab remains dedicated to solving everyday issues and improving the lives of millions. As our app continued to expand, we identified platform-level performance challenges that were affecting user experience across the board. In this article, we share how we successfully enabled R8 optimization for the &lt;a href=&quot;https://play.google.com/store/apps/details?id=com.grabtaxi.passenger&amp;amp;hl=en&quot;&gt;Grab Android app&lt;/a&gt;, achieving significant improvements in app size, startup time, and stability through innovative AI-assisted debugging techniques.&lt;/p&gt;
-
-&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Since 2024, our team observed a concerning trend: Application Not Responding (ANR) rates were spiking across the Grab app. Unlike typical isolated issues, the data revealed that ANRs were happening everywhere, not confined to specific features or modules. This pattern pointed to platform-level causes, with our analysis showing strong correlations between ANRs and several factors: memory pressure (particularly when garbage collection was triggered), ad-heavy user flows, complex layouts involving Jetpack Compose embedded within XML layouts, and XML views embedded within Compose code.&lt;/p&gt;
-
-&lt;p&gt;The Android community had long proven that R8 optimization (beyond basic code shrinking) could deliver substantial performance gains and app size reductions. As Grab has been adopting Jetpack Compose over the last two years, &lt;a href=&quot;https://developer.android.com/develop/ui/compose/performance#config&quot;&gt;Google’s Jetpack Compose performance documentation&lt;/a&gt; specifically recommends R8 optimization for Compose-heavy applications. It became particularly relevant, making it a natural solution for our systemic performance issues.&lt;/p&gt;
-
-&lt;p&gt;In fact, enabling R8 optimization was not a new idea for our team. It had been identified and flagged as a high-impact solution multiple times over the years, yet each attempt fell short. Here’s why.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-challenge-at-scale&quot;&gt;The challenge at scale&lt;/h2&gt;
-
-&lt;p&gt;Our app operates at scale, with over 9 million lines of code and 100+ engineers working on it daily. While we had basic R8 shrinking enabled, advanced optimization had proven challenging despite multiple attempts over six years (with different tools and approaches over the years).&lt;/p&gt;
-
-&lt;p&gt;In 2022, we almost made it - successfully rolling out R8 optimization to GEA (our early access build), but unfortunately, we faced &lt;a href=&quot;https://issuetracker.google.com/u/0/issues/240077160&quot;&gt;critical roadblocks&lt;/a&gt; that compelled us to put the project on hold. After analyzing our previous attempts and the current project situation, we identified three fundamental challenges that had to be solved simultaneously.&lt;/p&gt;
-
-&lt;p&gt;This article details how we overcame each challenge through targeted innovations: &lt;strong&gt;AI-Assisted Debugging&lt;/strong&gt; for slow investigation cycles, &lt;strong&gt;Pragmatic Testing Strategy&lt;/strong&gt; for validation at scale, and &lt;strong&gt;Optimized Feedback Loop&lt;/strong&gt; for rapid iteration.&lt;/p&gt;
-
-&lt;h2 id=&quot;understanding-r8-optimization&quot;&gt;Understanding R8 optimization&lt;/h2&gt;
-
-&lt;p&gt;Before diving into our solution, it’s important to understand what R8 optimization actually provides beyond basic R8 shrinking.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/r8-optimization/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. The R8 processing pipeline involves multiple interconnected phases that transform, analyze, and optimize code. Understanding this complexity helps explain both the benefits of optimization and why debugging issues become challenging.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;what-we-had-in-place&quot;&gt;What we had in place&lt;/h3&gt;
-
-&lt;p&gt;With &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;minifyEnabled=true&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;shrinkResources=true&lt;/code&gt; using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;proguard-android.txt&lt;/code&gt;, we already had:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Tree shaking (shrink phase)&lt;/strong&gt;: Removes unused/unreachable code.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Code minification (obfuscation)&lt;/strong&gt;: Renames classes/methods to short names.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Resource shrinking&lt;/strong&gt;: Removes unused XML files and drawables.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Desugaring&lt;/strong&gt;: Java 8+ compatibility.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;whats-new-with-optimization&quot;&gt;What’s new with optimization&lt;/h3&gt;
-
-&lt;p&gt;By switching to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;proguard-android-optimize.txt&lt;/code&gt;, we gained access to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Method inlining&lt;/strong&gt;: Replaces method calls with actual code, reducing call overhead.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Class merging&lt;/strong&gt;: Makes code more compact by combining similar classes.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Constant folding&lt;/strong&gt;: Pre-computes constant expressions at compile time.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Dead code elimination&lt;/strong&gt;: More aggressive than tree shaking, removes unreachable branches.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Devirtualization&lt;/strong&gt;: Converts virtual calls to direct calls when possible.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These optimizations work together to improve runtime performance while significantly reducing app size.&lt;/p&gt;
-
-&lt;h2 id=&quot;three-core-challenges&quot;&gt;Three core challenges&lt;/h2&gt;
-
-&lt;p&gt;With context on R8 optimization benefits, why is enabling it so difficult at Grab’s scale? After analyzing our previous failed attempts and the current project situation, we identified three fundamental challenges that had to be solved simultaneously.&lt;/p&gt;
-
-&lt;h3 id=&quot;challenge-1-slow-debugging&quot;&gt;Challenge 1: Slow debugging&lt;/h3&gt;
-
-&lt;p&gt;R8 optimization issues are notoriously difficult to debug:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Code is &lt;strong&gt;obfuscated&lt;/strong&gt;, class names become &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;a&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;b&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;c&lt;/code&gt;.&lt;/li&gt;
-  &lt;li&gt;Code is &lt;strong&gt;modified&lt;/strong&gt;, inlined, merged, and optimized beyond recognition.&lt;/li&gt;
-  &lt;li&gt;Stack traces are &lt;strong&gt;unreadable&lt;/strong&gt; without proper mapping files when crashes occur.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Pinpointing the root cause&lt;/strong&gt; requires manual reverse engineering.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Our limited resources compound the challenge: with only one engineer leading the project, most issues had to be either addressed directly or have solutions provided for other teams to fix. Manual decompilation, deobfuscation, and context gathering for each issue are inherently time-consuming, making the investigation cycle slow.&lt;/p&gt;
-
-&lt;h3 id=&quot;challenge-2-testing-at-scale&quot;&gt;Challenge 2: Testing at scale&lt;/h3&gt;
-
-&lt;p&gt;R8 optimization affects every corner of the app. Unlike feature-specific changes, enabling optimization transforms how the entire codebase is compiled, inlined, and optimized. A single misconfiguration or missing keep rule can break seemingly unrelated features across different modules and libraries.&lt;/p&gt;
-
-&lt;p&gt;When we first enabled R8 optimization, the impact was immediate and widespread: most of the app’s features simply stopped working correctly. This presented us with a deeper problem, not just how to test, but what kind of testing strategy would actually give us confidence to roll out to production.&lt;/p&gt;
-
-&lt;p&gt;In theory, R8 optimization works reliably with standard codebases that follow Google’s and the community’s best practices. However, the Grab app is a ~10-year-old project at a massive scale. Legacy code patterns, reflection usage, and SDK integrations accumulated over a decade create numerous edge cases.&lt;/p&gt;
-
-&lt;p&gt;This combination makes comprehensive testing necessary, but at our scale, it’s nearly impossible to execute due to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Full regression testing&lt;/strong&gt; would require significant effort from all teams across the organization.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Quality Assurance (QA) resource constraints&lt;/strong&gt; make exhaustive testing impractical.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;High-quality bar&lt;/strong&gt;: At Grab, app stability and zero runtime errors are non-negotiable standards.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;This creates a paradox: we need comprehensive testing precisely because we can’t guarantee standards everywhere, yet the scale makes such testing infeasible.&lt;/p&gt;
-
-&lt;h3 id=&quot;challenge-3-slow-feedback&quot;&gt;Challenge 3: Slow feedback&lt;/h3&gt;
-
-&lt;p&gt;Due to the large scale of the project, compiling a build with R8 optimization enabled on a standard engineering laptop is physically impossible. This created a significant bottleneck: a slow feedback loop where every experimental change required a remote CI build to verify, with each R8-optimized build taking up to 2 hours to complete.&lt;/p&gt;
-
-&lt;p&gt;Additionally, R8 treats debug and release build types differently. At Grab, we have a QA build for QA testing. This is a debug build type with R8 enabled, pointed to our staging environment. We had to ensure this QA build’s R8 configuration matched our production build exactly. This alignment was critical for catching R8-specific issues during QA testing that would actually reflect production behavior&lt;/p&gt;
-
-&lt;h2 id=&quot;our-three-innovation-solution&quot;&gt;Our three-innovation solution&lt;/h2&gt;
-
-&lt;p&gt;To overcome these three fundamental challenges, we developed a comprehensive strategy centered on targeted innovations that addressed each bottleneck.&lt;/p&gt;
-
-&lt;h3 id=&quot;innovation-1-ai-assisted-debugging&quot;&gt;Innovation 1: AI-assisted debugging&lt;/h3&gt;
-
-&lt;p&gt;&lt;strong&gt;Solving challenge 1&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;How do we speed up the investigation of R8 issues in obfuscated, optimized code at scale? The answer is in emerging AI technology that wasn’t available during our previous attempts.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The AI context at Grab&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;Unlike 2022 and earlier attempts, the landscape had changed dramatically. After the LLM explosion, Grab proactively promoted AI (LLM) usage to boost engineering productivity. Over the past two years, Grab has dedicated 1-2 months annually for engineers to learn how to use AI efficiently. This investment in AI literacy became crucial for this project.&lt;/p&gt;
-
-&lt;p&gt;This year (2025), my team gained experience building MCP (Model Context Protocol) servers and identified an opportunity: applying this technology to solve the R8 debugging challenge.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Our solution&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;At Grab, we use &lt;strong&gt;GitLab for Continuous Integration and Continuous Delivery (CI/CD)&lt;/strong&gt;. To tackle R8 debugging bottlenecks, we built a comprehensive solution combining:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;#build-mcp-tools-eliminate-manual-reverse-engineering&quot;&gt;Custom MCP tools&lt;/a&gt;.&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;#ai-and-ci-pipeline-workflow&quot;&gt;AI-assisted GitLab CI integration&lt;/a&gt;.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;build-mcp-tools-eliminate-manual-reverse-engineering&quot;&gt;Build MCP tools: Eliminate manual reverse engineering&lt;/h4&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Automatic Android Application Package (APK) decompilation&lt;/strong&gt;: Parse and decompile APKs.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Stack trace deobfuscation&lt;/strong&gt;: Automatically map obfuscated traces to source code.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Class/method context fetching&lt;/strong&gt;: Pull relevant decompiled code sections for analysis.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;ai-and-ci-pipeline-workflow&quot;&gt;AI and CI pipeline workflow:&lt;/h4&gt;
-
-&lt;p&gt;We developed a systematic two-phase approach for investigating and fixing each runtime issue, combining AI assistance with parallel testing:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Phase 1: MCP server tools for debugging&lt;/strong&gt;&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Detect runtime issue&lt;/strong&gt;: From End-to-End (E2E) tests, QA testing, or crash reports.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;MCP tool orchestrates APK analysis&lt;/strong&gt;: Coordinates decompilation tools for reverse engineering.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;MCP tool provides decompiled code context&lt;/strong&gt;: Pulls and decompiles problematic code sections.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Engineer and AI analysis&lt;/strong&gt;: The engineer uses AI assistance to analyze the decompiled code context and note down multiple solution approaches.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Phase 2: GitLab CI integration&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;We leveraged the GitLab CLI tool (&lt;a href=&quot;https://docs.gitlab.com/cli/&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;glab&lt;/code&gt;&lt;/a&gt;) and instructed AI to use it for interacting with our CI pipeline:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;AI creates multiple Merge Requests (MRs)&lt;/strong&gt;: Using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;glab&lt;/code&gt; CLI, AI creates merge requests for different solution approaches from Phase 1, each triggering CI compilation.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Track progress&lt;/strong&gt;: Maintain an MD file as the source of truth for the investigation, containing all notes about the issue (root cause analysis, test cases, test branches, CI build status).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;AI fetches APK from CI&lt;/strong&gt;: Using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;glab&lt;/code&gt; CLI to retrieve built APKs from completed CI pipelines.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Verify&lt;/strong&gt;: Ask AI to use ADB install APK, then manually test the fix.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Iterate&lt;/strong&gt;: If issues remain, loop back to step 2 for further analysis.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;&lt;strong&gt;Why this worked&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;Our approach functions as an AI assistant that:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Decodes the obfuscated code&lt;/strong&gt; automatically.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Finds the relevant code sections&lt;/strong&gt; without manual searching.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Suggests multiple solutions&lt;/strong&gt; based on the context provided by the MCP tools.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Creates multiple test branches simultaneously&lt;/strong&gt; and runs parallel CI builds to test different approaches.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Tracks everything&lt;/strong&gt; to ensure no progress is lost on complex investigations.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Instead of testing solutions one-by-one (waiting 2 hours per build), AI creates multiple MRs in parallel, dramatically accelerating the verification process. Engineers focus on making decisions about which solutions to pursue while the AI handles both the mechanical work and the parallel experimentation.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;The impact: Accelerating investigation&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;While investigating a single R8 issue might still take time, our MCP tools dramatically accelerated critical investigation tasks. Manual tasks that previously took hours (decompilation, deobfuscation, context gathering) were reduced to minutes. Additionally, AI assistance significantly sped up the analysis phase, helping engineers quickly identify patterns, suggest solutions, and explore multiple approaches in parallel, both analytically and through simultaneous CI builds, further accelerating the overall investigation process.&lt;/p&gt;
-
-&lt;h3 id=&quot;innovation-2-pragmatic-testing-strategy&quot;&gt;Innovation 2: Pragmatic testing strategy&lt;/h3&gt;
-
-&lt;p&gt;&lt;strong&gt;Solving challenge 2&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;How do we do testing at scale? How do we validate R8 optimization across a mature codebase containing more than nine million lines of code when comprehensive testing is necessary but impossible? Our solution came from a critical insight about R8 issues at scale.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Key insight&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;From our experience, R8 issues tend to share similar root causes across the codebase. Legacy patterns like reflection usage, parser implementations, and dynamic class loading follow consistent patterns within a large codebase. This insight led to two key advantages:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Fix one, help many&lt;/strong&gt;: Fixing one place often resolves issues in others.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Pattern recognition&lt;/strong&gt;: Once we identify a pattern, we can search the codebase to find similar issues instead of waiting for QA to discover them.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;If we could identify and fix these pattern-based issues, we could address many problems without testing every corner of the app. We decided to start with critical paths and expand from there. This “ripple effect” strategy began at the center with the most important flows, then expanded by identifying common root causes and similar patterns across the codebase.&lt;/p&gt;
-
-&lt;p&gt;With this foundation, we designed a validation pipeline that progressively increased confidence:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Progressive, Risk-Based validation strategy&lt;/strong&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Stage 1: E2E tests - pattern discovery phase&lt;/strong&gt;: Fortunately, we had existing E2E tests covering most critical paths in the project, and they could be executed with R8 optimization enabled. Initially, all E2E tests failed after enabling optimization. This became our opportunity for pattern discovery: we systematically fixed issues and applied our pattern-based approach to resolve similar problems across the project.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Stage 2: QA smoke tests - coverage expansion&lt;/strong&gt;: After E2E tests stabilized, we requested our QA team to run smoke tests on critical flows, especially those not covered by E2E automation. This caught additional edge cases and validated that the pattern-based fixes we applied were effective across different user journeys. We fixed any issues that appeared during this phase.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Stage 3: Daily QA build enablement - real-world integration&lt;/strong&gt;: After confirming stability in controlled testing, we made a significant decision: enable R8 optimization in our daily QA build (the build our QA team uses for daily feature testing). This integrated R8 optimization into the normal development workflow without requiring additional testing effort.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Stage 4: Regression testing and Grab Early Access (GEA) - parallel production-scale validation&lt;/strong&gt;: After confirming stability in daily QA builds, we moved to production-scale validation with two parallel tracks. Every release at Grab includes &lt;strong&gt;regression testing&lt;/strong&gt; covering all critical paths and new features. With R8 optimization now enabled in the QA build, we ran regression tests using this build for a few weeks, providing sustained validation across multiple release cycles. One week after regression testing, we rolled out to &lt;strong&gt;GEA&lt;/strong&gt;, Grab’s internal production release channel for Grab employees and partners. While GEA users typically receive features one week before general production rollout, for this R8 optimization project, we extended the GEA phase to 2 weeks, given the significance of the change. With hundreds of daily active users using the app in real-world production conditions during this extended period, we encountered only one remaining R8 issue during the GEA phase. This combination of regression testing and real-world GEA production usage gave us the confidence needed before full production rollout.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Testing Approaches That Don’t Work with R8&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Unit tests&lt;/strong&gt;: Run on Java JVM, while R8 optimizations affect Android Runtime behavior - fundamentally different environments&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;UI tests with R8&lt;/strong&gt;: Community solutions exist as Gradle plugins, but &lt;a href=&quot;https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration&quot;&gt;our tests run on Bazel&lt;/a&gt; - complex setup and reliability concerns&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;strong&gt;Pattern-based issue resolution&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;Throughout these validation phases, when we identified R8 issues, we followed a systematic pattern-based resolution process.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Identify the issue&lt;/strong&gt;: Catch the failure through E2E, QA, or monitoring.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Find the pattern&lt;/strong&gt;: Analyze the root cause to identify if it’s a common pattern across the codebase.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Detect similar instances&lt;/strong&gt;: Search the entire codebase to find the same pattern across different modules and the internal SDKs.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Coordinate fixes&lt;/strong&gt;: Create tickets requesting teams to modify their code to prevent the same issue in their modules.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;This approach required cross team coordination for fixing, but critically, not for testing. The difference is significant: asking teams to fix identified issues in their modules is much more scalable than requiring all teams to perform comprehensive testing upfront.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Production rollout results&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;When we made it to production, only one issue escaped to production. Notably, we had actually detected this issue through our pattern-based approach during testing and created a ticket for the responsible team to fix it. However, with ongoing daily development, the team missed one instance when implementing the fix, which caused the production issue.&lt;/p&gt;
-
-&lt;p&gt;This demonstrates that while our testing strategy worked effectively, human coordination challenges can still occur at scale. With a project of this scale, having only one small production issue is considered a highly successful rollout.&lt;/p&gt;
-
-&lt;p&gt;This approach transformed an “impossible” comprehensive testing problem into a manageable, systematic validation process, reducing what would have been months of coordinated testing effort to days, proving that a smart strategy can overcome resource constraints.&lt;/p&gt;
-
-&lt;h3 id=&quot;innovation-3-optimized-feedback-loop&quot;&gt;Innovation 3: Optimized feedback loop&lt;/h3&gt;
-
-&lt;p&gt;&lt;strong&gt;Solving challenge 3&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;The 2-hour CI builds, and the QA configuration misalignment created a bottleneck for R8 debugging. We addressed this through a comprehensive infrastructure strategy targeting three critical areas:&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Remote compilation to enable local build and fast feedback loop&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;At Grab, we used to use &lt;a href=&quot;https://github.com/buildfoundation/mainframer&quot;&gt;Mainframer&lt;/a&gt; for remote execution to handle slow performance on local Gradle builds. However, since &lt;a href=&quot;https://engineering.grab.com/how-grab-is-blazing-through-the-super-app-bazel-migration&quot;&gt;migrating to Bazel&lt;/a&gt; (only for the debug build without R8 enabled), we removed the large-scale Mainframer setup for every engineer. From that experience, to tackle the local compilation blocker for R8 builds, we decided to deploy a new Mainframer setup, a much smaller one with one powerful EC2 instance, serving as a solution for local compilation in a short time.&lt;/p&gt;
-
-&lt;p&gt;This targeted deployment transformed physically impossible local R8 builds into a manageable remote process, enabling engineers to test R8 changes without requiring powerful local hardware.&lt;/p&gt;
-
-&lt;p&gt;The performance improvement was substantial: &lt;strong&gt;from up to 2 hours in CI to around 1 hour with Mainframer&lt;/strong&gt; - a ~50% reduction that enabled rapid iteration cycles essential for R8 debugging.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;QA build configuration alignment&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;We eliminated the critical gap between QA and production R8 behavior by aligning build configurations exactly. The key change was setting &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;debuggable = false&lt;/code&gt; for QA builds while maintaining the environment configuration:&lt;/p&gt;
-
-&lt;div class=&quot;language-groovy highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;buildTypes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;debug&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;isQaBuild&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;minifyEnabled&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;shrinkResources&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;debuggable&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;buildConfigField&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;boolean&apos;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;DEBUG&apos;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;true&apos;&lt;/span&gt;
-            &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Since, from our understanding, R8 applies different optimization levels based on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;debuggable&lt;/code&gt; flag, with more aggressive optimizations when debuggable=false, this ensured our QA testing reflected actual production R8 processing. We preserved &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DEBUG = true&lt;/code&gt; to maintain staging environment routing while achieving R8 parity.&lt;/p&gt;
-
-&lt;p&gt;This infrastructure foundation was essential, providing faster feedback loops that accelerated verification and investigation, while the QA build configuration matching production exactly was critical for catching real production issues during testing.&lt;/p&gt;
-
-&lt;h2 id=&quot;a-lucky-break&quot;&gt;A lucky break&lt;/h2&gt;
-
-&lt;p&gt;Perhaps most surprising: the R8 flakiness issue that blocked us in 2022 (&lt;a href=&quot;https://issuetracker.google.com/u/0/issues/240077160&quot;&gt;Issue #240077160&lt;/a&gt;) appears to have been resolved by the R8 team. We encountered no build determinism issues during this attempt, which significantly smoothed our path to production.&lt;/p&gt;
-
-&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;
-
-&lt;p&gt;After ~10 weeks of systematic implementation &lt;strong&gt;led by one engineer&lt;/strong&gt; collaborating with multiple teams across the organization, we achieved substantial improvements using &lt;strong&gt;Android Gradle Plugin 8.6.X&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Stability&lt;/strong&gt;: Around 25% reduction in ANR rates.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;App size:&lt;/strong&gt; A 16% decrease in download size on our reference device (zipped APK).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Performance:&lt;/strong&gt; Nearly 27% improvement in startup time. &lt;em&gt;An interesting discovery: After enabling R8 optimization, we saw ~12% app startup improvement. However, during our analysis, we discovered that our existing Baseline and Startup Profiles implementation was incorrect. We reimplemented it properly, and the combination of R8 optimization plus the corrected profiles delivered the full 27% improvement.&lt;/em&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;These results exceeded our initial targets and validated the significant effort required to enable R8 optimization at scale.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;Our journey doesn’t end here. We’re exploring several areas for continued optimization:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;R8 full mode&lt;/strong&gt;: More extreme/aggressive optimization than the current mode for additional performance benefits.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Revisit R8 keep rules&lt;/strong&gt;: Clean up unnecessary rules that prevent optimization, and implement a governance solution to guardrail R8 rules in our pre-merge CI pipeline.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Enabling R8 optimization for the Grab Android app at scale required innovation beyond traditional debugging approaches. By combining AI-assisted debugging, pragmatic testing strategies, and infrastructure investment, we overcame challenges that had blocked previous attempts for many years.&lt;/p&gt;
-
-&lt;p&gt;For other teams considering R8 optimization at scale: the journey is challenging, but the results speak for themselves. With the right tools, strategy, and team collaboration, it’s achievable even for the largest codebases.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 800 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases, or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebaidebug&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 12 Mar 2026 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging</link>
-        <guid isPermaLink="true">https://engineering.grab.com/r8-optimization-at-scale-with-ai-assisted-debugging</guid>
-        
-        <category>AI</category>
-        
-        <category>Artificial Intelligence</category>
         
         
         <category>Engineering</category>

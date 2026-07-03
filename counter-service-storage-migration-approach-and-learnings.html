@@ -2,18 +2,18 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink</title>
-    <meta name="description" content="At Grab, we're transforming data ingestion and processing with Hugo, our self-service data platform. Now integrated with Apache Flink, Hugo empowers teams to build real-time data pipelines effortlessly. Discover how we've streamlined complex processes into a single, one-click experience that boosts productivity and enables rapid insights. Dive into our blog to explore this game-changing evolution!">
+    <title>Migrating Counter Service storage: Design choices and learnings</title>
+    <meta name="description" content="Counter Service powers real-time fraud detection at massive scale, handling billions of requests daily. Learn how we migrated its underlying storage with zero downtime, redesigning the writer data model, incorporating clean data access layer separation on the reader side, building dual read-write path for traffic shadowing and data parity validation, and rolling out traffic gradually while verifying data integrity at every step">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
     <!-- Open Graph -->
-    <meta property="og:url" content="https://engineering.grab.com/one-click-data-ingestion-platform-with-apache-flink">
-    <meta property="og:title" content="The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink">
-    <meta property="og:description" content="At Grab, we're transforming data ingestion and processing with Hugo, our self-service data platform. Now integrated with Apache Flink, Hugo empowers teams to build real-time data pipelines effortlessly. Discover how we've streamlined complex processes into a single, one-click experience that boosts productivity and enables rapid insights. Dive into our blog to explore this game-changing evolution!">
+    <meta property="og:url" content="https://engineering.grab.com/counter-service-storage-migration-approach-and-learnings">
+    <meta property="og:title" content="Migrating Counter Service storage: Design choices and learnings">
+    <meta property="og:description" content="Counter Service powers real-time fraud detection at massive scale, handling billions of requests daily. Learn how we migrated its underlying storage with zero downtime, redesigning the writer data model, incorporating clean data access layer separation on the reader side, building dual read-write path for traffic shadowing and data parity validation, and rolling out traffic gradually while verifying data integrity at every step">
     <meta property="og:site_name" content="Grab Tech">
     <meta property="og:type" content="article">
-    <meta property="og:image" content="https://engineering.grab.com/img/flink-in-hugo/banner-image.png">
+    <meta property="og:image" content="https://engineering.grab.com/img/migrating-counter-service/banner.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
 
@@ -30,7 +30,7 @@
     <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
 
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="https://engineering.grab.com/one-click-data-ingestion-platform-with-apache-flink">
+    <link rel="canonical" href="https://engineering.grab.com/counter-service-storage-migration-approach-and-learnings">
 
     <!-- RSS -->
     <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
@@ -155,22 +155,28 @@
   <div class="post-with-sidebar">
     <div class="post post-main">
       <header class="post-header">
-        <img src="/img/flink-in-hugo/banner-image.png" class="post-cover-photo" alt="The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink cover photo">
+        <img src="/img/migrating-counter-service/banner.png" class="post-cover-photo" alt="Migrating Counter Service storage: Design choices and learnings cover photo">
         
           <div class="post-tags">
   
   
-    <a href="/tags#database" class="label tags-label">Database</a>
+    <a href="/tags#artificial-intelligence" class="label tags-label">Artificial Intelligence</a>
   
-    <a href="/tags#flinksql" class="label tags-label">FlinkSQL</a>
+    <a href="/tags#devsecops" class="label tags-label">DevSecOps</a>
   
-    <a href="/tags#hugo" class="label tags-label">Hugo</a>
+    <a href="/tags#engineering" class="label tags-label">Engineering</a>
+  
+    <a href="/tags#kubernetes" class="label tags-label">Kubernetes</a>
+  
+    <a href="/tags#platform" class="label tags-label">Platform</a>
+  
+    <a href="/tags#security" class="label tags-label">Security</a>
   
 </div>
 
         
 
-        <h1 class="post-title">The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink</h1>
+        <h1 class="post-title">Migrating Counter Service storage: Design choices and learnings</h1>
         
         <div class="post-meta">
           
@@ -188,13 +194,13 @@
                 data-toggle="tooltip"
                 data-placement="top"
                 data-trigger="hover focus"
-                aria-label="Shuguang Xiang"
-                title="Shuguang Xiang">
+                aria-label="Jia Long Loh"
+                title="Jia Long Loh">
           <img class="post-author-chip-avatar img-circle"
-               src="/img/authors/shuguang-xiang.jpg"
+               src="/img/authors/jialong-loh.jpg"
                alt="">
         </button>
-        <a class="post-author-large" href="/authors#shuguang.xiang">Shuguang Xiang</a>
+        <a class="post-author-large" href="/authors#jialong.loh">Jia Long Loh</a>
       </div>
     
   
@@ -206,13 +212,13 @@
                 data-toggle="tooltip"
                 data-placement="top"
                 data-trigger="hover focus"
-                aria-label="Hung Nguyen"
-                title="Hung Nguyen">
+                aria-label="Md Riyadh"
+                title="Md Riyadh">
           <img class="post-author-chip-avatar img-circle"
-               src="/img/authors/hung-nguyen.png"
+               src="/img/authors/riyadh-sharif.png"
                alt="">
         </button>
-        <a class="post-author-large" href="/authors#hung.nguyenphi">Hung Nguyen</a>
+        <a class="post-author-large" href="/authors#riyadh.sharif">Md Riyadh</a>
       </div>
     
   
@@ -224,13 +230,13 @@
                 data-toggle="tooltip"
                 data-placement="top"
                 data-trigger="hover focus"
-                aria-label="Hung Tran Viet"
-                title="Hung Tran Viet">
+                aria-label="Runze Cui"
+                title="Runze Cui">
           <img class="post-author-chip-avatar img-circle"
-               src="/img/authors/hung-tran.jpeg"
+               src="/img/authors/runze-cui.jpeg"
                alt="">
         </button>
-        <a class="post-author-large" href="/authors#hung.tran">Hung Tran Viet</a>
+        <a class="post-author-large" href="/authors#runze.cui">Runze Cui</a>
       </div>
     
   
@@ -242,18 +248,18 @@
                 data-toggle="tooltip"
                 data-placement="top"
                 data-trigger="hover focus"
-                aria-label="Shi Kai Ng"
-                title="Shi Kai Ng">
+                aria-label="Yuanzhe Liu"
+                title="Yuanzhe Liu">
           <img class="post-author-chip-avatar img-circle"
-               src="/img/authors/shikai-ng.png"
+               src="/img/authors/yuanzhe-liu.png"
                alt="">
         </button>
-        <a class="post-author-large" href="/authors#shikai.ng">Shi Kai Ng</a>
+        <a class="post-author-large" href="/authors#yuanzhe.liu">Yuanzhe Liu</a>
       </div>
     
   
   <span class="post-author-separator" aria-hidden="true">&middot;</span>
-  <span class="post-date-large">22 May 2026 <span class="post-read-time-badge">7 min read</span></span>
+  <span class="post-date-large">3 Jul 2026 <span class="post-read-time-badge">13 min read</span></span>
 </div>
 
         </div>
@@ -263,7 +269,7 @@
   class="article-listen"
   id="article-listen"
   aria-label="Listen to this article"
-  data-title="The Hugo evolution: Engineering Grab&#39;s unified, one-click data ingestion platform with Apache Flink"
+  data-title="Migrating Counter Service storage: Design choices and learnings"
 >
   <div class="article-listen-inner">
     <button
@@ -303,146 +309,204 @@
         <article class="post-content">
           <h2 id="introduction">Introduction</h2>
 
-<p>Data drives every decision we make at Grab. As our operations scale, so does our need for robust, real-time data ingestion and processing frameworks. Enter Hugo: our self-service data platform that has long empowered teams to seamlessly route data into our Data Lake. Today, Hugo is evolving. We have taken previously siloed onboarding workflows and transformed them into one seamless, unified journey to truly democratize data ingestion and maximize efficiency.</p>
+<p><a href="https://engineering.grab.com/using-grabs-trust-counter-service-to-detect-fraud-successfully">Counter Service</a> is used across Grab’s anti-fraud platform to answer time-windowed count questions, such as recent ride requests by a user or failed payment attempts on a card. The service handles tens of thousands of queries per second (QPS) with about a billion requests per day, while maintaining strict requirements around latency and reliability to support real-time fraud rule evaluation.</p>
 
-<p>In this blog, we’ll share how Hugo turns complex engineering hurdles into a frictionless, self-service reality. By moving away from siloed workflows, we’ve achieved a unified pipeline experience where one-click RDS CDC and self-service Kafka ingestion are the new standard.</p>
+<p>For most of its life, Counter Service was backed by a wide-column database that served the workload reliably as the service scaled. As part of a broader infrastructure review mandated at an organizational level, our database team evaluated alternatives to this storage that many services relied on, including Counter Service. Based on their assessment, Aerospike emerged as a good fit for our use-case. We also used the migration as an opportunity to decouple storage concerns from business logic, a necessary first step for this migration, and one that would reduce the effort required for future storage changes. As part of the same effort, we revisited the data model and access patterns in detail, which helped us identify and apply several straightforward optimizations.</p>
 
-<h2 id="background">Background</h2>
+<p>This post walks through how we did it. What we built on the reader-side to make the migration safe, how we redesigned the writer-side data model around the new backend, and what we ran into during the gradual rollout.</p>
+
+<h2 id="setting-the-stage">Setting the stage</h2>
+
+<p>Counter data is stored in three time granularities: 15-minute, hourly, and daily buckets. A typical read would be along the lines of, “give me the count for key X over the last 90 minutes”, which the service decomposes into the smallest possible set of buckets, one hourly in the middle, a few 15-minute buckets at the edges, fetches them, and sums.</p>
+
+<p>In the original setup, each granularity was stored in a separate table with a composite primary key:</p>
+
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">TABLE</span> <span class="n">daily_count</span> <span class="p">(</span>
+    <span class="k">key</span>      <span class="nb">TEXT</span><span class="p">,</span>         <span class="c1">-- partition key</span>
+    <span class="n">day_ts</span>   <span class="nb">TIMESTAMP</span><span class="p">,</span>    <span class="c1">-- clustering key</span>
+    <span class="k">count</span>    <span class="nb">BIGINT</span><span class="p">,</span>
+    <span class="k">PRIMARY</span> <span class="k">KEY</span> <span class="p">(</span><span class="k">key</span><span class="p">,</span> <span class="n">day_ts</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>The clustering column gave us convenient range queries, that is needed for the Counter Service. On the write path, each incoming counter event triggered a read-modify-write, three parallel <code class="language-plaintext highlighter-rouge">SELECT</code> across the three tables, an in-memory increment, then a batch write. This produced four network round-trips per event.</p>
+
+<p>As this service is a core part of Grab’s fraud detection ecosystem and handles high query volume, migrating its underlying storage required a careful rollout plan. We had three requirements:</p>
+
+<ul>
+  <li>Ramp traffic to the new backend gradually and roll back at any point with a config change.</li>
+  <li>Monitor both the original and new storage paths to verify data integrity before switching over.</li>
+  <li>Complete the migration without downtime.</li>
+</ul>
+
+<p>We also wanted the migration machinery to be reusable for future storage changes. The migration is divided into three workstreams, which we’ll walk through below:</p>
+
+<ul>
+  <li>Preparing the reader service.</li>
+  <li>Identifying the best integration mechanism for the new storage.</li>
+  <li>Updating the writer pipeline.</li>
+</ul>
+
+<h2 id="reader-separating-the-data-access-layer">Reader: Separating the data access layer</h2>
+
+<p>The reader is a Rust service. Before any migration work began, the reader’s business logic had tight coupling with the storage layer. Session creation, query building, fan-out orchestration, and the data types those queries returned were all intertwined in a single flat file. The main application state struct (AppState) held a raw database session handle and prepared query references. Every handler, gRPC Remote Procedure Calls (gRPC) or HyperText Transfer Protocol (HTTP), received the bare session as a parameter. Variable names baked the storage technology into the business layer.</p>
+
+<p>This made the storage migration difficult to attempt directly. We couldn’t add a second storage backend without forking the orchestration logic, and we had no way to test the read path in isolation from a real database session. So we did the migration prep in three stages.</p>
+
+<h3 id="stage-1-extracting-the-storage-code">Stage 1: Extracting the storage code</h3>
+
+<p>The first stage shipped no behavioural change. We deleted the monolithic storage file and split its contents in two:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">storage/legacy.rs</code>: wrapped session creation, prepared statements, and query execution behind a <code class="language-plaintext highlighter-rouge">LegacyStorage</code> struct.</li>
+  <li><code class="language-plaintext highlighter-rouge">batch_read_ops.rs</code>: kept only the orchestration logic: time-range splitting, channel-based fan-out, and aggregation.</li>
+</ul>
+
+<p><code class="language-plaintext highlighter-rouge">AppState</code> started holding an <code class="language-plaintext highlighter-rouge">Arc&lt;LegacyStorage&gt;</code> instead of a raw session handle. The <code class="language-plaintext highlighter-rouge">PreparedQueries</code> struct lost its statements (those moved inside <code class="language-plaintext highlighter-rouge">LegacyStorage</code>). We renamed every storage-specific identifier in business code to generic <code class="language-plaintext highlighter-rouge">storage_*</code> names.</p>
+
+<p>The result was a hard fence. After Stage 1, the database driver crate was reachable only from inside the storage module. Nothing in the business logic or handlers imported it any more.</p>
+
+<h3 id="stage-2-the-storage-facade">Stage 2: The storage facade</h3>
+
+<p>With the seam in place, we introduced the actual abstraction. A new <code class="language-plaintext highlighter-rouge">storage/</code> module with <code class="language-plaintext highlighter-rouge">mod.rs</code>, <code class="language-plaintext highlighter-rouge">legacy.rs</code>, <code class="language-plaintext highlighter-rouge">aerospike.rs</code>, and <code class="language-plaintext highlighter-rouge">mock_storage.rs</code> as siblings became the only place driver crates were reachable from.</p>
+
+<p>The idiomatic Rust approach would have been a trait with associated types, but our backend selection is runtime (a config string parsed at startup), and associated types propagate upwards through every consumer. The alternative, trait objects with boxed futures adds a heap allocation per query, which we wanted to avoid at our QPS.</p>
+
+<p>We chose a concrete facade with enum dispatch:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Storage</span> <span class="p">{</span>
+    <span class="n">legacy</span><span class="p">:</span>    <span class="n">LegacyStorage</span><span class="p">,</span>
+    <span class="n">aerospike</span><span class="p">:</span> <span class="n">AerospikeStorage</span><span class="p">,</span>
+    <span class="n">mock</span><span class="p">:</span>      <span class="n">MockStorage</span><span class="p">,</span>
+    <span class="n">settings</span><span class="p">:</span>  <span class="n">StorageSettings</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nf">execute_queries</span><span class="p">(</span><span class="n">backend</span><span class="p">:</span> <span class="n">BackendType</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="n">backend</span> <span class="p">{</span>
+        <span class="n">Legacy</span>    <span class="k">=&gt;</span> <span class="k">self</span><span class="py">.legacy</span><span class="nf">.execute</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+        <span class="n">Aerospike</span> <span class="k">=&gt;</span> <span class="k">self</span><span class="py">.aerospike</span><span class="nf">.execute</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+        <span class="n">Mock</span>      <span class="k">=&gt;</span> <span class="k">self</span><span class="py">.mock</span><span class="nf">.execute</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>A match statement at the request boundary, which made it easier to reason about and debug. The facade then routes everything to the original backend without the rest of the code knowing or caring.</p>
+
+<p>Each backend’s <code class="language-plaintext highlighter-rouge">execute_queries</code> honours the same contract: take a <code class="language-plaintext highlighter-rouge">Vec&lt;QueryCandidate&gt;</code> and a <code class="language-plaintext highlighter-rouge">HashMap&lt;BatchIndex, Sender&lt;...&gt;&gt;</code>, and emit <code class="language-plaintext highlighter-rouge">(index, value, timestamp, granularity)</code> tuples into those channels. The orchestration layer above doesn’t need to know whether a candidate became a paginated row stream or a single batch read with client-side map filtering, both write into the same channels in the same shape.</p>
+
+<p>On top of the facade we layered three config-driven operating modes that map to the migration phases:</p>
+
+<ul>
+  <li><strong>Single</strong>: one backend serves the request.</li>
+  <li><strong>WithShadow</strong>: the primary serves the response; the secondary runs asynchronously in the background for parity comparison.</li>
+  <li><strong>WithSplit</strong>: a deterministic percentage of traffic is served by each backend. Used for the live cutover.</li>
+</ul>
+
+<p>The mode and traffic percentages are read from a service config, allowing the reader to move from legacy-only to Aerospike-only without code changes. The transition starts in <code class="language-plaintext highlighter-rouge">Single(legacy)</code>, then shadow reads are enabled with <code class="language-plaintext highlighter-rouge">WithShadow(primary=legacy, secondary=aerospike, pct=X)</code>. The shadow percentage is gradually ramped from 5% to 20%, 50%, and finally 100%, while parity is verified through metrics. Optionally, the system can then move into <code class="language-plaintext highlighter-rouge">WithSplit(primary=legacy, secondary=aerospike, split=X)</code>, where live traffic is gradually shifted from the original backend to Aerospike, for example from 5% to 30%, 70%, and then 100%. Once Aerospike is fully validated and serving all traffic, the reader moves to <code class="language-plaintext highlighter-rouge">Single(aerospike)</code>.</p>
+
+<h3 id="stage-3-shadow-comparison-and-metrics">Stage 3: Shadow comparison and metrics</h3>
+
+<p>Each storage call carries metadata like backend, role (primary/secondary/shadow), and mode, attached as tags to every metric. When Aerospike was added, existing dashboards showed per-backend breakdowns without changes.</p>
+
+<p>We placed the mode dispatch at the handler level rather than inside the storage layer to validate the full request path, not only the rows returned by storage. This also lets the response return as soon as the primary completes, while the shadow runs as a fire-and-forget background task.</p>
+
+<h2 id="writer-redesigning-the-data-model">Writer: redesigning the data model</h2>
+
+<p>Since the two systems use different storage engines, it wasn’t clear that a one-to-one port of our original schema would work. We tried three approaches.</p>
+
+<h3 id="approaches-1-and-2-row-per-bucket">Approaches 1 and 2: Row-per-bucket</h3>
+
+<p>We first tried mirroring our original row-per-bucket model. Approach 1 used Aerospike’s Secondary Index (SI) to recover range queries; approach 2 skipped SI and computed the exact set of primary keys client-side via BatchGet.</p>
+
+<p>Both hit the same wall: Aerospike’s primary index is 64 bytes per record, kept in memory. At billions of records, index memory becomes the constraint. SI added overhead and operational complexity we didn’t need.</p>
+
+<h3 id="approach-3-map-based-schema">Approach 3: Map-based schema</h3>
+
+<p>The third approach was structurally different from the first two and was the most compact of the options. Rather than storing one record per bucket, which kept us in the same cardinality regime, we collapsed all bucket counts for a single counter into one record. The values were stored as a sorted map keyed by bucket timestamp:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Set:           helium_hourly
+Primary key:   "{counterKey}"
+Bins:
+   counts: KEY_ORDERED_MAP({
+        1773369000000: 1,
+        1773372600000: 3,
+        1773376200000: 7,
+        ...
+   })
+</code></pre></div></div>
+
+<p>The map keys are bucket timestamps in milliseconds. The map values are running counts. One record holds the entire time series for one counter at one granularity.</p>
+
+<p>Reads become straightforward: fetch the record, iterate the map, sum the entries within the requested window. Each Get returns a bounded number of map entries (determined by Time To Live (TTL) and bucket size), and client-side filtering of that many entries is negligible.</p>
+
+<p>Writes use <code class="language-plaintext highlighter-rouge">MapIncrementOp</code>, an atomic server-side increment of a value at a given map key, creating the entry on first access. Combined with <code class="language-plaintext highlighter-rouge">MapRemoveByKeyRangeOp</code> for pruning stale entries, every write is one atomic operation:</p>
+
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ops</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nc">MapIncrementOp</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">bucketTsMs</span><span class="p">,</span> <span class="n">delta</span><span class="p">),</span>
+    <span class="nc">MapRemoveByKeyRangeOp</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">cutoffMs</span><span class="p">),</span>
+    <span class="nc">PutOp</span><span class="p">(</span><span class="n">key_bin</span><span class="p">,</span> <span class="n">counterKey</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="n">client</span><span class="p">.</span><span class="nc">Operate</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">ops</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>For TTL management, we couldn’t use Aerospike’s record-level expiry directly. A single record holds many timestamps, so record-level TTL would either keep everything or drop everything. Instead, we prune stale map entries explicitly on every write using <code class="language-plaintext highlighter-rouge">MapRemoveByKeyRangeOp</code>. The record-level TTL stays as a safety net for counters that stop receiving writes.</p>
+
+<p>The two backends produce very different network shapes for the same logical query. The original backend returns many small paginated row streams, one per (key, granularity). The server filters by time range using the clustering column. Aerospike returns one batch response with the entire counts map per key, and the client filters the map to the requested range. The reader’s storage layer hides this difference: both paths emit <code class="language-plaintext highlighter-rouge">(index, value, timestamp, granularity)</code> tuples into the same per-index channels, and the orchestrator above sums them the same way.</p>
+
+<p>The third approach performed best in testing. By collapsing many bucket records into a single record per counter, we reduced the total record count by more than an order of magnitude, which also reduced primary index memory. It also produced a smaller on-disk footprint, since the long counter key is stored once per record instead of being repeated across every bucket. The schema was chosen to fit the access pattern, with the index and disk savings following naturally.</p>
+
+<p>The pipeline continues writing to the original backend as the primary, while Aerospike is added as a separate asynchronous shadow write behind a deterministic rollout logic. This lets us ramp Aerospike gradually and eventually cut over to it fully.</p>
+
+<h2 id="reader-how-each-backend-actually-serves-a-query">Reader: How each backend actually serves a query</h2>
+
+<p>The two storage backends sit behind the same <code class="language-plaintext highlighter-rouge">execute_queries</code> contract on the reader service, but what they do internally for a single batch read looks very different.</p>
 
 <div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-1.png" alt="" style="width:60%" /><figcaption align="middle">Figure 1. Hugo - Ingests data from every source into Grab's data lake.</figcaption>
+  <img src="/img/migrating-counter-service/figure-1.png" alt="" style="width:70%" /><figcaption align="middle">Figure 1. How a single read request flows through each backend.</figcaption>
   </figure>
 </div>
 
-<p>Hugo was originally designed as a self-service platform for batch-oriented data ingestion into the Data Lake, built on a single computation engine, Spark. It provided a centralized and streamlined onboarding experience for data sources such as MySQL, Aurora, PostgreSQL, and DynamoDB.</p>
+<p>The reader takes a batch of counter queries and decomposes each into one or more sub-queries per granularity (a 90-minute window for instance, becomes one hourly sub-query and two 15-minute sub-queries). In the original backend, each sub-query becomes its own prepared statement bound with <code class="language-plaintext highlighter-rouge">(start_ms, end_ms, key)</code>, and the storage layer fires all of them concurrently as a stream of futures with <code class="language-plaintext highlighter-rouge">buffer_unordered</code> capping in-flight queries to a tuned bound. Each query returns a paginated row iterator, the server uses the clustering column to filter by time range and rows stream through to per-index channels as they arrive. So a single user request can produce many small queries, each a separate network round-trip to the partition master holding key, with results dribbled back over a paginated stream.</p>
 
-<p>As the organization’s data platform evolved toward near <a href="https://engineering.grab.com/real-time-data-ingestion">real-time ingestion</a>, Hugo expanded to support streaming pipelines from Kafka and MySQL binlog. This evolution introduced a more distributed architecture, where ingestion workflows spanned multiple systems, including Kafka Connect, Sprinkler (an in-house Go-based S3 writer), and Hugo.</p>
+<p>On Aerospike, the storage layer first groups all sub-queries by granularity, then issues one <code class="language-plaintext highlighter-rouge">BatchOperate</code> per granularity. Each sub-query becomes a single primary-key read against the appropriate set; the server returns the entire counts map for that key in one record. The client iterates the map and emits only the entries whose timestamps fall inside the requested range. This keeps the code simple, and at our map sizes the overhead is negligible. There’s no streaming, a batch read either succeeds or fails as a unit and there are at most three network round-trips per user request, one per granularity, regardless of how many sub-queries there are.</p>
 
-<h2 id="the-siloed-past-a-multi-platform-hurdle">The siloed past: A multi-platform hurdle</h2>
+<p>This reflects the different design philosophies of the two systems. Wide-column stores typically expect client-side fan-out for reads, while Aerospike’s batch API is designed for exactly this multi-key pattern.</p>
 
-<p>While powerful, the expanded architecture introduced significant onboarding friction. Creating a single data pipeline now requires users to coordinate across multiple platforms, each with its own configuration model and operational semantics. As a result, the onboarding journey became fragmented and difficult to navigate, especially for new users.</p>
+<p>A few issues with the Aerospike Rust client also surfaced during rollout, as it was less mature than its Go counterpart. For example, when we started, the officially available Rust client was synchronous, so every batch read had to be bridged through <code class="language-plaintext highlighter-rouge">tokio::task::spawn_blocking</code> with some amount of custom plumbing. Once the official async client was released, we removed that layer and saw measurable improvements in both p50 and p99 latency. The other issue was Domain Name System (DNS). The client resolved seed hostnames only during initialization and did not re-resolve them when the cluster topology refreshed. As a result, a full staging cluster replacement, with new IPs behind the same hostnames, left the client stuck on the old IPs until restart. We filed the bug upstream, and a fix shipped in a subsequent release. We also reproduced the scenario locally with a Docker-based end-to-end test and ran additional staging drills to confirm recovery before continuing the rollout.</p>
 
-<p>The common challenge during onboarding was helping users understand how configurations mapped across systems.</p>
+<h2 id="experiment-with-indexing">Experiment with indexing</h2>
 
-<p>For MySQL CDC pipelines, users often asked, <em>“I’ve already configured Kafka Connect, what values do I need to provide in Hugo?”</em> after setting up a Kafka Connect job. This revealed a gap in abstraction between systems, requiring users to manually translate concepts and configurations across different platforms.</p>
+<p>We run Aerospike in its default storage configuration, Hybrid Memory Architecture (HMA), where the primary index sits in Random-Access Memory (RAM) and the data sits on Solid-State Drive (SSD). The other relevant mode keeps both index and data in Dynamic Random-Access Memory (DRAM), which is more expensive and not something that fits our use-case. Even in HMA, the primary index grows linearly with record count. At our scale, that growth was a foreseeable issue.</p>
 
-<p>For Kafka pipelines, users frequently struggled with schema evolution in the data lake. Common questions included: <em>“How should I update the data lake schema?”</em> and <em>“I’ve already updated the Protobuf schema for this Kafka topic, why isn’t the latest schema reflected in the data lake?”</em> These issues highlighted unclear expectations around schema propagation and synchronization across the pipeline.</p>
+<p>To raise the memory ceiling, we tried moving the primary index itself from RAM to local Non-Volatile Memory Express (NVMe) while keeping data on SSD. We expected the extra index latency to be invisible within our overall request budget. In practice, we started seeing p99 spikes that did not track overall QPS. Instead, they followed I/O activity on hot keys. We observed that when many concurrent lookups land on the same record, the in-memory index handles them more prudently compared to a disk backed index. Adding more and better nodes improved things slightly but did not mitigate the issue. Consequently, we reverted back to in-memory index with a memory-optimized instance type.</p>
 
-<p>This multi-step, cross-system dependency increased cognitive load, slowed down onboarding, and created coordination overhead between platform teams and users.</p>
+<h2 id="overall-impact">Overall impact</h2>
 
-<h2 id="the-hugo-evolution-a-unified-ingestion-platform">The Hugo evolution: A unified ingestion platform</h2>
+<p>The migration delivered gains across infrastructure, performance, and data footprint. Most of these improvements trace back to the schema redesign like collapsing rows into maps, rather than the database change itself.</p>
 
-<p>Hugo’s new, deeply automated ingestion framework, built with a custom automation layer and Apache Flink, has unified workflows and retired Sprinkler and Kafka Connect. This evolution converted manual, artisanal work into a streamlined, self-service experience, with custom automation serving as the “intelligent chassis” for the entire user journey.</p>
+<p>The primary index currently uses about 50 GB of the roughly 100 GB usable memory per node. The same dataset is around 1 TB on disk, compared with around 3 TB on the original setup. This is primarily attributed to our adoption of the map-based schema discussed earlier.</p>
 
-<h3 id="the-hugo-ingestion-architecture-engineering-a-unified-flow">The Hugo ingestion architecture: Engineering a unified flow</h3>
+<p>In production, p99 read latency was consistently better than the original setup, with roughly 50% improvement across our read paths. The write path now uses a single atomic increment operation, replacing the read-modify-write pattern we had built previously.</p>
 
-<h4 id="one-click-mysql-cdc-pipelines">One-click MySQL CDC pipelines</h4>
+<p>The new setup costs roughly 45–50% less per node compared to our original setup. We also reduced the replication factor from 3 to 2, saving roughly a third of both storage and primary index memory. RF=2 can be awkward in databases that depend on write quorum, but Aerospike’s master-replica model still keeps an authoritative copy available after a single-node loss. That gives us meaningful fault tolerance even at RF=2. The remaining risk, a simultaneous multi-AZ failure, was acceptable for this workload because the writer continues producing increments from the source event stream. Any lost counter data can self-heal as new events arrive.</p>
 
-<p>The transition to a <strong>unified modernized pipeline powered by Flink CDC</strong> shifts the data ingestion architecture from a fragmented, high-maintenance toolchain into a single, end-to-end orchestrated platform. By reading the database binlog directly and embedding the lifecycle within a centralized control plane, the modernized approach drastically reduces operational overhead, eliminates data mismatch risks, and cuts onboarding times from days to minutes. Below are the core advantages of adopting Flink:</p>
+<h2 id="conclusion">Conclusion</h2>
 
-<ul>
-  <li><strong>Minimal operational overhead:</strong> It reduces the footprint from <strong>4 disparate components</strong> (Kafka Connect, topics, Sprinkler app, and Spark) to just <strong>2 core components</strong> managed via a single control plane.</li>
-  <li><strong>Eliminated schema risk:</strong> It replaces brittle, manually coded Go DTOs, which caused frequent schema deviations, with <strong>automated schema detection</strong> and dynamic validation.</li>
-  <li><strong>Streamlined architecture:</strong> It eliminates the intermediary Kafka hop. Flink reads the MySQL binlog directly and pushes straight to a queryable Hive table via an integrated Spark compaction process.</li>
-  <li><strong>Instant onboarding:</strong> It shifts deployment from a multi-team, ticket-heavy process taking <strong>days</strong> to a single-engineer, self-service setup completed in <strong>minutes</strong>.</li>
-</ul>
-
-<div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-2.png" alt="" style="width:100%" /><figcaption align="middle">Figure 2. Data ingestion with MySQL CDC to data lake</figcaption>
-  </figure>
-</div>
-
-<h4 id="self-service-kafka-ingestion">Self-service Kafka ingestion</h4>
-
-<p>The most significant architectural shift in the self-service Kafka ingestion pipeline is the move from manual, fragile schema handling to an automated, resilient system. This comparison highlights the operational pain points eliminated by adopting Flink’s approach.</p>
-
-<p><strong>Legacy Sprinkler approach (manual and static)</strong></p>
-
-<ul>
-  <li><strong>Static registration and hardcoding:</strong> It required manual registration of streams within the Go monorepo and relied on hardcoded mappings in <code class="language-plaintext highlighter-rouge">entities.go</code> to convert Protobuf to Avro.</li>
-  <li><strong>Custom dependencies:</strong> Avro schema was generated indirectly from custom DTO structs, not directly from the Protobuf definition.</li>
-  <li><strong>Manual schema evolution:</strong> Any field change required a multi-step manual process: updating <code class="language-plaintext highlighter-rouge">.pb.go</code> and entity files, followed by a manual pipeline rebuild.</li>
-</ul>
-
-<p><strong>New Flink approach (automated and dynamic)</strong></p>
-
-<ul>
-  <li><strong>Dynamic runtime fetching:</strong> Flink pipelines dynamically retrieve the Protobuf schema from Confluent Schema Registry on startup, removing the need for hardcoding and manual stream registration.</li>
-  <li><strong>Reduced operational overhead for schema changes:</strong> Schema updates are propagated through the CI pipeline to the Schema Registry, removing the need for hardcoded mapping changes. The Flink pipeline can detect updated schemas and resume from the latest checkpoint after restart, though manual restart intervention is still required.</li>
-  <li><strong>Click-to-query:</strong> Engineers can now ingest streaming data from Kafka topics into queryable Hive tables through a few clicks in the Hugo UI. Hugo automatically orchestrates the multi-stage background work, from Flink consumption and S3 writing to Spark compaction, ensuring data is query-optimized and ready for immediate use.</li>
-</ul>
-
-<div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-3.png" alt="" style="width:100%" /><figcaption align="middle">Figure 3. Data ingestion with Kafka to Datalake.</figcaption>
-  </figure>
-</div>
-
-<h2 id="impact">Impact</h2>
-
-<p>The platform’s new onboarding workflow has significantly reduced a previously multi-day process to mere minutes, enabling faster iteration and improving overall onboarding efficiency. This dramatic change has fundamentally altered how our teams interact with data.</p>
-
-<div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/table.png" alt="" style="width:80%" /><figcaption align="middle"></figcaption>
-  </figure>
-</div>
-
-<div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-4.png" alt="" style="width:90%" /><figcaption align="middle">Figure 4. Kafka Flink.</figcaption>
-  </figure>
-</div>
-
-<div class="post-image-section"><figure>
-  <img src="/img/flink-in-hugo/figure-5.png" alt="" style="width:90%" /><figcaption align="middle">Figure 5. CDC Flink.</figcaption>
-  </figure>
-</div>
-
-<p>The onboarding workflow is intentionally designed with early validation guardrails to proactively surface prerequisite and governance-related issues before pipeline creation proceeds.</p>
-
-<ul>
-  <li>For Kafka sources, user drop-offs between the “Create Kafka Source” and “Kafka Sink” stages are primarily driven by validation checks such as topic ownership verification and topic activity requirements, for example topics with zero message volume. Additional drop-offs between the “Kafka Sink” and “Create Source Pipeline” stages typically occur when the proposed output table name already exists in the data lake, preventing duplicate table creation.</li>
-  <li>For MySQL sources, drop-offs are mainly associated with unmet database onboarding prerequisites, including credential setup, binlog user configuration, binlog format requirements, and binlog expiration settings.</li>
-</ul>
-
-<p>In addition, the streamlined self-service experience encourages exploratory usage, allowing teams to familiarize themselves with the onboarding workflow and platform capabilities before fully committing to pipeline creation.</p>
-
-<h2 id="summary">Summary</h2>
-
-<p>The new architecture engineered a custom automation layer that successfully retired the reliance on Kafka Connect and Sprinkler for the data lake, turning artisanal work into a streamlined, one-click experience. This transformation provides a direct boost to developer productivity.</p>
-
-<p>The key impact metrics are:</p>
-
-<ul>
-  <li><strong>Onboarding time reduction:</strong> The time required to set up data pipelines has been dramatically reduced and is now measured in minutes.
-    <ul>
-      <li><strong>Kafka pipelines:</strong> approximately 6 minutes.</li>
-      <li><strong>MySQL CDC pipelines:</strong> approximately 3 minutes.</li>
-    </ul>
-  </li>
-  <li><strong>Adoption:</strong> Since the release, the number of new Kafka and CDC pipelines onboarded in the last year is more than the total number of pipelines onboarded in the previous five years.</li>
-</ul>
-
-<h2 id="whats-next">What’s next</h2>
-
-<p>These enhancements are just one step in our broader vision for optimized and self-service data ingestion. Currently, Flink is the default only for Kafka source pipelines. Flink onboarding for MySQL CDC pipelines is impact- and cost-driven. Our strategic roadmap includes:</p>
-
-<ul>
-  <li><strong>Next-generation formats:</strong> We are investigating the adoption of Apache Iceberg as the data lake table format to further improve pipeline SLA and costs, and improve performance.</li>
-  <li><strong>Seamless schema evolution:</strong> Schema changes still require some manual effort from pipeline owners, including manually restarting Flink pipelines. In Hugo, we aim to make schema evolution a zero-touch experience by automatically detecting changes, validating compatibility, and updating tables without disruption.</li>
-</ul>
+<p>This migration ultimately came down to aligning the storage design with the workload. These results would not have been achieved by simply swapping one storage system for another. As the service evolved over time, our initial design choices became less optimal, and the migration surfaced opportunities to rethink them. The gains came from focusing on optimization opportunities, redesigning the data model, and cleanly separating storage concerns. Through shadow reads and writes, followed by a gradual rollout, we completed the migration with zero downtime and no data-integrity issues. The result is a system that fits its workload well and a foundation that makes future storage changes safer and easier to attempt.</p>
 
 <h2 id="join-us">Join us</h2>
 
 <p>Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.</p>
 
-<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grb.to/gebapacheflink">join our team today</a>!</p>
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://www.grab.careers/en/">join our team</a> today!</p>
 
         </article>
         <div class="sharing-links text-right">
   Share on &nbsp;
-  <a href="https://twitter.com/intent/tweet?text=The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink&url=https://engineering.grab.com/one-click-data-ingestion-platform-with-apache-flink&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
-  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/one-click-data-ingestion-platform-with-apache-flink" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
-  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/one-click-data-ingestion-platform-with-apache-flink&title=The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink
-&summary=At Grab, we're transforming data ingestion and processing with Hugo, our self-service data platform. Now integrated with Apache Flink, Hugo empowers teams to build real-time data pipelines effortlessly. Discover how we've streamlined complex processes into a single, one-click experience that boosts productivity and enables rapid insights. Dive into our blog to explore this game-changing evolution!&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
+  <a href="https://twitter.com/intent/tweet?text=Migrating Counter Service storage: Design choices and learnings&url=https://engineering.grab.com/counter-service-storage-migration-approach-and-learnings&via=grabengineering&related=grabengineering" class="btn btn-sm btn-share btn-share-twitter" rel="nofollow" target="_new" title="Share on Twitter" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-twitter"></i>&nbsp; Twitter</a>
+  <a href="https://facebook.com/sharer.php?u=https://engineering.grab.com/counter-service-storage-migration-approach-and-learnings" class="btn btn-sm btn-share btn-share-facebook" rel="nofollow" target="_new" title="Share on Facebook" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-facebook"></i>&nbsp; Facebook</a>
+  <a href="https://www.linkedin.com/shareArticle?mini=true&url=https://engineering.grab.com/counter-service-storage-migration-approach-and-learnings&title=Migrating Counter Service storage: Design choices and learnings
+&summary=Counter Service powers real-time fraud detection at massive scale, handling billions of requests daily. Learn how we migrated its underlying storage with zero downtime, redesigning the writer data model, incorporating clean data access layer separation on the reader side, building dual read-write path for traffic shadowing and data parity validation, and rolling out traffic gradually while verifying data integrity at every step&source=Grab Tech" class="btn btn-sm btn-share btn-share-linkedin" rel="nofollow" target="_new" title="Share on LinkedIn" onclick="onShareButtonClick(this); return false;"><i class="fa fa-lg fa-linkedin"></i>&nbsp; LinkedIn</a>
 </div>
 <script>
   function onShareButtonClick(button) {
@@ -459,7 +523,7 @@
         <section
   class="related-jobs-section"
   id="related-jobs"
-  data-tags='["Database","Hugo","FlinkSQL"]'
+  data-tags='["Security","Artificial Intelligence","Kubernetes","DevSecOps","Platform","Engineering"]'
   data-limit="3"
   aria-live="polite"
 >
@@ -484,19 +548,6 @@
   <h2 class="sidebar-panel-heading">Recent articles</h2>
   <ul class="recent-posts-list">
     
-      
-        <li class="recent-posts-item">
-          <a href="/counter-service-storage-migration-approach-and-learnings" class="recent-posts-link">
-            
-              <img src="/img/migrating-counter-service/banner.png" class="recent-posts-thumb" alt="" loading="lazy">
-            
-            <span class="recent-posts-text">
-              <span class="recent-posts-title">Migrating Counter Service storage: Design choices and learnings</span>
-              <time class="recent-posts-date" datetime="2026-07-03T00:00:00+00:00">3 Jul 2026</time>
-            </span>
-          </a>
-        </li>
-        
       
     
       
@@ -559,6 +610,19 @@
         
       
     
+      
+        <li class="recent-posts-item">
+          <a href="/one-click-data-ingestion-platform-with-apache-flink" class="recent-posts-link">
+            
+              <img src="/img/flink-in-hugo/banner-image.png" class="recent-posts-thumb" alt="" loading="lazy">
+            
+            <span class="recent-posts-text">
+              <span class="recent-posts-title">The Hugo evolution: Engineering Grab's unified, one-click data ingestion platform with Apache Flink</span>
+              <time class="recent-posts-date" datetime="2026-05-22T00:23:00+00:00">22 May 2026</time>
+            </span>
+          </a>
+        </li>
+        
       
     
       
@@ -1031,55 +1095,19 @@
     
     
       
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-    
-      
-        
-        
-        
-      
     
       
         
         
         
           <li class="recent-posts-item">
-            <a href="/enchancing-flink-shadow-testing" class="recent-posts-link">
+            <a href="/scaling-out-distroless-adoption-with-ai" class="recent-posts-link">
               
-                <img src="/img/shadow-testing/banner.jpg" class="recent-posts-thumb" alt="" loading="lazy">
+                <img src="/img/scaling-out-distroless-adoption-with-ai/banner-image.png" class="recent-posts-thumb" alt="" loading="lazy">
               
               <span class="recent-posts-text">
-                <span class="recent-posts-title">Enhancing Flink deployment with shadow testing</span>
-                <time class="recent-posts-date" datetime="2026-05-07T00:23:00+00:00">7 May 2026</time>
+                <span class="recent-posts-title">Scaling out Distroless adoption With AI</span>
+                <time class="recent-posts-date" datetime="2026-06-22T00:00:00+00:00">22 Jun 2026</time>
               </span>
             </a>
           </li>
@@ -1091,62 +1119,14 @@
         
         
         
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
           <li class="recent-posts-item">
-            <a href="/cdp-scenarios" class="recent-posts-link">
+            <a href="/part-2-palana-architecture" class="recent-posts-link">
               
-                <img src="/img/cdp-scenario/banner-1.png" class="recent-posts-thumb" alt="" loading="lazy">
+                <img src="/img/palana-part-2/banner-image.png" class="recent-posts-thumb" alt="" loading="lazy">
               
               <span class="recent-posts-text">
-                <span class="recent-posts-title">How Grab is accelerating growth with real-time personalization using Customer Data Platform scenarios</span>
-                <time class="recent-posts-date" datetime="2025-12-18T00:23:00+00:00">18 Dec 2025</time>
+                <span class="recent-posts-title">Palana (Part 2): Architecting isolation, identity, and auditability for AI agents</span>
+                <time class="recent-posts-date" datetime="2026-06-21T00:00:00+00:00">21 Jun 2026</time>
               </span>
             </a>
           </li>
@@ -1158,115 +1138,79 @@
         
         
         
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
-      
-    
-      
-        
-        
-        
           <li class="recent-posts-item">
-            <a href="/the-complete-stream-processing-journey-on-flinksql" class="recent-posts-link">
+            <a href="/palana-part-1-secure-platform-for-ai-agents" class="recent-posts-link">
               
-                <img src="/img/flink-sql/cover.png" class="recent-posts-thumb" alt="" loading="lazy">
+                <img src="/img/palana-part-1/banner-image.png" class="recent-posts-thumb" alt="" loading="lazy">
               
               <span class="recent-posts-text">
-                <span class="recent-posts-title">The complete stream processing journey on FlinkSQL</span>
-                <time class="recent-posts-date" datetime="2025-06-12T00:23:00+00:00">12 Jun 2025</time>
+                <span class="recent-posts-title">Palana (Part 1): Why Grab built a secure platform for autonomous AI Agents</span>
+                <time class="recent-posts-date" datetime="2026-06-19T00:00:00+00:00">19 Jun 2026</time>
               </span>
             </a>
           </li>
           
         
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
       
     
       
