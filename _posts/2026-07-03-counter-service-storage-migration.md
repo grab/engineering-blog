@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2026-07-03-counter-service-storage-migration-approach-and-learnings
+id: 2026-07-03-counter-service-storage-migration
 title: 'Migrating Counter Service storage: Design choices and learnings'
 date: 2026-07-03 00:00:00
 authors: [jialong.loh, riyadh.sharif, runze.cui, yuanzhe.liu]
