@@ -15,7 +15,7 @@ excerpt: "As Grab's Data Lake grew to petabytes, the limitations of Hive Parquet
 
 At Grab's scale, managing petabytes of data across billions of S3 objects demands more than a storage layer. It demands a robust architectural primitive that supports the high-concurrency needs of a modern "Lakehouse." Our goal is full storage-compute separation, leveraging S3 as an elastic foundation for both near-real-time metrics and large-scale batch transformations.
 
-For years, the vast majority of our tables were Hive Parquet, managed through the Hive Metastore with a directory-based layout. This model served us well, but as data volume grew, the directory-and-metastore approach became the limiting factor. We are now transitioning to a table-centric architecture built on modern table formats, treating data as a first-class primitive to ensure consistency and performance across our internal data transformation platforms: Slide, which powers batch transformations, and Hugo, which handles online-to-data-lake ingestion. Along the way, we also built the GrabSessionCatalog, a unified Spark catalog that hides table-format differences from users entirely, which we are open-sourcing alongside this post.
+For years, the vast majority of our tables were Hive Parquet, managed through the Hive Metastore with a directory-based layout. This model served us well, but as data volume grew, the directory-and-metastore approach became the limiting factor. We are now transitioning to a table-centric architecture built on modern table formats, treating data as a first-class primitive to ensure consistency and performance across our internal data transformation platforms: Slide, which powers batch transformations, and Hugo, which handles online-to-data-lake ingestion. Along the way, we also built the UnifiedSparkCatalog, a unified Spark catalog that hides table-format differences from users entirely, which we are open-sourcing alongside this post.
 
 ## The catalyst for change: Challenges with Hive Parquet
 
@@ -45,13 +45,13 @@ Migrating an established lake is not a flag flip. Our challenge was rolling out 
 * **S3 API cost reduction:** For a heavily queried operations table, daily S3 API costs were reduced by up to 95% with no changes to the queries themselves. Larger file sizes and the elimination of expensive object listing during query planning drove most of the savings.
 * **Compute savings:** For a dataset used in funnel analysis, we reduced cluster resource usage by approximately half. A separate ML feature pipeline also improved feature freshness for downstream models.
 
-## The GrabSessionCatalog: Making mixed formats transparent
+## The UnifiedSparkCatalog: Making mixed formats transparent
 
 Migrating to Iceberg solved our storage and metadata problems, but it surfaced a new one at the developer-experience layer. Modern table formats like Delta, Iceberg, and Hudi each implement their own custom catalog that extends Spark's `SessionCatalog`. In a standard Spark runtime, only one catalog implementation can be set as the default `spark_catalog`. Supporting additional formats requires explicit catalog declarations, meaning users must reference tables with format-specific prefixes like `iceberg_catalog.schema.table` or `delta_catalog.schema.table`.
 
 With Iceberg, Delta, Hudi, and Hive tables now coexisting and tables actively migrating between formats, this created two problems: engineers had to know the underlying format of every table they queried, and any format migration silently broke every downstream query that hardcoded a prefix.
 
-The GrabSessionCatalog is our answer. It is a unified Spark catalog that abstracts the complexity of working with mixed table formats so users never need to think about which format a table uses. We took inspiration from Trino's Table Redirection, a feature that transparently points a query at the right connector when a table's format differs from the catalog it was queried through. Our Spark equivalent works as follows:
+The UnifiedSparkCatalog is our answer. It is a unified Spark catalog that abstracts the complexity of working with mixed table formats so users never need to think about which format a table uses. We took inspiration from Trino's Table Redirection, a feature that transparently points a query at the right connector when a table's format differs from the catalog it was queried through. Our Spark equivalent works as follows:
 
 ### How it works
 
@@ -66,6 +66,8 @@ The GrabSessionCatalog is our answer. It is a unified Spark catalog that abstrac
 * **Catalog reuse:** Before creating a new catalog instance, the system checks whether one already exists in Spark's catalog manager. This preserves compatibility with plugins like OpenLineage, which inspect catalog class types for lineage extraction.
 * **Fallback behavior:** If a table is not found in the expected format-specific catalog, the system falls back to the base session catalog, ensuring robust behavior for standard Hive tables.
 
+We are open-sourcing UnifiedSparkCatalog alongside this blog post. The code and documentation are available [here](https://github.com/grab/unified-spark-catalog).
+
 ## Lessons learned and overcoming hurdles
 
 Scaling Iceberg across a large ecosystem revealed several technical nuances:
@@ -78,7 +80,7 @@ Scaling Iceberg across a large ecosystem revealed several technical nuances:
 
 Apache Iceberg is now foundational to Grab's data strategy. It is the default format for Slide and Hugo, and adoption is expanding across our compute platforms.
 
-Looking forward, we are experimenting with **Storage Partitioned Joins** to eliminate shuffle stages in Spark and monitoring the **Apache XTable** project to maintain interoperability between formats. Our journey does not end with adoption. We will continue contributing back to the ecosystem, starting with the upcoming release of the GrabSessionCatalog.
+Looking forward, we are experimenting with **Storage Partitioned Joins** to eliminate shuffle stages in Spark and monitoring the **Apache XTable** project to maintain interoperability between formats. Our journey does not end with adoption. We will continue contributing back to the ecosystem, starting with the upcoming release of the UnifiedSparkCatalog.
 
 **Acknowledgments:** This journey was made possible by the dedicated efforts of the Data Engineering, Infrastructure, and Search & Personalization teams at Grab.
 
