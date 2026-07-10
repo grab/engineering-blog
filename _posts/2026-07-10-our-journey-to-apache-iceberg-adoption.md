@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-07-15-our-journey-to-apache-iceberg-adoption
+id: 2026-07-10-our-journey-to-apache-iceberg-adoption
 title: "Scaling Grab's Data Lake: Our journey to Apache Iceberg adoption"
-date: 2026-07-16 00:00:00
+date: 2026-07-10 00:00:00
 authors: [rahul.penti]
 categories: [Engineering]
 tags: [Data, Database, Engineering, Apache Iceberg, Spark]
