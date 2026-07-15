@@ -2,7 +2,7 @@
 layout: post
 id: 2026-07-30-how-grab-builds-and-runs-ai-agents-at-scale
 title: 'Agent platform (Part 1): How we help Grab build and run AI agents at scale'
-date: 2026-07-15 00:00:10
+date: 2026-07-30 00:00:10
 authors: [kendrick.tan, jeffery.lean, yisheng.tay]
 categories: [Engineering, Design]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
