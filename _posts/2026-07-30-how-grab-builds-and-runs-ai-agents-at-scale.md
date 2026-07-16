@@ -8,7 +8,7 @@ categories: [Engineering, Design]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/how-grab-builds-and-run-ai-at-scale/part-1-banner.png
-excerpt: "How Grab builds and runs AI agents at scale explains how Grab turned repeated operational pain points into reusable platform primitives that help teams build, test, and run agents faster and more safely. It shows why the hard part of agent development isn’t the reasoning loop itself, but everything around it from auth, secrets, environment config, observability, evals, MCP integration, and service-to-service connectivity."
+excerpt: "How Grab builds and runs AI agents at scale explains how Grab turned repeated operational pain points into reusable platform primitives that help teams build, test, and run agents faster and more safely. It shows why the hard part of agent development isn't the reasoning loop itself, but everything around it from auth, secrets, environment config, observability, evals, MCP integration, and service-to-service connectivity."
 ---
 
 ## Part 1: From one support bot to a framework
@@ -19,17 +19,17 @@ None of this was designed up front. It began as the plumbing behind **one** inte
 
 ## The bot that started it
 
-Imagine you have a question for the **Technical Infrastructure (Tech Infra)** team - the engineers who run the cloud platforms, databases, developer tooling, and AI infrastructure behind Grab’s ecosystem. Instead of immediately paging an on-call engineer, a bot first triages the request, checks the team’s documentation, runbooks, and past Slack threads, and tries to answer directly in the thread. If it still cannot resolve the issue, it routes the ticket to the right human, with the relevant context already attached.
+Imagine you have a question for the **Technical Infrastructure (Tech Infra)** team - the engineers who run the cloud platforms, databases, developer tooling, and AI infrastructure behind Grab's ecosystem. Instead of immediately paging an on-call engineer, a bot first triages the request, checks the team's documentation, runbooks, and past Slack threads, and tries to answer directly in the thread. If it still cannot resolve the issue, it routes the ticket to the right human, with the relevant context already attached.
 
 That is what we built with the Tech Infra Support Bot.
 
-In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeated questions that had already been answered somewhere internally. Before LLMs, the bot’s role was mainly operational. Performing tasks like helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.
+In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeated questions that had already been answered somewhere internally. Before LLMs, the bot's role was mainly operational. Performing tasks like helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.
 
 The first production version was a Go service organized around two planes:
 
-- **A reasoning plane**. At Level-0, it was a single-agent loop. It takes the user’s question, decides which tools to call, executes those calls, feeds the results back into the prompt, and returns an answer. The default model at the time was gpt-4.1; today, we have evolved to Opus 4.8.
+- **A reasoning plane**. At Level-0, it was a single-agent loop. It takes the user's question, decides which tools to call, executes those calls, feeds the results back into the prompt, and returns an answer. The default model at the time was gpt-4.1; today, we have evolved to Opus 4.8.
 
-- **A tool plane**. The tools provided the bot’s core working context. Retrieval flowed through Glean, which covered Confluence, 
+- **A tool plane**. The tools provided the bot's core working context. Retrieval flowed through Glean, which covered Confluence, 
 [TechDocs](https://engineering.grab.com/techdocs-at-grab-cultivating-a-culture-of-quality-documentation), internal drives, and Jira. Other tools handled log search through Kibana, GitLab runbook and file access, Slack conversation search, and a small set of Hypertext Transfer Protocol (HTTP) plugins. In the first version, tools and prompts were defined in per-channel JavaScript Object Notation (JSON) configs and resolved at request time. As models became more capable, we later standardized the tool set across channels.
 
 A trimmed version of that tool config looked like this:
@@ -63,9 +63,9 @@ The pattern was clear: the hard part of building an agent was not the agent itse
 
 ## Extracting the framework: LLM-Kit
 
-LLM-Kit emerged when we stopped solving these problems service by service and started solving them once, centrally. It is intentionally not a new agent abstraction or a Domain-Specific Language (DSL). Instead, it is a curated set of integrations and scaffolding built around Grab’s existing infrastructure, pipelines, secret management, and observability. Just as importantly, we chose to build a framework rather than a heavy centralized platform. In a space evolving this quickly, a platform would have locked teams into rigid assumptions that would soon become outdated. A framework let us meet developers where they already were: standardizing the plumbing while preserving the freedom to iterate quickly. Looking back, that was the right first choice. Each part of LLM-Kit is a direct response to one of the failures described above.
+LLM-Kit emerged when we stopped solving these problems service by service and started solving them once, centrally. It is intentionally not a new agent abstraction or a Domain-Specific Language (DSL). Instead, it is a curated set of integrations and scaffolding built around Grab's existing infrastructure, pipelines, secret management, and observability. Just as importantly, we chose to build a framework rather than a heavy centralized platform. In a space evolving this quickly, a platform would have locked teams into rigid assumptions that would soon become outdated. A framework let us meet developers where they already were: standardizing the plumbing while preserving the freedom to iterate quickly. Looking back, that was the right first choice. Each part of LLM-Kit is a direct response to one of the failures described above.
 
-We first wrote about LLM-Kit’s structure and code architecture in a [2024 blog post](https://engineering.grab.com/supercharging-llm-application-development-with-llm-kit). Two years and a few hundred agents later, the overall *shape* is still recognizable, but almost every underlying layer has changed. Poetry was replaced by `uv`; we standardized on the OpenTelemetry stack; LangChain evolved into LangGraph and Deep Agents; and some tools moved onto our MCP framework.
+We first wrote about LLM-Kit's structure and code architecture in a [2024 blog post](https://engineering.grab.com/supercharging-llm-application-development-with-llm-kit). Two years and a few hundred agents later, the overall *shape* is still recognizable, but almost every underlying layer has changed. Poetry was replaced by `uv`; we standardized on the OpenTelemetry stack; LangChain evolved into LangGraph and Deep Agents; and some tools moved onto our MCP framework.
 
 **It starts with a template**. The entry point is a user interface (UI) form. An engineer fills in an application name and a few details, and gets back a GitLab repository with the production wrapper already assembled. Under the hood the template stamps out a full FastAPI service:
 
@@ -158,7 +158,7 @@ client = MultiServerMCPClient({
 tools = await client.get_tools()   # schema negotiated, no redeploy
 ```
 
-An agent is just another service in the ecosystem, with gRPC on both sides. Most of Grab’s backend communicates over gRPC, and agents are rarely standalone; other services call them, and they in turn call other internal services. The template is designed to support both directions.
+An agent is just another service in the ecosystem, with gRPC on both sides. Most of Grab's backend communicates over gRPC, and agents are rarely standalone; other services call them, and they in turn call other internal services. The template is designed to support both directions.
 
 On the *serving* side, the scaffold includes a Protocol Buffers (protobuf) contract (`{{ app_name }}sdk/.../{{ app_name }}.proto`, with a sample `Hello` remote procedure call (RPC)) and a generated, typed client SDK package that other teams `import` to call your agent without hand-writing HTTP. `make gen-proto` regenerates the Python stubs from the `.proto`, and a `gen-proto-check` Continuous Integration (CI) step fails the build if the committed stubs drift from the contract. A gRPC server runs alongside FastAPI (default port `8087`, multi-worker-safe via `SO_REUSEPORT`) and ships a standard gRPC health service out of the box:
 
@@ -182,7 +182,7 @@ channel = provider.get_channel()           # first healthy channel, auto-reselec
 stub = SomeServiceStub(channel)
 ```
 
-This is the less glamorous side of being **production-ready**. Before an agent can deliver value, it needs to both accept calls from and make calls to the rest of the company’s services using the same transport the broader system already relies on. 
+This is the less glamorous side of being **production-ready**. Before an agent can deliver value, it needs to both accept calls from and make calls to the rest of the company's services using the same transport the broader system already relies on. 
 
 ## What's next
 
