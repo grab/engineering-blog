@@ -15,7 +15,7 @@ excerpt: "How Grab builds and runs AI agents at scale explains how Grab turned r
 
 At Grab, AI agents have evolved from interesting team prototypes into production services used every day by millions of merchants, drivers, and consumers. Today, more than 500 services run on our internal agent framework, over 50 Model Context Protocol (MCP) servers are registered on our remote MCP framework, and a single Large Language Model (LLM) gateway fronts every model call across the company, handling billions of tokens each month.
 
-None of this was designed up front. It began as the plumbing behind **one** internal support bot, then expanded because the same problems kept resurfacing for every team trying to ship an agent. This series tells the story of that plumbing and the platform it eventually became. This part 1 focuses on the beginning: the architecture of our AI support bot, the specific pain points we hit while scaling and iterating on it, and how each of those failures became a core building block in the framework we now call **LLM-Kit**.
+None of this was designed up front. It began as the plumbing behind **one** internal support bot, which then expanded because the same problems kept resurfacing for every team trying to ship an agent. This series tells the story of what the platform eventually became. This part 1 focuses on the beginning: the architecture of our AI support bot, the specific pain points we hit while scaling and iterating on it, and how each of those failures became a core building block in the framework we now call **LLM-Kit**.
 
 ## The bot that started it
 
@@ -23,14 +23,15 @@ Imagine you have a question for the **Technical Infrastructure (Tech Infra)** te
 
 That is what we built with the Tech Infra Support Bot.
 
-In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeat questions that had already been answered somewhere internally. Before LLMs, the bot’s role was mainly operational: helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.
+In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeated questions that had already been answered somewhere internally. Before LLMs, the bot’s role was mainly operational. Performing tasks like helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.
 
 The first production version was a Go service organized around two planes:
 
-- **A reasoning plane**. At Level-0, it was a single-agent loop. It take the user’s question, decide which tools to call, execute those calls, feed the results back into the prompt, and return an answer. The default model at the time was gpt-4.1; today, we have evolved to Opus 4.8.
+- **A reasoning plane**. At Level-0, it was a single-agent loop. It takes the user’s question, decides which tools to call, executes those calls, feeds the results back into the prompt, and returns an answer. The default model at the time was gpt-4.1; today, we have evolved to Opus 4.8.
 
 - **A tool plane**. The tools provided the bot’s core working context. Retrieval flowed through Glean, which covered Confluence, 
 [TechDocs](https://engineering.grab.com/techdocs-at-grab-cultivating-a-culture-of-quality-documentation), internal drives, and Jira. Other tools handled log search through Kibana, GitLab runbook and file access, Slack conversation search, and a small set of Hypertext Transfer Protocol (HTTP) plugins. In the first version, tools and prompts were defined in per-channel JavaScript Object Notation (JSON) configs and resolved at request time. As models became more capable, we later standardized the tool set across channels.
+
 A trimmed version of that tool config looked like this:
 
 ```json
@@ -52,12 +53,11 @@ As we worked on improving the agent, we kept running into the same kinds of fric
 
 - **Hope is not an evaluation strategy**. The bot had a base prompt, and each Slack channel could configure its own prompt, tools, and documentation filters. But the workflow was essentially - configure it, ship it, and hope it reduced toil. There were no real evaluations, just optimism that it would work.
 
-- **Fast model and provider switching is essential**.
-The AI landscape moves incredibly fast: a new state-of-the-art (SOTA) model appears on Tuesday, and a highly efficient open-source alternative shows up on Thursday. Switching providers should not feel like open-heart surgery. A unified Software Development Kit (SDK) and an [LLM API gateway](https://engineering.grab.com/grab-ai-gateway) remove the need to refactor payload schemas, rewrite error handling, or integrate each provider from scratch. If moving from OpenAI to Anthropic, or routing to an open-source model endpoint takes more than a few config changes, technical debt is already slowing you down.
+- **Fast model and provider switching is essential**. The AI landscape moves incredibly fast: a new state-of-the-art (SOTA) model appears on Tuesday, and a highly efficient open-source alternative shows up on Thursday. Switching providers should not feel like open-heart surgery. A unified Software Development Kit (SDK) and an [LLM API gateway](https://engineering.grab.com/grab-ai-gateway) remove the need to refactor payload schemas, rewrite error handling, or integrate each provider from scratch. If moving from OpenAI to Anthropic, or routing to an open-source model endpoint, takes more than a few config changes, technical debt is already slowing you down.
 
-- **Observability cannot be an afterthought.** When an answer was wrong, figuring out "why" meant grepping logs across three separate systems: the agent workflow, the tool calls, and the model call. There was no shared trace tying them together. That level of friction is survivable for an internal tool; it is unacceptable for a customer-facing agent.
+- **Observability cannot be an afterthought**. When an answer was wrong, figuring out "why" meant grepping logs across three separate systems: the agent workflow, the tool calls, and the model call. There was no shared trace tying them together. That level of friction is survivable for an internal tool; it is unacceptable for a customer-facing agent.
 
-- **Everything around the agent took longer than the agent itself**. Auth (OIDC), secrets management (Vault), per-environment config, vector database integration, LLM tracing, health probes, and metrics were not agent-specific problems. However, they all had to be solved before anything could ship. The reasoning loop took an afternoon. The production wrapper took two weeks
+- **Everything around the agent took longer than the agent itself**. Auth (OIDC), secrets management (Vault), per-environment config, vector database integration, LLM tracing, health probes, and metrics were not agent-specific problems. However, they all had to be solved before anything could be shipped. The reasoning loop took a whole afternoon. The production wrapper took two weeks.
 
 The pattern was clear: the hard part of building an agent was not the agent itself, but everything around it that had to be in place before it could safely run in front of users. So we began pulling those shared components out of the bot and consolidating them into a unified framework.
 
@@ -113,7 +113,7 @@ Three things are worth pulling out of that tree:
 
 The day-one wiring that used to take two weeks or more now takes about an hour. The rest of this section is what "pre-wired" means, layer by layer.
 
-**Config and secrets, solved once**. Apps declare environment configs as initialization (INI) files with secret interpolation, so secrets resolve from [Vault](https://www.hashicorp.com/en/products/vault?utm_source=google&utm_channel_bucket=paid&utm_medium=sem&utm_campaign=core_apac_multi_eng_x_all_sem-gg_x_all_all_all_br&utm_content=hashicorp%20vault-190017550690-Brand_Vault_SLM-802491325140&gad_source=1&gad_campaignid=23699376650&gbraid=0AAAAAC15ru8puHsQth55S3GvC2N6lMusm&gclid=CjwKCAjwgO7RBhBKEiwAZNP85mSwHd8Tvwt_6i6a869Bwuqqws3tcto-4Fb4c3XHD-LL2Um0fARKyxoCrVgQAvD_BwE) at boot and a single `secret.ini.example` is enough to run any LLM-Kit app locally:
+**Config and secrets are solved once**. Apps declare environment configs as initialization (INI) files with secret interpolation, so secrets resolve from [Vault](https://www.hashicorp.com/en/products/vault?utm_source=google&utm_channel_bucket=paid&utm_medium=sem&utm_campaign=core_apac_multi_eng_x_all_sem-gg_x_all_all_all_br&utm_content=hashicorp%20vault-190017550690-Brand_Vault_SLM-802491325140&gad_source=1&gad_campaignid=23699376650&gbraid=0AAAAAC15ru8puHsQth55S3GvC2N6lMusm&gclid=CjwKCAjwgO7RBhBKEiwAZNP85mSwHd8Tvwt_6i6a869Bwuqqws3tcto-4Fb4c3XHD-LL2Um0fARKyxoCrVgQAvD_BwE) at boot, and a single `secret.ini.example` is enough to run any LLM-Kit app locally:
 
 ```
 [CONFIG]
@@ -122,7 +122,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=<otel-collector-endpoint>
 POSTGRES_POOL_RECYCLE=1800
 ```
 
-**Model access behind one resolver.** Every model call goes through the GrabGPT Gateway, which is OpenAI-compatible. LLM-Kit's job is just to resolve the right endpoint (per environment, and per data tier) and inject the key so application code never hard-codes a provider again:
+**Model access behind one resolver**. Every model call goes through the GrabGPT Gateway, which is OpenAI-compatible. LLM-Kit's job is just to resolve the right endpoint (per environment, and per data tier) and inject the key so application code never hard-codes a provider again:
 
 ```py
 from openai import OpenAI
@@ -136,7 +136,7 @@ client = OpenAI(
 
 That one indirection is what later lets a platform team change which provider serves a model, configure fallback routing, set budgets, and manage cost attribution, without a single application touching its code. Part 2 covers what lives behind that gateway.
 
-**Tracing wired in, not bolted on.** A single instrumentor auto-instruments FastAPI, outbound HTTP, LangChain, and MCP, and stamps every span with Kubernetes resource attributes (pod, namespace, image, service version). Structured logs auto-inject the trace and span IDs, so logs and traces correlate in Grafana/Kibana for free:
+**Tracing wired in, not bolted on**. A single instrumentor auto-instruments FastAPI, outbound HTTP, LangChain, and MCP, and stamps every span with Kubernetes resource attributes (pod, namespace, image, service version). Structured logs auto-inject the trace and span IDs, so logs and traces correlate in Grafana/Kibana for free:
 
 ```py
 exporter = OTLPSpanExporter(endpoint=app_config.otel_exporter_otlp_endpoint)
@@ -145,7 +145,7 @@ OTELInstrumentor(exporter=exporter, excluded_urls=["health_check"]).instrument_a
 
 The **three systems, no shared trace** problem turns into **one end-to-end trace** across every LLM call, tool call, and retrieval step.
 
-**Tools can be exposed through MCP servers built on our MCP framework**. Instead of hardwiring a large set of tool functions inside the agent process, the agent connects to MCP servers and discovers their tools at runtime. That means adding a new capability can be as simple as registering an MCP server, rather than redeploying the agen
+**Tools can be exposed through MCP servers built on our MCP framework**. Instead of hardwiring a large set of tool functions inside the agent process, the agent connects to MCP servers and discovers their tools at runtime. That means adding a new capability can be as simple as registering an MCP server, rather than redeploying the agent.
 
 ```py
 client = MultiServerMCPClient({
@@ -158,7 +158,7 @@ client = MultiServerMCPClient({
 tools = await client.get_tools()   # schema negotiated, no redeploy
 ```
 
-An agent is just another service in the ecosystem, with gRPC on both sides. Most of Grab’s backend communicates over gRPC, and agents are rarely standalone: other services call them, and they in turn call other internal services. The template is designed to support both directions.
+An agent is just another service in the ecosystem, with gRPC on both sides. Most of Grab’s backend communicates over gRPC, and agents are rarely standalone; other services call them, and they in turn call other internal services. The template is designed to support both directions.
 
 On the *serving* side, the scaffold includes a Protocol Buffers (protobuf) contract (`{{ app_name }}sdk/.../{{ app_name }}.proto`, with a sample `Hello` remote procedure call (RPC)) and a generated, typed client SDK package that other teams `import` to call your agent without hand-writing HTTP. `make gen-proto` regenerates the Python stubs from the `.proto`, and a `gen-proto-check` Continuous Integration (CI) step fails the build if the committed stubs drift from the contract. A gRPC server runs alongside FastAPI (default port `8087`, multi-worker-safe via `SO_REUSEPORT`) and ships a standard gRPC health service out of the box:
 
@@ -182,11 +182,11 @@ channel = provider.get_channel()           # first healthy channel, auto-reselec
 stub = SomeServiceStub(channel)
 ```
 
-This is the less glamorous side of being **production-ready**. Before an agent can deliver value, it needs to both accept calls from and make calls to the rest of the company’s services using the same transport the broader system already relies on. In practice, the most reliable way to uncover the next paper cut is to dogfood those hard parts and learn from user feedback.
+This is the less glamorous side of being **production-ready**. Before an agent can deliver value, it needs to both accept calls from and make calls to the rest of the company’s services using the same transport the broader system already relies on. 
 
 ## What's next
 
-LLM-Kit solved *building and shipping* one agent well. The moment 500 of them existed, a new set of problems showed up that no single framework can own: who can change which model for everyone at once, how does one team safely reuse another team's tools, and how do you know an agent got *better* and not just *different* after a prompt change. Those became the gateway, the remote MCP framework, and our evals platform. The next part of this blog will delve into the GrabGPT Gateway architecture consisting of one endpoint, five providers, and what it takes to make "swap the model" a configuration change instead of an incident.
+LLM-Kit solved *building and shipping* one agent. At 500 agents, the problems were no longer framework problems. They were platform problems: who can change which model everyone calls, how one team safely reuses another team's tools, and how you know an agent got *better* and not just *different* after a prompt change. We built three answers for that layer: the GrabGPT Gateway, a remote MCP framework, and an evals platform. Part 2 starts with the gateway — one endpoint, five providers, and what it takes to make "swap the model" a configuration change instead of an incident.
 
 ## Join us
 
