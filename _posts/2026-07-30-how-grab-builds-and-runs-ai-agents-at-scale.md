@@ -8,14 +8,14 @@ categories: [Engineering, Design]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/how-grab-builds-and-run-ai-at-scale/part-1-banner.png
-excerpt: "How Grab builds and runs AI agents at scale explains how Grab turned repeated operational pain points into reusable platform primitives that help teams build, test, and run agents faster and more safely. It shows why the hard part of agent development isn't the reasoning loop itself, but everything around it from auth, secrets, environment config, observability, evals, MCP integration, and service-to-service connectivity."
+excerpt: "Explains how Grab turned repeated operational pain points into reusable platform primitives that help teams build, test, and run agents faster and more safely. It shows why the hard part of agent development isn't the reasoning loop itself, but everything around it from auth, secrets, environment config, observability, evals, MCP integration, and service-to-service connectivity."
 ---
 
 ## Part 1: From one support bot to a framework
 
 At Grab, AI agents have evolved from interesting team prototypes into production services used every day by millions of merchants, drivers, and consumers. Today, more than 500 services run on our internal agent framework, over 50 Model Context Protocol (MCP) servers are registered on our remote MCP framework, and a single Large Language Model (LLM) gateway fronts every model call across the company, handling billions of tokens each month.
 
-None of this was designed up front. It began as the plumbing behind **one** internal support bot, which then expanded because the same problems kept resurfacing for every team trying to ship an agent. This series tells the story of what the platform eventually became. This part 1 focuses on the beginning: the architecture of our AI support bot, the specific pain points we hit while scaling and iterating on it, and how each of those failures became a core building block in the framework we now call **LLM-Kit**.
+None of this was designed up front. It began as the plumbing behind **one** internal support bot, which then expanded because the same problems kept resurfacing for every team trying to ship an agent. This series tells the story of what the platform eventually became. This Part 1 of the blog focuses on the beginning: the architecture of our AI support bot, the specific pain points we hit while scaling and iterating on it, and how each of those failures became a core building block in the framework we now call **LLM-Kit**.
 
 ## The bot that started it
 
@@ -23,7 +23,7 @@ Imagine you have a question for the **Technical Infrastructure (Tech Infra)** te
 
 That is what we built with the Tech Infra Support Bot.
 
-In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeated questions that had already been answered somewhere internally. Before LLMs, the bot's role was mainly operational. Performing tasks like helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.
+In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeated questions that had already been answered somewhere internally. Before LLMs, the bot's role was mainly operational; performing tasks like helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.
 
 The first production version was a Go service organized around two planes:
 
@@ -51,7 +51,7 @@ It worked, but it taught us, the hard way, why a demo agent is not a production 
 
 As we worked on improving the agent, we kept running into the same kinds of friction. Over time, those pain points formed clear patterns, and they were the same ones we saw other teams run into as well.
 
-- **Hope is not an evaluation strategy**. The bot had a base prompt, and each Slack channel could configure its own prompt, tools, and documentation filters. But the workflow was essentially - configure it, ship it, and hope it reduced toil. There were no real evaluations, just optimism that it would work.
+- **Hope is not an evaluation strategy**. The bot had a base prompt, and each Slack channel could configure its own prompt, tools, and documentation filters. But the workflow was essentially: configure it, ship it, and hope it reduced toil. There were no real evaluations, just optimism that it would work.
 
 - **Fast model and provider switching is essential**. The AI landscape moves incredibly fast: a new state-of-the-art (SOTA) model appears on Tuesday, and a highly efficient open-source alternative shows up on Thursday. Switching providers should not feel like open-heart surgery. A unified Software Development Kit (SDK) and an [LLM API gateway](https://engineering.grab.com/grab-ai-gateway) remove the need to refactor payload schemas, rewrite error handling, or integrate each provider from scratch. If moving from OpenAI to Anthropic, or routing to an open-source model endpoint, takes more than a few config changes, technical debt is already slowing you down.
 
@@ -107,7 +107,7 @@ Three things are worth pulling out of that tree:
 
 - **`app/agents/` is the part you actually own**. You get two working agents to fork from rather than a blank file: `simple_react_agent.py` is a single-agent LangGraph ReAct loop, and `mcp_react_agent.py` is the same loop wired to pull its tools from remote MCP servers. Both compile to a LangGraph `StateGraph` with a retry policy and a 30-second per-step timeout, and in dev the graph is auto-exported as a diagram. This is a real step up from the bare LangChain agent initialization we scaffolded in 2024.
 
-- **`app/routes/evalshub_eval.py` ships evals on day one**. The template comes with an endpoint that runs Recall-Oriented Understudy for Gisting Evaluation (ROUGE), Bilingual Evaluation Understudy (BLEU), and LLM-as-judge evaluators over a set of golden test cases in `tests/evalshub_evaluation/`. The thing we most wished the support bot had which we mentioned in the first pain point, is now in the box before a builder writes a line of their own logic.
+- **`app/routes/evalshub_eval.py` ships evals on day one**. The template comes with an endpoint that runs Recall-Oriented Understudy for Gisting Evaluation (ROUGE), Bilingual Evaluation Understudy (BLEU), and LLM-as-judge evaluators over a set of golden test cases in `tests/evalshub_evaluation/`. The thing we most wished the support bot had, is now in the box before a builder writes a line of their own logic.
 
 - **Everything else is the production wrapper**. `core/config.py`, `storage/`, `configs/`, `databases/`, `scripts/`, the distroless `Dockerfile`, and the `pyproject.toml` (now `uv`, not the Poetry we used in 2024) are the auth, secrets, persistence, packaging, and deploy plumbing that every service needs and that no team should have to write from scratch.
 
@@ -134,7 +134,7 @@ client = OpenAI(
 )
 ```
 
-That one indirection is what later lets a platform team change which provider serves a model, configure fallback routing, set budgets, and manage cost attribution, without a single application touching its code. Part 2 covers what lives behind that gateway.
+That one indirection is what later lets a platform team change which provider serves a model, configure fallback routing, set budgets, and manage cost attribution, without a single application touching its code.
 
 **Tracing wired in, not bolted on**. A single instrumentor auto-instruments FastAPI, outbound HTTP, LangChain, and MCP, and stamps every span with Kubernetes resource attributes (pod, namespace, image, service version). Structured logs auto-inject the trace and span IDs, so logs and traces correlate in Grafana/Kibana for free:
 
