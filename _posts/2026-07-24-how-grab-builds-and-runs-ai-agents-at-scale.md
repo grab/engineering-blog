@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-07-30-how-grab-builds-and-runs-ai-agents-at-scale
+id: 2026-07-24-how-grab-builds-and-runs-ai-agents-at-scale
 title: 'Agent platform (Part 1): How we help Grab build and run AI agents at scale'
-date: 2026-07-30 00:00:10
+date: 2026-07-24 00:00:10
 authors: [kendrick.tan, jeffery.lean, yisheng.tay]
 categories: [Engineering, Design]
 tags: [Engineering, Generative AI, LLM, Experiment, Machine Learning]
@@ -27,7 +27,7 @@ In the first half of 2023, Tech Infra handled thousands of support tickets, many
 
 The first production version was a Go service organized around two planes:
 
-- **A reasoning plane**. At Level-0, it was a single-agent loop. It takes the user's question, decides which tools to call, executes those calls, feeds the results back into the prompt, and returns an answer. The default model at the time was gpt-4.1; today, we have evolved to Opus 4.8.
+- **A reasoning plane**. At Level-0, it was a single-agent loop. It takes the user's question, decides which tools to call, executes those calls, feeds the results back into the prompt, and returns an answer. The default model at the time was gpt-4.1; today, we have evolved to the latest reasoning models.
 
 - **A tool plane**. The tools provided the bot's core working context. Retrieval flowed through Glean, which covered Confluence, 
 [TechDocs](https://engineering.grab.com/techdocs-at-grab-cultivating-a-culture-of-quality-documentation), internal drives, and Jira. Other tools handled log search through Kibana, GitLab runbook and file access, Slack conversation search, and a small set of Hypertext Transfer Protocol (HTTP) plugins. In the first version, tools and prompts were defined in per-channel JavaScript Object Notation (JSON) configs and resolved at request time. As models became more capable, we later standardized the tool set across channels.
@@ -51,7 +51,7 @@ It worked, but it taught us, the hard way, why a demo agent is not a production 
 
 As we worked on improving the agent, we kept running into the same kinds of friction. Over time, those pain points formed clear patterns, and they were the same ones we saw other teams run into as well.
 
-- **Hope is not an evaluation strategy**. The bot had a base prompt, and each Slack channel could configure its own prompt, tools, and documentation filters. But the workflow was essentially: configure it, ship it, and hope it reduced toil. There were no real evaluations, just optimism that it would work.
+- **Vibe check is not an evaluation strategy**. The bot had a base prompt, and each Slack channel could configure its own prompt, tools, and documentation filters. But the workflow was essentially: configure it, ship it, and hope it reduced toil. There were no real evaluations, just optimism that it would work.
 
 - **Fast model and provider switching is essential**. The AI landscape moves incredibly fast: a new state-of-the-art (SOTA) model appears on Tuesday, and a highly efficient open-source alternative shows up on Thursday. Switching providers should not feel like open-heart surgery. A unified Software Development Kit (SDK) and an [LLM API gateway](https://engineering.grab.com/grab-ai-gateway) remove the need to refactor payload schemas, rewrite error handling, or integrate each provider from scratch. If moving from OpenAI to Anthropic, or routing to an open-source model endpoint, takes more than a few config changes, technical debt is already slowing you down.
 
