@@ -6,9 +6,225 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 23 Jul 2026 06:02:52 +0000</pubDate>
-    <lastBuildDate>Thu, 23 Jul 2026 06:02:52 +0000</lastBuildDate>
+    <pubDate>Fri, 24 Jul 2026 01:45:59 +0000</pubDate>
+    <lastBuildDate>Fri, 24 Jul 2026 01:45:59 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Agent platform (Part 1): How we help Grab build and run AI agents at scale</title>
+        <description>&lt;h2 id=&quot;part-1-from-one-support-bot-to-a-framework&quot;&gt;Part 1: From one support bot to a framework&lt;/h2&gt;
+
+&lt;p&gt;At Grab, AI agents have evolved from interesting team prototypes into production services used every day by millions of merchants, drivers, and consumers. Today, more than 500 services run on our internal agent framework, over 50 Model Context Protocol (MCP) servers are registered on our remote MCP framework, and a single Large Language Model (LLM) gateway fronts every model call across the company, handling billions of tokens each month.&lt;/p&gt;
+
+&lt;p&gt;None of this was designed up front. It began as the plumbing behind &lt;strong&gt;one&lt;/strong&gt; internal support bot, which then expanded because the same problems kept resurfacing for every team trying to ship an agent. This series tells the story of what the platform eventually became. This Part 1 of the blog focuses on the beginning: the architecture of our AI support bot, the specific pain points we hit while scaling and iterating on it, and how each of those failures became a core building block in the framework we now call &lt;strong&gt;LLM-Kit&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-bot-that-started-it&quot;&gt;The bot that started it&lt;/h2&gt;
+
+&lt;p&gt;Imagine you have a question for the &lt;strong&gt;Technical Infrastructure (Tech Infra)&lt;/strong&gt; team - the engineers who run the cloud platforms, databases, developer tooling, and AI infrastructure behind Grab’s ecosystem. Instead of immediately paging an on-call engineer, a bot first triages the request, checks the team’s documentation, runbooks, and past Slack threads, and tries to answer directly in the thread. If it still cannot resolve the issue, it routes the ticket to the right human, with the relevant context already attached.&lt;/p&gt;
+
+&lt;p&gt;That is what we built with the Tech Infra Support Bot.&lt;/p&gt;
+
+&lt;p&gt;In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeated questions that had already been answered somewhere internally. Before LLMs, the bot’s role was mainly operational; performing tasks like helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.&lt;/p&gt;
+
+&lt;p&gt;The first production version was a Go service organized around two planes:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;A reasoning plane&lt;/strong&gt;. At Level-0, it was a single-agent loop. It takes the user’s question, decides which tools to call, executes those calls, feeds the results back into the prompt, and returns an answer. The default model at the time was gpt-4.1; today, we have evolved to the latest reasoning models.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;A tool plane&lt;/strong&gt;. The tools provided the bot’s core working context. Retrieval flowed through Glean, which covered Confluence, 
+&lt;a href=&quot;https://engineering.grab.com/techdocs-at-grab-cultivating-a-culture-of-quality-documentation&quot;&gt;TechDocs&lt;/a&gt;, internal drives, and Jira. Other tools handled log search through Kibana, GitLab runbook and file access, Slack conversation search, and a small set of Hypertext Transfer Protocol (HTTP) plugins. In the first version, tools and prompts were defined in per-channel JavaScript Object Notation (JSON) configs and resolved at request time. As models became more capable, we later standardized the tool set across channels.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;A trimmed version of that tool config looked like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nl&quot;&gt;&quot;agent_plugins&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;glean_search&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;metadata&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;wiki_space_collection&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;...&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]}},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;runbook_search&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;gitlab_runbook_reader&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;gitlab_read_file&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;kibana_log_search&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;   &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;metadata&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;index&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;k8s*&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;slack_conversation_tool&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;It worked, but it taught us, the hard way, why a demo agent is not a production agent.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-it-takes-to-scale-and-improve-quickly&quot;&gt;What it takes to scale and improve quickly&lt;/h2&gt;
+
+&lt;p&gt;As we worked on improving the agent, we kept running into the same kinds of friction. Over time, those pain points formed clear patterns, and they were the same ones we saw other teams run into as well.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Vibe check is not an evaluation strategy&lt;/strong&gt;. The bot had a base prompt, and each Slack channel could configure its own prompt, tools, and documentation filters. But the workflow was essentially: configure it, ship it, and hope it reduced toil. There were no real evaluations, just optimism that it would work.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Fast model and provider switching is essential&lt;/strong&gt;. The AI landscape moves incredibly fast: a new state-of-the-art (SOTA) model appears on Tuesday, and a highly efficient open-source alternative shows up on Thursday. Switching providers should not feel like open-heart surgery. A unified Software Development Kit (SDK) and an &lt;a href=&quot;https://engineering.grab.com/grab-ai-gateway&quot;&gt;LLM API gateway&lt;/a&gt; remove the need to refactor payload schemas, rewrite error handling, or integrate each provider from scratch. If moving from OpenAI to Anthropic, or routing to an open-source model endpoint, takes more than a few config changes, technical debt is already slowing you down.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Observability cannot be an afterthought&lt;/strong&gt;. When an answer was wrong, figuring out “why” meant grepping logs across three separate systems: the agent workflow, the tool calls, and the model call. There was no shared trace tying them together. That level of friction is survivable for an internal tool; it is unacceptable for a customer-facing agent.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Everything around the agent took longer than the agent itself&lt;/strong&gt;. Auth (OIDC), secrets management (Vault), per-environment config, vector database integration, LLM tracing, health probes, and metrics were not agent-specific problems. However, they all had to be solved before anything could be shipped. The reasoning loop took a whole afternoon. The production wrapper took two weeks.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The pattern was clear: the hard part of building an agent was not the agent itself, but everything around it that had to be in place before it could safely run in front of users. So we began pulling those shared components out of the bot and consolidating them into a unified framework.&lt;/p&gt;
+
+&lt;h2 id=&quot;extracting-the-framework-llm-kit&quot;&gt;Extracting the framework: LLM-Kit&lt;/h2&gt;
+
+&lt;p&gt;LLM-Kit emerged when we stopped solving these problems service by service and started solving them once, centrally. It is intentionally not a new agent abstraction or a Domain-Specific Language (DSL). Instead, it is a curated set of integrations and scaffolding built around Grab’s existing infrastructure, pipelines, secret management, and observability. Just as importantly, we chose to build a framework rather than a heavy centralized platform. In a space evolving this quickly, a platform would have locked teams into rigid assumptions that would soon become outdated. A framework let us meet developers where they already were: standardizing the plumbing while preserving the freedom to iterate quickly. Looking back, that was the right first choice. Each part of LLM-Kit is a direct response to one of the failures described above.&lt;/p&gt;
+
+&lt;p&gt;We first wrote about LLM-Kit’s structure and code architecture in a &lt;a href=&quot;https://engineering.grab.com/supercharging-llm-application-development-with-llm-kit&quot;&gt;2024 blog post&lt;/a&gt;. Two years and a few hundred agents later, the overall &lt;em&gt;shape&lt;/em&gt; is still recognizable, but almost every underlying layer has changed. Poetry was replaced by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;uv&lt;/code&gt;; we standardized on the OpenTelemetry stack; LangChain evolved into LangGraph and Deep Agents; and some tools moved onto our MCP framework.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;It starts with a template&lt;/strong&gt;. The entry point is a user interface (UI) form. An engineer fills in an application name and a few details, and gets back a GitLab repository with the production wrapper already assembled. Under the hood the template stamps out a full FastAPI service:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/
+├── app/
+│   ├── server.py              # FastAPI app factory: mounts routes + middleware, boots OTel + statsd
+│   ├── agents/
+│   │   ├── simple_react_agent.py   # a single-agent LangGraph ReAct loop (agent &amp;lt;-&amp;gt; tools)
+│   │   ├── mcp_react_agent.py      # the same loop, but tools are pulled from remote MCP servers
+│   │   └── simple_react_agent.png  # auto-exported graph diagram (generated in dev)
+│   ├── routes/
+│   │   ├── api.py             # router aggregator
+│   │   ├── health_check.py    # liveness/readiness probe
+│   │   ├── oidc.py            # OIDC login/callback (skipped in proxy-auth mode)
+│   │   └── evalshub_eval.py   # runs ROUGE / BLEU / LLM-as-judge evals on the agent
+│   ├── core/config.py         # AppConfig (pydantic-settings) + INI/secret parsing
+│   ├── tools/word_length_tool.py   # an example tool to copy from
+│   ├── utils/prompts.py       # prompt/message assembly helpers
+│   └── storage/connection.py  # Postgres + pgvector engine and connection pooling
+├── sdk/         # a generated, typed client SDK (protobuf) other services import
+├── configs/
+│   ├── dev.ini / stg.ini / prd.ini   # one config per environment
+│   └── secret.ini.example     # secret template; real values resolve from Vault at deploy
+├── databases/postgresql/      # SQL migrations (pgvector extension bootstrapped for you)
+├── scripts/
+│   ├── db.py / db.sh          # migration runner
+│   └── gunicorn_conf.py       # production server/worker config
+├── tests/
+│   ├── unit_tests/            # starter unit tests (e.g. the health check)
+│   └── evalshub_evaluation/   # golden test cases the eval route runs against
+├── Dockerfile                 # multi-stage, distroless
+├── Makefile                   # setup / run / test / lint targets
+├── pyproject.toml             # uv build backend + pinned deps
+└── .pre-commit-config.yaml
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Three things are worth pulling out of that tree:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/agents/&lt;/code&gt; is the part you actually own&lt;/strong&gt;. You get two working agents to fork from rather than a blank file: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;simple_react_agent.py&lt;/code&gt; is a single-agent LangGraph ReAct loop, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mcp_react_agent.py&lt;/code&gt; is the same loop wired to pull its tools from remote MCP servers. Both compile to a LangGraph &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;StateGraph&lt;/code&gt; with a retry policy and a 30-second per-step timeout, and in dev the graph is auto-exported as a diagram. This is a real step up from the bare LangChain agent initialization we scaffolded in 2024.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/routes/evalshub_eval.py&lt;/code&gt; ships evals on day one&lt;/strong&gt;. The template comes with an endpoint that runs Recall-Oriented Understudy for Gisting Evaluation (ROUGE), Bilingual Evaluation Understudy (BLEU), and LLM-as-judge evaluators over a set of golden test cases in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tests/evalshub_evaluation/&lt;/code&gt;. The thing we most wished the support bot had, is now in the box before a builder writes a line of their own logic.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Everything else is the production wrapper&lt;/strong&gt;. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;core/config.py&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;storage/&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;configs/&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;databases/&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;scripts/&lt;/code&gt;, the distroless &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Dockerfile&lt;/code&gt;, and the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pyproject.toml&lt;/code&gt; (now &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;uv&lt;/code&gt;, not the Poetry we used in 2024) are the auth, secrets, persistence, packaging, and deploy plumbing that every service needs and that no team should have to write from scratch.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The day-one wiring that used to take two weeks or more now takes about an hour. The rest of this section is what “pre-wired” means, layer by layer.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Config and secrets are solved once&lt;/strong&gt;. Apps declare environment configs as initialization (INI) files with secret interpolation, so secrets resolve from &lt;a href=&quot;https://www.hashicorp.com/en/products/vault?utm_source=google&amp;amp;utm_channel_bucket=paid&amp;amp;utm_medium=sem&amp;amp;utm_campaign=core_apac_multi_eng_x_all_sem-gg_x_all_all_all_br&amp;amp;utm_content=hashicorp%20vault-190017550690-Brand_Vault_SLM-802491325140&amp;amp;gad_source=1&amp;amp;gad_campaignid=23699376650&amp;amp;gbraid=0AAAAAC15ru8puHsQth55S3GvC2N6lMusm&amp;amp;gclid=CjwKCAjwgO7RBhBKEiwAZNP85mSwHd8Tvwt_6i6a869Bwuqqws3tcto-4Fb4c3XHD-LL2Um0fARKyxoCrVgQAvD_BwE&quot;&gt;Vault&lt;/a&gt; at boot, and a single &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;secret.ini.example&lt;/code&gt; is enough to run any LLM-Kit app locally:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;[CONFIG]
+GRABGPT_API_KEY=${SECRET:GRABGPT_API_KEY}
+OTEL_EXPORTER_OTLP_ENDPOINT=&amp;lt;otel-collector-endpoint&amp;gt;
+POSTGRES_POOL_RECYCLE=1800
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Model access behind one resolver&lt;/strong&gt;. Every model call goes through the GrabGPT Gateway, which is OpenAI-compatible. LLM-Kit’s job is just to resolve the right endpoint (per environment, and per data tier) and inject the key so application code never hard-codes a provider again:&lt;/p&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;openai&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OpenAI&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;llm_kit.grabgpt&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;resolve_grabgpt_base_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;resolve_grabgpt_api_key&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;OpenAI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;base_url&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;resolve_grabgpt_base_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;prd&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;public&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# provider chosen centrally
+&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;api_key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;resolve_grabgpt_api_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;That one indirection is what later lets a platform team change which provider serves a model, configure fallback routing, set budgets, and manage cost attribution, without a single application touching its code.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Tracing wired in, not bolted on&lt;/strong&gt;. A single instrumentor auto-instruments FastAPI, outbound HTTP, LangChain, and MCP, and stamps every span with Kubernetes resource attributes (pod, namespace, image, service version). Structured logs auto-inject the trace and span IDs, so logs and traces correlate in Grafana/Kibana for free:&lt;/p&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;exporter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;OTLPSpanExporter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;endpoint&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;app_config&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;otel_exporter_otlp_endpoint&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;nc&quot;&gt;OTELInstrumentor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exporter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exporter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;excluded_urls&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;health_check&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;instrument_app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The &lt;strong&gt;three systems, no shared trace&lt;/strong&gt; problem turns into &lt;strong&gt;one end-to-end trace&lt;/strong&gt; across every LLM call, tool call, and retrieval step.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Tools can be exposed through MCP servers built on our MCP framework&lt;/strong&gt;. Instead of hardwiring a large set of tool functions inside the agent process, the agent connects to MCP servers and discovers their tools at runtime. That means adding a new capability can be as simple as registering an MCP server, rather than redeploying the agent.&lt;/p&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MultiServerMCPClient&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+    &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;mcp-gitlab-remote&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;transport&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;streamable_http&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;lt;remote-mcp-gitlab-endpoint&amp;gt;/mcp/&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;headers&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Authorization&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Bearer &amp;lt;token&amp;gt;&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;tools&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;get_tools&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;# schema negotiated, no redeploy
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;An agent is just another service in the ecosystem, with gRPC on both sides. Most of Grab’s backend communicates over gRPC, and agents are rarely standalone; other services call them, and they in turn call other internal services. The template is designed to support both directions.&lt;/p&gt;
+
+&lt;p&gt;On the &lt;em&gt;serving&lt;/em&gt; side, the scaffold includes a Protocol Buffers (protobuf) contract (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sdk/.../.proto&lt;/code&gt;, with a sample &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Hello&lt;/code&gt; remote procedure call (RPC)) and a generated, typed client SDK package that other teams &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;import&lt;/code&gt; to call your agent without hand-writing HTTP. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;make gen-proto&lt;/code&gt; regenerates the Python stubs from the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.proto&lt;/code&gt;, and a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gen-proto-check&lt;/code&gt; Continuous Integration (CI) step fails the build if the committed stubs drift from the contract. A gRPC server runs alongside FastAPI (default port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;8087&lt;/code&gt;, multi-worker-safe via &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SO_REUSEPORT&lt;/code&gt;) and ships a standard gRPC health service out of the box:&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;grpcurl &lt;span class=&quot;nt&quot;&gt;-plaintext&lt;/span&gt; localhost:8087 grpc.health.v1.Health/Check
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;On the &lt;em&gt;calling&lt;/em&gt; side, LLM-Kit ships a channel provider so an agent never hardcodes an address. The auto provider tries Istio, then Consul, then a static fallback, health-checks the channel it selects, and runs a background monitor that re-selects after a few consecutive failures:&lt;/p&gt;
+
+&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;llm_kit.grpc.channel_providers.auto&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;AutoGrpcChannelProvider&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AutoGrpcChannelProviderConfig&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;provider&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;AutoGrpcChannelProvider&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;AutoGrpcChannelProviderConfig&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;client_name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;my-agent&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;service_key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;some-internal-service&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;# resolved via Istio / Consul
+&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;enable_istio&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enable_consul&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;provider&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;get_channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;           &lt;span class=&quot;c1&quot;&gt;# first healthy channel, auto-reselected on failure
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stub&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;SomeServiceStub&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This is the less glamorous side of being &lt;strong&gt;production-ready&lt;/strong&gt;. Before an agent can deliver value, it needs to both accept calls from and make calls to the rest of the company’s services using the same transport the broader system already relies on.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;LLM-Kit solved &lt;em&gt;building and shipping&lt;/em&gt; one agent. At 500 agents, the problems were no longer framework problems. They were platform problems: who can change which model everyone calls, how one team safely reuses another team’s tools, and how you know an agent got &lt;em&gt;better&lt;/em&gt; and not just &lt;em&gt;different&lt;/em&gt; after a prompt change. We built three answers for that layer: the GrabGPT Gateway, a remote MCP framework, and an evals platform. Part 2 starts with the gateway — one endpoint, five providers, and what it takes to make “swap the model” a configuration change instead of an incident.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 24 Jul 2026 00:00:10 +0000</pubDate>
+        <link>https://engineering.grab.com/how-grab-builds-and-runs-ai-agents-at-scale</link>
+        <guid isPermaLink="true">https://engineering.grab.com/how-grab-builds-and-runs-ai-agents-at-scale</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Generative AI</category>
+        
+        <category>LLM</category>
+        
+        <category>Experiment</category>
+        
+        <category>Machine Learning</category>
+        
+        
+        <category>Engineering</category>
+        
+        <category>Design</category>
+        
+      </item>
     
       <item>
         <title>Scaling Grab&apos;s Data Lake: Our journey to Apache Iceberg adoption</title>
@@ -1600,263 +1816,6 @@ include &apos;food&apos;
         <category>Engineering</category>
         
         <category>Data</category>
-        
-      </item>
-    
-      <item>
-        <title>Data Mesh at Grab (Part II): The foundational tools behind certification</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In &lt;a href=&quot;https://engineering.grab.com/signals-market-place&quot;&gt;Part I&lt;/a&gt;, we discussed why Grab is investing in a data mesh, referred to as the &lt;strong&gt;Signals Marketplace&lt;/strong&gt; within Grab, as part of our evolving data culture. We also explained how data certification aids teams in reliably reusing data across different domains. However, cultural change doesn’t occur through principles alone; it happens when tools reshape people’s daily behaviors. Therefore, it is crucial for us to develop effective platforms that integrate these practices.&lt;/p&gt;
-
-&lt;p&gt;This follow-up focuses on these platforms that make certification work at Grab:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Hubble&lt;/strong&gt; – the central metadata management platform with a built-in certification engine.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Genchi&lt;/strong&gt; – the data quality observability platform.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Data Contract Registry&lt;/strong&gt; – the central service for managing data contracts.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Together, these platforms turn data mesh principles into an operational system that scales across hundreds of thousands of datasets, streams, attributes, and metrics.&lt;/p&gt;
-
-&lt;h2 id=&quot;hubble-the-data-discovery-and-governance-layer&quot;&gt;Hubble: The data discovery and governance layer&lt;/h2&gt;
-
-&lt;p&gt;Hubble is Grab’s central metadata management platform and data catalog for all data assets, including datasets, dashboards, metrics, Machine learning (ML) models, and more. Built on top of the open‑source &lt;a href=&quot;https://datahub.com/&quot;&gt;DataHub&lt;/a&gt; and heavily extended for Grab’s needs, it is the discovery and governance layer for the Signals Marketplace.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-part-two/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Hubble cataloging data assets across various data platforms in Grab.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;what-hubble-does-for-data-mesh&quot;&gt;What Hubble does for data mesh&lt;/h3&gt;
-
-&lt;p&gt;For certification and data mesh, Hubble provides a few key capabilities:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Search and discovery&lt;/strong&gt;: Data analysts/scientists, engineers, and product managers use Hubble to search the rich swath of data assets, then inspect schemas, documentation, lineage, and usage statistics in one place. This replaces back-channel questions and tribal knowledge with a single, self-serve catalog.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Ownership and domains&lt;/strong&gt;: Every asset is tied to a domain and explicit technical and business owners. This enforces the domain ownership model that Signals Marketplace depends on. Producers are clearly accountable for the quality and lifecycle of the data products they publish.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Data contracts and documentation&lt;/strong&gt;: Data contracts, classifications, and rich documentation live as structured metadata attached to each asset, not scattered across wikis and slide decks. Producers and consumers share the same source of truth when they ask questions like, “what does this table guarantee?”.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Lineage and impact analysis&lt;/strong&gt;: Hubble provides table, column, and metric-level lineage so owners can see which teams and pipelines depend on their data before making breaking changes or deprecations. Instead of guessing, they can answer “what will I break?” with a single click.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Certification status&lt;/strong&gt;: The familiar “Hubble green tick” turns trust into a first-class signal in the catalog. Assets that meet Grab’s certification criteria are clearly marked with a drill-down view of which criteria are satisfied (ownership, documentation, contracts, quality tests, upstream certification) and which are still missing.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;From a consumer’s point of view, this collapses a lot of uncertainty into a simple workflow: search → filter to “certified” → pick the most suitable asset. They don’t need to reverse-engineer reliability from table names and hearsay.&lt;/p&gt;
-
-&lt;h3 id=&quot;hubbles-system-architecture&quot;&gt;Hubble’s system architecture&lt;/h3&gt;
-
-&lt;p&gt;The &lt;a href=&quot;https://datahub.com/&quot;&gt;open-source DataHub&lt;/a&gt; architecture is fundamentally event-driven and designed for high extensibility, moving away from the “passive” catalogs of the past, towards a “living” metadata graph. DataHub models everything as an &lt;em&gt;Entity&lt;/em&gt; (e.g., a Dataset), composed of multiple &lt;em&gt;Aspects&lt;/em&gt; (atomic versioned metadata like SchemaMetadata or Ownership), connected by &lt;em&gt;Relationships&lt;/em&gt; (e.g., DownstreamOf).&lt;/p&gt;
-
-&lt;p&gt;Since introducing DataHub as Grab’s central data catalog in 2022, we’ve tailored it to Grab’s specific needs while continuously rebasing onto the latest open-source DataHub releases. This lets us adopt new capabilities from the community quickly, contribute improvements back, and evolve Hubble without forking away from the main project.&lt;/p&gt;
-
-&lt;p&gt;On top of the DataHub foundation, Hubble ingests metadata from Grab’s source platforms in two ways. Source systems either push changes as they happen, or Hubble periodically pulls metadata via Airflow jobs into the central metadata service that exposes GraphQL and REST APIs. Every change is then published to Kafka as metadata events (low-level change logs for indexers and audits, and higher-level semantic events for workflows), keeping Hubble’s search and lineage indices fresh and allowing downstream integrations like certification, deprecation notices, and governance automation to react to metadata changes in near real time.&lt;/p&gt;
-
-&lt;p&gt;This architecture is crucial for a data mesh because metadata evolves more rapidly than organizational changes. As domains change, tables are relocated, or pipelines are refactored, Hubble continuously updates, allowing certification to keep pace without the need for manual re-audits.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-part-two/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Hubble’s system architecture.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;computational-certification-via-the-certification-engine-on-hubble&quot;&gt;Computational certification via the certification engine on Hubble&lt;/h3&gt;
-
-&lt;p&gt;A data asset’s certification state is not a manual label, it is computed by an event-driven certification engine built on the &lt;a href=&quot;https://docs.datahub.com/docs/actions&quot;&gt;DataHub Actions&lt;/a&gt; framework. As source platforms for tables, streams, metrics, and user attributes push metadata into Hubble, every change becomes a metadata event. The engine subscribes to these events and re-evaluates the certification state of the data asset based on the predetermined certification criteria.&lt;/p&gt;
-
-&lt;p&gt;Conceptually, assets move between four states:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Uncertified&lt;/strong&gt;: Never met all criteria.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Certified&lt;/strong&gt;: Asset itself meets all required criteria.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;CertifiedPlus&lt;/strong&gt;: Stricter conditions than Certified, requiring both the asset and all of its upstreams to meet the criteria.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Revoked&lt;/strong&gt;: Previously certified but now out of compliance.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The state diagram below captures how assets move between these states as metadata and upstream health change.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-part-two/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Certification state diagram.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;While each asset type can add its own nuances (for example, metrics and attributes may also require explicit endorsement from business data owners), the core certification criteria are consistent:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Ownership and domain&lt;/strong&gt;: Clear domain assignment plus accountable technical and business data owners.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Documentation and semantics&lt;/strong&gt;: Table/metric documentation and, where relevant, column-level descriptions so consumers understand what the data means.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Lineage and upstream trust&lt;/strong&gt;: For stronger levels like CertifiedPlus, upstream lineage must be present, and upstream assets must themselves be certified.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Contracts and runtime quality&lt;/strong&gt;: Linked data contracts that spell out expectations, backed by required Genchi tests for freshness, volume/completeness, schema stability, and critical business checks.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Governance signals&lt;/strong&gt;: No conflicting deprecation flags or policy violations (for example, missing required classifications on sensitive data).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;If an asset satisfies the base criteria, the engine writes a certification aspect back into Hubble and surfaces it as a green tick; if the asset later falls out of compliance, certification is revoked, and downstream assets are re-evaluated as needed. This is because all certification changes are stored as time-series metadata and driven by events rather than a one-off checklist; certification becomes a continuous, metadata-driven process that keeps pace as the entity evolves.&lt;/p&gt;
-
-&lt;h2 id=&quot;genchi-the-data-quality-observability-layer&quot;&gt;Genchi: The data quality observability layer&lt;/h2&gt;
-
-&lt;p&gt;Genchi is Grab’s in-house, self-service data quality observability platform. It allows teams to define and run data quality tests on their datasets, receive alerts when something goes wrong, and integrate those tests directly into data contracts so that issues are caught and contained before they impact downstream consumers.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-part-two/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Genchi job configuration page, where dataset owners enroll a table and set up freshness, volume, schema, and other data quality tests for it.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;what-genchi-does-for-data-mesh&quot;&gt;What Genchi does for data mesh&lt;/h3&gt;
-
-&lt;p&gt;In a data mesh, every domain is responsible for the quality of the data products it publishes. Genchi is the guardrail that makes that responsibility practical at scale. At its core, Genchi turns “good data” into clear, testable pillars that a data asset must satisfy:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Freshness and timeliness&lt;/strong&gt;: Is the data recent enough to trust? Genchi runs data freshness and pipeline-freshness checks so owners know when today’s numbers are really “today’s” and can spot delayed loads before they hit dashboards or models.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Completeness and volume&lt;/strong&gt;: Are we seeing all the records we expect? Volume and completeness tests compare current loads against historical baselines or source systems to flag partial backfills, silent drops, or suspicious spikes.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Structural stability (schema)&lt;/strong&gt;: Did the shape of the data change? Schema checks detect added/removed columns and type changes so that teams don’t discover breaking changes only after pipelines or reports start failing.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Semantic validity (values and business rules)&lt;/strong&gt;: Do the values themselves make sense? Column-level and X-Validation tests enforce constraints like uniqueness, ranges, patterns, cross-table reconciliations, and more advanced anomaly detection on row counts and null percentages.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Wrapped around these pillars is the operational layer:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Genchi runs these checks continuously (on schedule or on pipeline completion), emits real-time alerts, and helps teams drill into failing records and trends instead of debugging blind.&lt;/li&gt;
-  &lt;li&gt;Its health signals flow into the catalog and incident tooling, so consumers see quality status alongside metadata and contract breaches are handled consistently.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The result is a mesh where domains publish data products with explicit, machine-enforced quality guarantees, and consumers can safely reuse them without a central team hand-holding every request.&lt;/p&gt;
-
-&lt;h3 id=&quot;genchis-system-architecture&quot;&gt;Genchi’s system architecture&lt;/h3&gt;
-
-&lt;p&gt;The Genchi system is designed to handle validation workflows triggered by user actions or automated schedules. It utilizes Temporal for reliable workflow orchestration and Kafka for event-driven data distribution to downstream consumers.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-part-two/figure-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Genchi’s system architecture.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;triggering-tests-on-pipeline-completion-with-sync-with-pipeline-swp&quot;&gt;Triggering tests on pipeline completion with Sync with Pipeline (SWP)&lt;/h3&gt;
-
-&lt;p&gt;Before SWP, Genchi tests lived on their own cron schedules, completely decoupled from the Airflow pipelines that actually produced the data. Teams had to manually copy pipeline crons into Genchi, juggle offset/lookback math to point at the “right” pipeline batch, and hope that nothing drifted over time. The result: misconfigured pipeline duration Service Level Agreement (SLA) checks, and tests sometimes running too early, too late, or against the wrong batch. This leads to noisy alerts and false-positive Data Production Issue (DPI).&lt;/p&gt;
-
-&lt;p&gt;To solve this, Genchi leans on &lt;em&gt;Lighthouse&lt;/em&gt;, Grab’s pipeline execution and monitoring service. Lighthouse tracks when Airflow jobs start, finish, and which data interval they cover, and exposes that as structured execution events that the rest of the observability stack can consume.&lt;/p&gt;
-
-&lt;p&gt;SWP then flips Genchi from “best-effort cron alignment” to event-driven orchestration. Instead of guessing when a pipeline should have finished, Genchi listens to Lighthouse execution events. When a pipeline run is completed, Lighthouse emits an event with the run’s schedule and data interval; Genchi consumes that event, spins up an ad-hoc validation run aligned to that execution, and runs data-quality tests on the corresponding slice of data.&lt;/p&gt;
-
-&lt;p&gt;Pipeline-freshness is modeled as its own run type, separate from the data-quality tests that run on pipeline completion. Instead of inspecting rows, it is triggered asynchronously on the same schedule as the pipeline and tracks when each run actually completes in Lighthouse. This gives data producers an intuitive way to get alerted when a pipeline exceeds its expected runtime, and to review historical runtime behavior for any drift over time.&lt;/p&gt;
-
-&lt;p&gt;In practice, this makes test orchestration both simpler and more trustworthy. Users no longer need to think about crons or offsets for their data validation jobs. “Run after my pipeline finishes” becomes the default, with advanced overrides for custom schedules when needed. Misconfigured freshness tests and noisy DPIs drop, because Genchi is now anchored to real pipeline execution signals rather than approximations.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-part-two/figure-6.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Genchi pipeline-freshness run page for a table, showing the historical runtime patterns and the SLA status.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;data-contract-registry-the-producerconsumer-agreement-layer&quot;&gt;Data Contract Registry: The producer–consumer agreement layer&lt;/h2&gt;
-
-&lt;p&gt;At Grab, a data contract is the explicit, versioned agreement between a producer and its consumers that defines the data’s shape and semantics, the quality and availability guarantees around it, and the rules for how and for how long it may be used. The Data Contract Registry is the source of truth for these agreements, while Genchi and platform-specific observability stacks continuously verify that reality still matches what the contract promises.&lt;/p&gt;
-
-&lt;h3 id=&quot;what-data-contract-registry-does-for-data-mesh&quot;&gt;What Data Contract Registry does for data mesh&lt;/h3&gt;
-
-&lt;p&gt;Within Grab’s data mesh, the Data Contract Registry is the producer–consumer agreement layer: it centralizes contracts for key assets (data lake tables, Kafka streams, metrics) so expectations on shape, quality, SLAs, and lifecycle live in one canonical place instead of being scattered across individual platforms. That single source of truth underpins Hubble certification (only assets with valid contracts can be certified), gives Kinabalu (Grab’s central incident lifecycle orchestrator) the context it needs to open and route DPIs when checks fail, and lets Ouroboros (a table lifecycle management tool) interpret lifecycle clauses consistently.&lt;/p&gt;
-
-&lt;p&gt;This is important for a data mesh because it transforms the concept of “data as a product” from a mere slogan into an operational reality. Contracts provide domain teams with a clear and enforceable method to specify their guarantees, offering consumers a solid foundation for trust and data reuse across domains. Importantly, a contract is only valuable if its promises are verifiable and enforceable. Schema expectations, quality checks, and SLAs are all connected to concrete tests and health endpoints, enabling downstream platforms to automatically detect breaches and manage or mitigate breaking changes, rather than treating the contract as static documentation.&lt;/p&gt;
-
-&lt;p&gt;On top of storing contracts, the registry also manages contract changes. When a contract evolves, say a schema tweak, a new freshness SLA, or a planned deprecation, it identifies the right stakeholders (direct downstream owners, heavy query users, and, for critical assets, deeper dependencies) and pushes targeted Slack notifications. Producers get a structured way to roll out changes safely while consumers get timely, actionable signals instead of surprise breakages so that both enforcement and change management are baked into the mesh.&lt;/p&gt;
-
-&lt;p&gt;In addition to storing contracts, the registry also manages contract changes. When a contract evolves such as a schema adjustment, a new freshness SLA, or a planned deprecation, it identifies the appropriate stakeholder (direct downstream owners, heavy query users, and critical assets with deeper dependencies) and then sends targeted Slack notifications to these stakeholders. This process provides producers with a structured method to implement changes safely, while consumers receive timely and actionable alerts, preventing unexpected disruptions. As a result, both enforcement and change management are seamlessly integrated into the data mesh.&lt;/p&gt;
-
-&lt;h3 id=&quot;the-data-contract-specification&quot;&gt;The data contract specification&lt;/h3&gt;
-
-&lt;p&gt;Under the hood, a data contract in the registry is a JSON construct that follows the contract specification. Grab’s data contract specification is inspired by the public &lt;a href=&quot;https://datacontract-specification.com/&quot;&gt;Data Contract Specification&lt;/a&gt;, but adapted to our environment so that contracts plug directly into our observability stack and automated incident management workflows.&lt;/p&gt;
-
-&lt;p&gt;Notably, we embed data health and test health URLs in the contract itself. Each data-quality rule points to a concrete health endpoint, so Kinabalu can determine contract breaches and create DPIs by calling those test health URLs, without hard-coding what “healthy” means. For example, a completeness test on the latest partition can be marked healthy only if the last &lt;em&gt;N&lt;/em&gt; days are complete, not just because the most recent test run happened to pass. The data health URL at the contract root then lets Kinabalu fetch the overall diagnosis and decide who the DPI should be assigned to. More on this will be covered in Part III.&lt;/p&gt;
-
-&lt;p&gt;Here’s a simplified example of a contract for a data-lake table:&lt;/p&gt;
-
-&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;specification_version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;asset_urn&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;urn:li:dataset:(urn:li:dataPlatform:hive,genchi.validation_jobs,PROD)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;entity_type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;datalake_table&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-hugo.grab.com/assets/genchi.validation_jobs/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;contract_details&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;contact&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;oncall_group&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;oncall-genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;slack_channel&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ask-genchi&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;terms&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;usage&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Source of truth for all genchi validation jobs.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;limitations&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Not suitable for real-time use cases.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;notice_period_in_days&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;14&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;schema&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-genchi.grab.com/assets/genchi.validation_jobs/tests/fundamental_schema_test/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;uid&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;fundamental_schema_test&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;sla&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;freshness&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-genchi.grab.com/assets/genchi.validation_jobs/tests/fundamental_freshness_test/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;uid&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;fundamental_freshness_test&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;lifecycle&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;data_quality&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;genchi&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;health_url&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://example-genchi.grab.com/assets/genchi.validation_jobs/tests/fundamental_completeness_test/health&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;uid&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;fundamental_completeness_test&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The contract in the registry only stores references to enforceable rules, which are an identifier and version, like the example above, rather than the full configuration body. This keeps contracts lightweight and tool-agnostic, while giving rule-enforcement tools (Genchi for data-quality tests, Ouroboros for table lifecycle) and Kinabalu a stable handle to resolve the actual rule definition in their own systems, without duplicating configuration or letting it drift across platforms.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;By bringing Hubble, Genchi, and the Data Contract Registry together, we provide the foundational tools to build trust in certified data assets. Hubble enables discovery and establishes domains and ownership; the Data Contract Registry captures explicit expectations between producers and consumers; and Genchi continuously validates those promises with tests on freshness, volume, schema, and business rules. Hubble’s certification engine then evaluates these ownership, contract, and quality signals to decide whether an asset meets Grab’s standards and surfaces that as a visible certification state. As a result, consumers can confidently default to certified assets, usage converges on a smaller, better-governed pool of datasets, and certification becomes a mechanism that changes producer behavior and guides consumer choice. We saw this convergence in practice. In just one year since the Signals Marketplace campaign began in 2024, the number of P80 datasets (the most used tables that account for 80% of all queries) has dropped by over 58%.&lt;/p&gt;
-
-&lt;p&gt;This data foundation is especially important in an AI-first future for Grab. Certified streams, tables, metrics, and attributes give AI agents and automated analytics a default substrate they can rely on. With Hubble and Genchi, data producers have clear ownership, contracts, and observability. Data consumers can discover and trust certified assets without guesswork, and platform teams can measure and improve Signals Marketplace health over time (for example, queries on certified assets, lineage depth, and cost). Together, these capabilities turn “data mesh” from a slogan into an operational, AI-ready marketplace of reliable, reusable signals that power decisions across Grab.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-part-two/figure-7.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Building trust in certified data assets through discovery, contracts, and continuous validation.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;In the next blog, we’ll zoom into the DPI process itself with Kinabalu as the incident lifecycle orchestrator:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;How Genchi test failures and data contract breaches turn into DPIs.&lt;/li&gt;
-  &lt;li&gt;How DPI is assigned based on root causes and what sets the priority level.&lt;/li&gt;
-  &lt;li&gt;The patterns we’ve seen in “noisy” vs actionable DPIs, and what we’ve changed in our platforms.&lt;/li&gt;
-  &lt;li&gt;How we’re using automation and agents to reduce DPI toil and close the loop back into certification.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We’ll walk through concrete case studies showing how a single broken table moves from first failure, to diagnosis and fix, to updated contracts and a more resilient certified data asset.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors, serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebdatamesh2&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 30 Apr 2026 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/data-mesh-part-2-the-foundational-tools-behind-certification</link>
-        <guid isPermaLink="true">https://engineering.grab.com/data-mesh-part-2-the-foundational-tools-behind-certification</guid>
-        
-        <category>Data</category>
-        
-        <category>Database</category>
-        
-        <category>Engineering</category>
-        
-        
-        <category>Engineering</category>
         
       </item>
     
