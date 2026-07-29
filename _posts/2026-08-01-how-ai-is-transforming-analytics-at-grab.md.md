@@ -2,7 +2,7 @@
 layout: post
 id: 2026-08-01-how-ai-is-transforming-analytics-at-grab
 title: 'How AI is transforming analytics at Grab'
-date: 2026-05-15 00:23:00
+date: 2026-08-01 00:23:00
 authors: [maanas.sp]
 categories: [Engineering]
 tags: [Engineering, Analytics, AI]
@@ -59,7 +59,8 @@ The router reads the first as a root-cause question and sends it down the diagno
 The second example of such loops is Scarlet, which powers near self-healing pipelines (L4). When a pipeline fails, an agent runs the root-cause analysis, triages, and then either fixes it or hands it to the team that owns the upstream problem. It escalates when the failure sits outside its documented runbooks or the predefined gates fire.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-1.png" alt="" style="width:80%"><figcaption align="middle">Figure 1. Example of Scarlet bot in Slack. 
+</figcaption>
   </figure>
 </div>
 
@@ -70,7 +71,7 @@ Context sets an agent's ceiling. An agent that does not know a metric's grain, i
 Realizing the criticality of this, we have dedicated platform investment into this, as well as dedicated functional bandwidth to generate context docs. We maintain more than 5,000 certified tables and metrics, 4,000 context documents, and 2,000 golden records.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-2.png" alt="" style="width:80%"><figcaption align="middle">Figure 2. ContextIQ user interface.</figcaption>
   </figure>
 </div>
 
@@ -85,7 +86,8 @@ The step from L3 to L4 is mostly the step from interactive to scheduled, and it 
 We already run automated metric and OKR commentaries in production, both for working and leadership teams. Our OKR bots push commentaries directly to stakeholders, and we have made this available to every team as a platform service. The agent reasons the way an analyst would: it reads the certified metric, judges whether the move is meaningful against standard deviation over six months and year over year, then decomposes it: which funnel stage moved, which operational metrics moved alongside it, which holiday or campaign falls in the window. It compares the seasonal pattern against the same transition a year earlier, so it can say a Songkran dip is amplified rather than merely expected. Importantly, it also scans across internal context to understand changes on the ground: delivery fee and incentive moves, merchant visibility shifts, experiments shipped in the same period. And it grounds all of that in our own context documents, which is what keeps the narrative about the business rather than generic model output. The analytics owner is tagged on every report, and edits sync back so corrections land in the system.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-3.png" alt="" style="width:80%"><figcaption align="middle">Figure 3.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-3.png" alt="" style="width:80%"><figcaption align="middle">Figure 3. Information shared through OKR bot. 
+</figcaption>
   </figure>
 </div>
 
@@ -94,7 +96,8 @@ We already run automated metric and OKR commentaries in production, both for wor
 The clearest evidence that our center of gravity has moved is [BriX](https://engineering.grab.com/brix), an internal portal we built and run ourselves.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-4.png" alt="" style="width:80%"><figcaption align="middle">Figure 4. Home page of BriX. 
+</figcaption>
   </figure>
 </div>
 
@@ -109,12 +112,13 @@ Two of our apps show the range:
 * We built **Funnelytics** so people would stop asking us to rebuild funnels. A funnel question used to mean an analyst writing the query and then assembling the view in Tableau or Power BI, and doing it again the next time someone wanted a slightly different path through the app. Now a stakeholder picks the events they care about and Funnelytics queries the raw event stream, builds the Sankey and funnel views, and writes the summary. If they cannot find the right instrumentation, which happens often on products still being redesigned, a live debugger lets them tap through the app on their own phone and watch the events fire.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-5.png" alt="" style="width:80%"><figcaption align="middle">Figure 5. Interface of Insights Lab.
+</figcaption>
   </figure>
 </div>
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-6.png" alt="" style="width:80%"><figcaption align="middle">Figure 6. Interface of Funnelytics.</figcaption>
   </figure>
 </div>
 
@@ -125,14 +129,14 @@ Outside the portal, the same instinct shows up in smaller ways. Our analysts hav
 In February, **44%** of the tickets our analysts closed were mechanical (data preparation, alerting, reporting); by June, that share fell to **30%**. That capacity was redirected to other higher-leverage work. Building tools with AI to improve productivity increased **~4x**.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-7.png" alt="" style="width:80%"><figcaption align="middle">Figure 7.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-7.png" alt="" style="width:80%"><figcaption align="middle">Figure 7. Comparison of percentage of tickets closed in Q1 and Q2 2026.</figcaption>
   </figure>
 </div>
 
 Importantly, our cycle times reduced **~33%**: median cycle time fell from 3 business days to 2, and the 75th percentile from 7 days to 6.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-8.png" alt="" style="width:80%"><figcaption align="middle">Figure 8.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-8.png" alt="" style="width:80%"><figcaption align="middle">Figure 8. Comparison of time taken to resolve a ticket in Q1 and Q2 2026.</figcaption>
   </figure>
 </div>
 
