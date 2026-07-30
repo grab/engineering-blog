@@ -50,7 +50,7 @@ One distinction runs across every level: who owns the loop, and where human judg
     <tr>
       <td style="white-space: nowrap;"><strong>L3</strong></td>
       <td>Human plans, agent owns steps, human reviews</td>
-      <td>Frames the question, picks the metric, segment and comparison frame, reviews evidence, owns the recommendation</td>
+      <td>Frames the question, picks the metric, the segment, and the comparison frame, reviews evidence, owns the recommendation</td>
       <td>Discovers data, writes and runs the query, sanity checks, drafts the write-up, flags caveats</td>
     </tr>
     <tr>
@@ -93,11 +93,11 @@ Spartan is our end-to-end agentic analytics workflow, embedded across surface ar
   </figure>
 </div>
 
-Two requests from July best demonstrate how it works. A commercial manager asked why revenue fell in the Philippines mid-market segment in the last two weeks of June. Separately, a product manager asked for a summary of a frequency-cap experiment on the ads surface. Both arrived as natural language questions in Slack, and then took entirely different routes through the system.
+Two requests from July best demonstrate how it works. A commercial manager asked why revenue fell in the Philippines mid-market segment in the last two weeks of June. Separately, a product manager asked for a summary of a frequency-cap experiment on the ads surface. Both arrived as natural language questions in Slack and took entirely different routes through the system.
 
 The router reads the first as a root-cause question and sends it down the diagnostic path. It identifies the best analysis framework for ads revenue, which is codified knowledge of how the metrics in that domain relate to each other, which dimensions are worth decomposing, and what counts as a meaningful move. Then it works through segment, market and campaign type against certified metrics to isolate what changed. The second question never touches the data lake. The router reads it as an experiment question, selects the experiment skill, pulls the pre-computed scorecard and the test's own metadata from our experiment platform, and summarises the read rather than recomputing it. This is powered through **50+ skills and 120+ analysis frameworks** that sit behind that routing decision. Underlying that is an index that tells the agent what to search, context that tells it how to query, and a framework that tells it how to think. Because the frameworks are shared rather than living in an analyst's head, the interpretation compounds instead of being re-derived every time someone asks.
 
-The second example of such loops is Scarlet, which powers near self-healing pipelines (L4). When a pipeline fails, an agent runs the root-cause analysis, triages, and then either fixes it or hands it to the team that owns the upstream problem. It escalates when the failure sits outside its documented runbooks or the pre-defined gates fire.
+The second example of such a loop is Scarlet, which powers near-self-healing pipelines (L4). When a pipeline fails, an agent runs the root-cause analysis, triages, and then either fixes it or hands it to the team that owns the upstream problem. It escalates when the failure sits outside its documented runbooks or the pre-defined gates fire.
 
 <div class="post-image-section"><figure>
   <img src="/img/ai-improve-analytics/figure-2.png" alt="" style="width:70%"><figcaption align="middle">Figure 2. Scarlet in action on Slack.</figcaption>
@@ -106,7 +106,7 @@ The second example of such loops is Scarlet, which powers near self-healing pipe
 
 ### Context that maintains itself
 
-Context sets an agent's ceiling. An agent that does not know a metric's grain, its exclusions, and its caveats will guess and produce outputs confidently and wrong with speed at scale.
+Context sets an agent's ceiling. An agent that does not know a metric's grain, its exclusions, and its caveats will guess and confidently produce wrong outputs at speed and at scale.
 
 Realising the criticality of this, we have dedicated platform investment, as well as dedicated functional bandwidth to generate context docs.
 
@@ -117,7 +117,7 @@ Realising the criticality of this, we have dedicated platform investment, as wel
 
 Context goes out of date faster than anyone maintains it by hand, so we build the maintenance into our workflows. We built ContextIQ, and its Context Lifecycle Manager, to treat context as something with a lifecycle rather than a document somebody wrote once. A newer skill of ours reads an instrumentation spec alongside the existing context, proposes the SQL changes that follow from it, and updates the context document in the same pass. We work the problem from the other direction too. When we categorise an agent failure in production, we patch the context document behind it.
 
-Two analysts recently used our internal agents to understand how packaging fee is stored as a configuration. Having found the answer, the agent opened a merge request that committed both a certified-context table reference and a golden-dataset test case, so the next agent to ask the same question would find the answer already documented and the check already in place. One of the analysts spotted a false positive in it. The agent corrected itself and reopened the merge request. That is the learning capability working as designed, and it happened without anyone setting out to demonstrate it.
+Two analysts recently used our internal agents to understand how the packaging fee is stored as a configuration. Having found the answer, the agent opened a merge request that committed both a certified-context table reference and a golden-dataset test case, so the next agent to ask the same question would find the answer already documented and the check already in place. One of the analysts spotted a false positive in it. The agent corrected itself and reopened the merge request. That is the learning capability working as designed, and it happened without anyone setting out to demonstrate it.
 
 ### Loops that run unattended
 
@@ -139,13 +139,13 @@ The clearest evidence that our centre of gravity has moved is [BriX](https://eng
   </figure>
 </div>
 
-The premise is to configure once, host everywhere. We configure a system prompt, a set of context files, a model, the MCP connections and an interface once, and what comes out is a purpose-built analytics surface for a particular team or job. Each one inherits certified data, permissions and reusable agent skills rather than being wired up from scratch, and it runs wherever the work already happens: in Slack, invoked from inside an IDE, or on a schedule with nobody watching. We have grown usage more than 10x since September 2025 with high retention being observed, and every function at Grab now has users on it. Our aim is to put L3 workflows in the hands of people who are not advanced users.
+The premise is to configure once, host everywhere. We configure a system prompt, a set of context files, a model, the MCP connections and an interface once, and what comes out is a purpose-built analytics surface for a particular team or job. Each one inherits certified data, permissions and reusable agent skills rather than being wired up from scratch, and it runs wherever the work already happens: in Slack, invoked from inside an IDE, or on a schedule with nobody watching. We have grown usage more than 10x since September 2025, with strong retention, and every function at Grab now has users on it. Our aim is to put L3 workflows in the hands of people who are not advanced users.
 
-We run it without a product manager, a technical programme manager or a designer. Our data engineers own the product, the platform, the support queue and the eval loop, with Claude Design doing the interface work and the builders triaging their own bugs. In the first half of this year, they shipped 31 production deployments, 283 merged requests and 60 features.
+We run it without a product manager, a technical programme manager or a designer. Our data engineers own the product, the platform, the support queue and the eval loop, with Claude Design doing the interface work and the builders triaging their own bugs. In the first half of this year, they shipped 31 production deployments, 283 merge requests and 60 features.
 
 Three of our apps show the range:
 
-* **Insights Lab** is the general-purpose surface: a stakeholder asks for a metric, a breakdown or a root-cause in natural language, and the agent loads a specialist skill and answers off certified metrics rather than from memory.  
+* **Insights Lab** is the general-purpose surface: a stakeholder asks for a metric, a breakdown or a root-cause in natural language, and the agent loads a specialist skill and answers off certified metrics rather than from memory.
 * We built **Funnelytics** to enable easy understanding of our consumer funnels. A funnel question used to mean an analyst writing the query and then assembling the view in Tableau or Power BI, and doing it again the next time someone wanted a slightly different path through the app. Now a stakeholder picks the events they care about and Funnelytics queries the raw event stream, builds the Sankey and funnel views, and writes the summary. If they cannot find the right instrumentation, which happens often on products still being redesigned, a live debugger lets them tap through the app on their own phone and watch the events fire.
 * **Monte** (like Monte Carlo) runs simulations to put a probability on a business outcome. You give each uncertain input a range rather than a single value, and it runs ten thousand scenarios to return the likelihood of hitting a target.
 
@@ -166,14 +166,12 @@ In February, **44%** of the tickets our analysts closed were mechanical (data pr
   </figure>
 </div>
 
-
 Importantly, our cycle times reduced by **~33%**.
 
 <div class="post-image-section"><figure>
   <img src="/img/ai-improve-analytics/figure-8.png" alt="" style="width:70%"><figcaption align="middle">Figure 8. Comparison of time taken to resolve a ticket in Q1 vs Q2 2026.</figcaption>
   </figure>
 </div>
-
 
 The sharpest version of this sits in a Slack channel where self-serve agents are enabled. In March, an analyst had to step into half of them; by May, it was under a quarter. The share answered with no human involvement rose from 53% to 67% for metric questions, 63% to 90% for data pulls, and 50% to 81% for SQL requests. Just under three in four of the threads were started by someone outside the analytics team, and 85% of them got a first response inside a minute. Nearly every thread is logged as a ticket on the team's board, and roughly two-thirds of the data exploration tickets on that board now arrive through the channel rather than through an analyst, and are solved by our data agents. **For the ~230 tickets that arrived via the channel, if we apply a conservative assumption of 1–2 days per ticket, that is 230 to 470 business days of stakeholder asks that would have been in the backlog.**
 
