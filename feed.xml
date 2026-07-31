@@ -6,9 +6,202 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 30 Jul 2026 04:07:05 +0000</pubDate>
-    <lastBuildDate>Thu, 30 Jul 2026 04:07:05 +0000</lastBuildDate>
+    <pubDate>Fri, 31 Jul 2026 02:10:21 +0000</pubDate>
+    <lastBuildDate>Fri, 31 Jul 2026 02:10:21 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Crowdsourced taxonomy verification: A feedback-driven framework for refining knowledge graph relationships via online search interactions</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;The efficacy of semantic search relies on the accuracy of the underlying Knowledge Graph (KG). In high-velocity domains like on-demand food delivery or e-commerce, the catalog of entities like dishes, products, and merchants changes rapidly.&lt;/p&gt;
+
+&lt;p&gt;Current methods for KG construction and maintenance face three critical challenges:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Inaccuracy and hallucination from Large Language Models (LLMs)&lt;/strong&gt;: Automated models often infer relationships based on statistical text co-occurrence rather than semantic reality. For instance, an LLM might incorrectly classify “Pho” as a child of “Italian Noodle Soup” due to linguistic similarity, leading to irrelevant search results.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scalability limits of manual verification&lt;/strong&gt;: Traditional verification relies on human annotators or domain experts. This approach is slow, expensive, and unable to keep pace with dynamic catalogs containing millions of entities. For example, daily changes in restaurant menus or grocery stock keeping units (SKUs).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Error propagation in ranking&lt;/strong&gt;: Inaccurate graph edges propagate errors downstream. If a parent-child relationship is wrong, query expansion algorithms will retrieve irrelevant items, directly degrading Click-Through Rate (CTR) and user trust.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We introduce a &lt;strong&gt;feedback-driven verification engine&lt;/strong&gt; that operationalizes the search interface as a validation environment. Key contributions include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;User feedback-driven verification&lt;/strong&gt;: The system treats unverified graph edges as hypotheses. Instead of accepting them as truth, it tests them against live traffic by injecting them into search suggestions and measuring user engagement.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Hierarchical relationship refinement&lt;/strong&gt;: Unlike systems that only validate entities (nodes), this framework validates structural links (edges). It confirms whether entity A is truly a parent, child, or sibling of entity B, ensuring structural integrity.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;strong&gt;Adaptive exploration&lt;/strong&gt;: The system employs a greedy exploration policy. It intelligently balances exploitation by showing known good results with exploration through injecting unverified candidates to gather data without degrading the user experience.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;p&gt;Automated KG construction using LLMs and unstructured content extraction can scale quickly across large, dynamic catalogs. However, relationships inferred from text co-occurrence or vector similarity do not always reflect semantic reality. Manual verification by domain experts remains accurate but does not scale to millions of entities that change daily.&lt;/p&gt;
+
+&lt;p&gt;When inaccurate edges enter the graph, ranking and query expansion systems propagate those errors to users. Incorrect parent-child or sibling links lead to irrelevant search results, reduced CTR, and lower user trust. An additional solution is required that can validate graph structure continuously, at scale, without relying solely on manual curation.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;The overall workflow of this invention is shown in the following figure. The details of each step are explained in this section.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/crowdsource-taxonomy/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. The system architecture.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The proposed framework functions as a closed-loop validation ecosystem. It is composed of four integrated modules designed to continuously cycle data from the KG to the user interface and back, using real-world interactions to separate semantic truth from artificial intelligence (AI) hallucinations.&lt;/p&gt;
+
+&lt;p&gt;The verification process follows a continuous, iterative loop that cycles data from the backend graph to the frontend user interface and back. This four-step procedure operationalizes the human-in-the-loop validation mechanism:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Hypothesis generation&lt;/li&gt;
+  &lt;li&gt;Candidate injection&lt;/li&gt;
+  &lt;li&gt;Signal aggregation and scoring&lt;/li&gt;
+  &lt;li&gt;Graph update logic&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h2&gt;
+
+&lt;h3 id=&quot;kg-core&quot;&gt;KG core&lt;/h3&gt;
+
+&lt;p&gt;The central repository acts as the source of truth, storing entities such as dishes, products, or merchants, and the connections between them. To manage the verification process, the system introduces a specialized metadata layer that classifies every connection (or edge) into one of two distinct states:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Verified edges:&lt;/strong&gt; These are established relationships that have been validated either by high historical traffic or human confirmation. They represent the safe structure of the graph. For example, “Sushi” is definitely a child of “Japanese Cuisine”, and is used to power standard search results.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Candidate edges:&lt;/strong&gt; These are probabilistic, unverified relationships generated by automated LLMs or content scrapers. They are treated as hypotheses waiting to be proven. For example, if an LLM ingests a blog post and predicts that “Pho” is related to “Italian Noodle Soup,” this link is stored as a candidate edge, invisible to the main search algorithm until validated.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;search-and-injection-module&quot;&gt;Search and injection module&lt;/h3&gt;
+
+&lt;p&gt;This module sits between the KG and the user, intercepting the query execution pipeline. Unlike standard ranking algorithms, which strictly optimize for relevance by showing only the best results, the injection engine employs a balanced strategy known as exploration vs. exploitation.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;The injection mechanism:&lt;/strong&gt; When a user performs a search, the system retrieves a list of high-confidence results (exploitation). Simultaneously, it deliberately retrieves a small subset of candidate edges related to the query. It injects these unverified candidates into specific, lower-risk slots within the user interface, such as the third or fourth position in a related searches chip carousel.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Risk management:&lt;/strong&gt; To prevent user frustration, the system limits the number of candidates shown per session. This ensures that the user is primarily served helpful, verified content, while still providing enough data points to test new hypotheses.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;behavior-tracking-module&quot;&gt;Behavior tracking module&lt;/h3&gt;
+
+&lt;p&gt;To accurately measure whether a candidate relationship is valid, the system tracks user micro-interactions with high granularity. It captures not just the final click, but the precise context in which the interaction occurred to determine semantic intent.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Contextual anchoring&lt;/strong&gt;: The system logs the specific search term, also known as the &lt;strong&gt;anchor&lt;/strong&gt;, used by the user. A click on “Pho” is only counted as a vote for the relationship if the user was searching for “Noodle Soup” at the time.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Signal classification&lt;/strong&gt;: Signals are assessed in aggregate to estimate the relevance of a candidate relationship. Higher-intent engagement contributes stronger positive evidence, lighter exploratory behavior contributes weaker positive evidence, and lack of engagement or explicit negative actions contributes negative evidence.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;verification-and-refinement-engine&quot;&gt;Verification and refinement engine&lt;/h3&gt;
+
+&lt;p&gt;This is an offline processing unit that acts as the final judge. It aggregates thousands of individual user signals to update the topology of the KG.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Relevance scoring&lt;/strong&gt;: Instead of complex formulas, the engine calculates a simple confidence ratio. It looks at the total number of times a candidate was shown versus the number of positive interactions it received.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Graph topology updates&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Promotion (verify)&lt;/strong&gt;: If the confidence ratio exceeds a verification threshold. For example, if the candidate performs as well as known good items, the edge is upgraded from candidate to verified. It becomes a permanent part of the graph and is shown to all users.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Demotion (prune)&lt;/strong&gt;: If the candidate consistently fails to garner engagement or receives negative signals, it falls below a pruning threshold. The system automatically deletes this edge, effectively correcting the AI’s hallucination and cleaning the dataset.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;/h2&gt;
+
+&lt;h3 id=&quot;hypothesis-generation&quot;&gt;Hypothesis generation&lt;/h3&gt;
+
+&lt;p&gt;The process begins by identifying a target subject, referred to as the anchor entity. For example, the specific dish “Pho”. The system queries the KG to retrieve a set of potential relationships. This retrieval includes both verified neighbors, where relationships are already confirmed by experts, and candidate neighbors, where the relationships are predicted by AI models but not yet proven.&lt;/p&gt;
+
+&lt;h3 id=&quot;candidate-injection&quot;&gt;Candidate injection&lt;/h3&gt;
+
+&lt;p&gt;Once a hypothesis is selected, the system exposes it to real users to gather evidence. When a user actively searches for the anchor entity, the system dynamically injects the candidate neighbor into the search results.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;User interface (UI) implementation:&lt;/strong&gt; The candidate is presented alongside verified items, typically in a related categories carousel or a refine search chip list. This reflects standard relevance experimentation in search, with safeguards to ensure the experience remains controlled and measurable.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Exposure logging:&lt;/strong&gt; The system logs an impression event specifically linking the anchor to the candidate. This record serves as the baseline, documenting that the user saw the relationship, which is essential for calculating future engagement rates.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;signal-aggregation-and-scoring&quot;&gt;Signal aggregation and scoring&lt;/h3&gt;
+
+&lt;p&gt;Instead of using a raw count of clicks, the system calculates a sophisticated relationship confidence score by aggregating user interactions over time. This scoring model uses a weighted tier system to distinguish between casual interest and strong intent.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Weighted interaction logic&lt;/strong&gt;: The system assigns a higher value to actions that require more effort or commitment. For example, a “Purchase” or “Add-to-Cart” action is weighted significantly heavier than a simple click, as it indicates a strong validation of the relationship. Conversely, scrolling past the item quickly or skipping is treated as a negative signal.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Normalization&lt;/strong&gt;: To ensure fairness, the total weighted score is normalized against the total number of times the candidate was shown. This prevents niche items with low total traffic but high accuracy from being unfairly penalized.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;graph-update-logic&quot;&gt;Graph update logic&lt;/h4&gt;
+
+&lt;p&gt;Periodically, the verification engine evaluates the confidence score against predefined benchmarks to update the KG’s topology. This is a binary decision process:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Validation (cementing the edge)&lt;/strong&gt;: If the accumulated confidence score exceeds a strict validation threshold, the system concludes that the relationship is genuine. The status of the edge is updated from candidate to verified. This permanently adds the relationship to the graph, ensuring it appears in future standard searches without the need for further testing.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Rejection (pruning the edge)&lt;/strong&gt;: Conversely, if the score falls below a rejection threshold, indicating that users consistently ignore or reject the suggestion, the system concludes the relationship is an AI hallucination. The edge is severed or removed from the graph. This pruning action cleans the dataset, preventing the system from making the same bad recommendation again.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;case-study-hierarchical-refinement-in-food-delivery&quot;&gt;Case study: hierarchical refinement in food delivery&lt;/h4&gt;
+
+&lt;p&gt;To demonstrate the framework, consider a validation scenario in food delivery taxonomy. An LLM-based ingestion pipeline flags a candidate parent-child link&lt;br /&gt;
+&lt;strong&gt;Noodle Soup → Dry Mee Pok&lt;/strong&gt; and stores it as an unverified candidate edge in the KG, ready for live validation.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;User-triggered validation&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;When a user searches for “Noodle Soup,” the search module injects the candidate alongside verified results. For example, in a “Refine by Dish” filter carousel, and logs an impression linking the anchor query to the candidate.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Outcome collection&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;User interactions like clicks, dwell time, scroll behavior, and conversions are captured and weighted over the validation window. The verification engine aggregates these signals and updates the graph: relationships that meet the validation threshold are promoted to verified status; those that fail are pruned or re-mapped to a more appropriate parent node.&lt;/p&gt;
+
+&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
+
+&lt;p&gt;By injecting unverified candidate edges into live search results and recommendation interfaces via a multi-armed bandit (MAB) exploration strategy, the system leverages implicit user feedback to validate semantic truth. This dynamic, human-in-the-loop mechanism effectively prunes erroneous connections and reinforces accurate taxonomies without the need for manual curation, significantly enhancing search relevance in dynamic domains such as food delivery and retail.&lt;/p&gt;
+
+&lt;p&gt;The case study demonstrates how the framework validates candidate relationships through live user traffic, collecting interaction signals and updating the graph without manual curation.&lt;/p&gt;
+
+&lt;h2 id=&quot;learnings-and-conclusion&quot;&gt;Learnings and conclusion&lt;/h2&gt;
+
+&lt;p&gt;The feedback-driven verification engine operationalizes the search interface as a validation environment for KG relationships. By classifying edges as verified or candidate, injecting candidates through an exploration vs. exploitation strategy, and aggregating weighted user signals, the system promotes accurate relationships and prunes AI hallucinations at scale.&lt;/p&gt;
+
+&lt;p&gt;Unlike approaches that validate only entities, this framework validates structural links, confirming whether entity A is truly a parent, child, or sibling of entity B. The food delivery case study shows how a user-triggered search can initiate validation and outcome collection at scale, without manual intervention.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;Hierarchical confidence tiers&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;To safely graduate new connections into the production graph, we are introducing a dual-measurement trust system that requires both volume and variety before a new connection goes live: support mass (product hits, graph depth, recency) and corroboration (unique sessions, anonymous cohorts, and temporal spread). Connections must climb a strict state machine: &lt;strong&gt;proposed → shadow eligible → canary eligible → production&lt;/strong&gt;, advancing only when both metrics meet progressively higher thresholds; if a snapshot causes metrics to fall below a tier’s floor, the connection is automatically demoted.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Adversarial and spam resistance&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;To prevent bad actors, bots, or highly repetitive users from manipulating the search graph, we are building a multi-layered defense system. We enforce per-merchant rate limits and anti‑abuse controls: hourly caps per session/device, exponential backoff for rapidly repeated actions, and a short (few‑hour) freeze of promotions from any user cohort after declines or “irrelevant” signals. For bot and Sybil attack defense, traffic flagged by abuse systems is excluded from trust calculations (but logged for analysis); votes must come from diverse network subnets or cohort buckets, and each bucket is subject to a daily contribution cap.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
+</description>
+        <pubDate>Thu, 30 Jul 2026 00:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/crowdsourced-taxonomy-verification</link>
+        <guid isPermaLink="true">https://engineering.grab.com/crowdsourced-taxonomy-verification</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Data</category>
+        
+        <category>Search</category>
+        
+        <category>Machine Learning</category>
+        
+        <category>LLM</category>
+        
+        <category>Graphs</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Agent platform (Part 1): How we help Grab build and run AI agents at scale</title>
@@ -1656,166 +1849,6 @@ include &apos;food&apos;
         <category>Engineering</category>
         
         <category>Android</category>
-        
-      </item>
-    
-      <item>
-        <title>Enhancing Flink deployment with shadow testing</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;Ensuring the reliability of Apache Flink deployments in Grab is crucial for the availability of our business-critical, real-time applications. While all applications are tested in a staging environment before getting promoted to the production environment, there is still a class of issues that can only surface when deploying in the production environment, e.g.:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;The new version of the application is unable to cope with the volume or the nature of production traffic.&lt;/li&gt;
-  &lt;li&gt;The new version of the application is unable to resume from a production checkpoint or savepoint taken by the previous version of the application.&lt;/li&gt;
-  &lt;li&gt;Certain environment-specific dependencies or configurations are malfunctioning or misconfigured.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;When an application faces such issues upon deployment in production, our in-house deployment system automatically rolls it back after 10 minutes of observation, leading to a downtime of the application for about the same duration.&lt;/p&gt;
-
-&lt;p&gt;In this article, we will describe how Grab’s data streaming team (Coban) has enriched the traditional deployment pipeline for Flink applications with a &lt;strong&gt;Shadow Testing stage&lt;/strong&gt; that eliminates this downtime during deployment failures, enhancing the availability of our Flink applications during this critical moment of their lifecycle.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Shadow Testing&lt;/strong&gt; is a testing technique whereby a new version of an application (&lt;em&gt;Shadow&lt;/em&gt;) is deployed in parallel with the current version of the application (&lt;em&gt;Main&lt;/em&gt;), but without impacting it. It involves replicating production data to the new version of the application and comparing its behavior with the current version of the application to identify potential issues and regressions.&lt;/p&gt;
-
-&lt;h2 id=&quot;architecture-overview&quot;&gt;Architecture overview&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/shadow-testing/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Overall architecture of Shadow Testing.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;We integrated Shadow Testing directly into the production environment, alongside the Main application (1). The Shadow application is deployed next to it via the same deployment process (2). An environment variable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;isShadow=true&lt;/code&gt; as well as a distinct &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;jobID&lt;/code&gt; are injected for runtime differentiation, enabling the Shadow application to produce its results to distinct, isolated sinks that do not interfere with those of the Main application (3).&lt;/p&gt;
-
-&lt;h2 id=&quot;deployment-flow&quot;&gt;Deployment flow&lt;/h2&gt;
-
-&lt;p&gt;Shadow Testing is embedded within our normal Flink deployment pipeline to make it a seamless experience for the users of our platform.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/shadow-testing/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Deployment flow diagram.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The deployment flow is as follows.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;A user triggers a deployment of their Flink application in Grab’s in-house deployment tool. At this step, they decide whether they want to enable Shadow Testing for this particular deployment.&lt;/li&gt;
-  &lt;li&gt;The deployment pipeline validates the input parameters provided by the user.&lt;/li&gt;
-  &lt;li&gt;If the user has not opted for Shadow Testing, the deployment flow directly jumps to step 8 and deploys the latest version to the Main application. However, if the user has enabled Shadow Testing, the deployment flow first goes through the Shadow Testing stages described in steps 4 to 7.&lt;/li&gt;
-  &lt;li&gt;The Shadow Kubernetes manifest is baked with its set of distinctive parameters:
-    &lt;ul&gt;
-      &lt;li&gt;The application name is prefixed with &lt;em&gt;shadow-&lt;/em&gt; which propagates to all the Kubernetes objects that are part of the Shadow application&lt;/li&gt;
-      &lt;li&gt;An environment variable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;isShadow&lt;/code&gt; is injected and set to &lt;em&gt;true&lt;/em&gt;. It instructs the Shadow application to produce its results to the shadow sinks.&lt;/li&gt;
-      &lt;li&gt;A distinct Job ID is attributed&lt;/li&gt;
-      &lt;li&gt;The target Kubernetes namespace is overridden with a &lt;em&gt;shadow&lt;/em&gt; namespace&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;The Shadow application is deployed into the &lt;em&gt;shadow&lt;/em&gt; Kubernetes namespace.&lt;/li&gt;
-  &lt;li&gt;The Shadow application runs for a configured period of 1 hour by default to reach a steady state. The status of the job manager is monitored to determine the success of the Shadow Testing. If the Shadow application is stable, the Shadow Testing is considered successful.&lt;/li&gt;
-  &lt;li&gt;The user is prompted to continue with the deployment of the Main application.&lt;/li&gt;
-  &lt;li&gt;The Kubernetes manifest of the Main application is baked with its standard parameters and the environment variable &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;isShadow&lt;/code&gt; is set to &lt;em&gt;false&lt;/em&gt;.&lt;/li&gt;
-  &lt;li&gt;The Main application is deployed in its standard Kubernetes namespace.&lt;/li&gt;
-  &lt;li&gt;After 10 minutes of observation, the deployment pipeline determines if the Main application is healthy by querying the status of its job manager. If it is healthy, the Main application is considered successfully deployed. Otherwise, the deployment pipeline automatically triggers a rollback to the previous version.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;During the deployment, the user can leverage our standard observability stack to monitor the behavior of the Shadow application. For example, in the case of an Apache Kafka sink, they can compare the number of messages produced by the Main and Shadow applications.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/shadow-testing/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Tracking of the Kafka messages.in_rate metric for the respective Kafka sink topics of the Main application (purple) and Shadow application (blue) at the beginning of the Shadow deployment stage.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Besides, our standard Datadog dashboard that comes with each application can conveniently be toggled to view the metrics of the respective Shadow application.&lt;/p&gt;
-
-&lt;h2 id=&quot;connector-implementation&quot;&gt;Connector implementation&lt;/h2&gt;
-
-&lt;p&gt;Our standard sink and source connectors, provided by our platform, ensure the absence of interference with the Main application during Shadow Testing. For example, Kafka source connectors use distinct consumer group IDs, while the various sink connectors direct the data to dedicated shadow sinks.&lt;/p&gt;
-
-&lt;p&gt;The Flink application evaluates the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;isShadow&lt;/code&gt; environment variable to set up the connectors at runtime.&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;isShadow&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;){&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// Shadow Testing operation&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;// Normal operation&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The following table shows how some typical connectors are dynamically configured if &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;isShadow=true&lt;/code&gt;:&lt;/p&gt;
-
-&lt;table class=&quot;table&quot; border=&quot;1&quot; style=&quot;border-collapse: collapse;&quot;&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;Type&lt;/th&gt;
-      &lt;th&gt;Connector&lt;/th&gt;
-      &lt;th&gt;Dynamic configuration&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Source&lt;/td&gt;
-      &lt;td&gt;Kafka&lt;/td&gt;
-      &lt;td&gt;The consumer group ID for the Shadow application is suffixed with &lt;em&gt;-shadow&lt;/em&gt;. This is crucial so as to consume a full copy of the data stream without interfering with the Main application. &lt;br /&gt; Main application: &lt;code&gt;consumerGroup = &amp;lt;application_name&amp;gt;&lt;/code&gt; &lt;br /&gt; Shadow application: &lt;code&gt;consumerGroup = &amp;lt;application_name&amp;gt;-shadow&lt;/code&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Source&lt;/td&gt;
-      &lt;td&gt;Change Data Capture&lt;/td&gt;
-      &lt;td&gt;The Server ID range of &lt;a href=&quot;https://debezium.io/&quot;&gt;Debezium&lt;/a&gt; is shifted to the next non-overlapping range of the same size. This enables the Shadow application to get a full copy of the database binlog stream without interfering with the Main application. Note that the misleading &lt;em&gt;Server ID&lt;/em&gt; naming is because Debezium acts as a pseudo-replica of the database server. &lt;br /&gt; Main application: &lt;code&gt;serverId = 1001-2000&lt;/code&gt; &lt;br /&gt; Shadow application: &lt;code&gt;serverId = 2001 - 3000&lt;/code&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Sink&lt;/td&gt;
-      &lt;td&gt;Kafka&lt;/td&gt;
-      &lt;td&gt;The cluster endpoint is replaced with that of a Kafka cluster dedicated to Shadow Testing, set up with &lt;em&gt;auto.create.topics.enable=true&lt;/em&gt; and 8h retention. &lt;br /&gt; Main application: &lt;code&gt;brokers = &amp;lt;flink-kafka&amp;gt;:9092&lt;/code&gt; &lt;br /&gt; Shadow application: &lt;code&gt;brokers = &amp;lt;flink-kafka-shadow&amp;gt;:9092&lt;/code&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Sink&lt;/td&gt;
-      &lt;td&gt;S3&lt;/td&gt;
-      &lt;td&gt;The S3 bucket name is replaced with that of a bucket dedicated to Shadow Testing, set up with a 7-day retention lifecycle policy.&lt;br /&gt;  Main application: &lt;code&gt;s3://&amp;lt;flink-s3&amp;gt;/&amp;lt;application_name&amp;gt;&lt;/code&gt; &lt;br /&gt;  Shadow application: &lt;code&gt;s3://&amp;lt;flink-s3-shadow&amp;gt;/&amp;lt;application_name&amp;gt;&lt;/code&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Sink&lt;/td&gt;
-      &lt;td&gt;Metrics&lt;/td&gt;
-      &lt;td&gt;The StatsD prefix configuration is overridden. A &lt;em&gt;shadow.&lt;/em&gt; prefix is added. &lt;br /&gt;  Main application: &lt;code&gt;flink.&amp;lt;application_name&amp;gt;.&amp;lt;metric_name&amp;gt;&lt;/code&gt;&lt;br /&gt; Shadow application: &lt;code&gt;shadow.flink.&amp;lt;application_name&amp;gt;.&amp;lt;metric_name&amp;gt;&lt;/code&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Sink&lt;/td&gt;
-      &lt;td&gt;Logs&lt;/td&gt;
-      &lt;td&gt;The &lt;em&gt;Shadow&lt;/em&gt; Kubernetes manifest prefixes the Shadow application name with &lt;em&gt;shadow-&lt;/em&gt;. The resulting name becomes available as a field in Kibana, enabling discriminated filtering. This tweak is done at the Kubernetes manifest level, not at the Flink application level.&lt;br /&gt; Main application: &lt;code&gt;app_name = &amp;lt;application_name&amp;gt;&lt;/code&gt; &lt;br /&gt; Shadow application: &lt;code&gt;app_name = shadow-&amp;lt;application_name&amp;gt;&lt;/code&gt;&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Our Shadow Testing framework represents a meaningful step forward in enhancing the reliability of our Flink applications during deployment. By leveraging and enriching the existing components of our platform, we have created a robust system that enables our users to confidently increase their Deployment Frequency and reduce their Change Failure Rate.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;To drive wider adoption, we intend to support more source and sink connectors. By expanding the range of supported connectors, we could empower teams to leverage Shadow Testing across a broader spectrum of applications.&lt;/p&gt;
-
-&lt;p&gt;For connectors that are less frequently used, we consider implementing a no-op approach combined with metrics collection to expose a minimal set of actionable data points.&lt;/p&gt;
-
-&lt;p&gt;We will remain focused on making Shadow Testing accessible, scalable, and adaptable to various applications. Stay tuned as we continue to push the boundaries of innovation and deliver solutions that enhance reliability and efficiency across our systems.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebios&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 07 May 2026 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/enchancing-flink-shadow-testing</link>
-        <guid isPermaLink="true">https://engineering.grab.com/enchancing-flink-shadow-testing</guid>
-        
-        <category>Database</category>
-        
-        <category>Testing</category>
-        
-        <category>FlinkSQL</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Data</category>
         
       </item>
     
