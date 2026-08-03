@@ -162,14 +162,14 @@ Outside the portal, the same instinct shows up in smaller ways. Our analysts hav
 In February, **44%** of the tickets our analysts closed were mechanical (data preparation, alerting, reporting); by June, that share had fallen to **30%**. That capacity was redirected to other higher-leverage work, such as building new workflows to enable stakeholder self-serve, as well as more time spent on generating deeper insights for business opportunities.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-7.png" alt="" style="width:70%"><figcaption align="middle">Figure 7. Comparison of percentage of tickets closed in Q1 vs Q2 2026.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-7.png" alt="" style="width:70%"><figcaption align="middle">Figure 7. Comparison of percentage of tickets closed in Q1 vs Q2.</figcaption>
   </figure>
 </div>
 
 Importantly, our cycle times reduced by **~33%**.
 
 <div class="post-image-section"><figure>
-  <img src="/img/ai-improve-analytics/figure-8.png" alt="" style="width:70%"><figcaption align="middle">Figure 8. Comparison of time taken to resolve a ticket in Q1 vs Q2 2026.</figcaption>
+  <img src="/img/ai-improve-analytics/figure-8.png" alt="" style="width:70%"><figcaption align="middle">Figure 8. Comparison of time taken to resolve a ticket in Q1 vs Q2.</figcaption>
   </figure>
 </div>
 
