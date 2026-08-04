@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-08-15-grab-bench-evaluating-ai
-title: 'Building Grab Bench: evaluating AI on work that looks like Grab'
-date: 2026-08-15 00:00:00
+id: 2026-08-10-grab-bench-evaluating-ai
+title: 'Grab Bench: Evaluating AI on Grab-shaped production work'
+date: 2026-08-1 00:00:00
 authors: [christian.coffrant]
 categories: [Engineering]
 tags: [Artificial Intelligence, Engineering, Product, Machine Learning]
