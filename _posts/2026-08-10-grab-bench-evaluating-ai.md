@@ -2,7 +2,7 @@
 layout: post
 id: 2026-08-10-grab-bench-evaluating-ai
 title: 'Grab Bench: Evaluating AI on Grab-shaped production work'
-date: 2026-08-1 00:00:00
+date: 2026-08-12 00:00:00
 authors: [christian.coffrant]
 categories: [Engineering]
 tags: [Artificial Intelligence, Engineering, Product, Machine Learning]
