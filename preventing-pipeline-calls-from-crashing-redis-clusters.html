@@ -2,10 +2,94 @@
 <html>
   <head>
     <meta charset="utf-8">
+    
+    
     <title>Preventing Pipeline Calls from Crashing Redis Clusters</title>
+    
     <meta name="description" content="This blog post describes Grab’s post-mortem findings for the outage caused by the Redis Cluster failure.">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#00b14f" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <link rel="canonical" href="https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters">
+    
+    
+    
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Grab Tech",
+  "url": "https://engineering.grab.com",
+  "logo": {
+    "@type": "ImageObject",
+    "url": "https://engineering.grab.com/img/banner.png"
+  }
+}
+</script>
+
+
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Preventing Pipeline Calls from Crashing Redis Clusters",
+  "description": "This blog post describes Grab’s post-mortem findings for the outage caused by the Redis Cluster failure.",
+  "url": "https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters",
+  "image": "https://engineering.grab.com/img/preventing-pipeline-calls-from-crashing-redis-clusters/cover.jpg",
+  "datePublished": "2019-05-05T18:43:40+00:00",
+  "dateModified": "2019-05-05T18:43:40+00:00",
+  "author": {
+    "@type": "Person",
+    "name": "Michael Cartmell"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Grab Tech",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://engineering.grab.com/img/banner.png"
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters"
+  }
+}
+</script>
+
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://engineering.grab.com"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Preventing Pipeline Calls from Crashing Redis Clusters",
+      "item": "https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters"
+    }
+  ]
+}
+</script>
+
+
 
     <!-- Open Graph -->
     <meta property="og:url" content="https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters">
@@ -16,21 +100,38 @@
     <meta property="og:image" content="https://engineering.grab.com/img/preventing-pipeline-calls-from-crashing-redis-clusters/cover.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Preventing Pipeline Calls from Crashing Redis Clusters">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Preventing Pipeline Calls from Crashing Redis Clusters">
+    <meta name="twitter:description" content="This blog post describes Grab’s post-mortem findings for the outage caused by the Redis Cluster failure.">
+    <meta name="twitter:image" content="https://engineering.grab.com/img/preventing-pipeline-calls-from-crashing-redis-clusters/cover.jpg">
+    <meta name="twitter:image:alt" content="Preventing Pipeline Calls from Crashing Redis Clusters">
+    <meta name="twitter:site" content="@grabengineering">
 
     <!-- Favicons -->
     <link rel="icon" href="/favicon.ico">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+    <!-- Preconnect for efficient external loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://maxcdn.bootstrapcdn.com" crossorigin>
+    <link rel="preconnect" href="https://code.jquery.com" crossorigin>
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//maxcdn.bootstrapcdn.com">
+    <link rel="dns-prefetch" href="//code.jquery.com">
+
     <!-- CSS -->
-    <link href="//fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i" rel="stylesheet">
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
-    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
-    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
-    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Droid+Serif:400,400i,700,700i&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+    <script src="https://code.jquery.com/jquery-1.11.2.min.js" defer></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js" defer></script>
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
 
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="canonical" href="https://engineering.grab.com/preventing-pipeline-calls-from-crashing-redis-clusters">
 
     <!-- RSS -->
     <link rel="alternate" type="application/rss+xml" title="RSS for Official Grab Tech Blog" href="/feed.xml">
@@ -143,7 +244,7 @@
     </div>
   </div>
 </header>
-<script src="/js/main.js"></script>
+<script src="/js/main.js" defer></script>
 
     <div class="page-content">
       
@@ -151,7 +252,7 @@
   <div class="post-with-sidebar">
     <div class="post post-main">
       <header class="post-header">
-        <img src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/cover.jpg" class="post-cover-photo" alt="Preventing Pipeline Calls from Crashing Redis Clusters cover photo">
+        <img src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/cover.jpg" class="post-cover-photo" alt="Preventing Pipeline Calls from Crashing Redis Clusters cover photo" loading="eager" decoding="async" fetchpriority="high" width="1200" height="630">
         
           <div class="post-tags">
   
@@ -192,7 +293,8 @@
                 title="Michael Cartmell">
           <img class="post-author-chip-avatar img-circle"
                src="/img/authors/michael-cartmell.jpg"
-               alt="">
+               alt="Michael Cartmell"
+               loading="lazy" decoding="async" width="40" height="40">
         </button>
         <a class="post-author-large" href="/authors#michael.cartmell">Michael Cartmell</a>
       </div>
@@ -210,7 +312,8 @@
                 title="Jiahao Huang">
           <img class="post-author-chip-avatar img-circle"
                src="/img/authors/jiahao-huang.jpg"
-               alt="">
+               alt="Jiahao Huang"
+               loading="lazy" decoding="async" width="40" height="40">
         </button>
         <a class="post-author-large" href="/authors#jiahao.huang">Jiahao Huang</a>
       </div>
@@ -228,7 +331,8 @@
                 title="Sandeep Kumar">
           <img class="post-author-chip-avatar img-circle"
                src="/img/authors/sandeep-kumar.jpg"
-               alt="">
+               alt="Sandeep Kumar"
+               loading="lazy" decoding="async" width="40" height="40">
         </button>
         <a class="post-author-large" href="/authors#sandeep.kumar">Sandeep Kumar</a>
       </div>
@@ -282,7 +386,7 @@
 
       </header>
       <div class="wrapper-content">
-        <article class="post-content">
+        <article class="post-content" id="post-content">
           <h1 id="introduction">Introduction</h1>
 
 <p>On Feb 15th, 2019, a slave node in Redis, an in-memory data structure storage, failed requiring a replacement. During this period, roughly only 1 in 21 calls to Apollo, a primary transport booking service, succeeded. This brought Grab rides down significantly for the one minute it took the Redis Cluster to self-recover. This behaviour was totally unexpected and completely breached our intention of having multiple replicas.</p>
@@ -296,7 +400,7 @@
 <p>Apollo is our driver-side state machine. It is on almost all requests’ critical path and is a primary component for booking transport and providing great service for consumer bookings. It stores individual driver availability in an AWS ElastiCache Redis Cluster, letting our booking service efficiently assign bookings to drivers. It’s critical to keep Apollo running and available 24/7.</p>
 
 <div class="post-image-section">
-  <img alt="Apollo's infrastructure" src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/image1.jpg" />
+  <p><img alt="Apollo's infrastructure" src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/image1.jpg" /></p>
 </div>
 
 <p>Because of Apollo’s significance, its Redis Cluster has 3 shards each with 2 slaves. It hashes all keys and, according to the hash value, divides them into three partitions. Each partition has two replications to increase reliability.</p>
@@ -304,13 +408,13 @@
 <p>We use the Go-Redis client, a popular Redis library, to direct all written queries to the master nodes (which then write to their slaves) to ensure consistency with the database.</p>
 
 <div class="post-image-section">
-  <img alt="Master and slave nodes in the Redis Cluster" src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/image2.jpg" />
+  <p><img alt="Master and slave nodes in the Redis Cluster" src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/image2.jpg" /></p>
 </div>
 
 <p>For reading related queries, engineers usually turn on the <code class="language-plaintext highlighter-rouge">ReadOnly</code> flag and turn off the <code class="language-plaintext highlighter-rouge">RouteByLatency</code> flag. These effectively turn on <code class="language-plaintext highlighter-rouge">ReadOnlyFromSlaves</code> in the Grab <code class="language-plaintext highlighter-rouge">gredis3</code> library, so the client directs all reading queries to the slave nodes instead of the master nodes. This load distribution frees up master node CPU usage.</p>
 
 <div class="post-image-section">
-  <img alt="Client reading and writing from/to the Redis Cluster" src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/image3.jpg" />
+  <p><img alt="Client reading and writing from/to the Redis Cluster" src="/img/preventing-pipeline-calls-from-crashing-redis-clusters/image3.jpg" /></p>
 </div>
 
 <p>When designing a system, we consider potential hardware outages and network issues. We also think of ways to ensure our Redis Cluster is highly efficient and available; setting the above-mentioned flags help us achieve these goals.</p>
@@ -661,7 +765,7 @@ type ReplyPair struct {
         <li class="recent-posts-item">
           <a href="/grab-bench-evaluating-ai" class="recent-posts-link">
             
-              <img src="/img/grab-bench/banner-img.png" class="recent-posts-thumb" alt="" loading="lazy">
+              <img src="/img/grab-bench/banner-img.png" class="recent-posts-thumb" alt="Grab Bench: Evaluating AI on Grab-shaped production work cover photo" loading="lazy" decoding="async" width="80" height="80">
             
             <span class="recent-posts-text">
               <span class="recent-posts-title">Grab Bench: Evaluating AI on Grab-shaped production work</span>
@@ -676,7 +780,7 @@ type ReplyPair struct {
         <li class="recent-posts-item">
           <a href="/how-ai-is-transforming-analytics" class="recent-posts-link">
             
-              <img src="/img/ai-improve-analytics/banner-image.png" class="recent-posts-thumb" alt="" loading="lazy">
+              <img src="/img/ai-improve-analytics/banner-image.png" class="recent-posts-thumb" alt="How AI is transforming analytics at Grab cover photo" loading="lazy" decoding="async" width="80" height="80">
             
             <span class="recent-posts-text">
               <span class="recent-posts-title">How AI is transforming analytics at Grab</span>
@@ -691,7 +795,7 @@ type ReplyPair struct {
         <li class="recent-posts-item">
           <a href="/crowdsourced-taxonomy-verification" class="recent-posts-link">
             
-              <img src="/img/crowdsource-taxonomy/banner-img.png" class="recent-posts-thumb" alt="" loading="lazy">
+              <img src="/img/crowdsource-taxonomy/banner-img.png" class="recent-posts-thumb" alt="Crowdsourced taxonomy verification: A feedback-driven framework for refining knowledge graph relationships via online search interactions cover photo" loading="lazy" decoding="async" width="80" height="80">
             
             <span class="recent-posts-text">
               <span class="recent-posts-title">Crowdsourced taxonomy verification: A feedback-driven framework for refining knowledge graph relationships via online search interactions</span>
@@ -706,7 +810,7 @@ type ReplyPair struct {
         <li class="recent-posts-item">
           <a href="/how-grab-builds-and-runs-ai-agents-at-scale" class="recent-posts-link">
             
-              <img src="/img/how-grab-builds-and-run-ai-at-scale/part-1-banner.png" class="recent-posts-thumb" alt="" loading="lazy">
+              <img src="/img/how-grab-builds-and-run-ai-at-scale/part-1-banner.png" class="recent-posts-thumb" alt="Agent platform (Part 1): How we help Grab build and run AI agents at scale cover photo" loading="lazy" decoding="async" width="80" height="80">
             
             <span class="recent-posts-text">
               <span class="recent-posts-title">Agent platform (Part 1): How we help Grab build and run AI agents at scale</span>
@@ -721,7 +825,7 @@ type ReplyPair struct {
         <li class="recent-posts-item">
           <a href="/our-journey-to-apache-iceberg-adoption" class="recent-posts-link">
             
-              <img src="/img/journey-to-apache-iceberg/banner-image.png" class="recent-posts-thumb" alt="" loading="lazy">
+              <img src="/img/journey-to-apache-iceberg/banner-image.png" class="recent-posts-thumb" alt="Scaling Grab&#39;s Data Lake: Our journey to Apache Iceberg adoption cover photo" loading="lazy" decoding="async" width="80" height="80">
             
             <span class="recent-posts-text">
               <span class="recent-posts-title">Scaling Grab's Data Lake: Our journey to Apache Iceberg adoption</span>
@@ -2114,7 +2218,7 @@ type ReplyPair struct {
           <li class="recent-posts-item">
             <a href="/optimally-scaling-kafka-consumer-applications" class="recent-posts-link">
               
-                <img src="/img/optimally-scaling-kafka-consumer-applications/cover.png" class="recent-posts-thumb" alt="" loading="lazy">
+                <img src="/img/optimally-scaling-kafka-consumer-applications/cover.png" class="recent-posts-thumb" alt="Optimally Scaling Kafka Consumer Applications cover photo" loading="lazy" decoding="async" width="80" height="80">
               
               <span class="recent-posts-text">
                 <span class="recent-posts-title">Optimally Scaling Kafka Consumer Applications</span>
@@ -2217,7 +2321,7 @@ type ReplyPair struct {
           <li class="recent-posts-item">
             <a href="/plumbing-at-scale" class="recent-posts-link">
               
-                <img src="/img/plumbing-at-scale/cover.jpg" class="recent-posts-thumb" alt="" loading="lazy">
+                <img src="/img/plumbing-at-scale/cover.jpg" class="recent-posts-thumb" alt="Plumbing At Scale cover photo" loading="lazy" decoding="async" width="80" height="80">
               
               <span class="recent-posts-text">
                 <span class="recent-posts-title">Plumbing At Scale</span>
@@ -2248,7 +2352,7 @@ type ReplyPair struct {
           <li class="recent-posts-item">
             <a href="/domain-driven-development-in-golang" class="recent-posts-link">
               
-                <img src="/img/domain-driven-development-in-golang/cover.png" class="recent-posts-thumb" alt="" loading="lazy">
+                <img src="/img/domain-driven-development-in-golang/cover.png" class="recent-posts-thumb" alt="How We Implemented Domain-Driven Development in Golang cover photo" loading="lazy" decoding="async" width="80" height="80">
               
               <span class="recent-posts-text">
                 <span class="recent-posts-title">How We Implemented Domain-Driven Development in Golang</span>
