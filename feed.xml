@@ -6,9 +6,140 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Fri, 21 Aug 2026 07:26:47 +0000</pubDate>
-    <lastBuildDate>Fri, 21 Aug 2026 07:26:47 +0000</lastBuildDate>
+    <pubDate>Fri, 21 Aug 2026 08:27:59 +0000</pubDate>
+    <lastBuildDate>Fri, 21 Aug 2026 08:27:59 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Building Jarvis Pro: Route first, answer later</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;The first Jarvis Pro prototype could produce answers that sounded right.&lt;/p&gt;
+
+&lt;p&gt;That was the problem.&lt;/p&gt;
+
+&lt;p&gt;One early answer looked polished: it named the merchant, summarized the week, and recommended pushing promotions before the next review. It was also wrong. The merchant’s order volume was down, but the sharper issue was operational: more outlets were paused and fulfilment had slipped. Sending more demand into that setup would have made the merchant look worse.&lt;/p&gt;
+
+&lt;p&gt;That failure changed how we judged the system. Fluent was not enough.&lt;/p&gt;
+
+&lt;p&gt;Jarvis Pro is the AI assistant we built for Grab account managers. Its job is to help them turn account data into better merchant conversations: what changed, why it changed, and what to do next. They rarely ask clean dashboard questions. They ask: “I am meeting this merchant tomorrow. What should I tell them?” or “Which accounts in my portfolio need attention this week?”&lt;/p&gt;
+
+&lt;p&gt;Those questions hide decisions: scope, access, business diagnosis, and metric definition. If the system gets those wrong, confidence becomes a liability.&lt;/p&gt;
+
+&lt;p&gt;So the core design became: route first, answer later.&lt;/p&gt;
+
+&lt;p&gt;Before launch, routing matched the expected safe route in 99.4% of 351 realistic prompts drawn from labelled offline eval sets in the first half of 2026. In a focused portfolio and brand answer-quality suite, the average score moved from 78.5 to 91.0. These figures come from offline launch-readiness evaluation only; they are not business-impact proof.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-dashboards-were-easier&quot;&gt;Why dashboards were easier&lt;/h2&gt;
+
+&lt;p&gt;A dashboard answers a bounded question:&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;“Show net sales for merchant X last week.”&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;An account review question has to diagnose the work to be done:&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;“This merchant softened this week. Should I push promos, ads, or operations fixes before the review?”&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;If outlets were paused, more traffic can backfire. If average order value fell, the next action may be menu or bundle design. If a dashboard, warehouse table, and local spreadsheet disagree, the first task is metric reconciliation, not recommendation.&lt;/p&gt;
+
+&lt;p&gt;We wanted Jarvis Pro to classify the task first, then load only the context needed for that task.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-route-as-a-contract&quot;&gt;The route as a contract&lt;/h2&gt;
+
+&lt;p&gt;The launch router was a prompted LLM classification step constrained by a routing guide: supported task types, allowed context, answer shapes, and conditions that should force a handoff or refusal.&lt;/p&gt;
+
+&lt;p&gt;A broad merchant review routes differently from an ads campaign recap or an out-of-scope request. A route is not just a label; it decides the structure, metrics, tool path, and guardrails.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/jarvis-pro/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Jarvis Pro routes before it answers. The route determines context, tools, and guardrails; evaluation checks each layer, not only the final response.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Here is a simplified example. The merchant and numbers are illustrative.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;User prompt&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;I am seeing Merchant A soften this week. I need talking points for tomorrow’s review. Should I push promos, ads, or operations fixes?&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Router decision&lt;/strong&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;route&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;brand_performance_action_plan&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;scope&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;merchant&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Merchant A&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;country&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Singapore&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;memory&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;use current question context&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;context&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;brand action plan&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;approved metric catalog&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ads context&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;guardrails&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;no private competitor metrics&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;no unsupported projection&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Answer extract&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Merchant A’s issue looks like order volume, not basket size. Net sales fell 7.8% week-on-week and orders fell 9.1%, while average order value increased 1.4%.&lt;/p&gt;
+
+&lt;p&gt;Start with operations before promotions. Temporary pause rate rose from 2.1% to 4.8%, and fulfilment fell from 94.6% to 91.8%. Extra demand may leak unless the merchant fixes availability first.&lt;/p&gt;
+
+&lt;p&gt;Talking point: “Before we add promo depth, let’s recover lost availability. If we bring pause rate back below 2.5%, we should have a cleaner read on whether the remaining gap is demand, menu, or ads.”&lt;/p&gt;
+
+&lt;p&gt;The route prevented three common mistakes: jumping straight to discounts, inventing competitor spend, and answering from a generic growth template.&lt;/p&gt;
+
+&lt;h2 id=&quot;memory-had-to-stay-narrow&quot;&gt;Memory had to stay narrow&lt;/h2&gt;
+
+&lt;p&gt;Here, “memory” means saved user context such as country, role, portfolio scope, and preferences. That context is useful when a user says “my portfolio”. It is risky when saved defaults override explicit context, missing identity becomes a guess, or a memory request crosses user boundaries.&lt;/p&gt;
+
+&lt;p&gt;We put memory before answer generation and kept the decision small: proceed, ask for onboarding information, prefer explicit context, use saved defaults, look up portfolio scope, or refuse. Backend permissions and row-level controls remain the authorization layer.&lt;/p&gt;
+
+&lt;p&gt;That extra checking costs time. Jarvis Pro does route classification, memory checking, context selection, warehouse or specialist tool calls, then generation. To keep the wait usable, we loaded route-specific context, ran memory before expensive retrieval, consolidated warehouse queries, capped tool calls, and returned unavailable cells as N/A instead of looping until the conversation stalled.&lt;/p&gt;
+
+&lt;p&gt;That tradeoff was deliberate: a slower first token was better than a fast unsafe recommendation.&lt;/p&gt;
+
+&lt;h2 id=&quot;reconcile-the-metric-before-blaming-the-model&quot;&gt;Reconcile the metric before blaming the model&lt;/h2&gt;
+
+&lt;p&gt;Even with good routing and memory, an assistant is only as good as the numbers it pulls.&lt;/p&gt;
+
+&lt;p&gt;When a user says “the number is wrong”, several failures can look identical: wrong source, different metric definitions, different entity mapping, or stale data. One reconciliation pass showed that what looked like model error was sometimes just a freshness mismatch between reporting surfaces.&lt;/p&gt;
+
+&lt;p&gt;We built regression checks that normalised source values and compared daily rows across approved metric paths. The point was not the row count. It was knowing whether to fix source selection, metric guidance, or the caveat shown to the account manager.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-we-evaluated-it&quot;&gt;How we evaluated it&lt;/h2&gt;
+
+&lt;p&gt;One aggregate score would have hidden the failures we cared about.&lt;/p&gt;
+
+&lt;p&gt;The routing set had 351 prompts labelled against the routing guide. Each prompt had an expected route family, meaning the broad business category, plus an expected route and any handoff or refusal. “Accepted route accuracy” meant the selected route was exact or semantically equivalent and safe. A wrong business family, missed handoff, or unsafe scope failed.&lt;/p&gt;
+
+&lt;p&gt;The answer-quality suite had 501 total cases scored on a 0-100 rubric covering template fit, metric use, diagnosis, next action quality, caveats, and guardrail compliance. Within that suite, the 150-case portfolio and brand subset improved from 78.5 to 91.0. A wrong merchant, wrong country, fabricated metric, unsupported projection, private competitor detail, or another user’s memory could fail a case. All scores were measured offline against fixed rubrics for launch readiness; they do not reflect production commercial outcomes.&lt;/p&gt;
+
+&lt;p&gt;That caught the answer we most wanted to avoid: plausible, polished, and operationally unsafe.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-lesson-we-would-reuse&quot;&gt;The lesson we would reuse&lt;/h2&gt;
+
+&lt;p&gt;The final paragraph is too late to resolve ambiguity. Jarvis Pro has to earn the right to answer: route the task, check memory and access, load the right evidence, cap the tools, then judge failures at each layer.&lt;/p&gt;
+
+&lt;p&gt;Offline evals gave us confidence in system behaviour, not commercial uplift. Measuring that needs production telemetry: recommendations shown, actions taken, accounts affected, and outcomes.&lt;/p&gt;
+
+&lt;p&gt;The assistant should not merely sound like a great account manager. It should first prove it understands the account.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Fri, 14 Aug 2026 00:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/jarvis-pro-route-firsr-answer-later</link>
+        <guid isPermaLink="true">https://engineering.grab.com/jarvis-pro-route-firsr-answer-later</guid>
+        
+        <category>Artificial Intelligence</category>
+        
+        <category>Engineering</category>
+        
+        <category>Product</category>
+        
+        <category>Account Management</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Grab Bench: Evaluating AI on Grab-shaped production work</title>
@@ -1627,123 +1758,6 @@ http://litellm-proxy.gateway:4000/unified/v1
         <category>DevSecOps</category>
         
         <category>Platform</category>
-        
-        <category>Engineering</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>From decentralized Docs-as-Code to a centralized repository: Evolving Grab&apos;s documentation strategy</title>
-        <description>&lt;h2 id=&quot;introduction-the-journey-of-documentation-at-grab&quot;&gt;Introduction: The journey of documentation at Grab&lt;/h2&gt;
-
-&lt;p&gt;In early 2021, Grab adopted a Docs-as-Code approach to address gaps in our technical documentation processes, as illustrated in our blog post &lt;a href=&quot;https://engineering.grab.com/doc-as-code&quot;&gt;Embracing a Docs-as-Code&lt;/a&gt;. Inspired by the practices of other market leaders, we integrated documentation into our engineers’ workflows, making it part of the codebase.&lt;/p&gt;
-
-&lt;p&gt;This approach addressed our initial documentation challenges by creating a single source of truth for engineers to search and build knowledge, making documentation upkeep necessary and less of an afterthought. After four years of use, we transitioned to a centralized documentation repository. This change was not about abandoning Docs-as-Code but adapting it to meet new and growing organizational needs.&lt;/p&gt;
-
-&lt;p&gt;This post walks through the motivations, benefits, and lessons from each phase of this journey, showing how our documentation strategy evolved.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-is-docs-as-code&quot;&gt;What is Docs-as-Code?&lt;/h2&gt;
-
-&lt;p&gt;Docs-as-Code is an approach that manages documentation with the same tools and workflows engineers use for source code. Content is written in plain-text Markdown, which is easy to edit in any code editor. Markdown is a lightweight markup language that uses simple, readable symbols like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;#&lt;/code&gt; for headings and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;* &lt;/code&gt; for lists to format text, and can be rendered to HTML and other outputs. It lives in version-controlled repositories (e.g., GitLab), so documentation evolves alongside code. Updates go through the same merge request reviews and automated CI/CD checks.&lt;/p&gt;
-
-&lt;p&gt;This integrated model lets teams at Grab build, test, and publish documentation as part of a pipeline. We then surface it through a centralized internal developer portal for easier discovery and implement governance for quality assurance.&lt;/p&gt;
-
-&lt;h3 id=&quot;ideal-use-case-at-grab&quot;&gt;Ideal use case at Grab&lt;/h3&gt;
-
-&lt;p&gt;Imagine an engineer responsible for maintaining documentation for a product or platform managed by their team. This engineer creates comprehensive documentation in Markdown, containing pages such as an overview, a getting-started guide, how-tos, troubleshooting, FAQs, and related references for a specific platform. The documentation is included in the merge request and published on the documentation portal immediately after the code is merged. This seamless integration fosters a sense of ownership over the documentation. However, while this scenario is ideal, implementing it in practice presents significant challenges.&lt;/p&gt;
-
-&lt;h3 id=&quot;problems-we-solved-with-docs-as-code&quot;&gt;Problems we solved with Docs-as-Code&lt;/h3&gt;
-
-&lt;p&gt;Before adopting a Docs-as-Code model, documentation was often scattered across Google Docs, slide decks, wikis, and ad hoc text files, which led to version confusion, poor discoverability, and gaps in quality assurance. Centralizing documentation in version-controlled repositories next to the code creates a single source of truth, ties updates to the same pull/merge request reviews, and enables automated checks such as link validation, style linting, and preview builds.&lt;/p&gt;
-
-&lt;p&gt;Industry practice reflects this shift: &lt;a href=&quot;https://kubernetes.io/docs/contribute/docs/&quot;&gt;Kubernetes&lt;/a&gt; maintains its documentation as Markdown on the Kubernetes website, uses GitHub as a repository, and builds the site with Hugo, encouraging doc updates alongside feature work.&lt;/p&gt;
-
-&lt;p&gt;When documentation is embedded with the code and flows through the same CI/CD pipeline, engineers are more likely to update it in tandem with code changes. This method keeps the content up to date and in sync with releases by default. The TechDocs team can also set standardized metrics to uphold quality across all documentation and implement quality gates and blockers to ensure each document meets quality standards.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-limits-of-decentralized-repositories&quot;&gt;The limits of decentralized repositories&lt;/h2&gt;
-
-&lt;p&gt;As Grab’s engineering footprint expanded, our decentralized Docs-as-Code approach began to strain at scale, surfacing friction that made documentation harder to discover, maintain, and ship with confidence.&lt;/p&gt;
-
-&lt;h3 id=&quot;fragmented-user-experience-and-uneven-standards&quot;&gt;Fragmented user experience and uneven standards&lt;/h3&gt;
-
-&lt;p&gt;When documentation is scattered across many repositories and managed independently by teams, information architecture, voice, terminology, and granularity diverge. Similar concepts end up with different names, pages follow inconsistent navigation and templates, and redundant or misaligned guidance proliferates.&lt;/p&gt;
-
-&lt;p&gt;Ultimately, the search experience becomes noisy and unreliable as multiple versions of “the truth” surface. The impact shows up as longer onboarding, more tech support escalations, slower incident response when runbooks differ by team, and eroding trust that eventually pushes people toward tribal knowledge.&lt;/p&gt;
-
-&lt;p&gt;For the TechDocs team, decentralization made it hard to enforce standard templates, formatting, and quality gates. With documentation spread across many repositories, each with different or no linters, CI setups, and conventions, running organization-wide automation (linters, link checkers, readability checks) or applying uniform review steps was unreliable. This resulted in limited oversight and persistent inconsistencies, which degraded the user experience and trust in the documentation.&lt;/p&gt;
-
-&lt;h3 id=&quot;difficulty-keeping-pace-and-staying-discoverable&quot;&gt;Difficulty keeping pace and staying discoverable&lt;/h3&gt;
-
-&lt;p&gt;A fast-moving platform means decentralized documentation ages quickly and becomes hard to find. Frequent infrastructure and framework releases introduce breaking changes and deprecations. Teams struggled to stay informed, leading to missed opportunities for optimization and potential security risks due to outdated practices.&lt;/p&gt;
-
-&lt;p&gt;Meanwhile, with content sprawled across many repositories, managing and tracking the content became increasingly challenging for the team overseeing TechDocs. When teams changed the location of their source repositories, they often failed to notify the managing team, making it difficult to keep track of newer and updated locations. This lack of coordination created significant hurdles in discovering relevant documentation and maintaining a centralized record, ultimately impacting productivity and delaying decision-making.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-we-transitioned-to-a-centralized-repository&quot;&gt;Why we transitioned to a centralized repository&lt;/h2&gt;
-
-&lt;p&gt;A centralized repository allowed us to address these scaling challenges while keeping the benefits of Docs-as-Code:&lt;/p&gt;
-
-&lt;h3 id=&quot;ai-driven-enhancements&quot;&gt;AI-driven enhancements&lt;/h3&gt;
-
-&lt;p&gt;We are no longer writing only for human engineers. As we integrate more AI tools into our developer experience, our documentation also serves as the knowledge base for internal agents. A centralized, Markdown-based format gives agents clean, readable content in one location, which supports better integration, faster comprehension, and more accurate responses.&lt;/p&gt;
-
-&lt;h3 id=&quot;improved-quality-assurance&quot;&gt;Improved quality assurance&lt;/h3&gt;
-
-&lt;p&gt;Centralizing our documentation enabled the managing team to run automated linters for quality checks across all content. This helped ensure consistent standards, reducing manual oversight and minimizing the risk of errors. Contributors were also required to use the appropriate template for each document type, ensuring a consistent structure by default.&lt;/p&gt;
-
-&lt;h3 id=&quot;unified-search-experience&quot;&gt;Unified search experience&lt;/h3&gt;
-
-&lt;p&gt;The unified search experience changes how engineers access information. They can search for any topic and find relevant documentation without navigating multiple repositories. A global search overlay combines two methods: fuzzy page-title search for quick navigation and Glean-powered search across all TechDocs content. Glean is an enterprise search and AI assistant platform that integrates with internal tools to help users find and use information more efficiently. This search capability saves time and helps engineers stay informed.&lt;/p&gt;
-
-&lt;h3 id=&quot;streamlined-contribution-process&quot;&gt;Streamlined contribution process&lt;/h3&gt;
-
-&lt;p&gt;While the decentralized model allowed engineers to use the GitLab web IDE, local editors, and GitLab CLI commands for faster updates, the transition to a centralized system helped streamline this process by offering a consistent editing environment. Even with these advanced tools, the centralized repository provided a unified location for all documentation, reducing the need to navigate across multiple repositories.&lt;/p&gt;
-
-&lt;p&gt;Centralization also gives the TechDocs team clearer visibility into documentation behavior and health. After implementing a centralized repository, the team extracted statistics on user activity: a new update is merged roughly every 50 minutes, with roughly 27 commits per day, and approximately 63% of changes being small to medium improvements. These signals point to ongoing documentation maintenance, with frequent touch-ups that fix typos, clarify steps, and keep guidance current rather than sporadic bulk updates. The image below illustrates how Grabbers use the centralized repository in practice.&lt;/p&gt;
-
-&lt;h2 id=&quot;reflecting-on-the-evolution&quot;&gt;Reflecting on the evolution&lt;/h2&gt;
-
-&lt;p&gt;The transition was not without its hurdles. To bridge the gap left by decentralized Docs-as-Code workflows, we implemented:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Automated syncs:&lt;/strong&gt; We synchronized critical content from service and platform repositories into a central hub to prevent gaps, while keeping the overlap period short to avoid two sources of truth and missed updates as legacy repos were retired.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Training sessions:&lt;/strong&gt; We ran hands-on workshops to help engineers navigate the new platform and understand its benefits.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Continuous feedback:&lt;/strong&gt; We set up surveys and regular check-ins to refine tooling and processes based on real-world usage.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;conclusion-choosing-what-works-for-your-context&quot;&gt;Conclusion: choosing what works for your context&lt;/h2&gt;
-
-&lt;p&gt;Docs-as-Code with decentralized and centralized repositories are not mutually exclusive; they excel in different contexts and can be combined. Decentralized authoring works well when engineers are the primary contributors and documentation naturally ships with code. Centralization becomes valuable when you optimize for organization-wide discoverability, consistency, governance, and analytics. We conclude with these findings from our shift to a centralized Docs-as-Code repository:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Use decentralized Docs-as-Code when teams need autonomy and documentation is tightly coupled to services.&lt;/li&gt;
-  &lt;li&gt;Use a centralized repository when you need a single source of truth for discovery, standardized templates and style, consistent CI checks, ownership metadata, and clearer compliance and review gates.&lt;/li&gt;
-  &lt;li&gt;Consider a hybrid approach: authors create documentation in service repos and publish to a central portal with shared templates, ownership metadata, automated quality checks, and centralized discovery and governance.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;At Grab, decentralized Docs-as-Code fostered strong ownership early on. As we scaled and our audience broadened, a centralized repository and unified discovery surface became essential to maintain consistency, improve findability, and support diverse user needs. Documentation strategies evolve with the organization. The goal is not picking one model forever, but recognizing the signals to pivot and adapting so engineers can reliably find the right information at the right time.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebdocstrat&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 29 May 2026 00:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/evolving-documentation-strategy</link>
-        <guid isPermaLink="true">https://engineering.grab.com/evolving-documentation-strategy</guid>
-        
-        <category>Blog</category>
-        
-        <category>TechDocs</category>
         
         <category>Engineering</category>
         
