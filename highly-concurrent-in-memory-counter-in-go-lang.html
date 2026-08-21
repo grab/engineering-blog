@@ -377,33 +377,29 @@
 
 <p>Simple GoLang code for writing an in-memory counter may look like the code sample shown in <strong>Figure 1</strong>.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/memory-counter-golang/code-base-1.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 1. In-memory counter code snippet.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-1.png" alt="" style="width:80%" /><figcaption align="middle">Figure 1. In-memory counter code snippet.</figcaption>
   </figure>
 </div>
 
 <p>The code has a map declared globally, and the <code class="language-plaintext highlighter-rouge">do</code> function increments the counter value against the key. However, this code fails to work when multiple Goroutines (GoLang version of threads) try to access this <code class="language-plaintext highlighter-rouge">do</code> function concurrently. This will result in the following error, as shown in <strong>Figure 2</strong>.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/memory-counter-golang/code-base-2.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 2. Code error sample.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-2.png" alt="" style="width:80%" /><figcaption align="middle">Figure 2. Code error sample.</figcaption>
   </figure>
 </div>
 
 <p>Maps in GoLang are not thread safe and need to be locked when being accessed concurrently. The GoLang sync package has Mutex, which serves this locking purpose. The code changes are shown in <strong>Figure 3</strong>. The <code class="language-plaintext highlighter-rouge">sync.RWMutex</code> object is declared globally and every time the <code class="language-plaintext highlighter-rouge">do</code> function is called, the lock is obtained first. Then the map is mutated, followed by releasing the lock at the end. This code works as intended even when multiple go routines try to access it concurrently.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/memory-counter-golang/code-base-3.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 3. Implementing sync.RWMutex for locking purpose.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-3.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3. Implementing sync.RWMutex for locking purpose.</figcaption>
   </figure>
 </div>
 
 <p>The code for the functional requirement of periodically flushing the counter value to the storage layer is shown in <strong>Figure 4</strong>.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/memory-counter-golang/code-base-4.png" alt="" style="width:60%" />&lt;figcaption align="middle"&gt;Figure 4. Code snippet of flushing counter value to storage function. &lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-4.png" alt="" style="width:60%" /><figcaption align="middle">Figure 4. Code snippet of flushing counter value to storage function. </figcaption>
   </figure>
 </div>
 
@@ -429,17 +425,15 @@
 
 <p>When combined, these <code class="language-plaintext highlighter-rouge">Sync.Map</code> features produce the <code class="language-plaintext highlighter-rouge">do</code> function shown in <strong>Figure 5</strong>. When the <code class="language-plaintext highlighter-rouge">do</code> function is called, the <code class="language-plaintext highlighter-rouge">LoadOrStore</code> function tries to atomically store the key in the map if the key is absent. Otherwise, it returns the current value for the key with the <code class="language-plaintext highlighter-rouge">isLoaded</code> variable set to true. If the key is already present, a new value is created by summing up the increment value with the current value and setting it as the new value in the map using the <code class="language-plaintext highlighter-rouge">CompareAndSwap</code> function. The <code class="language-plaintext highlighter-rouge">compareAndSwap</code> function successfully sets the new value to the key only if the existing value in the map matches the current value. During high concurrency, this can fail, so we recursively retry until the <code class="language-plaintext highlighter-rouge">CompareAndSwap</code> replaces the current value with the new value.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/memory-counter-golang/code-base-5.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 5. Sync.Map features in do function. &lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-5.png" alt="" style="width:80%" /><figcaption align="middle">Figure 5. Sync.Map features in do function. </figcaption>
   </figure>
 </div>
 
 <p>The code example for periodically flushing the counter value to the storage layer is shown in <strong>Figure 6</strong>. In the previous version of the code, it obtained the lock on the entire map and flushed the counter to the storage layer before releasing the lock. However, there is no locking during this flushing operation. Instead, we rely on the <code class="language-plaintext highlighter-rouge">LoadAndDelete</code> function to atomically remove a key from the map. This also returns the latest value for the key, which is updated into the storage layer async.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/memory-counter-golang/code-base-6.png" alt="" style="width:60%" />&lt;figcaption align="middle"&gt;Figure 6. Code snippet of LoadAndDelete function. &lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/memory-counter-golang/code-base-6.png" alt="" style="width:60%" /><figcaption align="middle">Figure 6. Code snippet of LoadAndDelete function. </figcaption>
   </figure>
 </div>
 

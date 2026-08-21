@@ -384,9 +384,8 @@
 
 <p>Initially, GrabUnlimited systems were designed for an experiment and not a full-fledged regional product. The idea was to try it out as a minimum viable product over a restricted segment of a few hundred thousand users. Let’s first have a look at how the membership program works.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/life-of-a-membership-worfklow.jpg" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 1. GrabUnlimited life of a membership flowchart.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/life-of-a-membership-worfklow.jpg" alt="" style="width:80%" /><figcaption align="middle">Figure 1. GrabUnlimited life of a membership flowchart.</figcaption>
   </figure>
 </div>
 
@@ -402,9 +401,8 @@
 
 <p>So far, so good.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/grabunlimited-previous-system-design-overview.jpg" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 2. GrabUnlimited previous system design overview.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/grabunlimited-previous-system-design-overview.jpg" alt="" style="width:80%" /><figcaption align="middle">Figure 2. GrabUnlimited previous system design overview.</figcaption>
   </figure>
 </div>
 
@@ -434,9 +432,8 @@
 
 <p>Our system’s cron job, which retrieves all daily memberships due for renewal from our database, becomes slower and more resource-intensive as the number of members increases. Despite our attempt to alleviate high database usage by dividing the process into multiple batches and running several cron jobs, we were still experiencing significant surges each time a cron job runs. So our only viable solution was vertical scaling<sup id="fnref:5"><a href="#fn:5" class="footnote" rel="footnote" role="doc-noteref">5</a></sup> of the database. In other words, we had a serious bottleneck in our system.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/database-qps-membership-renewals.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 3. Database queries per second during membership renewals at night.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/database-qps-membership-renewals.png" alt="" style="width:80%" /><figcaption align="middle">Figure 3. Database queries per second during membership renewals at night.</figcaption>
   </figure>
 </div>
 
@@ -461,9 +458,8 @@
   <li>We were not able to auto-retry membership renewals if the cron job, database, or any service had an outage.</li>
 </ul>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/idempotency-issue-old-system-design.jpg" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 4. Example of Idempotency issue in our old system design. If a single task fails in a state handler, the whole step would be retried which could lead to a double awarding.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/idempotency-issue-old-system-design.jpg" alt="" style="width:80%" /><figcaption align="middle">Figure 4. Example of Idempotency issue in our old system design. If a single task fails in a state handler, the whole step would be retried which could lead to a double awarding.</figcaption>
   </figure>
 </div>
 
@@ -489,9 +485,8 @@
 
 <p>In order to make the right decision, we meticulously assessed our options over the following criteria:  scalability<sup id="fnref:10"><a href="#fn:10" class="footnote" rel="footnote" role="doc-noteref">10</a></sup>, reliability<sup id="fnref:11"><a href="#fn:11" class="footnote" rel="footnote" role="doc-noteref">11</a></sup>, resiliency<sup id="fnref:12"><a href="#fn:12" class="footnote" rel="footnote" role="doc-noteref">12</a></sup>, performance, development effort, cost, security, flexibility<sup id="fnref:13"><a href="#fn:13" class="footnote" rel="footnote" role="doc-noteref">13</a></sup>, and testability<sup id="fnref:14"><a href="#fn:14" class="footnote" rel="footnote" role="doc-noteref">14</a></sup>. We realised that most of what we needed to build to compensate for our system design gaps was already built into Temporal. Let’s have a sneak peek on how the architecture looks and how it solves all four major culprits we discussed.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/grabunlimited-new-system-design-architecture.jpg" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 5. GrabUnlimited new system design architecture.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/grabunlimited-new-system-design-architecture.jpg" alt="" style="width:80%" /><figcaption align="middle">Figure 5. GrabUnlimited new system design architecture.</figcaption>
   </figure>
 </div>
 
@@ -501,9 +496,8 @@
 
 <p>Let’s start with the easiest fix, remember our old cron job for membership renewals? We replaced it with <a href="https://docs.temporal.io/develop/go/timers">Timer</a> which allows a workflow to sleep and automatically wake up. Instead of renewing membership by batches, they are now renewed throughout the entire day based on the hour and minute when the user subscribed. What does this mean for us? We no longer need to fetch memberships from our database to trigger renewals. The workflow will resume at the due date to process the renewal, eliminating the database as a bottleneck.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/total-qps-before-after-temporal.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 6. Total queries per second (QPS) on database before and after the migration to Temporal.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/total-qps-before-after-temporal.png" alt="" style="width:80%" /><figcaption align="middle">Figure 6. Total queries per second (QPS) on database before and after the migration to Temporal.</figcaption>
   </figure>
 </div>
 
@@ -511,9 +505,8 @@
 
 <p>Our legacy Redis lock mechanism was clearly not enough. However, with Temporal, we have alternative solutions to avoid race conditions. What happens if a user tries to cancel while the membership renewal workflow is being triggered? Temporal allows us to assign the <a href="https://docs.temporal.io/workflows#workflow-id-reuse-policy">same workflow ID</a> to multiple workflows running mutually exclusive operations, ensuring only one operation runs at a time. Basically, we assigned the same workflow ID to both cancellation and renewal workflows, either cancellation happens first, removing the need to renew the consumer membership, or renewal takes the lead, and cancellation only happens after.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/total-corrupted-membership-states.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 7. Total corrupted membership states (zombies) manually handled by engineers significantly decreased during our migration which started in February.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/total-corrupted-membership-states.png" alt="" style="width:80%" /><figcaption align="middle">Figure 7. Total corrupted membership states (zombies) manually handled by engineers significantly decreased during our migration which started in February.</figcaption>
   </figure>
 </div>
 
@@ -529,9 +522,8 @@
 
 <p>Let’s take a look at our previous example with Temporal.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/temporal-workflow.jpg" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 8. Temporal workflow: If a single task fails, only that task is retried.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/temporal-workflow.jpg" alt="" style="width:80%" /><figcaption align="middle">Figure 8. Temporal workflow: If a single task fails, only that task is retried.</figcaption>
   </figure>
 </div>
 
@@ -545,9 +537,8 @@
 
 <p>If the “AssignBenefits2” step fails, and the process is retried by Temporal, it will restart directly from that step, thus preventing the double awarding we were experiencing with SQS. Thanks to this approach, we largely improved idempotency and resiliency in our system, which also led to great results in decreasing user reported incidents.</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/turbocharging-grabunlimited-with-temporal/total-opi-related-to-membership.png" alt="" style="width:80%" />&lt;figcaption align="middle"&gt;Figure 9. Total open production incidents reported by users related to membership issues from January to October 2024.&lt;/figcaption&gt;</p>
+<div class="post-image-section"><figure>
+  <img src="/img/turbocharging-grabunlimited-with-temporal/total-opi-related-to-membership.png" alt="" style="width:80%" /><figcaption align="middle">Figure 9. Total open production incidents reported by users related to membership issues from January to October 2024.</figcaption>
   </figure>
 </div>
 

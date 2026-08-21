@@ -396,122 +396,102 @@
 
 <p>An assumption here is that there will be sufficient braking and acceleration manoeuvring for PCA to determine the correct forward direction. This Euler angles determination is done periodically to account for any movement of phones during the trip. Finally, the raw phone accelerations are rotated to the vehicle orientation through a matrix multiplication with the rotation matrix derived from the Euler angles (see Figure 1).</p>
 
-<div class="post-image-section">
-  <figure>
-    <p><img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image1.png" alt="" style="width:80%" /></p>
-    <figcaption align="middle">
-      <p>Figure 1: Inference of vehicle acceleration from the phone sensor data. <a href="https://www.freepik.com/free-psd/isometric-minimal-3d-phone-with-rrss-interface-mockup-levitating_13195223.htm">Smartphone</a> and <a href="https://www.freepik.com/free-vector/white-sports-car-isolated-white-vector_3529812.htm">car</a> images modified from designs found in Freepik.com.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;</p>
-
-      <h3 id="handling-variations-in-data-quality">Handling variations in data quality</h3>
-
-      <p>Our processing algorithm is optimised to be highly robust and handle large variations in data quality that is expected from bookings on the Grab platform. There are many reported methods for processing mobile data to reorientate telematics data for four wheel vehicles<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup><sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.</p>
-
-      <p>However, with the prevalent use of motorcycles on our platform, especially for delivery verticals, we observed that data collected from two wheel vehicles tend to be noisier due to differences in phone stability and vehicular vibrations. Data noise can be exacerbated if partners hold the phone in their hand or place it in their pockets while driving.</p>
-
-      <p>In addition, we also expect a wide variation in data quality and sensor availability from different phone models, such as older, low-end models to the newest, flagship models. A good example to illustrate the robustness of our algorithm is having different strategies to handle different degrees of data noise. For example, a simple low-pass filter is used for low noise data, while more complex variational decomposition and Kalman filter approaches are used for high noise data.</p>
-
-      <h3 id="detecting-behaviour-anomalies-with-thresholds">Detecting behaviour anomalies with thresholds</h3>
-
-      <p>Once the vehicular accelerations are inferred, we can use a thresholding approach (see Figure 2) to detect unsafe driving instances.</p>
-
-      <p>For unsafe acceleration and braking, a peak finding algorithm is used to detect acceleration peaks beyond a threshold in the longitudinal (forward/backward) direction. For unsafe cornering, older and lower end phones are usually not equipped with gyroscope sensors, so we should look for peaks of lateral (sidewards) acceleration (which constitutes the centripetal acceleration during the turn) beyond a threshold. GPS bearing data that coarsely measures the orientation of the vehicle is then used to confirm that a cornering and not lane change instance is being detected. The thresholds selected are fine-tuned on Grab’s data using initial values based on published literature<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> and other sources.</p>
-
-      <p>To reduce false positive detection, no unsafe driving instances will be flagged when:</p>
-
-      <ol>
-        <li>Large discrepancies are observed between speeds derived from integrating the longitudinal (forward/backward) acceleration and speeds directly measured by the GPS sensor.</li>
-        <li>Large phone motions are detected. For example, when the phone falls to the seat from the dashboard, accelerations recorded on the phone sensor will deviate significantly from the vehicle accelerations.</li>
-        <li>GPS speed is very low before and after the unsafe driving instance is detected. This is limited to data collected from motorcycles which is usually used by delivery partners. It implies that the partner is walking and not in a vehicle. For example, a GrabFood delivery partner may be collecting the food from the merchant partner on foot, so no unsafe driving instances should be detected.</li>
-      </ol>
-
-      <div class="post-image-section">
-        <figure>
-          <p><img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image2.gif" alt="" style="width:80%" /></p>
-          <figcaption align="middle">
-            <p>Figure 2: Animation showing unsafe driving detection by thresholding. Dotted lines in acceleration charts indicate selected thresholds. Map tiles by stamen design.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;</p>
-
-            <h2 id="detecting-speeding-instances-from-gps-speeds-and-map-data">Detecting speeding instances from GPS speeds and map data</h2>
-
-            <p>To define speeding along a stretch of road, we used a rule-based method by comparing raw speeds from GPS pings with speeding thresholds for that road. Although GPS speeds are generally accurate (subjected to minimal GPS errors), we need to take more precautions to ensure the right speeding thresholds are determined.</p>
-
-            <p>These thresholds are set using known speed limits from available map data or hourly aggregated speed statistics where speed limits are not available. The coverage and accuracy of known speed limits is continuously being improved by our in-house mapping initiatives and  validated comprehensively by the respective local ground teams in selected cities.</p>
-
-            <p>Aggregating GPS pings from Grab driver and delivery partners can be a helpful proxy to actual speed limits by defining speeding violations as outliers from socially acceptable speeds derived from partners collectively. To reliably compute aggregated speed statistics, a representative speed profile for each stretch of road must first be inferred from raw GPS pings (see Figure 3).</p>
-
-            <p>As ping sampling intervals are fixed, more pings tend to be recorded for slower speeds. To correct the bias in the speed profile, we reweigh ping counts by using speed values as weights. Furthermore, to minimise distortions in the speed profile from vehicles driving at lower-than-expected speeds due to high traffic volumes, only pings from free-flowing traffic are used when inferring the speed profile.</p>
-
-            <p>Free-flowing traffic is defined by speeds higher than the median speed on each defined road category (e.g., small residential roads, normal primary roads, large expressways). To ensure extremely high speeds are flagged regardless of the speed of other drivers, maximum threshold values for aggregated speeds are set for each road category using heuristics based on the maximum known speed limit of that road category.</p>
-
-            <div class="post-image-section">
-              <figure>
-                <p><img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image4.png" alt="" style="width:80%" /></p>
-                <figcaption align="middle">
-                  <p>Figure 3: Steps to infer a representative speed profile for computing aggregated speed statistics.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;</p>
-
-                  <p>Besides a representative speed profile, hourly aggregation should also include data from a sufficient number of unique drivers depending on speed variability. To obtain enough data, hourly aggregations are performed on the same day of the week over multiple weeks. This way, we have a comprehensive time-specific speed profile that accounts for traffic quality (e.g., peak hour traffic, traffic differences between weekdays/weekends) and driving conditions (e.g., visibility difference between day/night).</p>
-
-                  <p>When detecting speeding violations, the GPS pings used are snapped-to-road and stationary pings, pings with unrealistic speeds, while pings with low GPS accuracy (e.g., when the vehicle is in a tunnel) are excluded. A speeding violation is defined as a sequence of consecutive GPS pings that exceed the speeding threshold. The following checks were put in place to minimise erroneous flagging of speeding violations:</p>
-
-                  <ol>
-                    <li>Removal of duplicated (or stale) GPS pings.</li>
-                    <li>Sufficient speed buffer given to take into account GPS errors.</li>
-                    <li>Sustained speeding for a prolonged period of time is required to exclude transient speeding events (e.g., during lane change).</li>
-                  </ol>
-
-                  <h1 id="driving-safety-report">Driving safety report</h1>
-
-                  <p>The driving safety report is a platform safety product that driver and delivery partners can access via their driver profile page on the Grab Driver Application (see Figure 4). It is updated daily and aims to create awareness regarding driving habits by summarising key information from the processed data into a personalised report that can be easily consumed.</p>
-
-                  <p>Individual reports of each driving manoeuvre (e.g., braking, acceleration, cornering and speeding) are available for daily and weekly views. Partners can also get more detailed information of each individual instance such as when these unsafe driving instances were detected.</p>
-
-                  <div class="post-image-section">
-                    <figure>
-                      <p><img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image5.png" alt="" style="width:80%" /></p>
-                      <figcaption align="middle">
-                        <p>Figure 4: Driving safety report for driver and delivery partners using four wheel vehicles. a) Actionable insights feature circled by red dotted lines. b) Daily view of various unsafe driving instances where more details of each instance can be viewed by tapping on “See details”.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;</p>
-
-                        <h2 id="actionable-insights">Actionable insights</h2>
-
-                        <p>Besides compiling the instances of unsafe driving in a report to create awareness, we are also using these data to provide some actionable recommendations for our partners to improve their driving.</p>
-
-                        <p>With unsafe driving feedback from consumers and reported road traffic accident data from our platform, we also train machine learning models to identify patterns in the detected unsafe driving instances and estimate the likelihood of partners receiving unsafe driving feedback or getting into accidents. One use case is to compute a safe driving score that equates a four-wheel partner’s driving behaviour to a numerical value where a higher score indicates a safer driver.</p>
-
-                        <p>Additionally, we use Shapley additive explanation (SHAP) approaches to determine which driving manoeuvre contributes the most to increasing the likelihood of partners receiving unsafe driving feedback or getting into accidents. This information is included as an actionable insight in the driving safety report and helps partners to identify the key area to improve their driving.</p>
-
-                        <h1 id="whats-next">What’s next?</h1>
-
-                        <p>At the moment, Grab performs telematics processing and unsafe driving detections after the trip and updates the report the next day. One of the biggest improvements would be to share this information with partners faster. We are actively working on developing a real-time processing algorithm that addresses this and also, satisfies the robustness requirements such that partners are immediately aware after an unsafe driving instance is detected.</p>
-
-                        <p>Besides detecting typical unsafe driving manoeuvres, we are also exploring other use cases for mobile sensor data in road safety such as detection of poor road conditions, counterflow driving against traffic, and phone usage leading to distracted driving.</p>
-
-                        <h1 id="join-us">Join us</h1>
-
-                        <p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
-
-                        <p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
-
-                        <h1 id="references">References</h1>
-
-                      </figcaption>
-                    </figure>
-                  </div>
-                </figcaption>
-              </figure>
-            </div>
-          </figcaption>
-        </figure>
-      </div>
-    </figcaption>
+<div class="post-image-section"><figure>
+  <img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image1.png" alt="" style="width:80%" />
+  <figcaption align="middle">Figure 1: Inference of vehicle acceleration from the phone sensor data. <a href="https://www.freepik.com/free-psd/isometric-minimal-3d-phone-with-rrss-interface-mockup-levitating_13195223.htm">Smartphone</a> and <a href="https://www.freepik.com/free-vector/white-sports-car-isolated-white-vector_3529812.htm">car</a> images modified from designs found in Freepik.com.</figcaption>
   </figure>
 </div>
+
+<h3 id="handling-variations-in-data-quality">Handling variations in data quality</h3>
+
+<p>Our processing algorithm is optimised to be highly robust and handle large variations in data quality that is expected from bookings on the Grab platform. There are many reported methods for processing mobile data to reorientate telematics data for four wheel vehicles<sup id="fnref:2"><a href="#fn:2" class="footnote" rel="footnote" role="doc-noteref">2</a></sup><sup id="fnref:3"><a href="#fn:3" class="footnote" rel="footnote" role="doc-noteref">3</a></sup>.</p>
+
+<p>However, with the prevalent use of motorcycles on our platform, especially for delivery verticals, we observed that data collected from two wheel vehicles tend to be noisier due to differences in phone stability and vehicular vibrations. Data noise can be exacerbated if partners hold the phone in their hand or place it in their pockets while driving.</p>
+
+<p>In addition, we also expect a wide variation in data quality and sensor availability from different phone models, such as older, low-end models to the newest, flagship models. A good example to illustrate the robustness of our algorithm is having different strategies to handle different degrees of data noise. For example, a simple low-pass filter is used for low noise data, while more complex variational decomposition and Kalman filter approaches are used for high noise data.</p>
+
+<h3 id="detecting-behaviour-anomalies-with-thresholds">Detecting behaviour anomalies with thresholds</h3>
+
+<p>Once the vehicular accelerations are inferred, we can use a thresholding approach (see Figure 2) to detect unsafe driving instances.</p>
+
+<p>For unsafe acceleration and braking, a peak finding algorithm is used to detect acceleration peaks beyond a threshold in the longitudinal (forward/backward) direction. For unsafe cornering, older and lower end phones are usually not equipped with gyroscope sensors, so we should look for peaks of lateral (sidewards) acceleration (which constitutes the centripetal acceleration during the turn) beyond a threshold. GPS bearing data that coarsely measures the orientation of the vehicle is then used to confirm that a cornering and not lane change instance is being detected. The thresholds selected are fine-tuned on Grab’s data using initial values based on published literature<sup id="fnref:4"><a href="#fn:4" class="footnote" rel="footnote" role="doc-noteref">4</a></sup> and other sources.</p>
+
+<p>To reduce false positive detection, no unsafe driving instances will be flagged when:</p>
+
+<ol>
+  <li>Large discrepancies are observed between speeds derived from integrating the longitudinal (forward/backward) acceleration and speeds directly measured by the GPS sensor.</li>
+  <li>Large phone motions are detected. For example, when the phone falls to the seat from the dashboard, accelerations recorded on the phone sensor will deviate significantly from the vehicle accelerations.</li>
+  <li>GPS speed is very low before and after the unsafe driving instance is detected. This is limited to data collected from motorcycles which is usually used by delivery partners. It implies that the partner is walking and not in a vehicle. For example, a GrabFood delivery partner may be collecting the food from the merchant partner on foot, so no unsafe driving instances should be detected.</li>
+</ol>
+
+<div class="post-image-section"><figure>
+  <img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image2.gif" alt="" style="width:80%" />
+  <figcaption align="middle">Figure 2: Animation showing unsafe driving detection by thresholding. Dotted lines in acceleration charts indicate selected thresholds. Map tiles by stamen design.</figcaption>
+  </figure>
+</div>
+
+<h2 id="detecting-speeding-instances-from-gps-speeds-and-map-data">Detecting speeding instances from GPS speeds and map data</h2>
+
+<p>To define speeding along a stretch of road, we used a rule-based method by comparing raw speeds from GPS pings with speeding thresholds for that road. Although GPS speeds are generally accurate (subjected to minimal GPS errors), we need to take more precautions to ensure the right speeding thresholds are determined.</p>
+
+<p>These thresholds are set using known speed limits from available map data or hourly aggregated speed statistics where speed limits are not available. The coverage and accuracy of known speed limits is continuously being improved by our in-house mapping initiatives and  validated comprehensively by the respective local ground teams in selected cities.</p>
+
+<p>Aggregating GPS pings from Grab driver and delivery partners can be a helpful proxy to actual speed limits by defining speeding violations as outliers from socially acceptable speeds derived from partners collectively. To reliably compute aggregated speed statistics, a representative speed profile for each stretch of road must first be inferred from raw GPS pings (see Figure 3).</p>
+
+<p>As ping sampling intervals are fixed, more pings tend to be recorded for slower speeds. To correct the bias in the speed profile, we reweigh ping counts by using speed values as weights. Furthermore, to minimise distortions in the speed profile from vehicles driving at lower-than-expected speeds due to high traffic volumes, only pings from free-flowing traffic are used when inferring the speed profile.</p>
+
+<p>Free-flowing traffic is defined by speeds higher than the median speed on each defined road category (e.g., small residential roads, normal primary roads, large expressways). To ensure extremely high speeds are flagged regardless of the speed of other drivers, maximum threshold values for aggregated speeds are set for each road category using heuristics based on the maximum known speed limit of that road category.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image4.png" alt="" style="width:80%" />
+  <figcaption align="middle">Figure 3: Steps to infer a representative speed profile for computing aggregated speed statistics.</figcaption>
+  </figure>
+</div>
+
+<p>Besides a representative speed profile, hourly aggregation should also include data from a sufficient number of unique drivers depending on speed variability. To obtain enough data, hourly aggregations are performed on the same day of the week over multiple weeks. This way, we have a comprehensive time-specific speed profile that accounts for traffic quality (e.g., peak hour traffic, traffic differences between weekdays/weekends) and driving conditions (e.g., visibility difference between day/night).</p>
+
+<p>When detecting speeding violations, the GPS pings used are snapped-to-road and stationary pings, pings with unrealistic speeds, while pings with low GPS accuracy (e.g., when the vehicle is in a tunnel) are excluded. A speeding violation is defined as a sequence of consecutive GPS pings that exceed the speeding threshold. The following checks were put in place to minimise erroneous flagging of speeding violations:</p>
+
+<ol>
+  <li>Removal of duplicated (or stale) GPS pings.</li>
+  <li>Sufficient speed buffer given to take into account GPS errors.</li>
+  <li>Sustained speeding for a prolonged period of time is required to exclude transient speeding events (e.g., during lane change).</li>
+</ol>
+
+<h1 id="driving-safety-report">Driving safety report</h1>
+
+<p>The driving safety report is a platform safety product that driver and delivery partners can access via their driver profile page on the Grab Driver Application (see Figure 4). It is updated daily and aims to create awareness regarding driving habits by summarising key information from the processed data into a personalised report that can be easily consumed.</p>
+
+<p>Individual reports of each driving manoeuvre (e.g., braking, acceleration, cornering and speeding) are available for daily and weekly views. Partners can also get more detailed information of each individual instance such as when these unsafe driving instances were detected.</p>
+
+<div class="post-image-section"><figure>
+  <img src="/img/using-mobile-sensor-data-to-encourage-safer-driving/image5.png" alt="" style="width:80%" />
+  <figcaption align="middle">Figure 4: Driving safety report for driver and delivery partners using four wheel vehicles. a) Actionable insights feature circled by red dotted lines. b) Daily view of various unsafe driving instances where more details of each instance can be viewed by tapping on “See details”.</figcaption>
+  </figure>
+</div>
+
+<h2 id="actionable-insights">Actionable insights</h2>
+
+<p>Besides compiling the instances of unsafe driving in a report to create awareness, we are also using these data to provide some actionable recommendations for our partners to improve their driving.</p>
+
+<p>With unsafe driving feedback from consumers and reported road traffic accident data from our platform, we also train machine learning models to identify patterns in the detected unsafe driving instances and estimate the likelihood of partners receiving unsafe driving feedback or getting into accidents. One use case is to compute a safe driving score that equates a four-wheel partner’s driving behaviour to a numerical value where a higher score indicates a safer driver.</p>
+
+<p>Additionally, we use Shapley additive explanation (SHAP) approaches to determine which driving manoeuvre contributes the most to increasing the likelihood of partners receiving unsafe driving feedback or getting into accidents. This information is included as an actionable insight in the driving safety report and helps partners to identify the key area to improve their driving.</p>
+
+<h1 id="whats-next">What’s next?</h1>
+
+<p>At the moment, Grab performs telematics processing and unsafe driving detections after the trip and updates the report the next day. One of the biggest improvements would be to share this information with partners faster. We are actively working on developing a real-time processing algorithm that addresses this and also, satisfies the robustness requirements such that partners are immediately aware after an unsafe driving instance is detected.</p>
+
+<p>Besides detecting typical unsafe driving manoeuvres, we are also exploring other use cases for mobile sensor data in road safety such as detection of poor road conditions, counterflow driving against traffic, and phone usage leading to distracted driving.</p>
+
+<h1 id="join-us">Join us</h1>
+
+<p>Grab is the leading superapp platform in Southeast Asia, providing everyday services that matter to consumers. More than just a ride-hailing and food delivery app, Grab offers a wide range of on-demand services in the region, including mobility, food, package and grocery delivery services, mobile payments, and financial services across 428 cities in eight countries.</p>
+
+<p>Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, <a href="https://grab.careers/">join our team</a> today!</p>
+
+<h1 id="references">References</h1>
+
 <div class="footnotes" role="doc-endnotes">
   <ol>
     <li id="fn:1">
