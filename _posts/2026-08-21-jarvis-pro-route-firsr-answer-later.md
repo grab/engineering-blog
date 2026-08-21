@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-08-14-jarvis-pro-route-firsr-answer-later
+id: 2026-08-21-jarvis-pro-route-firsr-answer-later
 title: 'Building Jarvis Pro: Route first, answer later'
-date: 2026-08-14 00:00:00
+date: 2026-08-21 00:00:00
 authors: [christian.coffrant]
 categories: [Engineering]
 tags: [Artificial Intelligence, Engineering, Product, Account Management]
@@ -27,7 +27,7 @@ Those questions hide decisions: scope, access, business diagnosis, and metric de
 
 So the core design became: route first, answer later.
 
-Before launch, routing matched the expected safe route in 99.4% of 351 realistic prompts drawn from labelled offline eval sets in the first half of 2026. In a focused portfolio and brand answer-quality suite, the average score moved from 78.5 to 91.0. These figures come from offline launch-readiness evaluation only; they are not business-impact proof.
+In an internal offline evaluation (not a measure of production performance or business impact), routing matched the expected safe route for 99.4% of 351 realistic prompts drawn from labelled eval sets from the first half of 2026. In a focused portfolio and brand answer-quality suite, the average score moved from 78.5 to 91.0. These figures come from offline launch-readiness evaluation only; they are not business-impact proof.
 
 ## Why dashboards were easier
 
@@ -62,6 +62,7 @@ I am seeing Merchant A soften this week. I need talking points for tomorrow's re
 
 **Router decision**
 
+*Ilustrative example only. No actual, live, or non-public data was used.*
 ```json
 {
   "route": "brand_performance_action_plan",
@@ -106,7 +107,7 @@ One aggregate score would have hidden the failures we cared about.
 
 The routing set had 351 prompts labelled against the routing guide. Each prompt had an expected route family, meaning the broad business category, plus an expected route and any handoff or refusal. "Accepted route accuracy" meant the selected route was exact or semantically equivalent and safe. A wrong business family, missed handoff, or unsafe scope failed.
 
-The answer-quality suite had 501 total cases scored on a 0-100 rubric covering template fit, metric use, diagnosis, next action quality, caveats, and guardrail compliance. Within that suite, the 150-case portfolio and brand subset improved from 78.5 to 91.0. A wrong merchant, wrong country, fabricated metric, unsupported projection, private competitor detail, or another user's memory could fail a case. All scores were measured offline against fixed rubrics for launch readiness; they do not reflect production commercial outcomes.
+The answer-quality suite had 501 total cases scored on a 0-100 rubric covering template fit, metric use, diagnosis, next action quality, caveats, and guardrail compliance. Within that suite, the 150-case portfolio and brand subset improved from 78.5 to 91.0. A wrong merchant, wrong country, fabricated metric, unsupported projection, or private competitor detail could fail a case. User isolation was treated as a hard evaluation requirement. All scores were measured offline against fixed rubrics for launch readiness; they do not reflect production commercial outcomes.
 
 That caught the answer we most wanted to avoid: plausible, polished, and operationally unsafe.
 
