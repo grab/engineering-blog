@@ -2,7 +2,7 @@
 layout: post
 id: 2026-08-28-data-mesh-at-grab-part-three
 title: 'Data Mesh at Grab (Part III): Operationalizing data reliability with automated DPIs'
-date: 2026-09-04 00:00:00
+date: 2026-08-28 00:00:00
 authors: [harvey.li, shuguang.xiang, ziqin.yeow, feng.cheng]
 categories: [Engineering]
 tags: [Data, Database, Engineering, Data Quality, Observability]
