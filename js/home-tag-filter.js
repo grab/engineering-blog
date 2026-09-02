@@ -70,6 +70,10 @@
     filterView.hidden = true;
     setClearVisible(false);
     updateSummary(0, []);
+
+    if (window.GlowGrid && typeof window.GlowGrid.refresh === 'function') {
+      window.requestAnimationFrame(window.GlowGrid.refresh);
+    }
   }
 
   function applyTagFilter(selectedTags) {
@@ -101,6 +105,10 @@
     }
 
     filterGrid.hidden = visibleCount === 0;
+
+    if (window.GlowGrid && typeof window.GlowGrid.refresh === 'function') {
+      window.requestAnimationFrame(window.GlowGrid.refresh);
+    }
   }
 
   function handleFilterChange() {

@@ -1,0 +1,99 @@
+{% assign drawing = site.data.grab_logo_drawing %}
+{% if drawing %}
+{% assign speed = drawing.speed | default: 1 %}
+{% assign ink_begin = drawing.inkBegin | divided_by: speed %}
+{% assign ink_duration = drawing.inkDuration | divided_by: speed %}
+{% assign trace_fade_after = drawing.traceFadeAfter | divided_by: speed %}
+{% assign trace_fade_duration = drawing.traceFadeDuration | divided_by: speed %}
+<svg
+  class="grab-logo-drawing__svg"
+  viewBox="{{ drawing.viewBox }}"
+  role="img"
+  aria-hidden="true"
+  xmlns="http://www.w3.org/2000/svg"
+  focusable="false"
+>
+  <g class="grab-logo-drawing__static" aria-hidden="true">
+    {% for path in drawing.paths %}
+      <path d="{{ path }}" transform="{{ drawing.transform }}" fill="#00b14f"></path>
+    {% endfor %}
+  </g>
+
+  <g class="grab-logo-drawing__animated" aria-hidden="true">
+    <g class="grab-logo-drawing__ink" opacity="0">
+      {% for path in drawing.paths %}
+        <path d="{{ path }}" transform="{{ drawing.transform }}" fill="#00b14f"></path>
+      {% endfor %}
+      <animate
+        attributeName="opacity"
+        begin="{{ ink_begin }}s"
+        dur="{{ ink_duration }}s"
+        values="0;1"
+        fill="freeze"
+        calcMode="spline"
+        keySplines="0.16 1 0.3 1"
+      ></animate>
+    </g>
+
+    <g class="grab-logo-drawing__traces" aria-hidden="true">
+      {% for letter in drawing.letters %}
+        {% for contour in letter.contours %}
+          {% assign begin = letter.begin | plus: contour.delay %}
+          {% assign begin = begin | divided_by: speed %}
+          {% assign duration = contour.duration | divided_by: speed %}
+          {% assign anchor = contour.anchor %}
+          {% assign neg_anchor = 0 | minus: anchor %}
+          {% assign reverse_end = 1 | minus: anchor %}
+          <path
+            class="grab-logo-drawing__trace"
+            data-letter="{{ letter.letter }}"
+            d="{{ contour.d }}"
+            transform="{{ drawing.transform }}"
+            fill="none"
+            stroke="#b1eaba"
+            stroke-width="8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            pathLength="1"
+            stroke-dasharray="0 1"
+            stroke-dashoffset="{{ neg_anchor }}"
+          >
+            <animate
+              attributeName="stroke-dasharray"
+              begin="{{ begin }}s"
+              dur="{{ duration }}s"
+              from="0 1"
+              to="1 0"
+              fill="freeze"
+              calcMode="spline"
+              keySplines="0.32 0 0.18 1"
+            ></animate>
+            {% if contour.direction == "reverse" %}
+              <animate
+                attributeName="stroke-dashoffset"
+                begin="{{ begin }}s"
+                dur="{{ duration }}s"
+                from="{{ neg_anchor }}"
+                to="{{ reverse_end }}"
+                fill="freeze"
+                calcMode="spline"
+                keySplines="0.32 0 0.18 1"
+              ></animate>
+            {% endif %}
+            <animate
+              attributeName="opacity"
+              begin="{{ trace_fade_after }}s"
+              dur="{{ trace_fade_duration }}s"
+              from="1"
+              to="0"
+              fill="freeze"
+              calcMode="spline"
+              keySplines="0.16 1 0.3 1"
+            ></animate>
+          </path>
+        {% endfor %}
+      {% endfor %}
+    </g>
+  </g>
+</svg>
+{% endif %}
