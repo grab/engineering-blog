@@ -1,0 +1,73 @@
+image: ruby:3.2
+
+stages:
+  - test
+  - deploy
+
+variables:
+  BUNDLE_PATH: "vendor/bundle"
+  JEKYLL_ENV: "production"
+  GITHUB_REPO_SLUG: "grab/engineering-blog"
+  STAGING_SITE_URL: "http://engineering.pages.myteksi.net/public/engineering-blog"
+
+cache:
+  paths:
+    - vendor/bundle
+
+.bundle_install:
+  before_script:
+    - gem install bundler -v 2.7.2
+    - bundle config set path "$BUNDLE_PATH"
+    - bundle install --frozen
+
+.git_deploy_setup:
+  before_script:
+    - gem install bundler -v 2.7.2
+    - bundle config set path "$BUNDLE_PATH"
+    - bundle install --frozen
+    - git config --global user.email "gitlab-ci@users.noreply.gitlab.com"
+    - git config --global user.name "GitLab CI"
+
+# Validates that the MR builds successfully (automatic).
+jekyll_build:
+  extends: .bundle_install
+  stage: test
+  script:
+    - bundle exec jekyll build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# Staging preview deploy (manual, MR only).
+# 1. Builds with staging config (no analytics / OneTrust)
+# 2. Pushes static site to gh-pages-staging on GitHub via jgd
+# 3. Publishes to GitLab Pages for immediate preview at STAGING_SITE_URL
+#
+# Configure a protected "staging" environment in GitLab (Settings → CI/CD →
+# Environments) to require Maintainer approval before deploy, matching TechDocs.
+pages:
+  extends: .git_deploy_setup
+  stage: deploy
+  script:
+    - JEKYLL_ENV=staging bundle exec jekyll build --config _config.yml,_config-staging.yml
+    - JEKYLL_ENV=staging bundle exec jgd -c _config-staging.yml -b gh-pages-staging -u "https://$GH_TOKEN@github.com/$GITHUB_REPO_SLUG.git"
+    - mv _site public
+  artifacts:
+    paths:
+      - public
+  environment:
+    name: staging
+    url: $STAGING_SITE_URL
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: manual
+      allow_failure: true
+    - when: never
+
+deploy_github:
+  extends: .git_deploy_setup
+  stage: deploy
+  script:
+    - bundle exec jekyll build
+    - JEKYLL_ENV=production bundle exec jgd -u "https://$GH_TOKEN@github.com/$GITHUB_REPO_SLUG.git"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
