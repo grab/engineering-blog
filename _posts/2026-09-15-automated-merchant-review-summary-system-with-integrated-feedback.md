@@ -2,7 +2,7 @@
 layout: post
 id: '2026-09-15-automated-merchant-review-summary-system-with-integrated-feedback'
 title: 'Automated merchant review summary system with integrated feedback'
-date: 2026-09-07 00:00:00
+date: 2026-09-19 00:00:00
 authors: [chengju.zhou, shlok.jain, yanye.li, waiteng.tang, thinh.leduc]
 categories: [Engineering]
 tags: [Artificial Intelligence, LLM]
