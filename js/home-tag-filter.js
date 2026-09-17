@@ -61,6 +61,10 @@
     }
   }
 
+  function setFilterPanelState(selectedTags) {
+    panel.classList.toggle('has-active-filters', selectedTags.length > 0);
+  }
+
   function showAll() {
     checkboxes.forEach(function (checkbox) {
       checkbox.checked = false;
@@ -69,13 +73,19 @@
     defaultView.hidden = false;
     filterView.hidden = true;
     setClearVisible(false);
+    setFilterPanelState([]);
     updateSummary(0, []);
+
+    if (window.GlowGrid && typeof window.GlowGrid.refresh === 'function') {
+      window.requestAnimationFrame(window.GlowGrid.refresh);
+    }
   }
 
   function applyTagFilter(selectedTags) {
     defaultView.hidden = true;
     filterView.hidden = false;
     setClearVisible(true);
+    setFilterPanelState(selectedTags);
 
     var visibleCount = 0;
 
@@ -101,6 +111,10 @@
     }
 
     filterGrid.hidden = visibleCount === 0;
+
+    if (window.GlowGrid && typeof window.GlowGrid.refresh === 'function') {
+      window.requestAnimationFrame(window.GlowGrid.refresh);
+    }
   }
 
   function handleFilterChange() {
