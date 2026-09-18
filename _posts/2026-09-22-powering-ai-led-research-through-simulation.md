@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-09-30-powering-ai-led-research-through-simulation
+id: 2026-09-22-powering-ai-led-research-through-simulation
 title: 'Powering AI-led research through simulation'
-date: 2026-09-30 00:00:00
+date: 2026-09-22 00:00:00
 authors: [henokh.fibrianto, larry.lin]
 categories: [Engineering]
 tags: [Artificial Intelligence, Dispatch, Engineering, Experiment, Machine Learning]
