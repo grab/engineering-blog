@@ -1,8 +1,8 @@
 ---
 layout: post
-id: '2026-09-15-automated-merchant-review-summary-system-with-integrated-feedback'
+id: '2026-09-25-automated-merchant-review-summary-system-with-integrated-feedback'
 title: 'Automated merchant review summary system with integrated feedback'
-date: 2026-09-21 00:00:00
+date: 2026-09-25 00:00:00
 authors: [chengju.zhou, shlok.jain, yanye.li, waiteng.tang, thinh.leduc]
 categories: [Engineering]
 tags: [Artificial Intelligence, LLM]
@@ -16,6 +16,9 @@ excerpt: "The Automated Merchant Review Summary System provides concise, AI-gene
 Merchant reviews contain useful details about food quality, portion size, packaging, and value. Finding these details often requires reading many comments. Aggregate ratings simplify comparisons, but they do not explain what shaped each score.
 
 We built the Automated Merchant Review Summary System to turn written reviews into concise summaries. Consumers can scan an overall summary or focus on a specific topic. Merchants can identify what customers value and which parts of the experience need attention.
+
+This article focuses on how we generate and maintain consumer-facing review summaries. A misleading or incomplete summary can affect how consumers view a merchant. Merchant-facing recourse and dispute processes sit outside this pipeline and are not covered in this process flow.
+
 
 ## Problem statement
 
@@ -58,9 +61,9 @@ The generation pipeline prepares the source reviews, produces summaries, and val
   </figure>
 </div>
 
-**Data preparation and representative sampling:** The pipeline calculates the merchant's rating distribution. A sentiment model assigns each written review a score from one to five. Stratified sampling then selects a smaller set of reviews that follows this distribution, reducing the chance that one rating group dominates the summary.
+**Data preparation and representative sampling**: The pipeline calculates the merchant’s rating distribution. A sentiment model assigns each written review a score from one to five. Stratified sampling then selects a smaller set of reviews that follows this distribution, reducing the chance that one rating group dominates the summary. However, matching the rating distribution does not guarantee that the sample represents every period, language, customer segment, or aspect of the merchant experience.
 
-**Summary generation with an LLM:** The system sends the sampled reviews to an LLM with instructions to produce:
+**Summary generation with an LLM**: The system sends the sampled reviews to an LLM with instructions to produce:
 
 * A concise summary of the sampled reviews.
 * Topic-based summaries for categories such as taste, packaging, and portion size.
@@ -72,9 +75,9 @@ The system can update the topic set when new themes appear in consumer feedback.
   </figure>
 </div>
 
-**Quality control (QC) with an LLM:** A second LLM receives the generated summary and the sampled reviews. It checks whether the reviews support each claim. The system discards summaries that fail this check and stores those that pass.
-
+**Quality control (QC) with an LLM:** A separate LLM receives the generated summary and the sampled reviews. Summaries that do not meet the validation criteria are withheld from publication. Passing this automated assessment reduces, but does not eliminate, the risk of unsupported claims.
 The maintenance flow updates stored summaries in response to incoming reviews and consumer feedback:
+
 
 * **New-review trigger:** A monitoring service counts reviews submitted after the latest summary. When the count reaches a configured threshold, the service starts the generation and validation flow.
 * **Consumer-feedback trigger:** The interface records whether consumers found a summary helpful. When negative feedback reaches a configured threshold, the system generates and validates a new summary.
@@ -86,15 +89,14 @@ The maintenance flow updates stored summaries in response to incoming reviews an
 
 ### Impact
 
-Review summaries give consumers less text to scan when comparing merchants. Topic-based summaries reveal details that an aggregate rating cannot show. For merchants, the summaries make recurring positive and negative themes easier to identify.
-
+Review summaries are designed to reduce the amount of text consumers need to scan. Topic-based summaries can surface themes that are not visible in an aggregate rating alone.
 The quality-control step rejects unsupported claims. The regeneration triggers incorporate new reviews and consumer feedback into later summaries.
 
 ## Learnings and conclusion
 
-Useful review summaries depend on more than generation quality. The source sample must reflect the intended population, each claim must remain grounded in source reviews, and the output must change with the underlying feedback.
+Useful review summaries depend on more than generation quality. The source sample must reflect the intended population, each claim must remain grounded in source reviews, and the output must change with the underlying feedback. Automated LLM validation is one layer of defence, not sole proof of accuracy, and feedback-driven regeneration needs anti-abuse controls to remain trustworthy.
 
-Representative sampling, separate generation and validation stages, and feedback-based regeneration form a complete system for maintaining merchant review summaries.
+Representative sampling, separate generation and validation stages, and feedback-based regeneration form a practical system for maintaining consumer-facing merchant review summaries. This article describes that technical pipeline; it does not cover the full set of merchant recourse options when a summary is disputed.
 
 ## Join us
 
