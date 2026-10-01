@@ -8,14 +8,14 @@ categories: [Engineering]
 tags: [Artificial Intelligence, Dispatch, Engineering, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/ai-through-simulation/banner-img.png
-excerpt: "Production dispatch experiments are slow and some questions cannot be rerun at all. We built an offline marketplace simulator and an agent-driven research loop so strategy ideas can be tested in minutes, with safeguards against metric gaming and drift from production."
+excerpt: "To improve production dispatch experiments, we built an offline marketplace simulator and an agent-driven research loop so strategy ideas can be tested in minutes, with safeguards against metric gaming and drift from production."
 ---
 
-## Introduction
+## The short story
 
 Consider a Friday evening. A food order arrives from a mall in the city center. One driver is nearby; another is finishing a drop-off and will be available shortly; a second order from the same mall may or may not appear in the next two minutes. Dispatch the nearby driver now, or hold briefly for a batching opportunity? The decision window is short.
 
-A fulfillment marketplace makes that kind of call thousands of times a minute. Each one is small. Across a city, those decisions determine whether your dinner arrives hot and whether a driver's hour is well spent.
+A fulfillment marketplace makes these decisions continuously. Each one is small. Across a city, those decisions determine whether your dinner arrives hot and whether a driver's hour is well spent.
 
 And that is one decision. There are dozens more: how far to look for a driver, when two orders are worth combining, which of three waiting trips gets the one free bike, how long to keep trying before giving up. These decisions interact, and the setting that is right for Friday at seven is wrong for Tuesday at two. Together they define a space of possible strategies far larger than anyone could exhaustively explore.
 
@@ -23,7 +23,7 @@ We sample only about a dozen points in that space each year. Not for want of ide
 
 **So we built sim-rs, a simulator that makes each attempt take minutes, and connected agents that run experiments on it.**
 
-sim-rs is self-contained: it requires no production services or databases. The dispatch lifecycle runs in one compiled program alongside a separate dispatch service that is spawned locally and operates offline. Historical booking and driver data go in as plain files, together with a configuration describing the strategy to test. Simulated bookings, trips, drivers, and a single metrics report come out. Processing one city-day of marketplace activity takes tens of minutes, from raw input to finished report. One command in, one report out: a workflow as practical for a software agent as for an engineer.
+`sim-rs` is self-contained: it requires no production services or databases. The dispatch lifecycle runs in one compiled program alongside a separate dispatch service that is spawned locally and operates offline. Historical booking and driver data go in as plain files, together with a configuration describing the strategy to test. Simulated bookings, trips, drivers, and a single metrics report come out. Processing one city-day of marketplace activity takes tens of minutes, from raw input to finished report. One command in, one report out: a workflow as practical for a software agent as for an engineer.
 
 That compact contract is what makes the simulator AI-friendly. Agents can change bounded components, run reproducible experiments, receive verdicts they cannot alter, and help keep both production logic and behavioral models current.
 
@@ -74,6 +74,7 @@ We connect agents to that interface through autoresearch, an automated loop that
   <img src="/img/ai-through-simulation/figure-2.png" alt="Automated research loop connecting an agent to the simulator and evaluation checks" style="width:70%"><figcaption align="middle"></figcaption>
   </figure>
 </div>
+
 The first failure mode we encountered was specification gaming. Given a target and a loophole, an agent may find the shortest path to the number rather than the improvement we intended. Ours discovered that changing fields used by pre-dispatch cancellation could reduce cancellations and raise completion without improving a single dispatch decision. The metric moved; nothing real had improved. Rather than relying on instructions alone, we built four safeguards into the environment:
 
 - **Core data is immutable.** Modules under test may change only the state exposed by their interfaces. An attempt to manipulate protected fields fails to compile instead of producing a misleading result.  
@@ -85,7 +86,7 @@ The speed that matters is the speed of an adaptive research loop, not simulation
 
 One outcome is the familiar purpose of simulation: discovering better marketplace strategies. When asked to explore trip-recycling policy, the loop turned an emerging human intuition into a concrete rule: *hold batched orders only as long as service-level deadlines permit*, maximizing the chance that another nearby order joins the trip. Because the result is human-readable code, engineers can review, audit, and deploy it like any other pull request.
 
-The same machinery also improves the simulator itself. Over several nights of unattended operation, we aimed the agents at two hot paths in its dispatch logic: the checks that decide which drivers are eligible for a trip, and the pass that adjusts the cost of every driver-and-trip pairing before the solver chooses an assignment. Across roughly 150 logged experiments, three out of four attempts failed to build or were rejected by later gates. The eligibility checks ended up about 10 times faster (16.6 ms down to 1.6 ms per benchmark pass), and the cost pass about 24 times faster (58.7 ms down to 2.5 ms). Because these paths run repeatedly in every replay, their gains reduce the marginal cost of all subsequent research. A fixed compute budget can test more ideas across more markets and dates, repeat runs to separate signal from noise, and validate results more rigorously. Shorter runs also tighten the feedback loop from verdict to next proposal, so improving the instrument accelerates and strengthens every search performed with it.
+The same machinery also improves the simulator itself. Over several nights of unattended operation, we aimed the agents at two hot paths in its dispatch logic: the checks that decide which drivers are eligible for a trip, and the pass that adjusts the cost of every driver-and-trip pairing before the solver chooses an assignment. Across roughly 150 logged experiments, three out of four attempts failed to build or were rejected by later gates. The eligibility checks ended up about 10 times faster, and the cost pass about 24 times faster. Because these paths run repeatedly in every replay, improvements compound across subsequent research. Faster and more efficient runs enable testing of more ideas across more markets and dates, repeat runs to separate signal from noise, and validate results more rigorously. Shorter runs also tighten the feedback loop from verdict to next proposal, so improving the instrument accelerates and strengthens every search performed with it.
 
 Execution time is only one possible objective: pointing the same machinery at orders-throughput changes the research question, not the loop itself. Regardless, whatever the objective, the result is only as trustworthy as the simulator behind it. An agent can optimize only the world it is given; if that world has drifted from production, a faster loop will merely produce misleading answers sooner.
 
