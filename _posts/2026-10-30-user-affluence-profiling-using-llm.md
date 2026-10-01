@@ -7,7 +7,7 @@ authors: [muqi.li, jia.chen, fujiao.liu]
 categories: [Engineering]
 tags: [Engineering, Analytics, AI]
 comments: true
-cover_photo: /img/smart-personalization/banner-image.png
+cover_photo: /img/smart-personalization/banner-img.png
 excerpt: "Grab combines public residential property data, LLM-powered enrichment, and hierarchical clustering to add location context to user profiles so personalization and planning can better reflect local market differences, not spend patterns alone."
 ---
 
