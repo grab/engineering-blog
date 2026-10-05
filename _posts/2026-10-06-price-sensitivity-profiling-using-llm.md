@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-10-30-user-affluence-profiling-using-llm
+id: 2026-10-06-price-sensitivity-profiling-using-llm
 title: 'Smarter personalization: How property data helps us understand user price sensitivity'
-date: 2026-10-30 00:23:00
+date: 2026-10-06 00:23:00
 authors: [muqi.li, jia.chen, fujiao.liu]
 categories: [Engineering]
 tags: [Engineering, Analytics, AI]
