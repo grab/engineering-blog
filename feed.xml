@@ -6,9 +6,131 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 05 Oct 2026 05:20:43 +0000</pubDate>
-    <lastBuildDate>Mon, 05 Oct 2026 05:20:43 +0000</lastBuildDate>
+    <pubDate>Mon, 05 Oct 2026 06:10:54 +0000</pubDate>
+    <lastBuildDate>Mon, 05 Oct 2026 06:10:54 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Powering AI-led research through simulation</title>
+        <description>&lt;h2 id=&quot;the-short-story&quot;&gt;The short story&lt;/h2&gt;
+
+&lt;p&gt;Consider a Friday evening. A food order arrives from a mall in the city center. One driver is nearby; another is finishing a drop-off and will be available shortly; a second order from the same mall may or may not appear in the next two minutes. Dispatch the nearby driver now, or hold briefly for a batching opportunity? The decision window is short.&lt;/p&gt;
+
+&lt;p&gt;A fulfillment marketplace makes these decisions continuously. Each one is small. Across a city, those decisions determine whether your dinner arrives hot and whether a driver’s hour is well spent.&lt;/p&gt;
+
+&lt;p&gt;And that is one decision. There are dozens more: how far to look for a driver, when two orders are worth combining, which of three waiting trips gets the one free bike, how long to keep trying before giving up. These decisions interact, and the setting that is right for Friday at seven is wrong for Tuesday at two. Together they define a space of possible strategies far larger than anyone could exhaustively explore.&lt;/p&gt;
+
+&lt;p&gt;We sample only about a dozen points in that space each year. Not for want of ideas: implementing each strategy costs weeks of engineering, and a production experiment takes weeks more to judge. Some questions have no production answer at all. Nobody can run last Saturday again with twenty percent fewer drivers. We were never short of compute resources, and never short of data. We were short of attempts.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;So we built sim-rs, a simulator that makes each attempt take minutes, and connected agents that run experiments on it.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sim-rs&lt;/code&gt; is self-contained: it requires no production services or databases. The dispatch lifecycle runs in one compiled program alongside a separate dispatch service that is spawned locally and operates offline. Historical booking and driver data go in as plain files, together with a configuration describing the strategy to test. Simulated bookings, trips, drivers, and a single metrics report come out. Processing one city-day of marketplace activity takes tens of minutes, from raw input to finished report. One command in, one report out: a workflow as practical for a software agent as for an engineer.&lt;/p&gt;
+
+&lt;p&gt;That compact contract is what makes the simulator AI-friendly. Agents can change bounded components, run reproducible experiments, receive verdicts they cannot alter, and help keep both production logic and behavioral models current.&lt;/p&gt;
+
+&lt;h2 id=&quot;building-blocks&quot;&gt;Building blocks&lt;/h2&gt;
+
+&lt;h3 id=&quot;the-essential-components&quot;&gt;The essential components&lt;/h3&gt;
+
+&lt;p&gt;To model a marketplace, the simulator needs four core concepts:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Bookings&lt;/strong&gt;: requests to move something (a passenger, a meal, a parcel), represented in one format regardless of the business vertical.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Drivers&lt;/strong&gt;: simulated workers with a location, a shift, a vehicle, and a queue of work.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Trips&lt;/strong&gt;: units assigned to drivers, containing one booking or several batched into a multi-stop route.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Ticks&lt;/strong&gt;: simulated time, advancing in fixed steps. Nobody waits in real time.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;At each tick, the simulator runs the following sequence:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Demand arrives.&lt;/strong&gt; Historical (or synthesized) bookings whose time has come enter the pool.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Supply moves.&lt;/strong&gt; Drivers come on shift, advance along routes, go idle, and reposition.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pre-dispatch cancellations are applied.&lt;/strong&gt; Cancellation models, including survival-analysis models trained on real behavior, determine which bookings leave the pool.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Dispatch happens.&lt;/strong&gt; Bookings are batched into trips, trips are matched to drivers by an optimization solver, and a &lt;em&gt;recycling&lt;/em&gt; step decides, for each trip, whether to send it now, hold it, or split it back into bookings and try again later.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Post-dispatch cancellations are applied.&lt;/strong&gt; These include passenger and driver cancellations.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Outcomes are recorded.&lt;/strong&gt; Every booking, trip, and driver outcome is written to the run outputs.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Crucially, this is a &lt;em&gt;closed loop&lt;/em&gt;: today’s dispatch decisions change where drivers end up, which changes what’s possible next tick. That feedback produces second-order effects that a static replay, one that scores historical decisions without updating future supply, cannot show. Supply may dry up in a hot zone, or one bad dispatch rule may cascade into a wave of cancellations.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/ai-through-simulation/figure-1.png&quot; alt=&quot;Marketplace simulation tick loop from demand through dispatch to recorded outcomes&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Simulator sequence.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;That loop is only the mechanism. Making it a lab takes three further properties: configurability; reproducibility and auditability; and reliable comparison.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;1. Interchangeable stages.&lt;/strong&gt; The major dispatch stages are pluggable. Batching, allocation, cancellation, routing, driver movement, and recycling are each exposed through an interface with interchangeable implementations selected by configuration. This turns a fixed pipeline into an experimental platform: the component under study can be swapped while everything around it stays unchanged. The same mechanism determines which marketplace is being simulated. Ride-hailing, food delivery, parcel delivery, or all three sharing one driver pool are configuration choices within the same codebase, not separate simulators.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;2. Self-contained runs.&lt;/strong&gt; Each experiment is a small, portable package containing its configuration files, input data, source revision, metrics report, and detailed outputs. Anyone holding that package can recreate the setup, whether a reviewer, teammate, agent, or the original author six months later. The report identifies the configured components and headline metrics, while the supplementary per-booking, per-trip, and per-driver outputs let reviewers recompute those metrics and investigate unexpected outcomes without relying on separate notes or systems.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;3. Experiments &lt;em&gt;inside&lt;/em&gt; the simulation.&lt;/strong&gt; Production marketplaces have experimentation platforms, so our simulator ships with one too. Experimentable fields can define multiple treatment arms assigned through the same time-based switchbacks, spatial splits, or cell-and-hour schemes used in production. Each booking records its resolved arm for traceability. Running these A/B/n comparisons together exposes every arm to the same demand, drivers, marketplace dynamics, noise, and biases. By reproducing both the conditions and assignment design of a marketplace experiment, simulated insights are more likely to translate into effects observed in production.&lt;/p&gt;
+
+&lt;h2 id=&quot;automating-the-research-cycle&quot;&gt;Automating the research cycle&lt;/h2&gt;
+
+&lt;p&gt;Agents do two jobs here, and both need the same environment: searching for strategies that beat the incumbent, and keeping the simulator sufficiently faithful for that search to mean something.&lt;/p&gt;
+
+&lt;h3 id=&quot;searching-for-better-strategies&quot;&gt;Searching for better strategies&lt;/h3&gt;
+
+&lt;p&gt;We connect agents to that interface through autoresearch, an automated loop that runs the research cycle end to end. An agent proposes a change, implements it in source code, tests it, and acts on the verdict. A candidate survives only if it improves the target metric and passes every required check; otherwise it is rolled back and the loop continues. The objective may be a marketplace outcome such as orders-throughput or a software measure such as execution time. What matters is a repeatable command-and-metric contract that both humans and agents can use.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/ai-through-simulation/figure-2.png&quot; alt=&quot;Automated research loop connecting an agent to the simulator and evaluation checks&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The first failure mode we encountered was specification gaming. Given a target and a loophole, an agent may find the shortest path to the number rather than the improvement we intended. Ours discovered that changing fields used by pre-dispatch cancellation could reduce cancellations and raise completion without improving a single dispatch decision. The metric moved; nothing real had improved. Rather than relying on instructions alone, we built four safeguards into the environment:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Core data is immutable.&lt;/strong&gt; Modules under test may change only the state exposed by their interfaces. An attempt to manipulate protected fields fails to compile instead of producing a misleading result.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;The verdict is computed, not judged.&lt;/strong&gt; The simulator computes its own metrics, which the agent can read but not redefine. Executable checks apply calibrated tolerance bands, verify equivalent outputs where required, and run the tests. The agent never judges its own work.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Changes are scoped, checked, and reversible.&lt;/strong&gt; Each experiment runs on its own branch within a declared writable scope, which is checked against the resulting diff. The grading machinery remains outside that scope, regressions cost only a discarded branch, and every surviving change is bounded enough to review in full.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Changes are checked at two levels.&lt;/strong&gt; It first rejects changes that violate type contracts, ownership rules, interface boundaries, or concurrency requirements. The evaluation harness then applies checks suited to the objective: performance work must preserve expected outputs, while strategy experiments must satisfy domain constraints and outcome thresholds.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The speed that matters is the speed of an adaptive research loop, not simulation runtime alone: each iteration uses previous results to propose the next change, then implements, compiles, runs, scores, and decides whether to keep it. The simulator returns a verdict in milliseconds for benchmarks or tens of minutes for a full-day replay, while autoresearch carries each verdict into the next attempt without human handoffs. This turns an overnight run into a connected sequence of evidence-driven experiments, with the safeguards above ensuring that faster iteration compounds reliable evidence rather than mistakes.&lt;/p&gt;
+
+&lt;p&gt;One outcome is the familiar purpose of simulation: discovering better marketplace strategies. When asked to explore trip-recycling policy, the loop turned an emerging human intuition into a concrete rule: &lt;em&gt;hold batched orders only as long as service-level deadlines permit&lt;/em&gt;, maximizing the chance that another nearby order joins the trip. Because the result is human-readable code, engineers can review, audit, and deploy it like any other pull request.&lt;/p&gt;
+
+&lt;p&gt;The same machinery also improves the simulator itself. Over several nights of unattended operation, we aimed the agents at two hot paths in its dispatch logic: the checks that decide which drivers are eligible for a trip, and the pass that adjusts the cost of every driver-and-trip pairing before the solver chooses an assignment. Across roughly 150 logged experiments, three out of four attempts failed to build or were rejected by later gates. The eligibility checks ended up about 10 times faster, and the cost pass about 24 times faster. Because these paths run repeatedly in every replay, improvements compound across subsequent research. Faster and more efficient runs enable testing of more ideas across more markets and dates, repeat runs to separate signal from noise, and validate results more rigorously. Shorter runs also tighten the feedback loop from verdict to next proposal, so improving the instrument accelerates and strengthens every search performed with it.&lt;/p&gt;
+
+&lt;p&gt;Execution time is only one possible objective: pointing the same machinery at orders-throughput changes the research question, not the loop itself. Regardless, whatever the objective, the result is only as trustworthy as the simulator behind it. An agent can optimize only the world it is given; if that world has drifted from production, a faster loop will merely produce misleading answers sooner.&lt;/p&gt;
+
+&lt;h3 id=&quot;keeping-the-simulator-faithful&quot;&gt;Keeping the simulator faithful&lt;/h3&gt;
+
+&lt;p&gt;A simulator is a claim about the world: that this is how the system behaves and that this is how the people within it respond. Both halves of that claim decay. Production logic changes continuously, while models of passenger and driver behavior grow stale as new product features reshape how people act. A simulator that has drifted from the world produces misleading insights and innovations that fail in production. So the second job we give agents is to keep the simulator faithful.&lt;/p&gt;
+
+&lt;p&gt;The system half is a translation problem, and coding agents are particularly good at it. An agent can read a component’s production implementation and implement equivalent logic behind the simulator’s corresponding interface, translating directly from source code rather than from a written description that may already be stale. The result remains a candidate until parity checks show that it matches the production behavior being modeled.&lt;/p&gt;
+
+&lt;p&gt;The behavioral half cannot be translated, because no source file tells us how a passenger will behave. It must be inferred from what people actually do. Here, we redirect the same autoresearch loop from dispatch-code optimization to behavioral modeling. It proposes, fits, and scores candidate models, exploring which features predict cancellation and how their effects should be represented. The test is not only how closely a model explains its training data, but also how well it generalizes to held-out data. A model that fits last Tuesday perfectly and next Tuesday poorly does not make the simulator more faithful; it makes the lab more confidently wrong.&lt;/p&gt;
+
+&lt;p&gt;The pieces are simple: a realistic marketplace model, swappable parts, repeatable experiments, honest scoring, and an easy way to undo failures. Together, they give agents a safe place to test and improve ideas. &lt;strong&gt;Everyone is racing to give AI a bigger brain. We got further by giving it a better lab: a place where it can try a thousand ideas, be wrong cheaply, and receive an honest verdict.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Mon, 05 Oct 2026 00:00:00 +0000</pubDate>
+        <link>https://engineering.grab.com/powering-ai-led-research-through-simulation</link>
+        <guid isPermaLink="true">https://engineering.grab.com/powering-ai-led-research-through-simulation</guid>
+        
+        <category>Artificial Intelligence</category>
+        
+        <category>Dispatch</category>
+        
+        <category>Engineering</category>
+        
+        <category>Experiment</category>
+        
+        <category>Machine Learning</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Automated merchant review summary system with integrated feedback</title>
@@ -1512,197 +1634,6 @@ Bins:
         <category>DevSecOps</category>
         
         <category>Platform</category>
-        
-        <category>Engineering</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Scaling out Distroless adoption With AI</title>
-        <description>&lt;h2 id=&quot;distroless-adoption-at-grab&quot;&gt;Distroless adoption at Grab&lt;/h2&gt;
-
-&lt;p&gt;Grab is migrating from heavy base images to Distroless images to reduce security risks. By limiting each container to the application and its runtime dependencies, we shed non-essential binaries and associated Common Vulnerabilities and Exposures (CVEs).&lt;/p&gt;
-
-&lt;p&gt;This migration is more than a compliance mandate; it is a strategic security decision to build a more resilient environment.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-distroless-requires-rigorous-testing&quot;&gt;Why Distroless requires rigorous testing&lt;/h2&gt;
-
-&lt;h3 id=&quot;distroless-adoption-risk-runtime-failure&quot;&gt;Distroless adoption risk: Runtime failure&lt;/h3&gt;
-
-&lt;p&gt;Shifting to Distroless images introduces a critical technical risk: &lt;strong&gt;Runtime Failure&lt;/strong&gt;. A service might build perfectly in Continuous Integration (CI), but fail at the deployment stage due to:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Missing shared objects&lt;/strong&gt;: Binaries might require specific libraries (&lt;strong&gt;.so&lt;/strong&gt; files) present in Ubuntu but absent in Distroless.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Implicit links&lt;/strong&gt;: Third-party tools might expect specific system utilities or directory structures.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Testing is required to ensure two things:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;The service spins up with the correct configuration.&lt;/li&gt;
-  &lt;li&gt;All runtime dependencies remain intact.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;Scaling this verification across thousands of services manually? That would take years, unless we found a way to automate the trust.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-testing-methodology&quot;&gt;The testing methodology&lt;/h2&gt;
-
-&lt;p&gt;As we perform changes to the Dockerfile definition of our services, it is important for us to include the corresponding test strategy to ensure that the changes that we make do not introduce a regression to our running services. Assessing the change introduced to our services, the lowest possible testing boundary would be that of what we define as medium tests in Grab.&lt;/p&gt;
-
-&lt;h3 id=&quot;medium-tests-in-grab&quot;&gt;Medium tests in Grab&lt;/h3&gt;
-
-&lt;p&gt;At Grab, we categorize our test suites into 3 main sizes: small, medium and large. Small tests refer to functional tests whereby mocks are introduced via dependency injection. Large tests refer to end-to-end tests that run on actual services in our staging environment where nothing is mocked.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/scaling-out-distroless-adoption-with-ai/mammoth-image-1.png&quot; alt=&quot;Architecture Diagram of a Medium Test Environment.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1: Architecture diagram of a medium test environment&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Medium tests sit between the small and large tests. External dependencies (such as service-to-service dependencies) are mocked with a network proxy layer similar to &lt;a href=&quot;https://wiremock.org/&quot;&gt;WireMock&lt;/a&gt;, while internal dependencies like MySQL are left unmocked and are started instead with &lt;a href=&quot;https://testcontainers.com/&quot;&gt;Testcontainers&lt;/a&gt;. The system under test is built into a Docker image, run as a container, and exercised through its endpoints; the tests then assert on the responses. That setup lets us catch Dockerfile changes that would break the service in production. A further benefit is that the whole flow can run inside Continuous Integration (CI) so that problems surface before anything reaches Continuous Deployment (CD).&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/scaling-out-distroless-adoption-with-ai/mammoth-image-2.png&quot; alt=&quot;Happy Path for Distroless Changes.&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2: Happy path for Distroless changes&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;This makes medium tests effective and efficient for testing changes to the services associated with Distroless adoption. We could now largely scale up our adoption process by:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Raising batch Merge Requests to dockerfile definitions for Distroless adoption.&lt;/li&gt;
-  &lt;li&gt;Running medium tests in CI.&lt;/li&gt;
-  &lt;li&gt;Upon passing the medium tests, automatically merge the changes and trigger CD.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;introduction-of-toil&quot;&gt;Introduction of toil&lt;/h2&gt;
-
-&lt;p&gt;The above methodology works well for services that already have medium tests. However, we soon ran into a blocker when rolling it out to services that do not yet have a medium test setup. Inherently, scaffolding medium tests for a service is a tedious task. Most of the toil comes from first identifying internal dependencies, then bringing up the corresponding test containers during tests, and then connecting those dependencies to the service under test by updating the test environment configuration.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/scaling-out-distroless-adoption-with-ai/mammoth-image-3.png&quot; alt=&quot;Current Gap.&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3: Current gap&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;These tasks are not challenging but are generally tedious to set up. They also cannot be fully automated because every service combines internal dependencies differently, and because configuration is defined and used in different ways across codebases. Roughly 400 services in scope still lack a medium test setup, which became a major obstacle to our Distroless migration campaign.&lt;/p&gt;
-
-&lt;p&gt;Since each step needs flexible execution and is only moderately complex, artificial intelligence (AI) is a natural way to accelerate Distroless adoption.&lt;/p&gt;
-
-&lt;h2 id=&quot;ai-the-toil-buster&quot;&gt;AI: The toil buster&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/scaling-out-distroless-adoption-with-ai/mammoth-image-4.png&quot; alt=&quot;Solution Leveraging AI.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4: Solution leveraging AI&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;AI was a good fit because the work we needed to automate produced a clear deliverable and we could tell in a deterministic way whether it had succeeded. Success was straightforward: the CI pipeline would turn green after running the basic health-check medium tests. With a measurable end goal and a reliable success signal, we pursued an agentic workflow rather than a one-off generation attempt.&lt;/p&gt;
-
-&lt;h3 id=&quot;the-starting-point&quot;&gt;The starting point&lt;/h3&gt;
-
-&lt;p&gt;We started by adopting &lt;a href=&quot;https://code.claude.com/docs/en/skills&quot;&gt;skills&lt;/a&gt; to guide the agent on how to carry out the medium-test work and how to get past repo-specific blockers. These skills gave context for scaffolding basic medium tests, setting up internal dependencies, and debugging issues in the code. Once those foundations were in place, we rolled the approach out to a batch of 20 services, completed by the AI in about two working days. That run confirmed our core hypothesis: the agent could scaffold medium tests first, then rely on those tests to show that our Dockerfile change (using distroless image as a base image) had not introduced regressions.&lt;/p&gt;
-
-&lt;h3 id=&quot;teaching-an-agent-to-test&quot;&gt;Teaching an agent to test&lt;/h3&gt;
-
-&lt;p&gt;By then, the real shift was turning “can do the task” into “can repeat the behavior.” We captured the medium-test knowledge as a &lt;strong&gt;list of skills&lt;/strong&gt;, which were grounded in Grab’s internal medium test SDK.&lt;/p&gt;
-
-&lt;p&gt;Next, DevSecOps wrapped those skills into an &lt;strong&gt;Entrypoint Skill&lt;/strong&gt;, an orchestrator that runs a &lt;strong&gt;multi-phase&lt;/strong&gt; workflow across services. The result is a single agent loop that moves from candidate detection to scaffolding, fixing failures, and CI verification, without treating each service as a brand-new, one-off problem.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/scaling-out-distroless-adoption-with-ai/mammoth-image-5.png&quot; alt=&quot;Workflow Overview for Medium Test Generation.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5: Workflow overview for medium test generation&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Leveraging the skills we have acquired, we utilized &lt;a href=&quot;https://docs.anthropic.com/en/docs/claude-code/overview&quot;&gt;Claude Code&lt;/a&gt;, Anthropic’s agentic coding tool. This tool takes a list of services and processes them in a batch.&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Detect&lt;/strong&gt;: Is this a deployable service or a library? Is it still maintained? The agent skips anything that does not qualify, so human time is only spent on real candidates.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Scaffold&lt;/strong&gt;: Using Grab’s scaffolding tool, the agent generates the medium test boilerplate.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Fix&lt;/strong&gt;: The scaffold rarely works on the first try due to the unique setup of each repository. This includes missing environment variables, database dependencies at startup, and port mismatches. The agent reviews its knowledge base to pattern-match errors against known fixes.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Raise MR&lt;/strong&gt;: Once the medium test passes locally, the agent creates a draft merge request on GitLab with a description explaining the service-specific changes and the rationale behind them.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Monitor CI&lt;/strong&gt;: The agent polls the pipeline, reads job logs on failure, and attempts CI-specific fixes. If the same error persists after two attempts, it flags the issue for human review.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Repeat&lt;/strong&gt;: It pushes the fix and moves to the next service while the pipeline runs. The agent does not sit idle waiting for CI. It starts scaffolding the next service in parallel and checks earlier pipelines as results arrive.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&quot;what-made-it-work&quot;&gt;What made it work&lt;/h3&gt;
-
-&lt;p&gt;Getting the workflow to &lt;em&gt;function&lt;/em&gt; was the easy part. Getting it to function &lt;em&gt;reliably across hundreds of services&lt;/em&gt; required deliberate design choices.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;MCP&lt;/strong&gt;: The agent never leaves Claude Code. GitLab interactions such as creating branches, raising MRs and reading pipeline error logs happen through a &lt;a href=&quot;https://modelcontextprotocol.io/&quot;&gt;Model Context Protocol&lt;/a&gt; (MCP) server. When it needs Grab-specific context (what a service does, who owns it), it queries Glean, Grab’s enterprise search tool, via MCP instead of guessing. For code-level context (how a service is structured and how dependencies are wired across repos), it queries Sourcegraph through its own MCP integration.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Guardrails over autonomy&lt;/strong&gt;: The agent can only touch test files and CI configurations; application code is off-limits, enforced before every commit. It might not hollow out tests to force a pass. If it cannot fix an issue, it escalates.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Knowledge that compounds&lt;/strong&gt;: We maintain a feedback loop for scaffolding, mocking, and known failure patterns. After each batch, we review what blocked the agent and fold recurring fixes back into the skill. The agent’s improvement is driven primarily by the iterative refinement of its instructions, rather than changes to the underlying model.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Integrating Scripts with skills&lt;/strong&gt;: For deterministic tasks like boilerplate generation, scripts are far more reliable than raw AI logic. By integrating these scripts as “skills,” we also optimize the agent’s performance in context window management. During test execution, standard output often produces hundreds of lines of repetitive logs that could exhaust token limits or distract the model. Using a script as an intermediary allows us to programmatically filter logs, extracting only the specific error messages or stack traces required for debugging. This ensures the AI receives a clean, actionable summary rather than being overwhelmed by noisy data.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Token efficiency&lt;/strong&gt;: Batches across many services burn tokens quickly. We use a compressed communication style that cuts model output by about 75% while keeping technical detail and dropping filler. Proper communication is reserved for MR descriptions and messages to service owners.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Isolated execution&lt;/strong&gt;: Each service gets its own context window (sub-agents). Long sessions processing dozens of services do not bloat the main conversation, keeping the agent focused and responsive.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Human-in-the-loop&lt;/strong&gt;: Every MR is a draft: a human reviews before anything merges. Humans also decide which learnings become permanent knowledge. The agent proposes; people approve.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;from-tests-to-migration-at-scale&quot;&gt;From tests to migration at scale&lt;/h2&gt;
-
-&lt;p&gt;With medium tests in place across our service fleet, we had the safety net we needed. The next step was automating the Distroless migration itself.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-patch-test-compare-loop&quot;&gt;The Patch-Test-Compare loop&lt;/h2&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/scaling-out-distroless-adoption-with-ai/mammoth-image-6.png&quot; alt=&quot;The Patch-Test-Compare Loop.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6: The patch-test-compare loop&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Before any Dockerfile changes, the system runs the service’s existing medium tests to establish a baseline. Pre-existing test failures are baselined, allowing for a clear distinction between legacy issues and new regressions introduced by the Distroless patch.&lt;/p&gt;
-
-&lt;p&gt;Next comes Distroless patching. The system inspects each service’s Dockerfile for OS-level package dependencies; scanning &lt;strong&gt;apt-get install&lt;/strong&gt; lines and filtering out packages already included in the distroless base image. Two scenarios to consider here:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;If no extra packages are needed, it is a straightforward base image swap.&lt;/li&gt;
-  &lt;li&gt;If packages are detected, the system generates a multi-stage build: a builder stage installs the required packages, then copies only the necessary shared libraries into the Distroless runtime stage. The result is a minimal image that still contains everything the service needs to run.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;After patching, the same medium tests run again. Results fall into clear categories: &lt;strong&gt;pass&lt;/strong&gt; (tests still green - safe to migrate), &lt;strong&gt;regression&lt;/strong&gt; (tests fail - the patch introduced a problem), or &lt;strong&gt;already failing&lt;/strong&gt; (the suite was failing before we changed anything). Regressions trigger an automated remediation step: a separate AI agent inspects the container for missing shared libraries and attempts to fix the Dockerfile. If it cannot resolve the issue, the service is flagged for human review.&lt;/p&gt;
-
-&lt;h3 id=&quot;scaling-with-batch-changes&quot;&gt;Scaling with batch changes&lt;/h3&gt;
-
-&lt;p&gt;The previous section explains the patch-test-compare loop; this section addresses how we apply patching changes to more than one service simultaneously. To migrate at scale, we use batch change tooling that applies the Dockerfile transformation across dozens of repositories simultaneously, creating merge requests automatically. The system handles both standalone GitLab repositories and Grab’s shared Go monorepo, adapting the patching and MR strategy to each.&lt;/p&gt;
-
-&lt;h2 id=&quot;impact-on-our-services&quot;&gt;Impact on our services&lt;/h2&gt;
-
-&lt;h3 id=&quot;medium-test-generation-at-zcale&quot;&gt;Medium test generation at zcale&lt;/h3&gt;
-
-&lt;p&gt;With medium tests in place, regressions are more likely to be caught before code reaches staging, which provides the safety guarantee we needed. Each generated test also becomes a lasting safety net for the service, not just for the Distroless migration but for future changes as well. Over roughly 1.5 months, the agent raised more than 100 medium test MRs across repositories, bringing more services into compliance with Grab’s “shift-left” testing initiative.&lt;/p&gt;
-
-&lt;h3 id=&quot;distroless-adoption&quot;&gt;Distroless adoption&lt;/h3&gt;
-
-&lt;p&gt;The campaign moved the needle across our service fleet: overall distroless adoption within our scope has grown substantially since we began using AI to drive the work.&lt;/p&gt;
-
-&lt;h3 id=&quot;autonomous-with-oversight&quot;&gt;Autonomous with oversight&lt;/h3&gt;
-
-&lt;p&gt;For typical cases, the agent autonomously handles the majority of medium test generation and Dockerfile migration work with little human intervention. Engineers remain in the loop, reviewing every draft MR and making the final call on what merges.&lt;/p&gt;
-
-&lt;h3 id=&quot;engineering-bandwidth-reclaimed&quot;&gt;Engineering bandwidth reclaimed&lt;/h3&gt;
-
-&lt;p&gt;Manually generating a basic medium test requires familiarity with Grab’s internal SDK, typically taking one to three days per repository for developers new to the framework. For approximately 400 services lacking these tests, this equates to 400-1,200 engineer-days. By leveraging AI, we reduced the effort to roughly 0.1 days per service, compressing over a year’s worth of work into a fraction of the time. This allowed the team to focus on higher-leverage tasks, such as improving migration tooling, handling edge cases, and advancing the roadmap beyond Distroless.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;The integration of Distroless images and enhanced medium test coverage significantly strengthens the security and verifiability of Grab’s services. This initiative demonstrates AI’s capacity to handle the heavy lifting required for large-scale migrations.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/gebdistroless&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Mon, 22 Jun 2026 00:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/scaling-out-distroless-adoption-with-ai</link>
-        <guid isPermaLink="true">https://engineering.grab.com/scaling-out-distroless-adoption-with-ai</guid>
-        
-        <category>Security</category>
-        
-        <category>Containers</category>
-        
-        <category>Artificial Intelligence</category>
-        
-        <category>DevSecOps</category>
         
         <category>Engineering</category>
         
