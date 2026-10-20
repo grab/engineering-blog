@@ -19,7 +19,7 @@ The Grab superapp, which millions of users across Southeast Asia use to book rid
 
 At this scale, crashes leaking into production are an ongoing risk. A high volume of merge requests lands every week across **many product teams**, many shipping features behind flags that are switched on independently of releases. Any one of those changes can introduce a crash. Most of the time, the stack trace points straight to the responsible change and team. The hard cases are the exceptions: crashes without a usable stack trace, such as native crashes without debug symbols, where finding the cause means cross-referencing release timelines, flag rollouts, and session metadata.
 
-The cost of a crash is also steeper on mobile than on the web. A web fix can go live in minutes; a mobile crash that ships stays on users' devices. Across over 100 million downloads on Google Play as of October 2026, not every user has auto-update enabled, and until a force update reaches them, some will run a broken version for months. Meanwhile, the crash degrades their experience, drags down the crash-free session rate, and can hurt the app's ranking on Google Play. If it is severe enough to need a hotfix, the team also has to prepare an out-of-cycle build, pulling time away from planned work.
+The cost of a crash is also steeper on mobile than on the web. A web fix can go live in minutes; a mobile crash that ships stays on users' devices. With more than 100 million downloads on Google Play as of October 2026, not every user has auto-update enabled, and until a force update reaches them, some will run a broken version for months. Meanwhile, the crash degrades their experience, drags down the crash-free session rate, and can hurt the app's ranking on Google Play. If it is severe enough to need a hotfix, the team also has to prepare an out-of-cycle build, pulling time away from planned work.
 
 We keep the Grab superapp stable with a set of layered practices. Data points and tooling examples come from Android. The Grab iOS app follows the same strategy with platform-equivalent tooling (SwiftLint in place of Android Lint), and both apps share one release pipeline for Grab Early Access (GEA), our early access build, as well as staged rollout, production monitoring, and crash triage.
 
@@ -68,13 +68,11 @@ Each layer targets a different class of crash risk. Unit tests block logic error
 
 #### Grab Early Access (GEA): A one-week pre-production gate
 
-Even with strong lint rules and test coverage, some crashes only surface under real-world conditions. GEA is an early build app by Grab
-
-GEA builds are actively monitored for crashes, and any new crash surfaced during the GEA window automatically creates a ticket assigned to the responsible team. Issues reported by internal users, including functional defects and feature breakage, are ticketed the same way. Teams are required to resolve all blocking GEA issues before the release proceeds to production. GEA's user base is large enough to expose real-world edge cases that automated tests miss, but small enough that issues are contained before reaching production users. GEA is a mandatory quality gate on every release cycle.
+Even with strong lint rules and test coverage, some crashes only surface under real-world conditions. GEA is an early build app by Grab. GEA builds are actively monitored for crashes, and any new crash surfaced during the GEA window automatically creates a ticket assigned to the responsible team. Issues reported by internal users, including functional defects and feature breakage, are ticketed the same way. Teams are required to resolve all blocking GEA issues before the release proceeds to production. GEA's user base is large enough to expose real-world edge cases that automated tests miss, but small enough that issues are contained before reaching production users. GEA is a mandatory quality gate on every release cycle.
 
 A crash that only a handful of internal users see in GEA would, at production scale, translate into a substantial spike in the crash rate, extra support load, and potentially a hotfix. Catching these crashes before they ever reach production users makes GEA one of our most important stability gates.
 
-The impact adds up. Across both platforms, GEA catches new crashes every month, and each is fixed before the release reaches production. Each of them could otherwise have reached production users, including the long tail of users who do not auto-update and would have kept hitting it for months.
+The impact adds up. Across both platforms, GEA catches new crashes every month, and each is fixed before the release reaches production. Each of them could otherwise have reached production users, including the long tail of users who do not auto-update and would have kept hitting them for months.
 
 ### The release gate: Staged rollout and feature flags
 
@@ -113,7 +111,7 @@ When either signal fires, an **on-call engineer is immediately notified**. The e
 
 #### Automated crash triage
 
-Automated ticket creation in GEA and production is not a collection of separate tools; it is one triage pipeline that follows a release from GEA into production. In production, running in parallel with real-time monitoring, it creates a **production issue ticket** for crashes that cross a minimum threshold. We assess crashes by type, user impact, and whether they’re actionable. Tickets are created for issues that meaningfully affect users; low-volume, device-specific crashes that we can’t address are monitored but don’t receive tickets. This keeps the team focused on the problems users are most likely to feel.
+Automated ticket creation in GEA and production is not a collection of separate tools; it is one triage pipeline that follows a release from GEA into production. In production, running in parallel with real-time monitoring, it creates a **production issue ticket** for crashes that cross a minimum threshold. We assess crashes by type, user impact, and whether they're actionable. Tickets are created for issues that meaningfully affect users; low-volume, device-specific crashes that we can't address are monitored but don't receive tickets. This keeps the team focused on the problems users are most likely to feel.
 
 For crashes that do qualify, the ticket is routed to the owning team with a service-level agreement (SLA) tied to severity: Urgent, High, Medium, or Low. The initial priority is set automatically based on crash rate and user impact, but teams can re-evaluate and adjust the priority based on the business criticality of the affected feature.
 
