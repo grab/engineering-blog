@@ -6,9 +6,208 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Thu, 15 Oct 2026 02:29:55 +0000</pubDate>
-    <lastBuildDate>Thu, 15 Oct 2026 02:29:55 +0000</lastBuildDate>
+    <pubDate>Wed, 21 Oct 2026 02:50:50 +0000</pubDate>
+    <lastBuildDate>Wed, 21 Oct 2026 02:50:50 +0000</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>App stability at scale with a layered defense</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Artificial intelligence (AI) coding assistants have changed how fast we can ship. They have not changed how mobile users experience a crash. That gap is the pressure every mobile stability program now operates under.&lt;/p&gt;
+
+&lt;p&gt;The Grab superapp, which millions of users across Southeast Asia use to book rides, order food, and more, operates at a large scale. On Android alone, it spans &lt;strong&gt;millions of lines of code&lt;/strong&gt;, with &lt;strong&gt;many engineers&lt;/strong&gt; shipping code into every release on a &lt;strong&gt;weekly release cycle&lt;/strong&gt;. Maintaining app stability is not just a technical goal; it is a product commitment to those users. With the rise of AI coding assistance, the volume of change in every release has grown, and so has the number of ways a single change can break something in an already large codebase.&lt;/p&gt;
+
+&lt;p&gt;At this scale, crashes leaking into production are an ongoing risk. A high volume of merge requests lands every week across &lt;strong&gt;many product teams&lt;/strong&gt;, many shipping features behind flags that are switched on independently of releases. Any one of those changes can introduce a crash. Most of the time, the stack trace points straight to the responsible change and team. The hard cases are the exceptions: crashes without a usable stack trace, such as native crashes without debug symbols, where finding the cause means cross-referencing release timelines, flag rollouts, and session metadata.&lt;/p&gt;
+
+&lt;p&gt;The cost of a crash is also steeper on mobile than on the web. A web fix can go live in minutes; a mobile crash that ships stays on users’ devices. With more than 100 million downloads on Google Play as of October 2026, not every user has auto-update enabled, and until a force update reaches them, some will run a broken version for months. Meanwhile, the crash degrades their experience, drags down the crash-free session rate, and can hurt the app’s ranking on Google Play. If it is severe enough to need a hotfix, the team also has to prepare an out-of-cycle build, pulling time away from planned work.&lt;/p&gt;
+
+&lt;p&gt;We keep the Grab superapp stable with a set of layered practices. Data points and tooling examples come from Android. The Grab iOS app follows the same strategy with platform-equivalent tooling (SwiftLint in place of Android Lint), and both apps share one release pipeline for Grab Early Access (GEA), our early access build, as well as staged rollout, production monitoring, and crash triage.&lt;/p&gt;
+
+&lt;h2 id=&quot;a-layered-defense-for-app-stability&quot;&gt;A layered defense for app stability&lt;/h2&gt;
+
+&lt;p&gt;Our strategy is rooted in a &lt;strong&gt;shift-left mindset&lt;/strong&gt;: the earlier we catch a crash, the cheaper and less disruptive it is to fix. A crash caught by a lint rule costs nothing. A crash caught in GEA takes an engineer fewer hours to fix. A crash that reaches production costs user trust. That is why we invest most heavily in prevention: the goal is to stop crashes before they reach production, not to fix them there.&lt;/p&gt;
+
+&lt;p&gt;The system is a series of filters, each anchored to a specific phase of the feature development lifecycle, so the right check runs at the right time, and a crash that slips past one layer has another waiting downstream.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/app-stablity/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The colors mark the three phases on the stability side: &lt;strong&gt;prevention&lt;/strong&gt; (pre-merge through pre-prod), the &lt;strong&gt;release gate&lt;/strong&gt; (staged rollout and feature flags), and &lt;strong&gt;response&lt;/strong&gt; (post-release).&lt;/p&gt;
+
+&lt;h3 id=&quot;prevention-our-primary-line-of-defense&quot;&gt;Prevention: Our primary line of defense&lt;/h3&gt;
+
+&lt;h4 id=&quot;lint-checks-stopping-crashes-at-the-code-level&quot;&gt;Lint checks: Stopping crashes at the code level&lt;/h4&gt;
+
+&lt;p&gt;Lint is the cheapest layer we have: static analysis that flags unsafe patterns, application programming interface (API) misuse, and likely crashes before the code ever runs. We use &lt;strong&gt;Android Lint&lt;/strong&gt; on Android and &lt;strong&gt;SwiftLint&lt;/strong&gt; on iOS. Both run in continuous integration (CI) on every merge request, and high-severity findings are merge blockers. Pre-existing issues never block a merge request: on Android, a lint baseline records them, and on iOS, SwiftLint reports only on the lines a merge request changes. Either way, a merge request fails only on the findings it introduces.&lt;/p&gt;
+
+&lt;p&gt;Our rules come from three sources:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Platform rules.&lt;/strong&gt; Built-in checks cover well-known dangerous patterns, such as incorrect API usage and threading mistakes, and form the foundation for every build.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Community rules.&lt;/strong&gt; Open-source rule sets cover third-party libraries and patterns the built-in checks miss. We adopt the ones relevant to our stack.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Custom rules.&lt;/strong&gt; Both Android Lint and SwiftLint support custom rules, and we have built our own on both platforms. When a post-mortem or crash investigation traces a production crash to a specific code pattern, we write a rule that blocks that pattern from coming back.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Custom rules matter more as AI-assisted coding grows. An assistant can write code that looks right in general without knowing which patterns have crashed our app before. Custom rules turn those lessons into checks that apply equally to hand-written and AI-generated code.&lt;/p&gt;
+
+&lt;p&gt;Lint routinely blocks merge requests carrying Fatal issues: the kind that typically crash the app immediately or stop it from running.&lt;/p&gt;
+
+&lt;h4 id=&quot;testing-strategy-multiple-layers-of-confidence&quot;&gt;Testing strategy: Multiple layers of confidence&lt;/h4&gt;
+
+&lt;p&gt;Lint catches unsafe patterns statically, but it cannot run the code. Tests are where we catch crashes and regressions that only appear at runtime. No single test type covers everything, so we apply multiple complementary layers:&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Layer&lt;/th&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Focus&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;Unit tests&lt;/strong&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Business logic correctness at the function and class level&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;User interface (UI) component tests&lt;/strong&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Rendering and interaction behavior of individual UI components&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;End-to-end (E2E) automation tests&lt;/strong&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Integrity of critical user journeys&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;Quality assurance (QA) manual testing&lt;/strong&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Real-device exploratory testing for new features and significant code changes&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;Each layer targets a different class of crash risk. Unit tests block logic errors before they merge. UI component tests catch crashes tied to rendering or state mismatches; like unit tests, they run pre-merge on every merge request, so a rendering regression is blocked before it lands. E2E automation covers the flows with the highest business impact and runs on a per-team schedule and on every release train. QA manual testing focuses on new features and significant code changes, plus a full regression pass on every release, catching the edge cases that automation misses on real devices.&lt;/p&gt;
+
+&lt;h4 id=&quot;grab-early-access-gea-a-one-week-pre-production-gate&quot;&gt;Grab Early Access (GEA): A one-week pre-production gate&lt;/h4&gt;
+
+&lt;p&gt;Even with strong lint rules and test coverage, some crashes only surface under real-world conditions. GEA is an early build app by Grab. GEA builds are actively monitored for crashes, and any new crash surfaced during the GEA window automatically creates a ticket assigned to the responsible team. Issues reported by internal users, including functional defects and feature breakage, are ticketed the same way. Teams are required to resolve all blocking GEA issues before the release proceeds to production. GEA’s user base is large enough to expose real-world edge cases that automated tests miss, but small enough that issues are contained before reaching production users. GEA is a mandatory quality gate on every release cycle.&lt;/p&gt;
+
+&lt;p&gt;A crash that only a handful of internal users see in GEA would, at production scale, translate into a substantial spike in the crash rate, extra support load, and potentially a hotfix. Catching these crashes before they ever reach production users makes GEA one of our most important stability gates.&lt;/p&gt;
+
+&lt;p&gt;The impact adds up. Across both platforms, GEA catches new crashes every month, and each is fixed before the release reaches production. Each of them could otherwise have reached production users, including the long tail of users who do not auto-update and would have kept hitting them for months.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-release-gate-staged-rollout-and-feature-flags&quot;&gt;The release gate: Staged rollout and feature flags&lt;/h3&gt;
+
+&lt;p&gt;Prevention keeps crashes out of the build. But the moment a release enters production, it meets something neither lint rules nor GEA can fully replicate: the full diversity of the real world, with thousands of device models, operating system (OS) versions, carrier configurations, and usage patterns that no internal test environment can mirror. So we treat the release boundary as its own critical checkpoint, a release gate between a validated build and full user exposure. Two mechanisms operate at this gate: &lt;strong&gt;staged rollout monitoring&lt;/strong&gt; to limit the blast radius of the release itself, and &lt;strong&gt;feature flags&lt;/strong&gt; to decouple feature activation from deployment.&lt;/p&gt;
+
+&lt;h4 id=&quot;staged-rollout-monitoring&quot;&gt;Staged rollout monitoring&lt;/h4&gt;
+
+&lt;p&gt;We do not ship to all users at once. Every release follows a &lt;strong&gt;staged rollout&lt;/strong&gt; over the course of a week, starting with a small percentage of users and expanding in steps to the full user base. Each increment gives the monitoring system time to accumulate meaningful signal before the next expansion. During this window, we run a dedicated monitor that tracks the crash rate of the new version in isolation, separately from the baseline of all active versions. The separation matters: a regression in the new release can be masked in aggregate metrics if the older, stable versions dominate the user base.&lt;/p&gt;
+
+&lt;p&gt;If the new release shows an abnormal crash rate at any point during rollout, an &lt;strong&gt;automated system pauses the release&lt;/strong&gt; before it expands further. The rollout does not resume until the responsible team has reviewed the issue and explicitly approved continuation. The pause gives us a hard stopping point: a regression introduced by the new release is contained to the fraction of users who received it, instead of compounding across the full install base.&lt;/p&gt;
+
+&lt;p&gt;In recent months, several Android rollouts were paused for on-call review. Most resumed after investigation: either the signal turned out to be noise, or the crash sat behind a feature flag that could be turned off without a new build. A small number stayed halted at the first stage until a hotfix shipped. We tune the monitor to be sensitive on purpose: a paused rollout takes an engineer a few hours to fix, while a missed regression can cost weeks. In one of the halted cases, only a small number of users hit the new crash before the halt, and the rest of the user base never saw it. Without the automated halt, the rollout would have kept expanding on schedule, taking the crash to the full user base.&lt;/p&gt;
+
+&lt;h4 id=&quot;feature-flags-controlled-activation-with-an-instant-kill-switch&quot;&gt;Feature flags: Controlled activation with an instant kill switch&lt;/h4&gt;
+
+&lt;p&gt;Even when a release ships cleanly, the features inside it are gated independently. All significant new features ship behind &lt;strong&gt;feature flags&lt;/strong&gt;, decoupling deployment from activation. Flags let us roll out a feature gradually, monitor crash rates at each increment, and, critically, &lt;strong&gt;disable a feature instantly&lt;/strong&gt; if its crash rate exceeds a defined threshold, without waiting for the next release cycle. For a team shipping weekly, the kill switch is what makes fast iteration safe, and it is also our first lever when something does reach production.&lt;/p&gt;
+
+&lt;h3 id=&quot;response-when-prevention-falls-short&quot;&gt;Response: When prevention falls short&lt;/h3&gt;
+
+&lt;p&gt;No prevention layer is perfect. Crashes can still reach production: a misconfigured remote flag opens an unexpected code path, an OS update from a device manufacturer changes system behavior in ways no test environment can predict, or a bug slips past GEA and the rollout monitor because it only triggers under a specific combination of device state and user action. When that happens, the goal shifts from prevention to containment. For these scenarios, &lt;strong&gt;speed of detection, stopping the bleeding, and accuracy of diagnosis&lt;/strong&gt; become the priority.&lt;/p&gt;
+
+&lt;h4 id=&quot;real-time-monitoring-and-on-call-response&quot;&gt;Real-time monitoring and on-call response&lt;/h4&gt;
+
+&lt;p&gt;We maintain real-time crash rate monitoring across all active versions, with two complementary signals that can trigger an on-call alert:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Hard threshold breach.&lt;/strong&gt; The crash rate of an active version crosses an absolute limit we define as unacceptable.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Abnormal trend.&lt;/strong&gt; The crash rate spikes sharply relative to its own recent baseline, even if it has not yet crossed the absolute threshold.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We watch both because they catch different failure modes. A hard threshold catches slow drift: if the crash rate creeps up a little with each release, every step looks normal against its recent baseline and the trend alert never fires, yet over a year the rate can quietly increase. An abnormal trend catches the opposite case: a sudden regression, early, before it grows large enough to breach the threshold.&lt;/p&gt;
+
+&lt;p&gt;When either signal fires, an &lt;strong&gt;on-call engineer is immediately notified&lt;/strong&gt;. The engineer begins by reviewing Firebase Crashlytics reports to identify which crash issues are driving the anomaly, then loops in the team responsible for the affected area. From there, the response follows a three-step decision framework, ordered from cheapest to most expensive:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Disable the responsible feature flag.&lt;/strong&gt; If the crash is tied to a feature behind a flag, turning the flag off stops new users from hitting the issue immediately, with no new build required. Turning off a flag is by far the fastest mitigation we have.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Apply a server-side fix.&lt;/strong&gt; If no flag covers the affected code path, the team looks for any server-side lever that can contain the impact: updating an API response, changing a config value, throttling a backend dependency. Any change that takes effect without shipping a new app build is preferred over one that does.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Ship a hotfix.&lt;/strong&gt; If neither of the above is available, the team evaluates whether the crash warrants an out-of-cycle hotfix release, using defined criteria: business criticality of the affected flow, crash severity, user impact, and time to the next scheduled release. After the hotfix is delivered, a &lt;strong&gt;post-mortem is required&lt;/strong&gt;. The goal is not just to document what went wrong, but to identify concrete action items that close the gap in our prevention layer, such as adding a lint rule to block the same pattern, wrapping a similar feature behind a flag, or improving test coverage for the affected code path. Every hotfix should make the next one less likely.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;automated-crash-triage&quot;&gt;Automated crash triage&lt;/h4&gt;
+
+&lt;p&gt;Automated ticket creation in GEA and production is not a collection of separate tools; it is one triage pipeline that follows a release from GEA into production. In production, running in parallel with real-time monitoring, it creates a &lt;strong&gt;production issue ticket&lt;/strong&gt; for crashes that cross a minimum threshold. We assess crashes by type, user impact, and whether they’re actionable. Tickets are created for issues that meaningfully affect users; low-volume, device-specific crashes that we can’t address are monitored but don’t receive tickets. This keeps the team focused on the problems users are most likely to feel.&lt;/p&gt;
+
+&lt;p&gt;For crashes that do qualify, the ticket is routed to the owning team with a service-level agreement (SLA) tied to severity: Urgent, High, Medium, or Low. The initial priority is set automatically based on crash rate and user impact, but teams can re-evaluate and adjust the priority based on the business criticality of the affected feature.&lt;/p&gt;
+
+&lt;h4 id=&quot;feature-flag-rollout-history-diagnosing-crash-spikes&quot;&gt;Feature flag rollout history: Diagnosing crash spikes&lt;/h4&gt;
+
+&lt;p&gt;Some of the hardest on-call moments start the same way: the app suddenly begins crashing, alerts fire, and there is no obvious reason why. Nothing shipped that day, and in the worst cases the crash arrives without a usable stack trace to point anywhere. With many product teams working on the same app simultaneously, the culprit is often not new code in the latest release; it is a feature flag quietly rolled out to a wider user segment in the background. Finding that flag by asking around does not scale: without a central view, an on-call engineer can spend hours before the responsible rollout turns up.&lt;/p&gt;
+
+&lt;p&gt;So we maintain a &lt;strong&gt;feature flag rollout history&lt;/strong&gt;: a dashboard that correlates flag activation events with crash rate changes over time. Instead of polling every team, the on-call engineer gets an immediate view of whether any flag rollout aligns with the onset of the spike, turning a slow manual search into a quick read of a timeline.&lt;/p&gt;
+
+&lt;h4 id=&quot;deep-observability-enriched-diagnostics-for-hard-to-debug-crashes&quot;&gt;Deep observability: Enriched diagnostics for hard-to-debug crashes&lt;/h4&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://firebase.google.com/products/crashlytics&quot;&gt;Firebase Crashlytics&lt;/a&gt; is our primary crash monitoring tool, but some crashes resist easy diagnosis: crashes with unusable stack traces, native crashes from third-party libraries without debug symbols, or issues that only manifest on specific device configurations. Without a clear stack trace, there is no obvious starting point for investigation.&lt;/p&gt;
+
+&lt;p&gt;We handle these cases in two ways.&lt;/p&gt;
+
+&lt;p&gt;First, we use Crashlytics’ built-in export to &lt;a href=&quot;https://cloud.google.com/bigquery&quot;&gt;&lt;strong&gt;BigQuery&lt;/strong&gt;&lt;/a&gt;, so we own a copy of the crash data. The data is pseudonymized and handled under Grab’s data protection policies. That copy gives us two things Crashlytics alone cannot:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Query the data when needed&lt;/strong&gt;: full Structured Query Language (SQL) analysis across device attributes, app versions, and session metadata, surfacing patterns invisible in individual crash reports.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Build internal dashboards&lt;/strong&gt; that serve app stability investigations, broken down by crash category, device tier, or release version.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Second, we enrich every crash session with &lt;strong&gt;custom metadata&lt;/strong&gt; attached directly to Crashlytics. Among the most useful attributes we track:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Last visited screen&lt;/strong&gt;: the last screen the user was on before the crash occurred (for example, the last Activity and Fragment on Android), helping reconstruct the navigation path that led to the failure.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Install source&lt;/strong&gt;: whether the app was installed from Google Play or a third-party store (Android only). Some third-party stores distribute unofficial copies of the app, and more than once we have traced a crash back to a corrupted copy served by one of them. Knowing the install source lets us recognize these failures as environmental, instead of chasing them as code defects.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Session history&lt;/strong&gt;: from the session data, we can reconstruct the sequence of screens and actions leading up to the crash, which is often the key to a crash investigation.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;We attach many other custom attributes, but these three have proven the most useful in hard investigations. Together with structured logs and breadcrumbs, they give us a trail of events leading up to the crash, often the only meaningful signal when the stack trace alone is not enough.&lt;/p&gt;
+
+&lt;h2 id=&quot;crashes-we-control-not-eliminate&quot;&gt;Crashes we control, not eliminate&lt;/h2&gt;
+
+&lt;p&gt;Different crashes call for different responses. Some are fixed in our code, while others, such as rare native crashes in operating system (OS) code, out-of-memory errors on devices near their limits, or failures from unofficial and sideloaded installs, are better handled through monitoring and containment.&lt;/p&gt;
+
+&lt;p&gt;We keep these categories at an acceptable baseline and monitor them on dedicated dashboards, separate from actionable issues. If any of them starts trending up instead of sitting flat, that spike triggers the same triage process as any other anomaly.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;Sustaining stability across a codebase of millions of lines on Android alone, with many engineers shipping a release every week and AI assistance accelerating the rate of code change, is not the work of any single tool or team. It is the cumulative effect of a layered defense: lint rules and tests blocking bad code at the merge gate, QA and GEA catching what slips through, staged rollout limiting the blast radius of what reaches production, and on-call response combined with automated triage closing the loop on what production reveals.&lt;/p&gt;
+
+&lt;p&gt;The principle behind every layer is the same: shift left. A crash caught earlier is cheaper, smaller in impact, and less disruptive to fix. As the volume of code shipped per release continues to grow, the layered defense matters more, not less: the cost of a crash that reaches production is unchanged, but the number of opportunities to introduce one is rising. AI is speeding up how fast code is written; the layered defense is what makes that speed safe. Stability is not about having zero open problems; it is about knowing which problems you own and which ones you are watching.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 21 Oct 2026 00:23:00 +0000</pubDate>
+        <link>https://engineering.grab.com/app-stability-at-scale-with-a-layered-defense</link>
+        <guid isPermaLink="true">https://engineering.grab.com/app-stability-at-scale-with-a-layered-defense</guid>
+        
+        <category>Engineering</category>
+        
+        <category>Mobile</category>
+        
+        <category>Android</category>
+        
+        <category>iOS</category>
+        
+        <category>App Stability</category>
+        
+        <category>Reliability</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>GrabMart data for faster disease outbreak detection</title>
@@ -1295,222 +1494,6 @@ Special thanks to the contributors: &lt;br /&gt;A3T Braintrust - Maanas Prabhaka
         
         
         <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Agent platform (Part 1): How we help Grab build and run AI agents at scale</title>
-        <description>&lt;h2 id=&quot;part-1-from-one-support-bot-to-a-framework&quot;&gt;Part 1: From one support bot to a framework&lt;/h2&gt;
-
-&lt;p&gt;At Grab, AI agents have evolved from interesting team prototypes into production services used every day by millions of merchants, drivers, and consumers. Today, more than 500 services run on our internal agent framework, over 50 Model Context Protocol (MCP) servers are registered on our remote MCP framework, and a single Large Language Model (LLM) gateway fronts every model call across the company, handling billions of tokens each month.&lt;/p&gt;
-
-&lt;p&gt;None of this was designed up front. It began as the plumbing behind &lt;strong&gt;one&lt;/strong&gt; internal support bot, which then expanded because the same problems kept resurfacing for every team trying to ship an agent. This series tells the story of what the platform eventually became. This Part 1 of the blog focuses on the beginning: the architecture of our AI support bot, the specific pain points we hit while scaling and iterating on it, and how each of those failures became a core building block in the framework we now call &lt;strong&gt;LLM-Kit&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-bot-that-started-it&quot;&gt;The bot that started it&lt;/h2&gt;
-
-&lt;p&gt;Imagine you have a question for the &lt;strong&gt;Technical Infrastructure (Tech Infra)&lt;/strong&gt; team - the engineers who run the cloud platforms, databases, developer tooling, and AI infrastructure behind Grab’s ecosystem. Instead of immediately paging an on-call engineer, a bot first triages the request, checks the team’s documentation, runbooks, and past Slack threads, and tries to answer directly in the thread. If it still cannot resolve the issue, it routes the ticket to the right human, with the relevant context already attached.&lt;/p&gt;
-
-&lt;p&gt;That is what we built with the Tech Infra Support Bot.&lt;/p&gt;
-
-&lt;p&gt;In the first half of 2023, Tech Infra handled thousands of support tickets, many of them repeated questions that had already been answered somewhere internally. Before LLMs, the bot’s role was mainly operational; performing tasks like helping track acknowledgments and response times for on-call engineers. With the arrival of GPT-4-32k, we evolved it into a GPT-powered Level-0 support layer that could answer documented questions before a human needed to be paged.&lt;/p&gt;
-
-&lt;p&gt;The first production version was a Go service organized around two planes:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;A reasoning plane&lt;/strong&gt;. At Level-0, it was a single-agent loop. It takes the user’s question, decides which tools to call, executes those calls, feeds the results back into the prompt, and returns an answer. The default model at the time was gpt-4.1; today, we have evolved to the latest reasoning models.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;A tool plane&lt;/strong&gt;. The tools provided the bot’s core working context. Retrieval flowed through Glean, which covered Confluence, 
-&lt;a href=&quot;https://engineering.grab.com/techdocs-at-grab-cultivating-a-culture-of-quality-documentation&quot;&gt;TechDocs&lt;/a&gt;, internal drives, and Jira. Other tools handled log search through Kibana, GitLab runbook and file access, Slack conversation search, and a small set of Hypertext Transfer Protocol (HTTP) plugins. In the first version, tools and prompts were defined in per-channel JavaScript Object Notation (JSON) configs and resolved at request time. As models became more capable, we later standardized the tool set across channels.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;A trimmed version of that tool config looked like this:&lt;/p&gt;
-
-&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nl&quot;&gt;&quot;agent_plugins&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;glean_search&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;metadata&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;wiki_space_collection&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;...&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]}},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;runbook_search&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;gitlab_runbook_reader&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;gitlab_read_file&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;kibana_log_search&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;   &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;metadata&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;index&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;k8s*&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;slack_conversation_tool&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;common&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;It worked, but it taught us, the hard way, why a demo agent is not a production agent.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-it-takes-to-scale-and-improve-quickly&quot;&gt;What it takes to scale and improve quickly&lt;/h2&gt;
-
-&lt;p&gt;As we worked on improving the agent, we kept running into the same kinds of friction. Over time, those pain points formed clear patterns, and they were the same ones we saw other teams run into as well.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Vibe check is not an evaluation strategy&lt;/strong&gt;. The bot had a base prompt, and each Slack channel could configure its own prompt, tools, and documentation filters. But the workflow was essentially: configure it, ship it, and hope it reduced toil. There were no real evaluations, just optimism that it would work.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Fast model and provider switching is essential&lt;/strong&gt;. The AI landscape moves incredibly fast: a new state-of-the-art (SOTA) model appears on Tuesday, and a highly efficient open-source alternative shows up on Thursday. Switching providers should not feel like open-heart surgery. A unified Software Development Kit (SDK) and an &lt;a href=&quot;https://engineering.grab.com/grab-ai-gateway&quot;&gt;LLM API gateway&lt;/a&gt; remove the need to refactor payload schemas, rewrite error handling, or integrate each provider from scratch. If moving from OpenAI to Anthropic, or routing to an open-source model endpoint, takes more than a few config changes, technical debt is already slowing you down.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Observability cannot be an afterthought&lt;/strong&gt;. When an answer was wrong, figuring out “why” meant grepping logs across three separate systems: the agent workflow, the tool calls, and the model call. There was no shared trace tying them together. That level of friction is survivable for an internal tool; it is unacceptable for a customer-facing agent.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Everything around the agent took longer than the agent itself&lt;/strong&gt;. Auth (OIDC), secrets management (Vault), per-environment config, vector database integration, LLM tracing, health probes, and metrics were not agent-specific problems. However, they all had to be solved before anything could be shipped. The reasoning loop took a whole afternoon. The production wrapper took two weeks.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The pattern was clear: the hard part of building an agent was not the agent itself, but everything around it that had to be in place before it could safely run in front of users. So we began pulling those shared components out of the bot and consolidating them into a unified framework.&lt;/p&gt;
-
-&lt;h2 id=&quot;extracting-the-framework-llm-kit&quot;&gt;Extracting the framework: LLM-Kit&lt;/h2&gt;
-
-&lt;p&gt;LLM-Kit emerged when we stopped solving these problems service by service and started solving them once, centrally. It is intentionally not a new agent abstraction or a Domain-Specific Language (DSL). Instead, it is a curated set of integrations and scaffolding built around Grab’s existing infrastructure, pipelines, secret management, and observability. Just as importantly, we chose to build a framework rather than a heavy centralized platform. In a space evolving this quickly, a platform would have locked teams into rigid assumptions that would soon become outdated. A framework let us meet developers where they already were: standardizing the plumbing while preserving the freedom to iterate quickly. Looking back, that was the right first choice. Each part of LLM-Kit is a direct response to one of the failures described above.&lt;/p&gt;
-
-&lt;p&gt;We first wrote about LLM-Kit’s structure and code architecture in a &lt;a href=&quot;https://engineering.grab.com/supercharging-llm-application-development-with-llm-kit&quot;&gt;2024 blog post&lt;/a&gt;. Two years and a few hundred agents later, the overall &lt;em&gt;shape&lt;/em&gt; is still recognizable, but almost every underlying layer has changed. Poetry was replaced by &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;uv&lt;/code&gt;; we standardized on the OpenTelemetry stack; LangChain evolved into LangGraph and Deep Agents; and some tools moved onto our MCP framework.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;It starts with a template&lt;/strong&gt;. The entry point is a user interface (UI) form. An engineer fills in an application name and a few details, and gets back a GitLab repository with the production wrapper already assembled. Under the hood the template stamps out a full FastAPI service:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/
-├── app/
-│   ├── server.py              # FastAPI app factory: mounts routes + middleware, boots OTel + statsd
-│   ├── agents/
-│   │   ├── simple_react_agent.py   # a single-agent LangGraph ReAct loop (agent &amp;lt;-&amp;gt; tools)
-│   │   ├── mcp_react_agent.py      # the same loop, but tools are pulled from remote MCP servers
-│   │   └── simple_react_agent.png  # auto-exported graph diagram (generated in dev)
-│   ├── routes/
-│   │   ├── api.py             # router aggregator
-│   │   ├── health_check.py    # liveness/readiness probe
-│   │   ├── oidc.py            # OIDC login/callback (skipped in proxy-auth mode)
-│   │   └── evalshub_eval.py   # runs ROUGE / BLEU / LLM-as-judge evals on the agent
-│   ├── core/config.py         # AppConfig (pydantic-settings) + INI/secret parsing
-│   ├── tools/word_length_tool.py   # an example tool to copy from
-│   ├── utils/prompts.py       # prompt/message assembly helpers
-│   └── storage/connection.py  # Postgres + pgvector engine and connection pooling
-├── sdk/         # a generated, typed client SDK (protobuf) other services import
-├── configs/
-│   ├── dev.ini / stg.ini / prd.ini   # one config per environment
-│   └── secret.ini.example     # secret template; real values resolve from Vault at deploy
-├── databases/postgresql/      # SQL migrations (pgvector extension bootstrapped for you)
-├── scripts/
-│   ├── db.py / db.sh          # migration runner
-│   └── gunicorn_conf.py       # production server/worker config
-├── tests/
-│   ├── unit_tests/            # starter unit tests (e.g. the health check)
-│   └── evalshub_evaluation/   # golden test cases the eval route runs against
-├── Dockerfile                 # multi-stage, distroless
-├── Makefile                   # setup / run / test / lint targets
-├── pyproject.toml             # uv build backend + pinned deps
-└── .pre-commit-config.yaml
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Three things are worth pulling out of that tree:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/agents/&lt;/code&gt; is the part you actually own&lt;/strong&gt;. You get two working agents to fork from rather than a blank file: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;simple_react_agent.py&lt;/code&gt; is a single-agent LangGraph ReAct loop, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mcp_react_agent.py&lt;/code&gt; is the same loop wired to pull its tools from remote MCP servers. Both compile to a LangGraph &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;StateGraph&lt;/code&gt; with a retry policy and a 30-second per-step timeout, and in dev the graph is auto-exported as a diagram. This is a real step up from the bare LangChain agent initialization we scaffolded in 2024.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/routes/evalshub_eval.py&lt;/code&gt; ships evals on day one&lt;/strong&gt;. The template comes with an endpoint that runs Recall-Oriented Understudy for Gisting Evaluation (ROUGE), Bilingual Evaluation Understudy (BLEU), and LLM-as-judge evaluators over a set of golden test cases in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;tests/evalshub_evaluation/&lt;/code&gt;. The thing we most wished the support bot had, is now in the box before a builder writes a line of their own logic.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Everything else is the production wrapper&lt;/strong&gt;. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;core/config.py&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;storage/&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;configs/&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;databases/&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;scripts/&lt;/code&gt;, the distroless &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Dockerfile&lt;/code&gt;, and the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pyproject.toml&lt;/code&gt; (now &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;uv&lt;/code&gt;, not the Poetry we used in 2024) are the auth, secrets, persistence, packaging, and deploy plumbing that every service needs and that no team should have to write from scratch.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The day-one wiring that used to take two weeks or more now takes about an hour. The rest of this section is what “pre-wired” means, layer by layer.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Config and secrets are solved once&lt;/strong&gt;. Apps declare environment configs as initialization (INI) files with secret interpolation, so secrets resolve from &lt;a href=&quot;https://www.hashicorp.com/en/products/vault?utm_source=google&amp;amp;utm_channel_bucket=paid&amp;amp;utm_medium=sem&amp;amp;utm_campaign=core_apac_multi_eng_x_all_sem-gg_x_all_all_all_br&amp;amp;utm_content=hashicorp%20vault-190017550690-Brand_Vault_SLM-802491325140&amp;amp;gad_source=1&amp;amp;gad_campaignid=23699376650&amp;amp;gbraid=0AAAAAC15ru8puHsQth55S3GvC2N6lMusm&amp;amp;gclid=CjwKCAjwgO7RBhBKEiwAZNP85mSwHd8Tvwt_6i6a869Bwuqqws3tcto-4Fb4c3XHD-LL2Um0fARKyxoCrVgQAvD_BwE&quot;&gt;Vault&lt;/a&gt; at boot, and a single &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;secret.ini.example&lt;/code&gt; is enough to run any LLM-Kit app locally:&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;[CONFIG]
-GRABGPT_API_KEY=${SECRET:GRABGPT_API_KEY}
-OTEL_EXPORTER_OTLP_ENDPOINT=&amp;lt;otel-collector-endpoint&amp;gt;
-POSTGRES_POOL_RECYCLE=1800
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Model access behind one resolver&lt;/strong&gt;. Every model call goes through the GrabGPT Gateway, which is OpenAI-compatible. LLM-Kit’s job is just to resolve the right endpoint (per environment, and per data tier) and inject the key so application code never hard-codes a provider again:&lt;/p&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;openai&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OpenAI&lt;/span&gt;
-&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;llm_kit.grabgpt&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;resolve_grabgpt_base_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;resolve_grabgpt_api_key&lt;/span&gt;
-
-&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;OpenAI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;base_url&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;resolve_grabgpt_base_url&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;prd&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;public&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# provider chosen centrally
-&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;api_key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;resolve_grabgpt_api_key&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;That one indirection is what later lets a platform team change which provider serves a model, configure fallback routing, set budgets, and manage cost attribution, without a single application touching its code.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Tracing wired in, not bolted on&lt;/strong&gt;. A single instrumentor auto-instruments FastAPI, outbound HTTP, LangChain, and MCP, and stamps every span with Kubernetes resource attributes (pod, namespace, image, service version). Structured logs auto-inject the trace and span IDs, so logs and traces correlate in Grafana/Kibana for free:&lt;/p&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;exporter&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;OTLPSpanExporter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;endpoint&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;app_config&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;otel_exporter_otlp_endpoint&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;nc&quot;&gt;OTELInstrumentor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exporter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exporter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;excluded_urls&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;health_check&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;instrument_app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The &lt;strong&gt;three systems, no shared trace&lt;/strong&gt; problem turns into &lt;strong&gt;one end-to-end trace&lt;/strong&gt; across every LLM call, tool call, and retrieval step.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Tools can be exposed through MCP servers built on our MCP framework&lt;/strong&gt;. Instead of hardwiring a large set of tool functions inside the agent process, the agent connects to MCP servers and discovers their tools at runtime. That means adding a new capability can be as simple as registering an MCP server, rather than redeploying the agent.&lt;/p&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MultiServerMCPClient&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
-    &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;mcp-gitlab-remote&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;transport&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;streamable_http&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-        &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;lt;remote-mcp-gitlab-endpoint&amp;gt;/mcp/&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-        &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;headers&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Authorization&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Bearer &amp;lt;token&amp;gt;&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;tools&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;get_tools&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;# schema negotiated, no redeploy
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;An agent is just another service in the ecosystem, with gRPC on both sides. Most of Grab’s backend communicates over gRPC, and agents are rarely standalone; other services call them, and they in turn call other internal services. The template is designed to support both directions.&lt;/p&gt;
-
-&lt;p&gt;On the &lt;em&gt;serving&lt;/em&gt; side, the scaffold includes a Protocol Buffers (protobuf) contract (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;sdk/.../.proto&lt;/code&gt;, with a sample &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Hello&lt;/code&gt; remote procedure call (RPC)) and a generated, typed client SDK package that other teams &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;import&lt;/code&gt; to call your agent without hand-writing HTTP. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;make gen-proto&lt;/code&gt; regenerates the Python stubs from the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.proto&lt;/code&gt;, and a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;gen-proto-check&lt;/code&gt; Continuous Integration (CI) step fails the build if the committed stubs drift from the contract. A gRPC server runs alongside FastAPI (default port &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;8087&lt;/code&gt;, multi-worker-safe via &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SO_REUSEPORT&lt;/code&gt;) and ships a standard gRPC health service out of the box:&lt;/p&gt;
-
-&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;grpcurl &lt;span class=&quot;nt&quot;&gt;-plaintext&lt;/span&gt; localhost:8087 grpc.health.v1.Health/Check
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;On the &lt;em&gt;calling&lt;/em&gt; side, LLM-Kit ships a channel provider so an agent never hardcodes an address. The auto provider tries Istio, then Consul, then a static fallback, health-checks the channel it selects, and runs a background monitor that re-selects after a few consecutive failures:&lt;/p&gt;
-
-&lt;div class=&quot;language-py highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;llm_kit.grpc.channel_providers.auto&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;AutoGrpcChannelProvider&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AutoGrpcChannelProviderConfig&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-&lt;span class=&quot;n&quot;&gt;provider&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;AutoGrpcChannelProvider&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;logger&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;AutoGrpcChannelProviderConfig&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;client_name&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;my-agent&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;service_key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;some-internal-service&lt;/span&gt;&lt;span class=&quot;sh&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;# resolved via Istio / Consul
-&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;enable_istio&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enable_consul&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;provider&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;get_channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;           &lt;span class=&quot;c1&quot;&gt;# first healthy channel, auto-reselected on failure
-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stub&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;SomeServiceStub&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;channel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;This is the less glamorous side of being &lt;strong&gt;production-ready&lt;/strong&gt;. Before an agent can deliver value, it needs to both accept calls from and make calls to the rest of the company’s services using the same transport the broader system already relies on.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;LLM-Kit solved &lt;em&gt;building and shipping&lt;/em&gt; one agent. At 500 agents, the problems were no longer framework problems. They were platform problems: who can change which model everyone calls, how one team safely reuses another team’s tools, and how you know an agent got &lt;em&gt;better&lt;/em&gt; and not just &lt;em&gt;different&lt;/em&gt; after a prompt change. We built three answers for that layer: the GrabGPT Gateway, a remote MCP framework, and an evals platform. Part 2 starts with the gateway — one endpoint, five providers, and what it takes to make “swap the model” a configuration change instead of an incident.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/how_grab_builds_and_runs_ai_agents_at_scale_part_1&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 24 Jul 2026 00:00:10 +0000</pubDate>
-        <link>https://engineering.grab.com/how-grab-builds-and-runs-ai-agents-at-scale</link>
-        <guid isPermaLink="true">https://engineering.grab.com/how-grab-builds-and-runs-ai-agents-at-scale</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Generative AI</category>
-        
-        <category>LLM</category>
-        
-        <category>Experiment</category>
-        
-        <category>Machine Learning</category>
-        
-        
-        <category>Engineering</category>
-        
-        <category>Design</category>
         
       </item>
     
