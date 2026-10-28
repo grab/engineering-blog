@@ -6,6 +6,7 @@ date: 2017-05-10 18:43:40
 authors: [dharmarth.shah, ryan.law]
 categories: [Engineering]
 tags: [AWS, Networking]
+cover_photo: /img/troubleshooting-unusual-aws-elb-5xx-errors/banner-img.png
 comments: true
 excerpt: "This article is part one of a two-part series. In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate solution to this production issue. In the second article, we will explain why the non-intuitive immediate solution works and how we eventually found a more permanent solution."
 ---

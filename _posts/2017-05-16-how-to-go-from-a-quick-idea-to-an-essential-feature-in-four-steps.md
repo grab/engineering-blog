@@ -7,6 +7,7 @@ authors: [da.huang, sienyi.tan]
 category: [Data Science, Product]
 tags: [Data Science, Product Management]
 comments: true
+cover_photo: /img/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps/banner-img.png
 excerpt: "How do you work within a startup team and build a quick idea into a key feature for an app that impacts millions of people? It's one of those things that is hard to understand when you just graduate as an engineer."
 ---
 

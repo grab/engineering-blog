@@ -6,6 +6,7 @@ date: 2016-02-04 03:46:00
 authors: [lian.yuanlin]
 categories: [Engineering]
 tags: [Post Mortem]
+cover_photo: /img/grab-you-some-post-mortem-reports/banner-img.png
 comments: true
 ---
 
