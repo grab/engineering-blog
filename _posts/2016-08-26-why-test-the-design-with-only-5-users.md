@@ -7,6 +7,7 @@ authors: [avinash.papatla]
 categories: [Design]
 tags: [User Research, UX]
 comments: true
+cover_photo: /img/why-test-design/banner-img.png
 excerpt: "The reasoning behind small sample sizes in qualitative usability research."
 ---
 
