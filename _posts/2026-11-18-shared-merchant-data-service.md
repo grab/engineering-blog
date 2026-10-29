@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-11-10-shared-merchant-data-service
+id: 2026-11-18-shared-merchant-data-service
 title: 'How a shared merchant data service can degrade gracefully'
-date: 2026-11-10 00:00:00
+date: 2026-11-18 00:00:00
 authors: [kang.huang, zhouchun.wang]
 categories: [Engineering]
 tags: [Resilience, Caching, Merchant Data, Backend, Engineering]
