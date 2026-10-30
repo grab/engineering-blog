@@ -1,8 +1,8 @@
 ---
 layout: post
-id: 2026-11-02-part-1-ads-simulation-blogpost
+id: 2026-11-18-part-1-ads-simulation-blogpost
 title: 'Part 1: Simulation-first AI experimentation for ads at Grab'
-date: 2026-10-30 00:00:00
+date: 2026-11-18 00:00:00
 authors: [abhinav.rai, chongyu.zhou, nguyenminhchau.le, yvonne.wong]
 categories: [Engineering]
 tags: [Artificial Intelligence, Advertising, Simulation, Experimentation, Engineering]
