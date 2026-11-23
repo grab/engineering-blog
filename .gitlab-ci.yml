@@ -1,4 +1,4 @@
-image: ruby:3.2
+image: docker-registry.gitlab.myteksi.net/library/ruby:3.2
 
 stages:
   - test
@@ -10,22 +10,28 @@ variables:
   GITHUB_REPO_SLUG: "grab/engineering-blog"
   STAGING_SITE_URL: "http://engineering.pages.myteksi.net/public/engineering-blog"
   STAGING_ASSET_ORIGIN: "https://engineering.grab.com"
+  # RaaS runners have no external egress: resolve gems via the internal Artifactory RubyGems remote.
+  GEM_MIRROR: "https://artifacts.gitlab.myteksi.net/artifactory/api/gems/remote--gems--rubygems/"
 
 cache:
   paths:
     - vendor/bundle
 
+.gem_setup: &gem_setup
+  - gem sources --clear-all --add "$GEM_MIRROR"
+  - gem install bundler -v 2.7.2 --clear-sources --source "$GEM_MIRROR" --no-document
+  # Redirect the Gemfile/Gemfile.lock rubygems.org source to Artifactory without editing them.
+  - bundle config set --global mirror.https://rubygems.org "$GEM_MIRROR"
+  - bundle config set path "$BUNDLE_PATH"
+  - bundle install --frozen
+
 .bundle_install:
   before_script:
-    - gem install bundler -v 2.7.2
-    - bundle config set path "$BUNDLE_PATH"
-    - bundle install --frozen
+    - *gem_setup
 
 .git_deploy_setup:
   before_script:
-    - gem install bundler -v 2.7.2
-    - bundle config set path "$BUNDLE_PATH"
-    - bundle install --frozen
+    - *gem_setup
     - git config --global user.email "gitlab-ci@users.noreply.gitlab.com"
     - git config --global user.name "GitLab CI"
 

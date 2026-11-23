@@ -6,6 +6,7 @@ date: 2016-10-12 18:43:40
 authors: [wuingiap.foo]
 tags: [User Trust]
 comments: true
+cover_photo: /img/lorin-awards/banner-img.png
 excerpt: "I am honoured to receive the Best Fraud Prevention Innovation (Community Votes) Award at the 2016 Florin Awards on behalf of Grab. For those of you who voted for Grab, we thank you for your support that made this award possible."
 ---
 

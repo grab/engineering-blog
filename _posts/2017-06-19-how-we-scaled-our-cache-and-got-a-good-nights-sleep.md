@@ -7,6 +7,7 @@ authors: [gao.chao]
 categories: [Engineering]
 tags: [Backend, Redis]
 comments: true
+cover_photo: /img/how-we-scaled-our-cache-and-got-a-good-nights-sleep/banner-img.png
 excerpt: "Caching is arguably the most important and widely used technique in computer industry, from CPU to Facebook live videos, cache is everywhere."
 ---
 

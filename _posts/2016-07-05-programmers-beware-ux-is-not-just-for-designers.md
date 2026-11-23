@@ -6,6 +6,7 @@ date: 2016-07-05 08:23:00
 authors: [corey.scott]
 categories: [Engineering]
 tags: [API, UX]
+cover_photo: /img/programmers-beware-ux-is-not-just-for-designers/banner-img.png
 comments: true
 excerpt: "Perhaps one of the biggest missed opportunities in Tech in recent history is UX.
 
