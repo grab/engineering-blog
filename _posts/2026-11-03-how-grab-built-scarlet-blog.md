@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2026-11-03-how-grab-built-scarlet-blog-draft
+id: 2026-11-03-how-grab-built-scarlet-blog
 title: 'How Grab built Scarlet: the AI teammate that turns a Slack message into a production data pipeline'
 date: 2026-11-03 00:00:00
 authors: [ayan.chatterjee, nipun.soni, rishi.raj, sneh.agrawal]
