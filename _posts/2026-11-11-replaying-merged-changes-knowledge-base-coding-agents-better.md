@@ -3,7 +3,7 @@ layout: post
 id: 2026-11-11-replaying-merged-changes-knowledge-base-coding-agents-better
 title: 'Replaying merged changes: how we test whether a knowledge base makes coding agents better'
 date: 2026-11-11 00:00:00
-authors: [sayam.bohra]
+authors: [sayam.bohra, haotian.mi, victor.huang]
 categories: [Engineering]
 tags: [Artificial Intelligence, Knowledge Base, Coding Agents, Evaluation, Engineering]
 comments: true
