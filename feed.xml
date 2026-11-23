@@ -6,9 +6,533 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 21 Oct 2026 02:50:50 +0000</pubDate>
-    <lastBuildDate>Wed, 21 Oct 2026 02:50:50 +0000</lastBuildDate>
+    <pubDate>Mon, 23 Nov 2026 14:52:58 +0800</pubDate>
+    <lastBuildDate>Mon, 23 Nov 2026 14:52:58 +0800</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Replaying merged changes: how we test whether a knowledge base makes coding agents better</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Every session, you get a new teammate: a coding agent. It reads code faster than you and has seen more of it than your whole team put together. What it does not have is any memory of how your service got this way.&lt;/p&gt;
+
+&lt;p&gt;It can see what the code does. It cannot see why a limit lives in configuration, which nightly job breaks if you touch a shared client, or what an old review thread settled. So it asks, or it guesses.&lt;/p&gt;
+
+&lt;p&gt;We built a knowledge base to fill that gap. For each backend service, it maps how requests move through the code, what a change could break, which configuration values the code runs with, and why the team made the calls it did. Agents load it before they touch a service.&lt;/p&gt;
+
+&lt;p&gt;The harder part was knowing whether it helped. A plan that reads well can still be wrong, and every agent session starts from scratch, so you cannot watch an agent improve the way you watch a new hire settle in. We found the answer key in our Git history.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-context-is-hard-to-judge&quot;&gt;Why context is hard to judge&lt;/h2&gt;
+
+&lt;p&gt;It is easy to keep adding context, and every new file feels like progress. Each one also takes up some of the agent’s attention, can contradict something else it was told, and starts going stale the day it lands. More context can leave an agent worse and more expensive at the same time.&lt;/p&gt;
+
+&lt;p&gt;We wanted a number for three reasons:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Opinions do not add up.&lt;/strong&gt; Ask an engineer or a large language model (LLM) whether a piece of context is useful and you will get an opinion. Ten opinions will not tell you which of ten additions helped.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Public benchmarks measure something else.&lt;/strong&gt; They test models on public repositories, which the models may have seen in training. &lt;a href=&quot;https://engineering.grab.com/grab-bench-evaluating-ai&quot;&gt;Grab Bench&lt;/a&gt; tests models and agents on Grab-shaped work. We wanted to hold the model fixed, change only the context, and measure the effect on our own code.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Our knowledge base updates itself.&lt;/strong&gt; It changes whenever a merge request (MR) lands, and we are adding design documents and discussion threads as sources. Anything that rewrites itself that often needs a check before each update goes live, and a check needs a score.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;what-the-knowledge-base-holds&quot;&gt;What the knowledge base holds&lt;/h2&gt;
+
+&lt;p&gt;For each backend service, an offline build reads the code and writes a set of structured files. Agents pull them in through a skill, a packaged set of instructions they load when a task needs it, and engineers read the same files directly. Any factual claim an agent makes from them has to cite a file and line.&lt;/p&gt;
+
+&lt;p&gt;We build it in two passes. The first is plain code analysis with no LLM involved. It parses the service into syntax trees and extracts entry points, imports, configuration keys, and the actual call graph. Only then do LLM sub-agents write summaries and flow documents on top of that structure, and a verifier checks each batch before the build accepts it. The model is describing a call graph we handed it, so it never has to guess one.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/figure-1a.png&quot; alt=&quot;Table of knowledge base layers and how agents use each one&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1a. Layers in a service knowledge base and how agents use them.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/figure-1b.png&quot; alt=&quot;Diagram of how a service knowledge base is built and kept current&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1b. How a service knowledge base is built and kept current.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Two details matter for the evaluation. The knowledge base lives in Git, so every change to it is a reviewed diff. When MRs merge, an update job rebuilds only the files and flows they touched and opens a knowledge MR for the service owners to approve. Every build also records the commit it indexed, which gives the test a clean cutoff.&lt;/p&gt;
+
+&lt;p&gt;The first build indexes the whole service, and later updates rebuild only what changed. We use this approach across a growing number of our backend services.&lt;/p&gt;
+
+&lt;h2 id=&quot;every-merged-change-is-an-exam-with-an-answer-key&quot;&gt;Every merged change is an exam with an answer key&lt;/h2&gt;
+
+&lt;p&gt;Every merged MR is a solved problem. Someone wrote it, someone reviewed it, and it shipped. Rewind the repository to the commit just before the merge, give an agent the same request with the solution stripped out, and the merged diff becomes the answer key. Traders do something similar with backtesting. Before trusting a strategy with real money, they run it against history, where every outcome is already known.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/figure-2.png&quot; alt=&quot;Diagram of the replay loop comparing two agents with and without the knowledge base&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. The replay loop. Both agents start from the same request and the same pre-merge code. Only one line in their prompts differs.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Each run has six steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;strong&gt;Select.&lt;/strong&gt; Take recent MRs that changed the service and merged after the knowledge base snapshot.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scrub the request.&lt;/strong&gt; Rebuild the request from the MR title and the text that states the need and the expected outcome. Strip file paths, links, code, and anything that describes the solution.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Rewind.&lt;/strong&gt; Create an isolated Git worktree at the exact pre-merge commit.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Plan twice.&lt;/strong&gt; Run two identical agents on the same code with the same time budget. Agent A plans from the code alone. Agent B’s prompt has one extra line that turns on the knowledge base skill.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Grade.&lt;/strong&gt; An LLM grader scores each plan against the merged diff on a fixed rubric.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Pair.&lt;/strong&gt; Compare the two scores for each MR, then aggregate across the set.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;for mr in select_mrs(service, merged_after=kb_snapshot_date):
+    ask = scrub(mr.title, mr.description)        # need and outcome only
+    repo = worktree_at(mr.parent_commit)         # the code as it was before the merge
+    answer_key = mr.diff                         # never shown to the agents
+
+    plan_a = agent.plan(ask, repo)                             # code only
+    plan_b = agent.plan(ask, repo, skills=[knowledge_base])    # the only difference
+
+    for variant, plan in ((&quot;a&quot;, plan_a), (&quot;b&quot;, plan_b)):
+        record(mr, variant, grader.score(plan, answer_key, rubric))
+
+report(paired_means(), better_tied_worse(), largest_movers())
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;em&gt;The following is illustrative pseudocode. The function and variable names are simplified.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;The agents write a plan, not code. A plan lists which files to change and how, the risks, how to verify the change, and how confident the agent is. We stopped at the plan on purpose. Writing a change takes two skills: working out what it needs, and then writing it correctly. The knowledge base is there to help with the first, and a plan shows that part directly, without the model’s coding ability moving the score. Code has many right answers, and two correct implementations rarely match line for line, so diffing an agent’s code against the merged code would penalise valid alternatives. Plans are also quick to produce, so we can rerun a full 50-MR sweep with both variants whenever something changes.&lt;/p&gt;
+
+&lt;p&gt;A good plan still is not working code. It can be implemented badly, and some mistakes only show up when the code runs. We have also run the replay with agents writing code, but the results here cover plans only.&lt;/p&gt;
+
+&lt;h2 id=&quot;making-the-test-fair&quot;&gt;Making the test fair&lt;/h2&gt;
+
+&lt;p&gt;It is easy to build a replay test that looks fine and measures nothing. Five decisions keep ours honest.&lt;/p&gt;
+
+&lt;h3 id=&quot;grade-against-what-shipped&quot;&gt;Grade against what shipped&lt;/h3&gt;
+
+&lt;p&gt;Plans do not come with tests, so an LLM grades them, and LLM graders are easy to impress. A fluent, confident plan can score well while missing the point entirely. Our grader always has the merged diff in front of it, and every point it gives has to trace back to that diff. A plan that sounds right but misses what shipped scores low.&lt;/p&gt;
+
+&lt;h3 id=&quot;keep-the-answer-out-of-the-exam&quot;&gt;Keep the answer out of the exam&lt;/h3&gt;
+
+&lt;p&gt;A test like this fails quietly when the answer leaks in. We close four paths:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Through the knowledge base.&lt;/strong&gt; A knowledge base built after an MR merged may already describe that change. We only replay MRs that merged after the snapshot, so the knowledge always predates the answer.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Through the request.&lt;/strong&gt; MR descriptions often spell out the solution. The scrubber keeps the need and the expected outcome, and strips file paths, links, code, function names, and sections like “implementation” or “changes made”. If nothing usable is left, a separate LLM call rewrites the request with one rule: describe the need and the outcome, never the approach.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Through the repository.&lt;/strong&gt; Agents work in a worktree at the pre-merge commit and are told not to look up the MR, its diff, or later history. The answer keys live outside the worktree.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Through the grader.&lt;/strong&gt; Each grader sees one plan and the diff. It never sees the other variant’s plan, so it cannot grade on a curve.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Here is what the scrub does to a made-up MR:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/table-1.png&quot; alt=&quot;Example of scrubbing an MR request before and after&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Table 1. Example scrub of a made-up MR request. Illustrative only.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;choose-changes-worth-planning&quot;&gt;Choose changes worth planning&lt;/h3&gt;
+
+&lt;p&gt;Some MRs have nothing to plan, and a set full of them drifts towards ties. The selector skips reverts, dependency bumps, test-only changes, file moves, MRs that mostly touch code outside the service, and single-file changes under about 15 lines. What is left is work an engineer would have to think through.&lt;/p&gt;
+
+&lt;h3 id=&quot;use-a-rubric-a-reviewer-would-recognise&quot;&gt;Use a rubric a reviewer would recognise&lt;/h3&gt;
+
+&lt;p&gt;Each plan can earn up to 8 points across five dimensions, based on what a human reviewer checks:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/table-2.png&quot; alt=&quot;Rubric dimensions and maximum points for grading plans&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Table 2. Rubric dimensions and maximum points.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Three rules shape the scores:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Every point traces to the diff.&lt;/strong&gt; Confidence on its own earns nothing.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Open decisions are capped.&lt;/strong&gt; The failure we saw most often was an agent handing a core decision back to a human. A plan that does that scores at most 1 on each of the first two dimensions.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scoring is award-only.&lt;/strong&gt; Correct extra scope costs nothing, and wrong scope earns nothing.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The grader explains every score with references to the plan and the diff, and we read the biggest score changes and the edge cases ourselves.&lt;/p&gt;
+
+&lt;h3 id=&quot;change-one-thing-then-repeat&quot;&gt;Change one thing, then repeat&lt;/h3&gt;
+
+&lt;p&gt;The two agent prompts differ by a single line. The MR, the code, the request, the time budget, the grader, and the rubric all stay the same, so any change in score comes from the knowledge base.&lt;/p&gt;
+
+&lt;p&gt;The same setup works for other comparisons. Swap the model or the agent harness instead, and the same MRs and grader measure that. Our first sweep ran five agent stacks from three model providers, each with and without the knowledge base, so the scores also compare across stacks.&lt;/p&gt;
+
+&lt;p&gt;Agents are probabilistic, so a single run is just one sample. We average repeat runs for each MR and variant before pairing them. Timeouts and missing plans are reported separately and never count as zero.&lt;/p&gt;
+
+&lt;h2 id=&quot;one-change-two-plans&quot;&gt;One change, two plans&lt;/h2&gt;
+
+&lt;p&gt;Here is how the two plans differed on the made-up refund request. The details are invented, but the pattern is the one we saw most. Without the knowledge base, the agent hands settled questions back to the reviewer. With it, the agent answers them and says where each answer came from.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/table-3.png&quot; alt=&quot;Side-by-side comparison of plans with and without the knowledge base&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Table 3. Side-by-side plans for a made-up refund request. Illustrative only.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;That is a reason the code cannot give. A decision record, distilled from earlier MRs, explains why limits live in configuration: on-call engineers can raise them during an incident without a deploy. The code shows where the limit is read. Only the record says why, and the plan cited it.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-we-found&quot;&gt;What we found&lt;/h2&gt;
+
+&lt;p&gt;We replayed 50 recent MRs from a large, actively developed backend service, across five agent stacks from three model providers.&lt;/p&gt;
+
+&lt;p&gt;Planning performance improved across the board, with knowledge quality outweighing model tier. With the knowledge base, every stack beat the strongest stack without it, including the budget-tier and previous-generation models. Stronger baselines gained less. If you are choosing between a bigger model and better context, it comes down to cost.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/figure-3.png&quot; alt=&quot;Bar chart of average plan scores with and without the knowledge base across agent stacks&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Average plan score out of 8 for each agent stack, with and without the knowledge base, across 50 MRs.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;strong&gt;Most of the gain came from knowledge built from the code.&lt;/strong&gt; On one stack, we added the layers one at a time. Flow documents, impact maps, and live configuration values delivered most of the lift, and decisions, glossary, and conventions added the rest. Flow documents and impact maps contain nothing the code does not already say. What they save is the searching and guessing the agent would otherwise repeat on every task, along with the variance that comes with it.&lt;/p&gt;
+
+&lt;p&gt;If you build one thing, start with flow documents and impact maps. They come straight from the code, so you can compute and check them, and they carried most of the lift in our runs. Add decisions and conventions once updates from merged MRs are flowing.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Most plans improved, and the weakest improved most.&lt;/strong&gt; On the stack we ran most often, the knowledge base made plans better on more than half the MRs and tied on almost all the rest. The number of plans with full marks nearly tripled. The weakest quarter went from about half marks to about three quarters.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/figure-4.png&quot; alt=&quot;Chart of average score per rubric dimension with and without the knowledge base&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Average score per rubric dimension as a share of its maximum, with and without the knowledge base, across 50 MRs on one agent stack.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The biggest jumps were in “Found the right code”, “Understood the intent”, and “Was honest about uncertainty”, each up by more than a fifth of its range. With knowledge, agents found the code the change needed, understood why it changed, and only claimed confidence they could back up. “Saw the risks” and “Planned verification” were already at or near full marks, so there was little room to move.&lt;/p&gt;
+
+&lt;h2 id=&quot;every-knowledge-update-takes-the-same-exam&quot;&gt;Every knowledge update takes the same exam&lt;/h2&gt;
+
+&lt;p&gt;The replay also protects the knowledge base itself. When it changes in a big way, such as a new source, a new format, or auto-learned context, we replay the same MRs against the current version and the updated one. If the score holds, the update ships. If it drops, the update waits, and its owner gets the list of MRs that got worse. Routine updates from merged MRs keep flowing as usual.&lt;/p&gt;
+
+&lt;p&gt;A weaker update gets caught here, before any agent plans with it. We hold knowledge to the same bar as code: it has to pass its tests.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/coding-agents-better/figure-5.png&quot; alt=&quot;Diagram of the knowledge update gate using replay scores&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. The knowledge update gate. A material update replays the same MRs, and the score decides whether it ships.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;what-we-learned&quot;&gt;What we learned&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;The use case picks the evaluation.&lt;/strong&gt; MR planning comes with an answer key in every merged change, so that is what we evaluated. Other kinds of knowledge will need answer keys of their own.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Known structure beats guessed structure.&lt;/strong&gt; Let LLMs describe structure, not discover it. In our experiments agents did better when they searched a link graph we built from the code than one whose links an LLM had guessed. Chunked similarity search also had trouble working out the order of events and which information was current.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;what-comes-next&quot;&gt;What comes next&lt;/h2&gt;
+
+&lt;p&gt;The replay idea works for any finished piece of work with a recorded outcome, like a resolved incident or an answered metrics question. We are building a shared knowledge layer across engineering, analytics, data science, and product, and each part will have to earn its place the same way.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;A service’s merge history is a record of solved problems with the solutions attached. Replaying it turned our knowledge base from something we believed in into something we can measure, and every major update now has to pass the same test before it ships. If you are building context for coding agents, you can start the same way: pick 50 merged changes, rewind, and grade the plans against what shipped.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 11 Nov 2026 08:00:00 +0800</pubDate>
+        <link>https://engineering.grab.com/replaying-merged-changes-knowledge-base-coding-agents-better</link>
+        <guid isPermaLink="true">https://engineering.grab.com/replaying-merged-changes-knowledge-base-coding-agents-better</guid>
+        
+        <category>Artificial Intelligence</category>
+        
+        <category>Knowledge Base</category>
+        
+        <category>Coding Agents</category>
+        
+        <category>Evaluation</category>
+        
+        <category>Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
+    
+      <item>
+        <title>How Grab built Scarlet: the AI teammate that turns a Slack message into a production data pipeline</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;In the blog &lt;a href=&quot;https://engineering.grab.com/from-firefighting-to-building&quot;&gt;From firefighting to building&lt;/a&gt;, we described the agents our Analytics Data Warehouse (ADW) team built to take routine work off data engineers. Scarlet was the Enhancement Agent in that post. It read a ticket, wrote the change, and opened a merge request (MR) for an engineer to review. A routine enhancement dropped from about a day to one or two hours.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/scarlet/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. A pipeline change without Scarlet.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Then other teams asked for it, and four limits became clear:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;One team only:&lt;/strong&gt; Scarlet’s repository and conventions lived in a single system prompt sent on every request. A second team meant forking the bot.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;No proof the data was right:&lt;/strong&gt; Scarlet could run a change in a test environment, but nothing checked whether the output data was correct. That hour of manual validation still fell to a person, and it was the step most often skipped.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Shared access:&lt;/strong&gt; Early versions of Scarlet did not tie each action to the permissions of the person who requested it.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Slack only:&lt;/strong&gt; Every request needed someone to type it into a thread.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This post is about closing those gaps. We rebuilt Scarlet around a short core prompt and a library of skills: Markdown documents, one per capability or per team, loaded only when a request needs them. The prompt shrank about 25 times, and teams now review that knowledge like code. Scarlet also tests the data its changes produce, runs under the asker’s own permissions, and takes work from Jira tickets and other agents.&lt;/p&gt;
+
+&lt;p&gt;Since this version reached production in May 2026, the repositories Scarlet ships to have grown about four times, weekly usage has roughly tripled, and the merge rate has climbed from about half to more than four in five. The merge still belongs to a person.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-scarlet-does&quot;&gt;What Scarlet does&lt;/h2&gt;
+
+&lt;p&gt;To recap our initial blog: an engineer pastes a ticket into a Slack thread, Scarlet finds the repository and pipeline, checks the catalog, writes the change, and opens an MR for a human to review. That loop has not changed. Neither has the boundary: Scarlet has no merge or approve call, so merging stays with people.&lt;/p&gt;
+
+&lt;p&gt;Everything around that loop has changed.&lt;/p&gt;
+
+&lt;p&gt;In the thread:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;A plain-language description is enough. No ticket needed.&lt;/li&gt;
+  &lt;li&gt;Scarlet posts a plan before it touches a file.&lt;/li&gt;
+  &lt;li&gt;A live plan card shows each tool call as in progress, complete, or failed, with a cancel button.&lt;/li&gt;
+  &lt;li&gt;Follow-ups keep the earlier context, so “add one more column” needs no repetition.&lt;/li&gt;
+  &lt;li&gt;Attached files load as reference material, never as instructions.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In the MR: a structured description, a bot label, and the requester tagged and assigned. If the branch already has an open MR, Scarlet updates it instead of opening another.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/scarlet/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:60%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Scarlet&apos;s live plan card during a pipeline build.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Scarlet now also works with the data catalog and the data quality platform, and handles far more scheduler actions than before. On each of them it follows one rule: show what it is about to do, then wait for a yes.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Catalog and data quality changes:&lt;/strong&gt; Scarlet posts the exact update it will write and waits for approval.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Scheduler actions:&lt;/strong&gt; Scarlet spells out which host, which directed acyclic graph (DAG), which run, and what it will do, then waits for approval.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Read-only requests:&lt;/strong&gt; no approval needed.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Data contracts:&lt;/strong&gt; Scarlet will not create one for a table whose quality checks are failing. A data contract tells downstream users the table is safe to depend on, and a table with failing checks is not.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Scarlet also answers questions about the data, such as how many rows landed yesterday. It runs those queries as the person asking and returns only aggregates, never per-person rows, under a hard cap that holds even if the model ignores its instructions.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-the-agent-plans-and-acts&quot;&gt;How the agent plans and acts&lt;/h2&gt;
+
+&lt;p&gt;A request passes through four layers:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Slack carries the conversation and progress updates.&lt;/li&gt;
+  &lt;li&gt;A reasoning loop picks the next action.&lt;/li&gt;
+  &lt;li&gt;The skill library supplies the instructions for the current team and workflow.&lt;/li&gt;
+  &lt;li&gt;An action layer reaches Jira, GitLab, Airflow, Google Docs and Sheets, and our internal data platforms.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/scarlet/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. How a Slack message becomes a merge request.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The first post described streamlining more than thirty verbose tool descriptions. Scarlet now goes further. Each internal platform sits behind a Model Context Protocol (MCP) bridge with two tools, one to list operations and one to call them, and schemas load only when needed. A platform with dozens of operations adds nothing to a request that never touches it.&lt;/p&gt;
+
+&lt;p&gt;Scarlet has two identities, split by what it touches:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Data platforms (catalog, data quality, jobs, scheduler): Scarlet has no credentials of its own. Each operation runs as the requesting user through a short-lived token from their sign-in, so anything they cannot touch fails for Scarlet too.&lt;/li&gt;
+  &lt;li&gt;Source control: operations run as the Scarlet bot, so a machine-authored MR is easy to spot.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When a user asked how its access worked, Scarlet summed it up: “I can only do what you can do. I’m an accelerator for your own permissions, not a bypass around them.”&lt;/p&gt;
+
+&lt;p&gt;Every reply ends with a footer linking to its full trace, so a reviewer can see exactly what Scarlet did and why.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-skill-library&quot;&gt;The skill library&lt;/h2&gt;
+
+&lt;p&gt;Scarlet’s core prompt contains no workflow detail. It tells the model to load the relevant skills before acting. Skills describe how to do the work, and tools do it.&lt;/p&gt;
+
+&lt;p&gt;Each skill is a Markdown document that defines one capability or one team’s conventions, plus the skills it depends on. The table certification skill, for example, pulls in the catalog and data quality skills it relies on.&lt;/p&gt;
+
+&lt;p&gt;The library has four kinds of skill:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Platform skills cover common operations, such as reading tickets, finding tables, and opening MRs.&lt;/li&gt;
+  &lt;li&gt;Routing skills work out which team and repository a request belongs to.&lt;/li&gt;
+  &lt;li&gt;Repository skills record a team’s repository, schema ownership, scheduler, labels, and conventions.&lt;/li&gt;
+  &lt;li&gt;Workflow skills run end-to-end tasks: building pipelines, rewiring sources, certifying tables, validating data changes, and reviewing MRs.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/scarlet/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. Skill resolution.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;A skill goes through the same life cycle as code:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;An author writes or changes a skill and opens an MR. Scarlet can draft this MR itself.&lt;/li&gt;
+  &lt;li&gt;Reviewers approve it the way they review code.&lt;/li&gt;
+  &lt;li&gt;A pipeline validates the skill and publishes an immutable bundle.&lt;/li&gt;
+  &lt;li&gt;At startup, Scarlet activates one bundle version and writes that version into its prompt, so every answer traces back to the exact instructions that produced it.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;A new team joins by adding one repository skill. The library has roughly tripled since July. Much of that growth is team skills, and several of them were written by the teams that use them.&lt;/p&gt;
+
+&lt;h2 id=&quot;validating-the-data&quot;&gt;Validating the data&lt;/h2&gt;
+
+&lt;p&gt;Continuous integration (CI) proves that the code runs. It cannot prove that the data is right: a join that silently drops rows, a column that is suddenly half null, or a swap that overwrites yesterday’s output all pass CI. Manual checks were easy to deprioritize, because they take longer and typically require familiarity with both Structured Query Language (SQL) and the tables involved.&lt;/p&gt;
+
+&lt;p&gt;Scarlet now tests the data as part of the change. This job used to belong to a separate validation bot, and we folded it into Scarlet. The flow:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;During CI, our data platform runs the candidate change in an isolated environment and publishes a manifest linking the commit to the table it produced.&lt;/li&gt;
+  &lt;li&gt;Scarlet reads the manifest, so it has real candidate output before anyone reviews the MR.&lt;/li&gt;
+  &lt;li&gt;From the change, Scarlet works out what to compare: the target table, the changed columns, and the table’s keys and partitions.&lt;/li&gt;
+  &lt;li&gt;It runs its checks against the current production table.&lt;/li&gt;
+  &lt;li&gt;It posts a verdict of pass, fail, or inconclusive, with evidence for every check, bound to the exact commit it tested.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;The checks:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Schema and type differences.&lt;/li&gt;
+  &lt;li&gt;Row counts.&lt;/li&gt;
+  &lt;li&gt;Duplicates and key reconciliation.&lt;/li&gt;
+  &lt;li&gt;Null rates and column profiles.&lt;/li&gt;
+  &lt;li&gt;Numeric statistics such as minimum, maximum, mean, and spread.&lt;/li&gt;
+  &lt;li&gt;Row-level differences between the two outputs.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The rules:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;The kind of change sets the mandatory checks, and requesters can add their own scenarios in the ticket.&lt;/li&gt;
+  &lt;li&gt;Inconclusive counts as a failure.&lt;/li&gt;
+  &lt;li&gt;If the change moves after testing, the verdict expires and the checks run again.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Automated checks can make MR validation and table comparisons less time-consuming than manual review.&lt;/p&gt;
+
+&lt;p&gt;We are extending the same flow past the merge. Scarlet will watch the first production run after an MR merges, rerun its checks against the live output, and, if they fail, raise a revert MR for a human to approve.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/scarlet/figure-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Testing a change&apos;s data.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;beyond-slack&quot;&gt;Beyond Slack&lt;/h2&gt;
+
+&lt;p&gt;Not every request starts with a Slack message anymore. There are three ways in:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Slack thread: the flow described above.&lt;/li&gt;
+  &lt;li&gt;Jira label: within about five minutes of a ticket being labeled for Scarlet, it picks the ticket up, starts a thread in its channel, tags the assignee, and works the ticket through to the MR.&lt;/li&gt;
+  &lt;li&gt;Command line and run application programming interface (API): engineers use Scarlet from a terminal, and coding assistants such as Codex and Cursor call it as a tool. The agent, its skills, and every credential stay on the server, and sign-in pauses work as they do in Slack.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;seeing-it-in-action&quot;&gt;Seeing it in action&lt;/h2&gt;
+
+&lt;p&gt;The first post walked through a single column change for our own team. These three cases show new kinds of work and new teams.&lt;/p&gt;
+
+&lt;h3 id=&quot;our-own-first-pipelines&quot;&gt;Our own first pipelines&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Ask:&lt;/strong&gt; onboard a new finance source system into the data lake, which needed many similar pipelines. An engineer described the task in a single message.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;What Scarlet did:&lt;/strong&gt; read the source schema from the catalog, generated the transformation, DAG, and dependency files, and opened an MR within 30 seconds of the go-ahead. CI passed about five minutes later.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Result:&lt;/strong&gt; every pipeline that week passed CI on the first attempt, and almost all of the generated code shipped without rework. We estimate the work took around 6% of the engineer time it would have taken by hand.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;the-first-merge-request-outside-our-team&quot;&gt;The first merge request outside our team&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Ask:&lt;/strong&gt; an analytics engineer on a commerce team, in their first week with Scarlet, wanted five fields added to a clickstream table.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;What Scarlet did:&lt;/strong&gt; opened the MR, then its own review pass flagged that the field names broke the upstream team’s convention. The engineer picked the convention, and Scarlet updated the MR and the ticket.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Result:&lt;/strong&gt; a reviewer merged it the next day.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;a-team-onboarded-mid-request&quot;&gt;A team onboarded mid-request&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Ask:&lt;/strong&gt; an engineer on a lending analytics team, using Scarlet for the first time, wanted a scheduled job changed for a team Scarlet had never been set up for.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;What Scarlet did:&lt;/strong&gt; when the engineer typed “onboard my team to Scarlet”, it drafted the team’s skill as an MR. After a single sign-in, it updated the job under the engineer’s identity and ran its post-change checks.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Result:&lt;/strong&gt; the skill MR merged the next day, and the job change went through under the engineer’s own permissions.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;lessons-from-production&quot;&gt;Lessons from production&lt;/h2&gt;
+
+&lt;h3 id=&quot;templates-for-predictable-structure&quot;&gt;Templates for predictable structure&lt;/h3&gt;
+
+&lt;p&gt;What happened: during one migration, Scarlet produced a large MR that passed CI and failed at runtime. The model had guessed part of the job configuration.&lt;/p&gt;
+
+&lt;p&gt;What we changed:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Deterministic scaffolds for predictable structures. They run the platform’s own code generator and validate the output against a contract.&lt;/li&gt;
+  &lt;li&gt;A Slack wizard for teams that prefer forms. It never calls the model and captures all the necessary details as required.&lt;/li&gt;
+  &lt;li&gt;A validate, lint, fix loop for generated SQL and configuration. It stops after a few failed attempts and asks a human.&lt;/li&gt;
+  &lt;li&gt;The model keeps only the work that needs judgment: mapping columns, writing transformations, explaining failures.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;sign-in-as-a-pause&quot;&gt;Sign-in as a pause&lt;/h3&gt;
+
+&lt;p&gt;What happened: when Scarlet acts as the user, some platforms need that user to sign in first. At first, hitting one of those mid-run ended the workflow, and replaying the request lost the progress.&lt;/p&gt;
+
+&lt;p&gt;What we changed: sign-in is now a pause. The run checkpoints at a LangGraph interrupt, and the sign-in callback resumes it from that point while the same plan card keeps updating.&lt;/p&gt;
+
+&lt;h3 id=&quot;measuring-without-reading-conversations&quot;&gt;Measuring without reading conversations&lt;/h3&gt;
+
+&lt;p&gt;What happened: the first post’s feedback loop ran on reviewers rating each answer in Slack. Scarlet’s output is an MR reviewed in GitLab, so that loop did not carry over, and after launch we could not say who used Scarlet, for what, or how often it succeeded.&lt;/p&gt;
+
+&lt;p&gt;What we changed: a recorder that captures metadata from the tool stream (requester, source, skills, tools, duration, outcome, intent) without storing conversations. Request text is opt-in, and anything that looks like a credential is redacted. The figures below come from it.&lt;/p&gt;
+
+&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
+
+&lt;p&gt;These figures come from the usage events Scarlet records.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/scarlet/figure-6.png&quot; alt=&quot;&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Weekly usage and merge rate, May to September 2026.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Weekly usage held steady from July to mid-August, then climbed. In the week of 7 September it reached about three times the usual request volume from about twice as many users, and the following week held near twice the usual level.&lt;/li&gt;
+  &lt;li&gt;The share of monthly users who came back for a second week rose from about 42% in July to 56% in August and stayed above 50% in September. The top user’s share fell from nearly half of all requests to under 10%.&lt;/li&gt;
+  &lt;li&gt;Repositories with a Scarlet MR grew about fourfold from May to September, and monthly MRs opened grew more than fourfold from June to September. The merge rate rose from about 50% in May to over 85% in September. Early September alone produced more merged code than the whole of August.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The mix of requests changed as the skill library grew:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Table discovery grew fastest, more than six times from July to September, as new teams explored the catalog before asking for changes.&lt;/li&gt;
+  &lt;li&gt;By September about half of all requests were questions about the data, not changes. Answering under the asker’s own permissions turned out to matter as much as the merge boundary.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;current-limits&quot;&gt;Current limits&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Long threads degrade answer quality, and a very large request can exceed a single model turn. Starting a new thread helps once older context stops being useful.&lt;/li&gt;
+  &lt;li&gt;Coverage gaps: schema and freshness checks only, certification for production tables only, and source rewires stop for a human when fewer than about 70% of columns can be mapped.&lt;/li&gt;
+  &lt;li&gt;Data testing covers code-pipeline changes. Batch-job changes still need an isolated test environment first.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The biggest open problem is uncertainty. When repository conventions do not settle a configuration choice, Scarlet sometimes proceeds without asking. The next step is to make that rule explicit in the skills and check it with regression tests on every release.&lt;/p&gt;
+
+&lt;h2 id=&quot;takeaways&quot;&gt;Takeaways&lt;/h2&gt;
+
+&lt;p&gt;Slack made the work visible. The skill library made it maintainable: a new repository no longer needs a new agent, and teams review the files that hold their conventions. If you are building something similar, keep the model for the judgment calls and write every convention down as a file someone can review.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;The first post drew the line at anything that changes production: those actions wait for a human. With CI and data validation now in place, we think that line can move for routine work. Now that requests can start from tickets or other agents, every Scarlet MR will pass through one risk-based approval gate:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;CI passes.&lt;/li&gt;
+  &lt;li&gt;Scarlet’s data validation returns pass. A fail or inconclusive verdict goes to a human.&lt;/li&gt;
+  &lt;li&gt;The change is routine. New pipelines, rewired sources, and data contract changes always go to a human.&lt;/li&gt;
+  &lt;li&gt;A change that passes all three checks could move through review faster, with an engineer still making the final call to merge.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Tue, 03 Nov 2026 08:00:00 +0800</pubDate>
+        <link>https://engineering.grab.com/how-grab-built-scarlet-blog-draft</link>
+        <guid isPermaLink="true">https://engineering.grab.com/how-grab-built-scarlet-blog-draft</guid>
+        
+        <category>AI</category>
+        
+        <category>Artificial Intelligence</category>
+        
+        <category>Analytics</category>
+        
+        <category>Database</category>
+        
+        <category>Automation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>App stability at scale with a layered defense</title>
@@ -188,7 +712,7 @@
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
 </description>
-        <pubDate>Wed, 21 Oct 2026 00:23:00 +0000</pubDate>
+        <pubDate>Wed, 21 Oct 2026 08:23:00 +0800</pubDate>
         <link>https://engineering.grab.com/app-stability-at-scale-with-a-layered-defense</link>
         <guid isPermaLink="true">https://engineering.grab.com/app-stability-at-scale-with-a-layered-defense</guid>
         
@@ -304,7 +828,7 @@ Aggregate signal for authorised public health evaluation
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/grbmrt_data&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
 </description>
-        <pubDate>Tue, 13 Oct 2026 00:23:00 +0000</pubDate>
+        <pubDate>Tue, 13 Oct 2026 08:23:00 +0800</pubDate>
         <link>https://engineering.grab.com/grabmart-data-for-faster-disease-outbreak-detection</link>
         <guid isPermaLink="true">https://engineering.grab.com/grabmart-data-for-faster-disease-outbreak-detection</guid>
         
@@ -392,7 +916,7 @@ Aggregate signal for authorised public health evaluation
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/smart_personal_price&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
 </description>
-        <pubDate>Tue, 06 Oct 2026 00:23:00 +0000</pubDate>
+        <pubDate>Tue, 06 Oct 2026 08:23:00 +0800</pubDate>
         <link>https://engineering.grab.com/price-sensitivity-profiling-using-llm</link>
         <guid isPermaLink="true">https://engineering.grab.com/price-sensitivity-profiling-using-llm</guid>
         
@@ -510,7 +1034,7 @@ Aggregate signal for authorised public health evaluation
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;hhttps://grb.to/pwr_ai_research&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
-        <pubDate>Mon, 05 Oct 2026 00:00:00 +0000</pubDate>
+        <pubDate>Mon, 05 Oct 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/powering-ai-led-research-through-simulation</link>
         <guid isPermaLink="true">https://engineering.grab.com/powering-ai-led-research-through-simulation</guid>
         
@@ -628,7 +1152,7 @@ The quality-control step rejects unsupported claims. The regeneration triggers i
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/auto_review_sum&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
-        <pubDate>Fri, 25 Sep 2026 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 25 Sep 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/automated-merchant-review-summary-system-with-integrated-feedback</link>
         <guid isPermaLink="true">https://engineering.grab.com/automated-merchant-review-summary-system-with-integrated-feedback</guid>
         
@@ -794,7 +1318,7 @@ The quality-control step rejects unsupported claims. The regeneration triggers i
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/data_mesh_3/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
-        <pubDate>Fri, 28 Aug 2026 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 28 Aug 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/data-mesh-at-grab-part-three</link>
         <guid isPermaLink="true">https://engineering.grab.com/data-mesh-at-grab-part-three</guid>
         
@@ -928,7 +1452,7 @@ The quality-control step rejects unsupported claims. The regeneration triggers i
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/jarvis_pro_route_first_answer_later&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
-        <pubDate>Fri, 21 Aug 2026 00:00:00 +0000</pubDate>
+        <pubDate>Fri, 21 Aug 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/jarvis-pro-route-firsr-answer-later</link>
         <guid isPermaLink="true">https://engineering.grab.com/jarvis-pro-route-firsr-answer-later</guid>
         
@@ -1090,7 +1614,7 @@ The quality-control step rejects unsupported claims. The regeneration triggers i
 
 &lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/grab_bench_evaluating_ai&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
-        <pubDate>Wed, 12 Aug 2026 00:00:00 +0000</pubDate>
+        <pubDate>Wed, 12 Aug 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/grab-bench-evaluating-ai</link>
         <guid isPermaLink="true">https://engineering.grab.com/grab-bench-evaluating-ai</guid>
         
@@ -1101,396 +1625,6 @@ The quality-control step rejects unsupported claims. The regeneration triggers i
         <category>Product</category>
         
         <category>Machine Learning</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>How AI is transforming analytics at Grab</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;At Grab, analytics sits close to almost every decision that matters. Our north star is the democratisation of intelligence, ensuring that anyone making a business call has immediate access to trustworthy answers.&lt;/p&gt;
-
-&lt;p&gt;Over the last two years, model capability has crossed a threshold enabling this shift. Agents now do in minutes what used to take a week: preparing the data, writing queries, running deep analysis and developing insights for business opportunities, designing experiments and interpreting the results, drafting the commentary that follows, and more. Our throughput is no longer rate-limited by how fast an individual can write code, build a deck, or run a deep-dive. It is rate-limited by &lt;strong&gt;how fast we can frame the right problem, judge the right answer, and influence the right decision&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;As autonomy climbs, an analyst’s impact moves from producing the artefact to owning the question and the call behind it, and the role evolves to become part builder, part advisor, part strategist, owning the loop rather than running it. That unlocks two things at once: work we already do, faster and at lower marginal cost, and work we could never staff before, sitting beside every product manager, business owner, and operator at the moment they decide.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-ladder&quot;&gt;The ladder&lt;/h2&gt;
-
-&lt;p&gt;We were heavily inspired by Dan Shapiro’s framing of five levels for AI coding. We use a similar ladder that defines how much of the loop an agent should own and where human judgement stays for every analytics loop.&lt;/p&gt;
-
-&lt;p&gt;One distinction runs across every level: who owns the loop, and where human judgement is required.&lt;/p&gt;
-
-&lt;table&gt;
-  &lt;colgroup&gt;
-    &lt;col style=&quot;width: 5.5rem;&quot; /&gt;
-    &lt;col style=&quot;width: 22%;&quot; /&gt;
-    &lt;col style=&quot;width: 36%;&quot; /&gt;
-    &lt;col style=&quot;width: 36%;&quot; /&gt;
-  &lt;/colgroup&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th style=&quot;white-space: nowrap;&quot;&gt;Level&lt;/th&gt;
-      &lt;th style=&quot;white-space: nowrap;&quot;&gt;What&lt;/th&gt;
-      &lt;th&gt;Human role&lt;/th&gt;
-      &lt;th&gt;Agent role&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td style=&quot;white-space: nowrap;&quot;&gt;&lt;strong&gt;L2&lt;/strong&gt;&lt;/td&gt;
-      &lt;td style=&quot;white-space: nowrap;&quot;&gt;AI-Assisted&lt;/td&gt;
-      &lt;td&gt;Owns and executes every step; uses AI to draft, suggest, summarise&lt;/td&gt;
-      &lt;td&gt;Drafts SQL, suggests a visualisation&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td style=&quot;white-space: nowrap;&quot;&gt;&lt;strong&gt;L3&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;Human plans, agent owns steps, human reviews&lt;/td&gt;
-      &lt;td&gt;Frames the question, picks the metric, the segment, and the comparison frame, reviews evidence, owns the recommendation&lt;/td&gt;
-      &lt;td&gt;Discovers data, writes and runs the query, sanity checks, drafts the write-up, flags caveats&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td style=&quot;white-space: nowrap;&quot;&gt;&lt;strong&gt;L4&lt;/strong&gt;&lt;/td&gt;
-      &lt;td&gt;Agent plans, agent owns workflows, human reviews&lt;/td&gt;
-      &lt;td&gt;Sets intent and guardrails; reviews at gates (anomaly, novel scope, sensitive cut); owns the stakeholder relationship and sign-off&lt;/td&gt;
-      &lt;td&gt;Orchestrates discovery through query, analysis, validation, narrative and publish; runs validation, escalates exceptions&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td style=&quot;white-space: nowrap;&quot;&gt;&lt;strong&gt;L5&lt;/strong&gt;&lt;/td&gt;
-      &lt;td style=&quot;white-space: nowrap;&quot;&gt;End-to-end autonomous&lt;/td&gt;
-      &lt;td&gt;Sets objectives, quality bars, risk thresholds, escalation rules; reviews exceptions only&lt;/td&gt;
-      &lt;td&gt;Detects anomalies and opportunities, runs the loop, surfaces insight, evolves the metric layer, context and skills&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;Human judgement remains at every level, and autonomy never removes accountability. Humans own problem framing, canonical metric definitions, the causal story behind a move, business-case assumptions, the go/no-go, and the stakeholder relationship. A higher level means more of the mechanical loop sits with the agent and more human attention concentrates on the ambiguous, high-stakes work.&lt;/p&gt;
-
-&lt;h2 id=&quot;making-the-climb&quot;&gt;Making the climb&lt;/h2&gt;
-
-&lt;p&gt;Five core capabilities move a workflow up the ladder. They also gate the climb in order: L3 needs execution and certified context, L4 needs gates and agentic review good enough that reviewing only at gates is honest, L5 needs a learning loop that closes.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Execution:&lt;/strong&gt; A stack that runs the loop end to end rather than a notebook/workflow a human drives.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Knowledge:&lt;/strong&gt; Metrics certified at the right grain, discoverable in our catalogue, grounded in context an agent can read. Ambiguous definitions cause most analytics slop.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Control:&lt;/strong&gt; Repeatable expectations become mechanical checks, while human review handles what a rule cannot.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Review and governance:&lt;/strong&gt; Agents check their own output against the gates and escalate on defined triggers. We govern definitions, targets, risk and exceptions.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Learning:&lt;/strong&gt; When an agent fails the same way twice, we encode the fix into context documents, golden datasets, evals and gates.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;what-this-looks-like-in-practice&quot;&gt;What this looks like in practice&lt;/h2&gt;
-
-&lt;p&gt;What follows is a set of explorations from the last two years. Some run in production today, while others are still teaching us where the limits are.&lt;/p&gt;
-
-&lt;h3 id=&quot;loops-that-run-end-to-end&quot;&gt;Loops that run end to end&lt;/h3&gt;
-
-&lt;p&gt;Spartan is our end-to-end agentic analytics workflow, embedded across surface areas (like Slack), and most of its usage comes from people who are not analysts. On any given day, the Slack channel enables a range of analytics actions: from ads salespeople pulling spend breakdowns for a named merchant, to campaign managers sizing audiences for a target segment, and country teams asking why a number moved week on week. All of it in plain business language.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Index architecture across our knowledge base.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Two requests from July best demonstrate how it works. A commercial manager asked why revenue fell in the Philippines mid-market segment in the last two weeks of June. Separately, a product manager asked for a summary of a frequency-cap experiment on the ads surface. Both arrived as natural language questions in Slack and took entirely different routes through the system.&lt;/p&gt;
-
-&lt;p&gt;The router reads the first as a root-cause question and sends it down the diagnostic path. It identifies the best analysis framework for ads revenue, which is codified knowledge of how the metrics in that domain relate to each other, which dimensions are worth decomposing, and what counts as a meaningful move. Then it works through segment, market and campaign type against certified metrics to isolate what changed. The second question never touches the data lake. The router reads it as an experiment question, selects the experiment skill, pulls the pre-computed scorecard and the test’s own metadata from our experiment platform, and summarises the read rather than recomputing it. This is powered through &lt;strong&gt;50+ skills and 120+ analysis frameworks&lt;/strong&gt; that sit behind that routing decision. Underlying that is an index that tells the agent what to search, context that tells it how to query, and a framework that tells it how to think. Because the frameworks are shared rather than living in an analyst’s head, the interpretation compounds instead of being re-derived every time someone asks.&lt;/p&gt;
-
-&lt;p&gt;The second example of such a loop is Scarlet, which powers near-self-healing pipelines (L4). When a pipeline fails, an agent runs the root-cause analysis, triages, and then either fixes it or hands it to the team that owns the upstream problem. It escalates when the failure sits outside its documented runbooks or the pre-defined gates fire.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-2.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Scarlet in action on Slack.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;context-that-maintains-itself&quot;&gt;Context that maintains itself&lt;/h3&gt;
-
-&lt;p&gt;Context sets an agent’s ceiling. An agent that does not know a metric’s grain, its exclusions, and its caveats will guess and confidently produce wrong outputs at speed and at scale.&lt;/p&gt;
-
-&lt;p&gt;Realising the criticality of this, we have dedicated platform investment, as well as dedicated functional bandwidth to generate context docs.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-3.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. ContextIQ.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Context goes out of date faster than anyone maintains it by hand, so we build the maintenance into our workflows. We built ContextIQ, and its Context Lifecycle Manager, to treat context as something with a lifecycle rather than a document somebody wrote once. A newer skill of ours reads an instrumentation spec alongside the existing context, proposes the SQL changes that follow from it, and updates the context document in the same pass. We work the problem from the other direction too. When we categorise an agent failure in production, we patch the context document behind it.&lt;/p&gt;
-
-&lt;p&gt;Two analysts recently used our internal agents to understand how the packaging fee is stored as a configuration. Having found the answer, the agent opened a merge request that committed both a certified-context table reference and a golden-dataset test case, so the next agent to ask the same question would find the answer already documented and the check already in place. One of the analysts spotted a false positive in it. The agent corrected itself and reopened the merge request. That is the learning capability working as designed, and it happened without anyone setting out to demonstrate it.&lt;/p&gt;
-
-&lt;h3 id=&quot;loops-that-run-unattended&quot;&gt;Loops that run unattended&lt;/h3&gt;
-
-&lt;p&gt;The step from L3 to L4 is mostly the step from interactive to scheduled, and it is where we go down the path of autonomous execution, because no human is watching at the moment the work runs.&lt;/p&gt;
-
-&lt;p&gt;We have built root-cause analysis (RCA) as a platform capability, and it powers our automated metric and OKR commentaries, which are published through automated agents &lt;em&gt;(configurable cadence)&lt;/em&gt;. It judges whether a move is meaningful against standard deviation over six months and year on year, walks the metric tree to find which country, segment or funnel stage carried it, and correlates the operational metrics that moved alongside. Importantly, it also scans internal context for what teams changed on the ground, such as delivery fee and incentive moves, merchant visibility shifts, and experiments shipped in the same period. It also compares the movement against the same period in the previous year, which separates a seasonal effect from a real one and enables it to report a Songkran (Thai New Year) dip as amplified rather than merely expected. All of it is grounded in our own context documents, which keeps the narrative about the business rather than generic model output. The analytics owner is tagged on every report, and edits sync back so corrections land in the system.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-4.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. OKR commentary shared through RCA agent.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h3 id=&quot;analysts-as-builders&quot;&gt;Analysts as builders&lt;/h3&gt;
-
-&lt;p&gt;The clearest evidence that our centre of gravity has moved is &lt;a href=&quot;https://engineering.grab.com/brix&quot;&gt;BriX&lt;/a&gt;, an internal portal we built and run ourselves.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-5.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Home page of BriX.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The premise is to configure once, host everywhere. We configure a system prompt, a set of context files, a model, the MCP connections and an interface once, and what comes out is a purpose-built analytics surface for a particular team or job. Each one inherits certified data, permissions and reusable agent skills rather than being wired up from scratch, and it runs wherever the work already happens: in Slack, invoked from inside an IDE, or on a schedule with nobody watching. We have grown usage more than 10x since September 2025, with strong retention, and every function at Grab now has users on it. Our aim is to put L3 workflows in the hands of people who are not advanced users.&lt;/p&gt;
-
-&lt;p&gt;We run it without a product manager, a technical programme manager or a designer. Our data engineers own the product, the platform, the support queue and the eval loop, with Claude Design doing the interface work and the builders triaging their own bugs. In the first half of this year, they shipped 31 production deployments, 283 merge requests and 60 features.&lt;/p&gt;
-
-&lt;p&gt;Three of our apps show the range:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Insights Lab&lt;/strong&gt; is the general-purpose surface: a stakeholder asks for a metric, a breakdown or a root-cause in natural language, and the agent loads a specialist skill and answers off certified metrics rather than from memory.&lt;/li&gt;
-  &lt;li&gt;We built &lt;strong&gt;Funnelytics&lt;/strong&gt; to enable easy understanding of our consumer funnels. A funnel question used to mean an analyst writing the query and then assembling the view in Tableau or Power BI, and doing it again the next time someone wanted a slightly different path through the app. Now a stakeholder picks the events they care about and Funnelytics queries the raw event stream, builds the Sankey and funnel views, and writes the summary. If they cannot find the right instrumentation, which happens often on products still being redesigned, a live debugger lets them tap through the app on their own phone and watch the events fire.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Monte&lt;/strong&gt; (like Monte Carlo) runs simulations to put a probability on a business outcome. You give each uncertain input a range rather than a single value, and it runs ten thousand scenarios to return the likelihood of hitting a target.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-6.png&quot; alt=&quot;&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Interface of Insights Lab and Funnelytics.
-  &lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Outside the portal, the same instinct shows up in smaller ways. Our analysts have been building more bespoke tools that enable better workflows for themselves and stakeholders.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-path-forward&quot;&gt;The path forward&lt;/h2&gt;
-
-&lt;p&gt;In February, &lt;strong&gt;44%&lt;/strong&gt; of the tickets our analysts closed were mechanical (data preparation, alerting, reporting); by June, that share had fallen to &lt;strong&gt;30%&lt;/strong&gt;. That capacity was redirected to other higher-leverage work, such as building new workflows to enable stakeholder self-serve, as well as more time spent on generating deeper insights for business opportunities.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-7.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 7. Comparison of percentage of tickets closed in Q1 vs Q2.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Importantly, our cycle times reduced by &lt;strong&gt;~33%&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/ai-improve-analytics/figure-8.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 8. Comparison of time taken to resolve a ticket in Q1 vs Q2.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The sharpest version of this sits in a Slack channel where self-serve agents are enabled. In March, an analyst had to step into half of them; by May, it was under a quarter. The share answered with no human involvement rose from 53% to 67% for metric questions, 63% to 90% for data pulls, and 50% to 81% for SQL requests. Just under three in four of the threads were started by someone outside the analytics team, and 85% of them got a first response inside a minute. Nearly every thread is logged as a ticket on the team’s board, and roughly two-thirds of the data exploration tickets on that board now arrive through the channel rather than through an analyst, and are solved by our data agents. &lt;strong&gt;For the ~230 tickets that arrived via the channel, if we apply a conservative assumption of 1–2 days per ticket, that is 230 to 470 business days of stakeholder asks that would have been in the backlog.&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;None of these arrived on a roadmap. They came from analysts who saw a loop worth automating and built it, which is why the climb is uneven. These have been strong proof points for us to believe our investments are working, and many of these workflows are starting to operate at scale. We will keep experimenting and iterating, and we expect to get a fair amount of it wrong. An analyst who owns a loop, sets its quality bar and reviews its exceptions is doing a different job from one who answers questions. Most of our team is somewhere in that transition today, and we truly believe it is changing what analytics is at Grab.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grab.careers/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;
-Special thanks to the contributors: &lt;br /&gt;A3T Braintrust - Maanas Prabhakar, Sneh Agarwal, Nikhil Dwarakanath, Chun Kai Phang, Raghav Garg, Avishek Ghosh, Ankush Khandelwal, Nishant Gupta, Harshita Shah, Lara Pureum Yim, Alex Dobrev&lt;br /&gt;Spar/tan 3.0 - Lara Pureum Yim, Kenrick Tan, Tushar Bose, Yong Kai Lim, Dandy Kennedy, Glen Low, Zian Li&lt;br /&gt;BriX - Sneh Agarwal, Rishi Raj, Kartik Srinivasan, Aseem Kumar, Eddy Lim, Wen Zhong Tan &lt;br /&gt; Funnelytics - Chengxuan Feng, Wingyiu Ng, Zoey Zhou&lt;br /&gt;ContextIQ - Defi Mediana, Karen Koh, Anitha Sreedhar, Wanyi Zhu&lt;br /&gt;Butler Bot - Adhika Putra&lt;br /&gt;Monte - Nikhil Dwarakanath
-&lt;/small&gt;&lt;/p&gt;
-</description>
-        <pubDate>Sat, 01 Aug 2026 00:23:00 +0000</pubDate>
-        <link>https://engineering.grab.com/how-ai-is-transforming-analytics</link>
-        <guid isPermaLink="true">https://engineering.grab.com/how-ai-is-transforming-analytics</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Analytics</category>
-        
-        <category>AI</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Crowdsourced taxonomy verification: A feedback-driven framework for refining knowledge graph relationships via online search interactions</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;The efficacy of semantic search relies on the accuracy of the underlying Knowledge Graph (KG). In high-velocity domains like on-demand food delivery or e-commerce, the catalog of entities like dishes, products, and merchants changes rapidly.&lt;/p&gt;
-
-&lt;p&gt;Current methods for KG construction and maintenance face three critical challenges:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Inaccuracy and hallucination from Large Language Models (LLMs)&lt;/strong&gt;: Automated models often infer relationships based on statistical text co-occurrence rather than semantic reality. For instance, an LLM might incorrectly classify “Pho” as a child of “Italian Noodle Soup” due to linguistic similarity, leading to irrelevant search results.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Scalability limits of manual verification&lt;/strong&gt;: Traditional verification relies on human annotators or domain experts. This approach is slow, expensive, and unable to keep pace with dynamic catalogs containing millions of entities. For example, daily changes in restaurant menus or grocery stock keeping units (SKUs).&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Error propagation in ranking&lt;/strong&gt;: Inaccurate graph edges propagate errors downstream. If a parent-child relationship is wrong, query expansion algorithms will retrieve irrelevant items, directly degrading Click-Through Rate (CTR) and user trust.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We introduce a &lt;strong&gt;feedback-driven verification engine&lt;/strong&gt; that operationalizes the search interface as a validation environment. Key contributions include:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;User feedback-driven verification&lt;/strong&gt;: The system treats unverified graph edges as hypotheses. Instead of accepting them as truth, it tests them against live traffic by injecting them into search suggestions and measuring user engagement.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Hierarchical relationship refinement&lt;/strong&gt;: Unlike systems that only validate entities (nodes), this framework validates structural links (edges). It confirms whether entity A is truly a parent, child, or sibling of entity B, ensuring structural integrity.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Adaptive exploration&lt;/strong&gt;: The system employs a greedy exploration policy. It intelligently balances exploitation by showing known good results with exploration through injecting unverified candidates to gather data without degrading the user experience.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
-
-&lt;p&gt;Automated KG construction using LLMs and unstructured content extraction can scale quickly across large, dynamic catalogs. However, relationships inferred from text co-occurrence or vector similarity do not always reflect semantic reality. Manual verification by domain experts remains accurate but does not scale to millions of entities that change daily.&lt;/p&gt;
-
-&lt;p&gt;When inaccurate edges enter the graph, ranking and query expansion systems propagate those errors to users. Incorrect parent-child or sibling links lead to irrelevant search results, reduced CTR, and lower user trust. An additional solution is required that can validate graph structure continuously, at scale, without relying solely on manual curation.&lt;/p&gt;
-
-&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
-
-&lt;p&gt;The overall workflow of this invention is shown in the following figure. The details of each step are explained in this section.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/crowdsource-taxonomy/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. The system architecture.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;The proposed framework functions as a closed-loop validation ecosystem. It is composed of four integrated modules designed to continuously cycle data from the KG to the user interface and back, using real-world interactions to separate semantic truth from artificial intelligence (AI) hallucinations.&lt;/p&gt;
-
-&lt;p&gt;The verification process follows a continuous, iterative loop that cycles data from the backend graph to the frontend user interface and back. This four-step procedure operationalizes the human-in-the-loop validation mechanism:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;Hypothesis generation&lt;/li&gt;
-  &lt;li&gt;Candidate injection&lt;/li&gt;
-  &lt;li&gt;Signal aggregation and scoring&lt;/li&gt;
-  &lt;li&gt;Graph update logic&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&quot;architecture-details&quot;&gt;Architecture details&lt;/h2&gt;
-
-&lt;h3 id=&quot;kg-core&quot;&gt;KG core&lt;/h3&gt;
-
-&lt;p&gt;The central repository acts as the source of truth, storing entities such as dishes, products, or merchants, and the connections between them. To manage the verification process, the system introduces a specialized metadata layer that classifies every connection (or edge) into one of two distinct states:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Verified edges:&lt;/strong&gt; These are established relationships that have been validated either by high historical traffic or human confirmation. They represent the safe structure of the graph. For example, “Sushi” is definitely a child of “Japanese Cuisine”, and is used to power standard search results.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Candidate edges:&lt;/strong&gt; These are probabilistic, unverified relationships generated by automated LLMs or content scrapers. They are treated as hypotheses waiting to be proven. For example, if an LLM ingests a blog post and predicts that “Pho” is related to “Italian Noodle Soup,” this link is stored as a candidate edge, invisible to the main search algorithm until validated.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;search-and-injection-module&quot;&gt;Search and injection module&lt;/h3&gt;
-
-&lt;p&gt;This module sits between the KG and the user, intercepting the query execution pipeline. Unlike standard ranking algorithms, which strictly optimize for relevance by showing only the best results, the injection engine employs a balanced strategy known as exploration vs. exploitation.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;The injection mechanism:&lt;/strong&gt; When a user performs a search, the system retrieves a list of high-confidence results (exploitation). Simultaneously, it deliberately retrieves a small subset of candidate edges related to the query. It injects these unverified candidates into specific, lower-risk slots within the user interface, such as the third or fourth position in a related searches chip carousel.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Risk management:&lt;/strong&gt; To prevent user frustration, the system limits the number of candidates shown per session. This ensures that the user is primarily served helpful, verified content, while still providing enough data points to test new hypotheses.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;behavior-tracking-module&quot;&gt;Behavior tracking module&lt;/h3&gt;
-
-&lt;p&gt;To accurately measure whether a candidate relationship is valid, the system tracks user micro-interactions with high granularity. It captures not just the final click, but the precise context in which the interaction occurred to determine semantic intent.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Contextual anchoring&lt;/strong&gt;: The system logs the specific search term, also known as the &lt;strong&gt;anchor&lt;/strong&gt;, used by the user. A click on “Pho” is only counted as a vote for the relationship if the user was searching for “Noodle Soup” at the time.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Signal classification&lt;/strong&gt;: Signals are assessed in aggregate to estimate the relevance of a candidate relationship. Higher-intent engagement contributes stronger positive evidence, lighter exploratory behavior contributes weaker positive evidence, and lack of engagement or explicit negative actions contributes negative evidence.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;verification-and-refinement-engine&quot;&gt;Verification and refinement engine&lt;/h3&gt;
-
-&lt;p&gt;This is an offline processing unit that acts as the final judge. It aggregates thousands of individual user signals to update the topology of the KG.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Relevance scoring&lt;/strong&gt;: Instead of complex formulas, the engine calculates a simple confidence ratio. It looks at the total number of times a candidate was shown versus the number of positive interactions it received.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Graph topology updates&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Promotion (verify)&lt;/strong&gt;: If the confidence ratio exceeds a verification threshold. For example, if the candidate performs as well as known good items, the edge is upgraded from candidate to verified. It becomes a permanent part of the graph and is shown to all users.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Demotion (prune)&lt;/strong&gt;: If the candidate consistently fails to garner engagement or receives negative signals, it falls below a pruning threshold. The system automatically deletes this edge, effectively correcting the AI’s hallucination and cleaning the dataset.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;implementation&quot;&gt;Implementation&lt;/h2&gt;
-
-&lt;h3 id=&quot;hypothesis-generation&quot;&gt;Hypothesis generation&lt;/h3&gt;
-
-&lt;p&gt;The process begins by identifying a target subject, referred to as the anchor entity. For example, the specific dish “Pho”. The system queries the KG to retrieve a set of potential relationships. This retrieval includes both verified neighbors, where relationships are already confirmed by experts, and candidate neighbors, where the relationships are predicted by AI models but not yet proven.&lt;/p&gt;
-
-&lt;h3 id=&quot;candidate-injection&quot;&gt;Candidate injection&lt;/h3&gt;
-
-&lt;p&gt;Once a hypothesis is selected, the system exposes it to real users to gather evidence. When a user actively searches for the anchor entity, the system dynamically injects the candidate neighbor into the search results.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;User interface (UI) implementation:&lt;/strong&gt; The candidate is presented alongside verified items, typically in a related categories carousel or a refine search chip list. This reflects standard relevance experimentation in search, with safeguards to ensure the experience remains controlled and measurable.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Exposure logging:&lt;/strong&gt; The system logs an impression event specifically linking the anchor to the candidate. This record serves as the baseline, documenting that the user saw the relationship, which is essential for calculating future engagement rates.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;signal-aggregation-and-scoring&quot;&gt;Signal aggregation and scoring&lt;/h3&gt;
-
-&lt;p&gt;Instead of using a raw count of clicks, the system calculates a sophisticated relationship confidence score by aggregating user interactions over time. This scoring model uses a weighted tier system to distinguish between casual interest and strong intent.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Weighted interaction logic&lt;/strong&gt;: The system assigns a higher value to actions that require more effort or commitment. For example, a “Purchase” or “Add-to-Cart” action is weighted significantly heavier than a simple click, as it indicates a strong validation of the relationship. Conversely, scrolling past the item quickly or skipping is treated as a negative signal.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Normalization&lt;/strong&gt;: To ensure fairness, the total weighted score is normalized against the total number of times the candidate was shown. This prevents niche items with low total traffic but high accuracy from being unfairly penalized.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;graph-update-logic&quot;&gt;Graph update logic&lt;/h4&gt;
-
-&lt;p&gt;Periodically, the verification engine evaluates the confidence score against predefined benchmarks to update the KG’s topology. This is a binary decision process:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;Validation (cementing the edge)&lt;/strong&gt;: If the accumulated confidence score exceeds a strict validation threshold, the system concludes that the relationship is genuine. The status of the edge is updated from candidate to verified. This permanently adds the relationship to the graph, ensuring it appears in future standard searches without the need for further testing.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Rejection (pruning the edge)&lt;/strong&gt;: Conversely, if the score falls below a rejection threshold, indicating that users consistently ignore or reject the suggestion, the system concludes the relationship is an AI hallucination. The edge is severed or removed from the graph. This pruning action cleans the dataset, preventing the system from making the same bad recommendation again.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h4 id=&quot;case-study-hierarchical-refinement-in-food-delivery&quot;&gt;Case study: hierarchical refinement in food delivery&lt;/h4&gt;
-
-&lt;p&gt;To demonstrate the framework, consider a validation scenario in food delivery taxonomy. An LLM-based ingestion pipeline flags a candidate parent-child link&lt;br /&gt;
-&lt;strong&gt;Noodle Soup → Dry Mee Pok&lt;/strong&gt; and stores it as an unverified candidate edge in the KG, ready for live validation.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;User-triggered validation&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;When a user searches for “Noodle Soup,” the search module injects the candidate alongside verified results. For example, in a “Refine by Dish” filter carousel, and logs an impression linking the anchor query to the candidate.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Outcome collection&lt;/strong&gt;:&lt;/p&gt;
-
-&lt;p&gt;User interactions like clicks, dwell time, scroll behavior, and conversions are captured and weighted over the validation window. The verification engine aggregates these signals and updates the graph: relationships that meet the validation threshold are promoted to verified status; those that fail are pruned or re-mapped to a more appropriate parent node.&lt;/p&gt;
-
-&lt;h2 id=&quot;impact&quot;&gt;Impact&lt;/h2&gt;
-
-&lt;p&gt;By injecting unverified candidate edges into live search results and recommendation interfaces via a multi-armed bandit (MAB) exploration strategy, the system leverages implicit user feedback to validate semantic truth. This dynamic, human-in-the-loop mechanism effectively prunes erroneous connections and reinforces accurate taxonomies without the need for manual curation, significantly enhancing search relevance in dynamic domains such as food delivery and retail.&lt;/p&gt;
-
-&lt;p&gt;The case study demonstrates how the framework validates candidate relationships through live user traffic, collecting interaction signals and updating the graph without manual curation.&lt;/p&gt;
-
-&lt;h2 id=&quot;learnings-and-conclusion&quot;&gt;Learnings and conclusion&lt;/h2&gt;
-
-&lt;p&gt;The feedback-driven verification engine operationalizes the search interface as a validation environment for KG relationships. By classifying edges as verified or candidate, injecting candidates through an exploration vs. exploitation strategy, and aggregating weighted user signals, the system promotes accurate relationships and prunes AI hallucinations at scale.&lt;/p&gt;
-
-&lt;p&gt;Unlike approaches that validate only entities, this framework validates structural links, confirming whether entity A is truly a parent, child, or sibling of entity B. The food delivery case study shows how a user-triggered search can initiate validation and outcome collection at scale, without manual intervention.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;&lt;strong&gt;Hierarchical confidence tiers&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;To safely graduate new connections into the production graph, we are introducing a dual-measurement trust system that requires both volume and variety before a new connection goes live: support mass (product hits, graph depth, recency) and corroboration (unique sessions, anonymous cohorts, and temporal spread). Connections must climb a strict state machine: &lt;strong&gt;proposed → shadow eligible → canary eligible → production&lt;/strong&gt;, advancing only when both metrics meet progressively higher thresholds; if a snapshot causes metrics to fall below a tier’s floor, the connection is automatically demoted.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Adversarial and spam resistance&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;To prevent bad actors, bots, or highly repetitive users from manipulating the search graph, we are building a multi-layered defense system. We enforce per-merchant rate limits and anti‑abuse controls: hourly caps per session/device, exponential backoff for rapidly repeated actions, and a short (few‑hour) freeze of promotions from any user cohort after declines or “irrelevant” signals. For bot and Sybil attack defense, traffic flagged by abuse systems is excluded from trust calculations (but logged for analysis); votes must come from diverse network subnets or cohort buckets, and each bucket is subject to a daily contribution cap.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/crowdsourced_taxonomy&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 30 Jul 2026 00:00:00 +0000</pubDate>
-        <link>https://engineering.grab.com/crowdsourced-taxonomy-verification</link>
-        <guid isPermaLink="true">https://engineering.grab.com/crowdsourced-taxonomy-verification</guid>
-        
-        <category>Engineering</category>
-        
-        <category>Data</category>
-        
-        <category>Search</category>
-        
-        <category>Machine Learning</category>
-        
-        <category>LLM</category>
-        
-        <category>Graphs</category>
         
         
         <category>Engineering</category>
