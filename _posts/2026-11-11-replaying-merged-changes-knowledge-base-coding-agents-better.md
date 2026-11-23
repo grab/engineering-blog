@@ -1,6 +1,6 @@
 ---
 layout: post
-id: 2026-11-1-replaying-merged-changes-knowledge-base-coding-agents-better
+id: 2026-11-11-replaying-merged-changes-knowledge-base-coding-agents-better
 title: 'Replaying merged changes: how we test whether a knowledge base makes coding agents better'
 date: 2026-11-11 00:00:00
 authors: [sayam.bohra]
