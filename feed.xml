@@ -6,8 +6,8 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 23 Nov 2026 17:58:20 +0800</pubDate>
-    <lastBuildDate>Mon, 23 Nov 2026 17:58:20 +0800</lastBuildDate>
+    <pubDate>Tue, 24 Nov 2026 10:27:51 +0800</pubDate>
+    <lastBuildDate>Tue, 24 Nov 2026 10:27:51 +0800</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
     
       <item>
@@ -673,6 +673,267 @@ report(paired_means(), better_tied_worse(), largest_movers())
         <category>Database</category>
         
         <category>Automation</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
+    
+      <item>
+        <title>How a shared merchant data service can degrade gracefully</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;When a cache becomes unreliable, a shared read service can struggle in ways that spread to the systems that depend on it. We saw this pattern in our merchant data service (MDS). Cache reads began timing out, fallback requests increased database pressure, and service availability degraded.&lt;/p&gt;
+
+&lt;p&gt;The trigger was localized; the broader impact came from how each layer responded, passing more work downstream instead of containing the failure.&lt;/p&gt;
+
+&lt;p&gt;That amplification follows a predictable pattern, and a few design changes help MDS degrade instead of collapse. The central lesson is simple: a fallback is not a safety net unless its work is bounded.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-merchant-data-service-and-its-cache&quot;&gt;The merchant data service and its cache&lt;/h2&gt;
+
+&lt;p&gt;MDS is a shared read service for merchant information. Many client applications use it for questions such as “Is this outlet open?”, “Does this merchant accept orders manually?”, and “What are this merchant’s settings?”. It supports a range of product and operational workflows and handles high-volume, read-heavy traffic. Because merchant data generally changes less frequently than it is read, MDS uses a cache-aside design:&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/degrade-merchant-data/figure-1.png&quot; alt=&quot;Diagram of the cache-aside read path for the merchant data service&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. The cache-aside read path. The database is the source of truth; the cache serves most reads.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;In normal operation, this works well. The database sees only cache misses, which are a small fraction of traffic. The design depends on one assumption that is rarely written down: that cache failures look like cache misses only occasionally. Without bulkheads, the service is like an undivided ship where a small hull breach (a minor cache glitch) lets water flood unchecked into every compartment, quickly sinking the whole vessel under a sudden wave of database requests it was never built to carry.&lt;/p&gt;
+
+&lt;h2 id=&quot;anatomy-of-a-cascading-failure&quot;&gt;Anatomy of a cascading failure&lt;/h2&gt;
+
+&lt;p&gt;A cache disruption caused reads to time out and fall back to the database. As fallback demand rose, database errors and connection pressure increased; callers then saw more failures, and service availability dropped.&lt;/p&gt;
+
+&lt;p&gt;This followed a sequence that the &lt;a href=&quot;https://sre.google/sre-book/addressing-cascading-failures/&quot;&gt;Google SRE book&lt;/a&gt; describes as a cascading failure: a local fault triggers a response that increases load, which causes more faults. When cache reads slow or fail, each miss adds database work. As the database slows, callers time out. Retries then add more load to the already degraded path, turning a local cache problem into a feedback loop.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/degrade-merchant-data/figure-2.png&quot; alt=&quot;Diagram of how a cache problem can increase downstream load&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. A cache problem can increase downstream load and widen service degradation.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Recovery took longer because retries and connection pressure kept adding load while the cache and database tiers were constrained. Temporary mitigations reduced symptoms, but the system needed restored headroom and lower incoming pressure before it could recover. Those actions addressed the immediate disruption, not the underlying risk: a cache failure could still send excessive, unprioritized work to shared dependencies.&lt;/p&gt;
+
+&lt;p&gt;Short-term client and request-path changes reduced exposure to the immediate trigger. The core vulnerability remained: a dependency failure could still flood shared resources with unbounded, unprioritized work.&lt;/p&gt;
+
+&lt;h2 id=&quot;the-questions-the-redesign-had-to-answer&quot;&gt;The questions the redesign had to answer&lt;/h2&gt;
+
+&lt;p&gt;The cascade exposed three gaps: cache errors followed the same path as normal misses; fallback work had no firm admission bound; and callers with different business impact competed for shared capacity. Those gaps left the redesign with five questions.&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Which requests should survive when capacity is scarce?&lt;/li&gt;
+  &lt;li&gt;How much cache-fallback traffic may reach each database?&lt;/li&gt;
+  &lt;li&gt;How do we stop one workload class from exhausting resources used by another?&lt;/li&gt;
+  &lt;li&gt;Do all clients need real-time data, or can their use cases tolerate a bounded delay in seeing updates?&lt;/li&gt;
+  &lt;li&gt;Can callers use a recently observed value when fresh data is temporarily unavailable?&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;These five questions point to a clear objective: preserve interactive reads while shedding work that can wait. Our core design principles include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Keep interactive reads available for as long as capacity allows.&lt;/li&gt;
+  &lt;li&gt;Shed background and batch work before user-facing work.&lt;/li&gt;
+  &lt;li&gt;Bound database work caused by cache failures.&lt;/li&gt;
+  &lt;li&gt;Fail fast when a dependency is saturated instead of building an unbounded queue.&lt;/li&gt;
+  &lt;li&gt;Serve stale data only on approved read paths with explicit freshness limits.&lt;/li&gt;
+  &lt;li&gt;Give on-call engineers scoped controls that do not require a deployment.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Five mechanisms put these principles into practice, starting at the database boundary and working outward to the client application.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-1-know-who-is-calling-and-how-much-it-matters&quot;&gt;Step 1: Know who is calling and how much it matters&lt;/h3&gt;
+
+&lt;p&gt;Prioritizing work requires knowing a request’s relative impact. Instead of relying on caller-supplied labels, MDS derives a request class from authentication. The table below shows the categorization of incoming traffic by operational criticality.&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Class&lt;/th&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Meaning&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;P0 (Critical)&lt;/strong&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Interactive reads with direct user impact, such as the consumer app’s API&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;P1 (Standard)&lt;/strong&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Routine production reads&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;&lt;strong&gt;P2 (Deferrable)&lt;/strong&gt;&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;Background, batch, and unclassified work that can wait&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;Clients without an explicit policy receive the lowest-priority class by default. The default stops new or unclassified callers from claiming scarce capacity; promotion requires a reviewed policy change, not a code change. Downstream controls use the same class so the database limiter, circuit breakers, cache connections, and traffic controls make consistent decisions.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-2-put-a-budget-in-front-of-the-database&quot;&gt;Step 2: Put a budget in front of the database&lt;/h3&gt;
+
+&lt;p&gt;The key change is an admission controller immediately before the database on the cache-fallback path. Each fallback query must acquire capacity from a shared token budget before running. If capacity is unavailable, the request is rejected promptly instead of joining a queue for an already saturated database.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Separate budgets for distinct workload roles.&lt;/strong&gt; Independent limits protect different database workloads so that pressure in one area does not consume all capacity available to another. The overall budget is coordinated across service instances and managed through runtime configuration.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Cost reflects query shape and priority.&lt;/strong&gt; Each fallback consumes capacity according to the work it is expected to perform. Lower-priority work carries a higher relative cost than interactive point lookups. The cost relationship is illustrative, not a production setting. The table below displays illustrative token costs. In production, these values are set through runtime configuration.&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Query type&lt;/th&gt;
+      &lt;th&gt;Base cost&lt;/th&gt;
+      &lt;th&gt;P0 total&lt;/th&gt;
+      &lt;th&gt;P1 total&lt;/th&gt;
+      &lt;th&gt;P2 total&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Point lookup by ID&lt;/td&gt;
+      &lt;td&gt;1&lt;/td&gt;
+      &lt;td&gt;1&lt;/td&gt;
+      &lt;td&gt;2&lt;/td&gt;
+      &lt;td&gt;3&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Indexed find or range seek&lt;/td&gt;
+      &lt;td&gt;3&lt;/td&gt;
+      &lt;td&gt;3&lt;/td&gt;
+      &lt;td&gt;4&lt;/td&gt;
+      &lt;td&gt;5&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;Under contention, a more expensive lower-priority query uses its share faster than a point lookup from an interactive caller. Weighting gives higher-impact work a better chance to proceed, but it does not reserve capacity. If interactive demand itself exceeds the shared limit, some interactive requests may be rejected too. A shared weighted budget avoids leaving capacity idle when one class has less demand.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;P2 (deferrable) requests do not use the fallback during cache errors.&lt;/strong&gt; When a cache read fails because of a dependency error, not an ordinary miss or invalid data, the P2 class is rejected before reaching the database limiter. Rejecting P2 early preserves more database budget for interactive and routine work during a broad cache disruption.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-3-bulkheads-for-connections-and-failure-signals&quot;&gt;Step 3: Bulkheads for connections and failure signals&lt;/h3&gt;
+
+&lt;p&gt;Admission control limits &lt;em&gt;how much&lt;/em&gt; work reaches the database. Bulkheads limit &lt;em&gt;who can starve whom&lt;/em&gt; along the way. The name comes from the watertight compartments in a ship’s hull: a breach floods one compartment, not the ship.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Separate cache connection pools by request class.&lt;/strong&gt; MDS routes requests through independent pools based on their relative impact. Slow background reads can exhaust their own pool without consuming connections needed by interactive traffic. Separate pools help most when slow operations hold connections longer and pool exhaustion could turn slowness into failure.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Separate circuit breakers by request class.&lt;/strong&gt; Failures in lower-priority traffic do not automatically block interactive work; each class is evaluated against its own observed errors. A shared dependency failure can still affect every class.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/degrade-merchant-data/figure-3.png&quot; alt=&quot;Diagram of bulkhead architecture for a shared read service&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Bulkhead architecture of a shared read service.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;Together, these controls help contain localized cache faults and noisy workloads. Bulkheads reduce interference while capacity remains; they cannot preserve service if the underlying database is unavailable.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-4-give-responders-a-scoped-control&quot;&gt;Step 4: Give responders a scoped control&lt;/h3&gt;
+
+&lt;p&gt;Automatic controls address anticipated failure modes, but incidents can reveal new scenarios. A useful response is the ability to reduce traffic from a particular client or workload without waiting for a code release.&lt;/p&gt;
+
+&lt;p&gt;MDS supports scoped traffic controls managed through centrally controlled runtime configuration. Rules can target progressively broader scopes. The patterns below are illustrative:&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Scope pattern&lt;/th&gt;
+      &lt;th style=&quot;text-align: left&quot;&gt;Targeted request group&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;client:endpoint&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;A particular client and operation&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;criticality:endpoint&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;A request class accessing a particular operation&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;criticality:&lt;/td&gt;
+      &lt;td style=&quot;text-align: left&quot;&gt;An entire request class&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;Matching policies can be applied gradually by percentage instead of as an all-or-nothing block. Throttled requests receive a standard unavailable response. Health checks remain exempt so health-based routing can continue. Responders can adjust the scope and level of protection during an incident without a code deployment.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-5-move-safe-degradation-closer-to-callers&quot;&gt;Step 5: Move safe degradation closer to callers&lt;/h3&gt;
+
+&lt;p&gt;Everything so far protects MDS from load. Callers can also amplify failures: retries and synchronized cache expiry may add pressure while MDS is recovering. Server-side shedding can turn excess traffic away, but a rejected request is still a failed request for the user behind it.&lt;/p&gt;
+
+&lt;p&gt;For some relatively stable fields, a recent value may be preferable to an error. More time-sensitive data may require stricter freshness limits or must always be read fresh. The MDS client software development kit (SDK) now includes an opt-in cache that lets approved read paths make this trade explicitly, with a bounded freshness policy.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Every cached value carries its own freshness window.&lt;/strong&gt; The SDK stores freshness metadata alongside each value, including when it was stored and the boundaries for fresh and approved-stale use. Cache retention covers only that bounded window, while the SDK decides whether the value may be served. Keeping the metadata with the value makes the same policy work across supported cache backends.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/degrade-merchant-data/figure-4.png&quot; alt=&quot;Diagram of the SDK reusing known values and serving approved stale data&quot; style=&quot;width:80%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 4. SDK reuses known values and serves approved stale data.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;what-the-tests-and-production-data-showed&quot;&gt;What the tests and production data showed&lt;/h2&gt;
+
+&lt;h3 id=&quot;admission-control-limits-database-fallback&quot;&gt;Admission control limits database fallback&lt;/h3&gt;
+
+&lt;p&gt;In controlled load tests, admission control rejected excess fallback work before it reached the database. The limiter kept database work within its configured budget as offered load increased, trading some request success for lower database saturation.&lt;/p&gt;
+
+&lt;p&gt;Under heavy offered load in these tests, average database central processing unit (CPU) use was lower with the limiter than without it.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/degrade-merchant-data/figure-5.png&quot; alt=&quot;Chart of database load under increasing offered traffic in a controlled test&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 5. Database load under increasing offered traffic in a controlled test.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;priority-controls-shed-lower-priority-work-first&quot;&gt;Priority controls shed lower-priority work first&lt;/h3&gt;
+
+&lt;p&gt;Tests showed that the controls shed work by priority rather than rejecting all callers equally.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Isolated circuits.&lt;/strong&gt; Lower-priority work gave way first, while interactive reads remained subject to their own limits.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Database admission control.&lt;/strong&gt; A shared weighted budget can give higher-impact work more opportunity to proceed, but it does not reserve capacity. Interactive requests can still fail when the shared dependency is exhausted.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/degrade-merchant-data/figure-6.png&quot; alt=&quot;Chart of priority-based request handling under increasing load&quot; style=&quot;width:90%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 6. Priority-based request handling under increasing load.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;h3 id=&quot;the-sdk-cache-reduced-repeated-reads&quot;&gt;The SDK cache reduced repeated reads&lt;/h3&gt;
+
+&lt;p&gt;In the read paths that adopted it, client-side caching reduced the number of requests reaching MDS at peak. Reads served from the cache returned faster than those that needed a network call, and caching eased load on the cache tier and the application. When fresh reads were temporarily unavailable, clients could fall back to approved stale values instead of failing.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-we-learned&quot;&gt;What we learned&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Every fallback needs a bound.&lt;/strong&gt; The cache-to-database fallback was designed as a safety net and behaved like an amplifier. A fallback without a budget spreads failure instead of containing it. The same applies to stale data: it is safe only inside an approved freshness window.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Isolation must follow impact, not topology.&lt;/strong&gt; Physical separation alone was insufficient when callers still shared the same controls. Isolating by workload impact lets the service choose which work is most likely to survive.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Latency and queues are failure signals.&lt;/strong&gt; Incidents can begin with rising latency before visible errors emerge. Timed-out work still consumes capacity, and a retry against a saturated dependency is extra load, not recovery.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Test the controls together.&lt;/strong&gt; Circuit breakers, limiters, retries, cache expiry, and stale serving interact, and failures often come from how they combine. Testing them together under realistic overload reveals interactions that testing one at a time can miss.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;what-comes-next&quot;&gt;What comes next&lt;/h2&gt;
+
+&lt;p&gt;These controls currently focus on MDS and its client SDK. Looking ahead, we are exploring ways to improve coordination across layers, align admission decisions with current capacity, manage retry budgets end to end, and carry server-validated request priority to downstream dependencies.&lt;/p&gt;
+
+&lt;h2 id=&quot;closing-thoughts&quot;&gt;Closing thoughts&lt;/h2&gt;
+
+&lt;p&gt;A shared service cannot make its dependencies infallible. Cache systems can fail, and databases can run out of headroom. What the service controls is how much work it sends toward a failing dependency, whose work goes first, and what callers do when an answer is delayed. By bounding fallback work, isolating callers by impact, rejecting excess demand early, and serving stale data only on approved paths, MDS is better able to contain cache disruptions without turning them into broader service unavailability.&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+</description>
+        <pubDate>Wed, 18 Nov 2026 08:00:00 +0800</pubDate>
+        <link>https://engineering.grab.com/shared-merchant-data-service</link>
+        <guid isPermaLink="true">https://engineering.grab.com/shared-merchant-data-service</guid>
+        
+        <category>Resilience</category>
+        
+        <category>Caching</category>
+        
+        <category>Merchant Data</category>
+        
+        <category>Backend</category>
+        
+        <category>Engineering</category>
         
         
         <category>Engineering</category>
@@ -1476,138 +1737,6 @@ The quality-control step rejects unsupported claims. The regeneration triggers i
         <category>Data Quality</category>
         
         <category>Observability</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Building Jarvis Pro: Route first, answer later</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;The first Jarvis Pro prototype could produce answers that sounded right.&lt;/p&gt;
-
-&lt;p&gt;That was the problem.&lt;/p&gt;
-
-&lt;p&gt;One early answer looked polished: it named the merchant, summarized the week, and recommended pushing promotions before the next review. It was also wrong. The merchant’s order volume was down, but the sharper issue was operational: more outlets were paused and fulfilment had slipped. Sending more demand into that setup would have made the merchant look worse.&lt;/p&gt;
-
-&lt;p&gt;That failure changed how we judged the system. Fluent was not enough.&lt;/p&gt;
-
-&lt;p&gt;Jarvis Pro is the AI assistant we built for Grab account managers. Its job is to help them turn account data into better merchant conversations: what changed, why it changed, and what to do next. They rarely ask clean dashboard questions. They ask: “I am meeting this merchant tomorrow. What should I tell them?” or “Which accounts in my portfolio need attention this week?”&lt;/p&gt;
-
-&lt;p&gt;Those questions hide decisions: scope, access, business diagnosis, and metric definition. If the system gets those wrong, confidence becomes a liability.&lt;/p&gt;
-
-&lt;p&gt;So the core design became: route first, answer later.&lt;/p&gt;
-
-&lt;p&gt;In an internal offline evaluation (not a measure of production performance or business impact), routing matched the expected safe route for 99.4% of 351 realistic prompts drawn from labelled eval sets from the first half of 2026. In a focused portfolio and brand answer-quality suite, the average score moved from 78.5 to 91.0. These figures come from offline launch-readiness evaluation only; they are not business-impact proof.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-dashboards-were-easier&quot;&gt;Why dashboards were easier&lt;/h2&gt;
-
-&lt;p&gt;A dashboard answers a bounded question:&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;“Show net sales for merchant X last week.”&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;An account review question has to diagnose the work to be done:&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;“This merchant softened this week. Should I push promos, ads, or operations fixes before the review?”&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;If outlets were paused, more traffic can backfire. If average order value fell, the next action may be menu or bundle design. If a dashboard, warehouse table, and local spreadsheet disagree, the first task is metric reconciliation, not recommendation.&lt;/p&gt;
-
-&lt;p&gt;We wanted Jarvis Pro to classify the task first, then load only the context needed for that task.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-route-as-a-contract&quot;&gt;The route as a contract&lt;/h2&gt;
-
-&lt;p&gt;The launch router was a prompted LLM classification step constrained by a routing guide: supported task types, allowed context, answer shapes, and conditions that should force a handoff or refusal.&lt;/p&gt;
-
-&lt;p&gt;A broad merchant review routes differently from an ads campaign recap or an out-of-scope request. A route is not just a label; it decides the structure, metrics, tool path, and guardrails.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/jarvis-pro/figure-1.png&quot; alt=&quot;&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Jarvis Pro routes before it answers. The route determines context, tools, and guardrails; evaluation checks each layer, not only the final response.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Here is a simplified example. The merchant and numbers are illustrative.&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;User prompt&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;I am seeing Merchant A soften this week. I need talking points for tomorrow’s review. Should I push promos, ads, or operations fixes?&lt;/p&gt;
-
-&lt;p&gt;&lt;strong&gt;Router decision&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Ilustrative example only. No actual, live, or non-public data was used.&lt;/em&gt;&lt;/p&gt;
-&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;route&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;brand_performance_action_plan&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;scope&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;merchant&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Merchant A&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;country&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Singapore&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;memory&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;use current question context&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;context&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;brand action plan&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;approved metric catalog&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;ads context&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;guardrails&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;no private competitor metrics&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;no unsupported projection&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;strong&gt;Answer extract&lt;/strong&gt;&lt;/p&gt;
-
-&lt;p&gt;Merchant A’s issue looks like order volume, not basket size. Net sales fell 7.8% week-on-week and orders fell 9.1%, while average order value increased 1.4%.&lt;/p&gt;
-
-&lt;p&gt;Start with operations before promotions. Temporary pause rate rose from 2.1% to 4.8%, and fulfilment fell from 94.6% to 91.8%. Extra demand may leak unless the merchant fixes availability first.&lt;/p&gt;
-
-&lt;p&gt;Talking point: “Before we add promo depth, let’s recover lost availability. If we bring pause rate back below 2.5%, we should have a cleaner read on whether the remaining gap is demand, menu, or ads.”&lt;/p&gt;
-
-&lt;p&gt;The route prevented three common mistakes: jumping straight to discounts, inventing competitor spend, and answering from a generic growth template.&lt;/p&gt;
-
-&lt;h2 id=&quot;memory-had-to-stay-narrow&quot;&gt;Memory had to stay narrow&lt;/h2&gt;
-
-&lt;p&gt;Here, “memory” means saved user context such as country, role, portfolio scope, and preferences. That context is useful when a user says “my portfolio”. It is risky when saved defaults override explicit context, missing identity becomes a guess, or a memory request crosses user boundaries.&lt;/p&gt;
-
-&lt;p&gt;We put memory before answer generation and kept the decision small: proceed, ask for onboarding information, prefer explicit context, use saved defaults, look up portfolio scope, or refuse. Backend permissions and row-level controls remain the authorization layer.&lt;/p&gt;
-
-&lt;p&gt;That extra checking costs time. Jarvis Pro does route classification, memory checking, context selection, warehouse or specialist tool calls, then generation. To keep the wait usable, we loaded route-specific context, ran memory before expensive retrieval, consolidated warehouse queries, capped tool calls, and returned unavailable cells as N/A instead of looping until the conversation stalled.&lt;/p&gt;
-
-&lt;p&gt;That tradeoff was deliberate: a slower first token was better than a fast unsafe recommendation.&lt;/p&gt;
-
-&lt;h2 id=&quot;reconcile-the-metric-before-blaming-the-model&quot;&gt;Reconcile the metric before blaming the model&lt;/h2&gt;
-
-&lt;p&gt;Even with good routing and memory, an assistant is only as good as the numbers it pulls.&lt;/p&gt;
-
-&lt;p&gt;When a user says “the number is wrong”, several failures can look identical: wrong source, different metric definitions, different entity mapping, or stale data. One reconciliation pass showed that what looked like model error was sometimes just a freshness mismatch between reporting surfaces.&lt;/p&gt;
-
-&lt;p&gt;We built regression checks that normalised source values and compared daily rows across approved metric paths. The point was not the row count. It was knowing whether to fix source selection, metric guidance, or the caveat shown to the account manager.&lt;/p&gt;
-
-&lt;h2 id=&quot;how-we-evaluated-it&quot;&gt;How we evaluated it&lt;/h2&gt;
-
-&lt;p&gt;One aggregate score would have hidden the failures we cared about.&lt;/p&gt;
-
-&lt;p&gt;The routing set had 351 prompts labelled against the routing guide. Each prompt had an expected route family, meaning the broad business category, plus an expected route and any handoff or refusal. “Accepted route accuracy” meant the selected route was exact or semantically equivalent and safe. A wrong business family, missed handoff, or unsafe scope failed.&lt;/p&gt;
-
-&lt;p&gt;The answer-quality suite had 501 total cases scored on a 0-100 rubric covering template fit, metric use, diagnosis, next action quality, caveats, and guardrail compliance. Within that suite, the 150-case portfolio and brand subset improved from 78.5 to 91.0. A wrong merchant, wrong country, fabricated metric, unsupported projection, or private competitor detail could fail a case. User isolation was treated as a hard evaluation requirement. All scores were measured offline against fixed rubrics for launch readiness; they do not reflect production commercial outcomes.&lt;/p&gt;
-
-&lt;p&gt;That caught the answer we most wanted to avoid: plausible, polished, and operationally unsafe.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-lesson-we-would-reuse&quot;&gt;The lesson we would reuse&lt;/h2&gt;
-
-&lt;p&gt;The final paragraph is too late to resolve ambiguity. Jarvis Pro has to earn the right to answer: route the task, check memory and access, load the right evidence, cap the tools, then judge failures at each layer.&lt;/p&gt;
-
-&lt;p&gt;Offline evals gave us confidence in system behaviour, not commercial uplift. Measuring that needs production telemetry: recommendations shown, actions taken, accounts affected, and outcomes.&lt;/p&gt;
-
-&lt;p&gt;The assistant should not merely sound like a great account manager. It should first prove it understands the account.&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/jarvis_pro_route_first_answer_later&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 21 Aug 2026 08:00:00 +0800</pubDate>
-        <link>https://engineering.grab.com/jarvis-pro-route-firsr-answer-later</link>
-        <guid isPermaLink="true">https://engineering.grab.com/jarvis-pro-route-firsr-answer-later</guid>
-        
-        <category>Artificial Intelligence</category>
-        
-        <category>Engineering</category>
-        
-        <category>Product</category>
-        
-        <category>Account Management</category>
         
         
         <category>Engineering</category>
