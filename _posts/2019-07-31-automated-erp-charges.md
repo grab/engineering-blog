@@ -5,7 +5,7 @@ title: No More Forgetting to Input ERP Charges - Hello Automated ERP!
 date: 2019-07-31 13:43:40
 authors: [garvee.garg, robinson.kudali, pureum.yim]
 categories: [Product]
-tags: [Data, Maps, Tech]
+tags: [Database, Maps, Tech]
 comments: true
 cover_photo: /img/automated-erp-charges/cover.png
 excerpt: "Forgetting to input ERP charges was one of the biggest problems faced by our driver-partners. Read our blog to know how went about solving it."

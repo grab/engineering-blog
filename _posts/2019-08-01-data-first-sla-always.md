@@ -5,7 +5,7 @@ title: Data First, SLA Always
 date: 2019-08-01 19:43:40
 authors: [johan.kok, pramiti.goel, feng.cheng, irfan.hanif, deepak.barr]
 categories: [Data Science, Engineering]
-tags: [Data Pipeline]
+tags: [Database]
 comments: true
 cover_photo: /img/data-first-sla-always/cover.jpg
 excerpt: "Introducing Trailblazer, the Data Engineering team’s solution to implementing change data capture of all upstream databases. In this article, we introduce the reason why we needed to move away from periodic batch ingestion towards a real time solution and show how we achieved this through an end to end streaming pipeline.

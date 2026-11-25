@@ -5,7 +5,7 @@ title: How We Simplified Our Data Ingestion & Transformation Process
 date: 2019-03-03 18:43:40
 authors: [yichao.wang, roman.atachiants, oscar.cassetti, corey.scott]
 categories: [Engineering]
-tags: [Big Data, Data Pipeline]
+tags: [Database]
 comments: true
 cover_photo: /img/data-ingestion-transformation-product-insights/cover.jpg
 excerpt: "This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang."

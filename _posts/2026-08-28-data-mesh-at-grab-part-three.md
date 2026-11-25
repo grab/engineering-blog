@@ -5,7 +5,7 @@ title: 'Data Mesh at Grab (Part III): Operationalizing data reliability with aut
 date: 2026-08-28 00:00:00
 authors: [harvey.li, shuguang.xiang, ziqin.yeow, feng.cheng]
 categories: [Engineering]
-tags: [Data, Database, Engineering, Data Quality, Observability]
+tags: [Database, Engineering, Data Quality, Observability]
 comments: true
 cover_photo: /img/datamesh-three/banner-img.png
 excerpt: "Make data reliability as dependable as running water. Learn how Grab operationalises this vision using automated Data Production Issues (DPIs) to convert data contract breaches into structured, actionable workflows. By closing the loop from detection to recovery, DPIs ensure certified data products remain trusted at scale."

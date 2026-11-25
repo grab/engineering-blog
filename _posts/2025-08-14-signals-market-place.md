@@ -5,7 +5,7 @@ title: 'Data mesh at Grab part I: Building trust through certification'
 date: 2025-08-19 00:23:00
 authors: [chunrong.phang, satarupa.seal, gladys.chia, jerome.tong]
 categories: [Engineering]
-tags: [Data, Database, Engineering]
+tags: [Database, Engineering]
 comments: true
 cover_photo: /img/data-mesh-at-grab-part-1/cover.png
 excerpt: "Grab has embarked on a transformative journey to overhaul its enterprise data ecosystem, addressing challenges posed by the rapid growth of its business spanning across ride-hailing, food delivery, and financial services. With the increasing complexity of its data landscape, Grab transitioned from a centralised data warehouse model to a data mesh architecture, a decentralised approach treating data as a product owned by domain-specific teams. The article shares the motivations behind the change, the factors and steps taken to make it a success, and results."

@@ -5,7 +5,7 @@ title: 'Scaling out Distroless adoption With AI'
 date: 2026-06-22 00:00:00
 authors: [jiayee.chong, kevin.leejunhong, shikai.ng]
 categories: [Engineering]
-tags: [Security, Containers, Artificial Intelligence, DevSecOps, Engineering]
+tags: [Security, Containers, AI, DevSecOps, Engineering]
 comments: true
 cover_photo: /img/scaling-out-distroless-adoption-with-ai/banner-image.png
 excerpt: "Grab is moving hundreds of services to Distroless images to cut CVEs but only if workloads still run cleanly. Learn how medium tests became the migration gate, where the scaffolding toil stalled the campaign, and how an agentic workflow (skills, MCP, guardrails) generated tests and Docker changes at fleet scale; with humans still approving every MR."

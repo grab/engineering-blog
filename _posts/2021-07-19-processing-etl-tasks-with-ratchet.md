@@ -5,7 +5,7 @@ title: Processing ETL tasks with Ratchet
 date: 2021-07-19 03:21:10
 authors: [amar.prakash]
 categories: [Engineering]
-tags: [Pipelines, Data, ETL, Engineering]
+tags: [Pipelines, Database, ETL, Engineering]
 comments: true
 cover_photo: /img/processing-etl-tasks-with-ratchet/cover.jpg
 excerpt: "Read about what Data and ETL pipelines are and how they are used for processing multiple tasks in the Lending Team at Grab."

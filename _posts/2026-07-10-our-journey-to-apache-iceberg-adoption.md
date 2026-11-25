@@ -5,7 +5,7 @@ title: "Scaling Grab's Data Lake: Our journey to Apache Iceberg adoption"
 date: 2026-07-10 00:00:00
 authors: [rahul.penti]
 categories: [Engineering]
-tags: [Data, Database, Engineering, Apache Iceberg, Spark]
+tags: [Database, Engineering, Apache Iceberg, Spark]
 comments: true
 cover_photo: /img/journey-to-apache-iceberg/banner-image.png
 excerpt: "As Grab's Data Lake grew to petabytes, the limitations of Hive Parquet became clear, from catalog latency and small files to manual partition management. This blog shares our journey adopting Apache Iceberg as our default table format: why we chose it, how we rolled it out at scale, the tooling we built along the way, and the lessons we learned."

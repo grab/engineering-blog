@@ -5,7 +5,7 @@ title: Save Your Place with Grab!
 date: 2019-08-01 18:43:40
 authors: [summit.saurav, neeraj.mishra, shirley.yang]
 categories: [Product]
-tags: [Maps, Data]
+tags: [Maps, Database]
 comments: true
 cover_photo: /img/save-your-place-with-grab/cover.png
 excerpt: "Do you find it tedious to type and search for your destination or have a hard time remembering that address of the friend you are going to meet? Well...Grab has a solution!"

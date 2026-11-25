@@ -5,7 +5,7 @@ title: 'Powering AI-led research through simulation'
 date: 2026-10-05 00:00:00
 authors: [henokh.fibrianto, larry.lin]
 categories: [Engineering]
-tags: [Artificial Intelligence, Dispatch, Engineering, Experiment, Machine Learning]
+tags: [AI, Dispatch, Engineering, Experiment, Machine Learning]
 comments: true
 cover_photo: /img/ai-through-simulation/banner-img.png
 excerpt: "To improve production dispatch experiments, we built an offline marketplace simulator and an agent-driven research loop so strategy ideas can be tested in minutes, with safeguards against metric gaming and drift from production."

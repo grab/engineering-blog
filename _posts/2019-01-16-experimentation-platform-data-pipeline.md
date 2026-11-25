@@ -5,7 +5,7 @@ title: A Lean and Scalable Data Pipeline to Capture Large Scale Events and Suppo
 date: 2019-01-16 18:43:40
 authors: [oscar.cassetti, roman.atachiants]
 categories: [Engineering]
-tags: [Big Data, Data Pipeline, Experiment]
+tags: [Database, Experiment]
 comments: true
 cover_photo: /img/experimentation-platform-data-pipeline/cover.png
 excerpt: "This blog post focuses on the lessons we learned while building our batch data pipeline."

@@ -5,7 +5,7 @@ title: Dealing with the Meltdown Patch at Grab
 date: 2018-01-07 07:00:00
 authors: [althaf.hameez]
 categories: [Engineering]
-tags: [AWS, Meltdown]
+tags: [Meltdown]
 comments: true
 cover_photo: /img/dealing-with-the-meltdown-patch-at-grab/cover.jpg
 excerpt: "The meltdown attack reported recently had far reaching implications in terms of security as well as performance. This post is a quick rundown of what performance impacts we noted as well as how we went on to mitigate them."

@@ -5,7 +5,7 @@ title: Why You Should Organise an Immersion Trip for Your Next Project
 date: 2019-05-07 10:23:20
 authors: [sherizan.sheikh]
 categories: [Design]
-tags: [Hyperlocal, Immersion]
+tags: [Hyperlocalization, Immersion]
 comments: true
 cover_photo: /img/why-you-should-organise-an-immersion-trip-for-your-next-project/cover.jpg
 excerpt: ""

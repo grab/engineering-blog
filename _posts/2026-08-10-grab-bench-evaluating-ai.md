@@ -5,7 +5,7 @@ title: 'Grab Bench: Evaluating AI on Grab-shaped production work'
 date: 2026-08-12 00:00:00
 authors: [christian.coffrant]
 categories: [Engineering]
-tags: [Artificial Intelligence, Engineering, Product, Machine Learning]
+tags: [AI, Engineering, Product, Machine Learning]
 comments: true
 cover_photo: /img/grab-bench/banner-img.png
 excerpt: "Broad AI benchmarks are good at telling us which models look strong on public leaderboards. They are less good at catching the quiet failures that break production systems. Grab Bench is our internal evaluation framework for testing AI models and agents on Grab-shaped work, with task-specific scoring, hidden cases, and row-level failure analysis so teams can see what actually went wrong."

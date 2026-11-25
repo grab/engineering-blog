@@ -5,7 +5,7 @@ title: Protecting Personal Data in Grab's Imagery
 date: 2021-07-26 00:40:00
 authors: [sever.popovici, zsolt.vadaszi, adrian.margin, hannes.kruppa]
 categories: [Engineering]
-tags: [Engineering, Machine Learning, Data, Datasets, Data Science]
+tags: [Engineering, Machine Learning, Database, Datasets]
 comments: true
 cover_photo: /img/protecting-personal-data-in-grabs-imagery/banner.jpg
 excerpt: "Learn how Grab improves privacy protection to cater to various geographical locations."

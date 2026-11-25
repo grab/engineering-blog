@@ -5,7 +5,7 @@ title: Driving Southeast Asia Forward with AWS
 date: 2017-05-21 18:43:40
 categories: [Engineering]
 authors: [arulk]
-tags: [AWS]
+tags: []
 comments: true
 cover_photo: /img/driving-southeast-asia-forward-with-aws/cover.png
 excerpt: "My name is Arul Kumaravel, VP of Engineering at Grab. Grab's mission is to drive Southeast Asia (SEA) forwards. Today I would like to share with you how AWS is helping us with this mission."

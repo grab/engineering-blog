@@ -5,7 +5,7 @@ title: Bubble Tea Craze on GrabFood!
 date: 2019-05-09 17:49:30
 authors: [pureum.yim, mingxuan.lee]
 categories: [Data Science]
-tags: [Data, Analytics, Data Analytics]
+tags: [Database, Analytics]
 comments: true
 cover_photo: /img/bubble-tea-craze-on-grabfood/cover.jpg
 excerpt: "Bubble Tea’s popularity on GrabFood has captured our attention and we want to celebrate its fascinating growth with you! We have deep-dived into Grab’s Big Data to find the most interesting bubbles of treasures that can excite your palette. Hopefully these insights can help you understand what’s behind the Bubble Tea craze in GrabFood in Southeast Asia!"

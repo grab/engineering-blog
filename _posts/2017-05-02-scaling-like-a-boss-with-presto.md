@@ -5,7 +5,7 @@ title: Scaling Like a Boss with Presto
 date: 2017-05-01 18:43:40
 authors: [aneesh.chandra]
 categories: [Engineering]
-tags: [Analytics, AWS, Data, Storage]
+tags: [Analytics, Database, Storage]
 comments: true
 cover_photo: /img/scaling-like-a-boss-with-presto/presto-architecture.png
 excerpt: "A year ago, the data volumes at Grab were much lower than the volume we currently use for data-driven analytics. We had a simple and robust infrastructure in place to gather, process and store data to be consumed by numerous downstream applications, while supporting the requirements for data science and analytics."

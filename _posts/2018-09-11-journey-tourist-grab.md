@@ -5,7 +5,7 @@ title: Journey of a Tourist via Grab
 date: 2018-09-11 08:43:40
 authors: [pureum.yim]
 categories: [Data Science]
-tags: [Analytics, Data, Data Analytics, Tourism, Tourists]
+tags: [Analytics, Database, Tourism]
 comments: true
 cover_photo: /img/journey-tourist-grab/cover.jpg
 excerpt: "Grab's services to tourists are an integral part of connecting tourists to various destinations and attractions. Do tourists travel on Grab to outlandishly fancy places like those you see in the movie \"Crazy Rich Asians\"? What are their favourite local places? Did you know that Grab's data reveals that medical tourism is growing in Singapore? Here are some exciting travel patterns that we found about our tourists' Grab rides in Singapore!"

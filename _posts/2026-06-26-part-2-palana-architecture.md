@@ -5,7 +5,7 @@ title: 'Palana (Part 2): Architecting isolation, identity, and auditability for 
 date: 2026-06-21 00:00:00
 authors: [kevin.littlejohn]
 categories: [Engineering]
-tags: [Security, Artificial Intelligence, Kubernetes, DevSecOps, Platform, Engineering]
+tags: [Security, AI, Kubernetes, DevSecOps, Platform, Engineering]
 comments: true
 cover_photo: /img/palana-part-2/banner-image.png
 excerpt: "How do you actually build a secure execution environment for artificial intelligence (AI) agents? In Part 2, we dive deep into Palana's architecture. Learn how Grab handles proxy-mediated secrets, large language model (LLM) routing, and strict network access under the hood. We also share our operational learnings on managing agent lifecycles, enforcing strict boundaries, and making useful AI autonomy safe and boring to operate."

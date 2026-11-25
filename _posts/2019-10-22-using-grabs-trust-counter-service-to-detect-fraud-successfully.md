@@ -5,7 +5,7 @@ title: Using Grab’s Trust Counter Service to Detect Fraud Successfully
 date: 2019-10-21 14:30:12
 authors: [chao.w, muqi.li, gregory.allan, varun.kansal]
 categories: [Engineering]
-tags: [Engineering, Anti-Fraud, Security, Fraud Detection, Data]
+tags: [Engineering, Anti-Fraud, Security, Fraud Detection, Database]
 comments: true
 cover_photo: /img/using-grabs-trust-counter-service-to-detect-fraud-successfully/cover.png
 excerpt: "This blog introduces Grab’s Trust Counter service for detecting fraud. It explains how the solution was designed so that different stakeholders like data analysts and data scientists can use the Counter service without any manual intervention from engineers. The Counter service provides a reliable data feed to the data science world."

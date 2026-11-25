@@ -5,7 +5,7 @@ title: 'Counter Service: How we rewrote it in Rust'
 date: 2025-06-20 00:23:00
 authors: [jialong.loh, pu.li, muqi.li, riyadh.sharif]
 categories: [Engineering]
-tags: [Database, Rust, Data]
+tags: [Database, Rust]
 comments: true
 cover_photo: /img/rust-blog/banner-design.png
 excerpt: "The Integrity Data Platform team at Grab rewrote a QPS-heavy Golang microservice in Rust, achieving 70% infrastructure savings while maintaining similar performance. This initiative explored the ROI of adopting Rust for production services, balancing efficiency gains against challenges like Rust’s steep learning curve and the risks of rewriting legacy systems. The blog delves into the selection process, approach, pitfalls, and the ultimate business value of the rewrite."

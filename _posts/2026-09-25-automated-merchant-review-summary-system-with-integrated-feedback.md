@@ -5,7 +5,7 @@ title: 'Automated merchant review summary system with integrated feedback'
 date: 2026-09-25 00:00:00
 authors: [chengju.zhou, shlok.jain, yanye.li, waiteng.tang, thinh.leduc]
 categories: [Engineering]
-tags: [Artificial Intelligence, LLM]
+tags: [AI, LLM]
 comments: true
 cover_photo: /img/automated-merchant-review/banner-img.png
 excerpt: "The Automated Merchant Review Summary System provides concise, AI-generated summaries of merchant reviews on Grab, helping consumers make informed decisions without reading extensive feedback while giving merchants actionable insights from customer feedback."

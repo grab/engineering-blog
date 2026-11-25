@@ -5,7 +5,7 @@ title: 'How a shared merchant data service can degrade gracefully'
 date: 2026-11-18 00:00:00
 authors: [kang.huang, zhouchun.wang]
 categories: [Engineering]
-tags: [Resilience, Caching, Merchant Data, Backend, Engineering]
+tags: [Resiliency, Caching, Merchant Data, Backend, Engineering]
 comments: true
 cover_photo: /img/degrade-merchant-data/banner-img.png
 excerpt: "A cache disruption turned database fallbacks into an amplifier for a shared merchant data service. Here is how we bounded fallback work, isolated workloads by priority, gave responders scoped controls, and moved safe degradation into the client SDK."

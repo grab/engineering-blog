@@ -5,7 +5,7 @@ title: Tourists on GrabChat!
 date: 2019-05-22 18:43:40
 authors: [pureum.yim, dustin.chung]
 categories: [Data Science]
-tags: [Data, Analytics, Data Analytics]
+tags: [Database, Analytics]
 comments: true
 cover_photo: /img/tourist-chat-data-story/cover.png
 excerpt: "Just over two years ago we introduced GrabChat, Southeast Asia’s first of its kind in-app messaging platform. Since then we’ve added all sorts of useful features to it such as auto-translated messages, the ability to send photos, and even voice messages! It’s been a great tool to facilitate smoother communications between our driver-partners and our passengers, and one group in particular has found it incredibly useful: tourists!"

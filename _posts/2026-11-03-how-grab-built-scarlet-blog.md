@@ -5,7 +5,7 @@ title: 'How Grab built Scarlet: the AI teammate that turns a Slack message into 
 date: 2026-11-23 00:00:00
 authors: [ayan.chatterjee, nipun.soni, rishi.raj, sneh.agrawal]
 categories: [Engineering]
-tags: [AI, Artificial Intelligence, Analytics, Database, Automation]
+tags: [AI, Analytics, Database, Automation]
 comments: true
 cover_photo: /img/scarlet/banner-img.png
 excerpt: "Scarlet turns a Slack message, a Jira label, or a call from another agent into a reviewed merge request. This post shares how a skill library, data testing, and per-user access let it grow across Grab's data teams."

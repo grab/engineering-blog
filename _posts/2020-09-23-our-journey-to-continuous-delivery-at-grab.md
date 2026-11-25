@@ -5,7 +5,7 @@ title: Our Journey to Continuous Delivery at Grab (Part 1)
 date: 2020-09-23 10:23:44
 authors: [sylvain.bougerel]
 categories: [Engineering]
-tags: [Deployment, CI, Continuous Integration, Continuous Deployment, Deployment Process, Cloud Agnostic, Spinnaker, Continuous Delivery, Multi Cloud]
+tags: [Deployment, Continuous Integration, Continuous Deployment, Deployment Process, Cloud Agnostic, Spinnaker, Continuous Delivery, Multi Cloud]
 comments: true
 cover_photo: /img/our-journey-to-continuous-delivery-at-grab/cover.png
 excerpt: "Continuous Delivery is the principle of delivering software often, everyday. Read more to find out how we implemented continuous delivery at Grab."
