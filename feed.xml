@@ -6,9 +6,239 @@
 </description>
     <link>https://engineering.grab.com/</link>
     <atom:link href="https://engineering.grab.com/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Tue, 24 Nov 2026 10:27:51 +0800</pubDate>
-    <lastBuildDate>Tue, 24 Nov 2026 10:27:51 +0800</lastBuildDate>
+    <pubDate>Wed, 25 Nov 2026 10:58:13 +0800</pubDate>
+    <lastBuildDate>Wed, 25 Nov 2026 10:58:13 +0800</lastBuildDate>
     <generator>Jekyll v4.4.1</generator>
+    
+      <item>
+        <title>Part 2: Generative bidders for ads at Grab</title>
+        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Grab runs marketplaces where many important decisions unfold over time, rather than as one-step predictions. Mobility systems need to anticipate how taxi demand and driver supply may evolve across locations and time windows. Food systems need to plan around changing order traffic, merchant capacity, and delivery demand. Ads has the same problem with merchant campaign budgets: traffic quality, user intent, and campaign spend opportunities change throughout the day.&lt;/p&gt;
+
+&lt;p&gt;Prediction models estimate what may happen next, such as demand, conversion likelihood, or expected engagement. Many Grab use cases need the system to go further: generate possible future trajectories or action plans, evaluate them against business constraints, and choose a safe path forward.&lt;/p&gt;
+
+&lt;p&gt;That is the problem generative models address. They can propose structured futures, such as demand-supply trajectories, order traffic scenarios, or budget pacing plans, conditioned on the current marketplace state and on business goals. Generated futures and generated actions cannot be trusted just because they look plausible. They need to be trained, evaluated, and stress-tested before they influence real users, merchants, drivers, or budgets. This is part 2 of 2. Read &lt;a href=&quot;https://engineering.grab.com/part-1-simulation-first-ai-experimentation-for-ads-at-grab&quot;&gt;Part 1&lt;/a&gt; where we discussed the ads simulator.&lt;/p&gt;
+
+&lt;h2 id=&quot;generative-bidders-for-ads&quot;&gt;Generative bidders for ads&lt;/h2&gt;
+
+&lt;p&gt;In Grab Ads, the business problem is merchant budget delivery. An ideal campaign spends efficiently across auctions under uneven traffic, winning high-value opportunities while using its target budget. Controllers such as proportional-integral-derivative (PID) controllers are widely used in digital advertising, but they are reactive. They adjust bidding pressure only when a campaign is ahead of or behind its target, and they do not plan how spend should unfold over the next window. To improve ad auction bidding for Grab and its merchants, we propose a generative bidder that plans pacing actions, so campaigns can bid in ways that better serve user experience and business goals. The design follows the diffusion completer-aligner approach described by Li et al. (2025).&lt;/p&gt;
+
+&lt;p&gt;A generative bidder produces a short sequence of future pacing actions for a campaign. Ads can then plan budget delivery under marketplace constraints, and use simulation to train, validate, and stress-test those plans before they affect live merchant budgets.&lt;/p&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/part-2-ads-simulation/figure-1.png&quot; alt=&quot;Flowchart of the generative bidder loop. Historical data initializes the bidder, simulated auctions produce trajectories, guardrails decide whether the policy is ready for a live experiment, and live results calibrate the simulator.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Train in simulation, check the guardrails, and only then consider a live experiment.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://engineering.grab.com/part-1-simulation-first-ai-experimentation-for-ads-at-grab&quot;&gt;Part 1&lt;/a&gt; introduced the ads simulator. The simulator does two jobs here. It creates safe opportunities to explore pacing strategies while the bidder trains, and it checks whether those strategies are safe enough for a live test. Training teaches the model to produce plausible, useful pacing plans. Validation checks that those plans survive auction mechanics, budget constraints, delayed signals, and marketplace guardrails.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-generative-bidders-need-simulation&quot;&gt;Why generative bidders need simulation&lt;/h2&gt;
+
+&lt;p&gt;A traditional budget pacing controller reacts to the gap between how much a campaign should have spent by now and how much it has actually spent. If a campaign underspends, the controller increases bidding pressure. If it overspends, the controller backs off. The pattern is reliable, and it is reactive.&lt;/p&gt;
+
+&lt;p&gt;A generative bidder plans ahead. Instead of one adjustment for the current auction, it generates a sequence of pacing actions for a short future window, on the order of tens of minutes. The plan is conditioned on campaign state, time, budget, billing type, current fulfillment progress, the allocation target, and return on ad spend (ROAS) goals.&lt;/p&gt;
+
+&lt;p&gt;The simulator does more than score the bidder after training. It also generates training data. Candidate pacing plans run through simulated auctions, and the resulting trajectories, budget movement, fulfillment progress, ROAS, and guardrail metrics are recorded as training examples. The Generator learns which pacing sequences are realistic. The Aligner learns how those sequences affect delivery and efficiency.&lt;/p&gt;
+
+&lt;p&gt;The system can then propose different spend shapes over the next window. One plan may spend steadily. Another may hold back early and bid more aggressively later. A third may increase pressure when the model expects higher-value traffic. Simulation lets us explore these alternatives safely, learn from their outcomes, and test the resulting bidder before it affects real merchants.&lt;/p&gt;
+
+&lt;h2 id=&quot;core-components-generator-and-aligner&quot;&gt;Core components: Generator and Aligner&lt;/h2&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/part-2-ads-simulation/figure-2.png&quot; alt=&quot;Diagram of the Generator and Aligner bidding architecture. Campaign context feeds a diffusion model that proposes 30-minute pacing plans. The Aligner predicts fulfillment, refines candidates, and the planner selects one plan to serve.&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Generator and Aligner architecture.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The bidder uses a generate-then-align architecture. The Generator proposes a 30-minute pacing plan, represented as a sequence x = [p₁, …, p₃₀], where each pᵢ ∈ [0, 1] and is the pacing action for one minute. The Aligner evaluates each plan by predicting its final fulfillment progress and ROAS.&lt;/p&gt;
+
+&lt;h3 id=&quot;generator&quot;&gt;Generator&lt;/h3&gt;
+
+&lt;p&gt;Let x₀ be a real pacing sequence from historical logs or from simulator-generated training data, and let c represent the campaign context and target outcomes. During training, the diffusion process adds Gaussian noise to x₀:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;xₜ = √(ᾱₜ) x₀ + √(1 − ᾱₜ) ε, ε ~ 𝒩(0, I)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The Generator learns to predict the noise that was added:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;L_gen = 𝔼[‖ε − εθ(xₜ, t, c)‖²]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;At serving time, the Generator starts from random noise and reverses this process to produce candidate pacing plans. Classifier-free guidance steers generation toward the requested targets:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;ε_guided = ε_uncond + s(ε_cond − ε_uncond)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;aligner&quot;&gt;Aligner&lt;/h3&gt;
+
+&lt;p&gt;The Aligner receives the campaign context and a candidate pacing trajectory, then predicts the expected outcome:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;ŷ = Aϕ(c, x)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The planner compares these predictions with the desired campaign targets:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;J(x; c) = Σₘ wₘ ρ(ŷₘ − yₘ*)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Here, yₘ* is the target for metric m, w_m controls its importance, and rho is an error function. The target metrics may represent revenue, budget utilization, or other business objectives.&lt;/p&gt;
+
+&lt;h3 id=&quot;inference-time-refinement&quot;&gt;Inference-time refinement&lt;/h3&gt;
+
+&lt;p&gt;Because the Aligner is differentiable, the planner can refine the pacing actions at inference time without changing the Generator or Aligner weights. For candidate j at refinement step k, it computes the gradient of the objective with respect to the pacing trajectory:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gⱼ⁽ᵏ⁾ = ∇ₓ J(xⱼ⁽ᵏ⁾; c)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;It then updates the trajectory in the direction that reduces the predicted error, and clamps each action to [0, 1]:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;xⱼ⁽ᵏ⁺¹⁾ = clip(xⱼ⁽ᵏ⁾ − αₖgⱼ⁽ᵏ⁾, 0, 1)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The planner generates and refines multiple candidate trajectories, then selects the one with the lowest target error:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;x* = argminⱼ J(xⱼ; c)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The Generator produces realistic and diverse pacing plans. The Aligner makes them goal-aware by refining them toward defined targets. The simulator supplies the historical and simulated trajectories used to train both components, and it is the environment used to validate the refined plans.&lt;/p&gt;
+
+&lt;h2 id=&quot;training-from-historical-behavior-to-simulator-driven-learning&quot;&gt;Training: from historical behavior to simulator-driven learning&lt;/h2&gt;
+
+&lt;p&gt;Training starts with historical behavior. Production data shows how campaigns paced spend under existing controllers. This phase gives the bidder a safe baseline: daily traffic rhythms, campaign-level differences, budget pressure, and the relationship between pacing actions and observed outcomes.&lt;/p&gt;
+
+&lt;p&gt;This is behavioral cloning. It is a useful initialization, and it can also reproduce limits in the historical data or in the existing control strategies. The model should learn from production behavior without being restricted to copying it.&lt;/p&gt;
+
+&lt;p&gt;The simulator is what lets training move past that baseline. In simulator-driven training, candidate bidders run against replayed historical traffic. The loop collects trajectories and outcomes, and uses those outputs to improve the next model version. Weak strategies can fail offline. Promising strategies can be reinforced across many simulated campaign states. The model can explore pacing plans that would be too risky to test directly in production.&lt;/p&gt;
+
+&lt;h3 id=&quot;training-at-scale-with-the-simulator-and-ray&quot;&gt;Training at scale with the simulator and Ray&lt;/h3&gt;
+
+&lt;p&gt;Simulator-driven training is a modeling problem and a distributed systems problem. A useful training round has to replay many historical traffic slices, run candidate policies through the simulator, collect trajectory-level outcomes, train the Generator and Aligner, and register a new model version. Doing that serially would make iteration too slow.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://docs.ray.io/&quot;&gt;Ray&lt;/a&gt;, a distributed computing framework, gives this loop its throughput. A single simulator run can replay one day of traffic and process multiple auction requests. A training round can launch independent simulator workers across different historical dates, campaign slices, or candidate policy versions. Each worker loads its assigned auction data, runs the bidder through replayed traffic, and writes pacing trajectories, spend movement, fulfillment progress, ROAS, and guardrail metrics back to storage.&lt;/p&gt;
+
+&lt;p&gt;Ray runs this orchestration as a cluster workload, rather than as a notebook or a one-off batch script. It allocates resources across simulation and training workers, keeps independent replay jobs running concurrently, and gives the loop a way to retry or replace failed work. Inside each simulator, auction processing can still use local parallelism for groups of auction requests. Ray handles parallelism across days, markets, model candidates, and training phases.&lt;/p&gt;
+
+&lt;p&gt;The output of this fan-out becomes the next training dataset. The Generator learns from pacing trajectories. The Aligner learns from observed end-of-window outcomes. After training, the updated models are registered as versioned artifacts that can move into validation.&lt;/p&gt;
+
+&lt;p&gt;The combined simulator and Ray layer matters for three reasons:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Scale. The model can learn from many simulated days or campaign states in one training round, instead of waiting for sequential replay.&lt;/li&gt;
+  &lt;li&gt;Diversity. Parallel simulation can cover different traffic patterns, markets, campaign types, and policy variants, which reduces the chance that the model overfits to one historical slice.&lt;/li&gt;
+  &lt;li&gt;Repeatability. Each training round can be tied to a specific dataset window, simulator configuration, model version, and validation report, which makes failures easier to diagnose.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;the-training-loop&quot;&gt;The training loop&lt;/h3&gt;
+
+&lt;p&gt;The training loop has seven steps:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Start with historical production data to learn a safe baseline.&lt;/li&gt;
+  &lt;li&gt;Train the initial Generator and Aligner on observed pacing sequences and outcomes.&lt;/li&gt;
+  &lt;li&gt;Launch parallel simulator runs across campaign states, traffic patterns, dates, markets, and candidate policies.&lt;/li&gt;
+  &lt;li&gt;Let the candidate bidder act inside simulated auctions.&lt;/li&gt;
+  &lt;li&gt;Collect trajectories, including bid plans, auction responses, budget movement, fulfillment progress, ROAS, and guardrail metrics.&lt;/li&gt;
+  &lt;li&gt;Train an improved model from successful and failed strategies.&lt;/li&gt;
+  &lt;li&gt;Register the updated Generator and Aligner as versioned artifacts for validation.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Generation, execution, and learning stay connected. The model does not imitate old pacing behavior once and then stop. It proposes plans, the simulator shows the consequences, training absorbs those consequences, and the next model version gets another chance to plan better.&lt;/p&gt;
+
+&lt;h2 id=&quot;validation-from-model-metrics-to-marketplace-safety&quot;&gt;Validation: from model metrics to marketplace safety&lt;/h2&gt;
+
+&lt;p&gt;Training asks whether the model can learn. Validation asks whether the learned policy should be trusted.&lt;/p&gt;
+
+&lt;p&gt;For generative bidders, validation has to happen at several levels. A model can have a good validation loss and still be unsafe in the auction loop. A generated sequence can look realistic and still underspend. An Aligner can predict well on historical trajectories and still misjudge trajectories from a new Generator. Validation is a separate gate after training, not a side effect of it.&lt;/p&gt;
+
+&lt;h3 id=&quot;level-1-dataset-and-model-validation&quot;&gt;Level 1: dataset and model validation&lt;/h3&gt;
+
+&lt;p&gt;The first validation layer checks whether the training pipeline and the model are internally sound.&lt;/p&gt;
+
+&lt;p&gt;For the Generator, the training code keeps a time-based validation split and logs validation loss, the mean difference of reconstructed sequences, and distribution divergence. The evaluation review adds visual trajectory inspection, distribution fidelity checks, Wasserstein distance between generated and real pacing sequences, and conditioning sensitivity tests. These checks answer basic questions: do generated pacing plans follow real pacing rhythms, do their values occupy a plausible range, and do they change when campaign context changes?&lt;/p&gt;
+
+&lt;p&gt;For the Aligner, validation tracks whether the model predicts fulfillment progress and ROAS on held-out windows. It logs fulfillment and ROAS losses, mean absolute error (MAE), and mean squared error (MSE). These metrics matter because the Aligner guides candidate selection. If it overpredicts fulfillment progress, the planner may treat a campaign as on track when the campaign is underspending.&lt;/p&gt;
+
+&lt;p&gt;This layer is necessary, and it is not sufficient. It validates the learned components in isolation. The next layer validates the bidder as a decision system.&lt;/p&gt;
+
+&lt;h3 id=&quot;level-2-simulator-validation-against-auction-dynamics&quot;&gt;Level 2: simulator validation against auction dynamics&lt;/h3&gt;
+
+&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
+  &lt;img src=&quot;/img/part-2-ads-simulation/figure-3.png&quot; alt=&quot;Replay-day charts comparing a generative bidder with a PID baseline on budget delivery through the day, the direction of auction outcomes, and guardrail breach frequency.&quot; style=&quot;width:100%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Simulator-based validation.&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;
+
+&lt;p&gt;The simulator validation layer replays the bidder inside the auction environment.&lt;/p&gt;
+
+&lt;p&gt;The question changes from whether the model predicts well to what happens when this bidder controls pacing over time. The simulator compares the generative bidder with the existing PID-style pacing baseline under the same historical traffic and campaign conditions. It measures budget adherence, ROAS, order value, spend smoothness, early budget exhaustion, and guardrail violations, to determine that the generative bidder improves on PID without compromising delivery or efficiency.&lt;/p&gt;
+
+&lt;h3 id=&quot;level-3-stress-testing-and-guardrails&quot;&gt;Level 3: stress testing and guardrails&lt;/h3&gt;
+
+&lt;p&gt;A generative bidder also needs scenario validation. The simulator can stress the policy under cases that may be rare or risky in live traffic:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Sudden traffic spikes during high-value periods.&lt;/li&gt;
+  &lt;li&gt;Campaigns that are behind target late in the day.&lt;/li&gt;
+  &lt;li&gt;Campaigns with sparse or delayed conversion signals.&lt;/li&gt;
+  &lt;li&gt;Markets with different budget and currency behavior.&lt;/li&gt;
+  &lt;li&gt;Generated plans that approach budget exhaustion too early.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;These stress tests make safety a training and release gate. The bidder should do more than look good on average. It should fail gracefully when the market surprises it.&lt;/p&gt;
+
+&lt;h2 id=&quot;deployment-staged-live-handoff-and-calibration&quot;&gt;Deployment: staged live handoff and calibration&lt;/h2&gt;
+
+&lt;p&gt;Deployment comes after the training and validation gates. A candidate first passes dataset and model validation. It then passes simulator validation against the baseline and the guardrails. It then enters a scoped live experiment.&lt;/p&gt;
+
+&lt;p&gt;At serving time, the planner uses the trained Generator and Aligner to create short-lived pacing plans. It generates multiple candidate trajectories, refines them with the Aligner, selects the best plan, executes that plan for the next window, and refreshes the plan when the window expires. The deployed system keeps the same generate, align, select, and refresh pattern used in offline development, under live production constraints.&lt;/p&gt;
+
+&lt;p&gt;Live experiments remain the source of truth. The simulator can reduce risk, narrow the candidate set, and expose bad policies early. It cannot replace production evidence. After a live result lands, the gap between simulated and live outcomes becomes calibration data for the next simulator version.&lt;/p&gt;
+
+&lt;p&gt;That feedback matters because simulator fidelity moves. As the bidder enters regimes that historical controllers never explored, the simulator has to keep learning too.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;This work explores a shift from models that primarily predict outcomes toward generative algorithms that propose candidate actions, plans, and strategies. The framing is specific to this system. It does not describe a company-wide direction.&lt;/p&gt;
+
+&lt;p&gt;Many Grab marketplace problems unfold over time. Mobility systems need to reason about future demand and supply. Food systems need to anticipate order traffic and capacity. Ads systems need to decide how merchant budgets should move across uneven traffic while protecting ROAS, revenue, and user experience. In each case, the opportunity is to generate possible futures or action plans and test which ones are safe and useful, not only to predict what may happen.&lt;/p&gt;
+
+&lt;p&gt;For Ads, generative bidders are an early example. Instead of reacting auction by auction, a bidder can generate a short pacing plan for the next window, conditioned on campaign state, budget pressure, traffic context, and business goals. The simulator is the environment where these generated plans can be trained, compared, stress-tested, and filtered before they reach production.&lt;/p&gt;
+
+&lt;p&gt;The longer-term direction is to make this simulation-to-live loop a standard path for generative algorithms. Offline simulation can identify promising candidates, reject unsafe ones, and expose where a strategy is sensitive to specific traffic slices. Live experiments can then validate a smaller, stronger candidate set and feed real outcomes back into simulator calibration.&lt;/p&gt;
+
+&lt;p&gt;The goal is to build the infrastructure that lets Grab move safely toward generative decision-making: generate broadly, validate rigorously, launch narrowly, and learn continuously from production.&lt;/p&gt;
+
+&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;
+We gratefully acknowledge Allen Lin and Jianning Zhang from Grab’s DNA Data Science team for sharing valuable insights into Grab’s advertising systems and data, and for helping validate the simulator’s fidelity. We also thank Ruike Zhang, Richard Ryu, Padarn George Wilson, and Weilun Wu for their support and guidance throughout this work.
+&lt;/small&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
+
+&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
+
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;p&gt;Li, Y., Gao, J., Jiang, N., Mao, S., An, R., Pan, F., Zhao, X., An, B., Cai, Q., and Jiang, P. (2025). Generative auto-bidding in large-scale competitive auctions via diffusion completer-aligner. arXiv. &lt;a href=&quot;https://doi.org/10.48550/arXiv.2509.03348&quot;&gt;https://doi.org/10.48550/arXiv.2509.03348&lt;/a&gt;&lt;/p&gt;
+</description>
+        <pubDate>Wed, 25 Nov 2026 08:00:00 +0800</pubDate>
+        <link>https://engineering.grab.com/part-2-ads-simulation-blogpost</link>
+        <guid isPermaLink="true">https://engineering.grab.com/part-2-ads-simulation-blogpost</guid>
+        
+        <category>AI</category>
+        
+        <category>Advertising</category>
+        
+        <category>Simulation</category>
+        
+        <category>Machine Learning</category>
+        
+        <category>Engineering</category>
+        
+        
+        <category>Engineering</category>
+        
+      </item>
     
       <item>
         <title>Part 1: Simulation-first AI experimentation for ads at Grab</title>
@@ -134,19 +364,19 @@ We gratefully acknowledge Allen Lin and Jianning Zhang from Grab’s DNA Data Sc
 
 &lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
 
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/part_1_ads_simulation&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
         <pubDate>Mon, 23 Nov 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/part-1-ads-simulation-blogpost</link>
         <guid isPermaLink="true">https://engineering.grab.com/part-1-ads-simulation-blogpost</guid>
         
-        <category>Artificial Intelligence</category>
+        <category>AI</category>
         
         <category>Advertising</category>
         
         <category>Simulation</category>
         
-        <category>Experimentation</category>
+        <category>Experiment</category>
         
         <category>Engineering</category>
         
@@ -361,13 +591,13 @@ report(paired_means(), better_tied_worse(), largest_movers())
 
 &lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
 
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/mrg_changes&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
         <pubDate>Mon, 23 Nov 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/replaying-merged-changes-knowledge-base-coding-agents-better</link>
         <guid isPermaLink="true">https://engineering.grab.com/replaying-merged-changes-knowledge-base-coding-agents-better</guid>
         
-        <category>Artificial Intelligence</category>
+        <category>AI</category>
         
         <category>Knowledge Base</category>
         
@@ -658,15 +888,13 @@ report(paired_means(), better_tied_worse(), largest_movers())
 
 &lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
 
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/scarlet&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
         <pubDate>Mon, 23 Nov 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/how-grab-built-scarlet-blog</link>
         <guid isPermaLink="true">https://engineering.grab.com/how-grab-built-scarlet-blog</guid>
         
         <category>AI</category>
-        
-        <category>Artificial Intelligence</category>
         
         <category>Analytics</category>
         
@@ -919,13 +1147,13 @@ report(paired_means(), better_tied_worse(), largest_movers())
 
 &lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
 
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/data_degrade&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
 </description>
         <pubDate>Wed, 18 Nov 2026 08:00:00 +0800</pubDate>
         <link>https://engineering.grab.com/shared-merchant-data-service</link>
         <guid isPermaLink="true">https://engineering.grab.com/shared-merchant-data-service</guid>
         
-        <category>Resilience</category>
+        <category>Resiliency</category>
         
         <category>Caching</category>
         
@@ -1116,7 +1344,7 @@ report(paired_means(), better_tied_worse(), largest_movers())
 
 &lt;p&gt;Grab is a leading superapp in Southeast Asia, operating across the deliveries, mobility, and digital financial services sectors. Serving over 900 cities in eight Southeast Asian countries: Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam. Grab enables millions of people every day to order food or groceries, send packages, hail a ride or taxi, pay for online purchases or access services such as lending and insurance, all through a single app. We operate supermarkets in Malaysia under Jaya Grocer and Everrise, which enables us to bring the convenience of on-demand grocery delivery to more consumers in the country. As part of our financial services offerings, we also provide digital banking services through GXS Bank in Singapore and GXBank in Malaysia. Grab was founded in 2012 with the mission to drive Southeast Asia forward by creating economic empowerment for everyone. Grab strives to serve a triple bottom line. We aim to simultaneously deliver financial performance for our shareholders and have a positive social impact, which includes economic empowerment for millions of people in the region, while mitigating our environmental footprint.&lt;/p&gt;
 
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://www.grab.careers/en/&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
+&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/scale_defe&quot;&gt;join our team today&lt;/a&gt;!&lt;/p&gt;
 </description>
         <pubDate>Wed, 21 Oct 2026 08:23:00 +0800</pubDate>
         <link>https://engineering.grab.com/app-stability-at-scale-with-a-layered-defense</link>
@@ -1444,7 +1672,7 @@ Aggregate signal for authorised public health evaluation
         <link>https://engineering.grab.com/powering-ai-led-research-through-simulation</link>
         <guid isPermaLink="true">https://engineering.grab.com/powering-ai-led-research-through-simulation</guid>
         
-        <category>Artificial Intelligence</category>
+        <category>AI</category>
         
         <category>Dispatch</category>
         
@@ -1562,181 +1790,9 @@ The quality-control step rejects unsupported claims. The regeneration triggers i
         <link>https://engineering.grab.com/automated-merchant-review-summary-system-with-integrated-feedback</link>
         <guid isPermaLink="true">https://engineering.grab.com/automated-merchant-review-summary-system-with-integrated-feedback</guid>
         
-        <category>Artificial Intelligence</category>
+        <category>AI</category>
         
         <category>LLM</category>
-        
-        
-        <category>Engineering</category>
-        
-      </item>
-    
-      <item>
-        <title>Data Mesh at Grab (Part III): Operationalizing data reliability with automated DPIs</title>
-        <description>&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
-
-&lt;p&gt;In the &lt;a href=&quot;https://engineering.grab.com/signals-market-place&quot;&gt;first&lt;/a&gt; &lt;a href=&quot;https://engineering.grab.com/data-mesh-part-2-the-foundational-tools-behind-certification&quot;&gt;two parts of this series&lt;/a&gt;, we described how Grab approaches data mesh through the Signals Marketplace: a way for teams to publish, discover, and reuse trusted data products across domains. &lt;a href=&quot;https://engineering.grab.com/data-mesh-part-2-the-foundational-tools-behind-certification&quot;&gt;Part II&lt;/a&gt; introduced the foundational tools behind certification: Hubble for metadata and ownership, Genchi for data quality observability, and the Data Contract Registry for explicit producer-consumer guarantees.&lt;/p&gt;
-
-&lt;p&gt;Certification is the starting point for a trusted data marketplace. It gives downstream consumers confidence in an asset’s ownership, documentation, lineage, and quality controls. Certification does not eliminate runtime failure. A certified table can still arrive late. A certified metric can still be affected by a broken dependency. A certified Kafka stream can still violate a freshness expectation.&lt;/p&gt;
-
-&lt;p&gt;Keeping certified data products reliable in production requires more than defining standards upfront. Teams need a consistent way to detect failures, diagnose the root cause, fix the issue, and verify recovery. That is where &lt;em&gt;Data Production Issues&lt;/em&gt; (DPIs) come in. At Grab, DPIs turn data quality signals into an operational workflow.&lt;/p&gt;
-
-&lt;h2 id=&quot;the-dpi-lifecycle&quot;&gt;The DPI lifecycle&lt;/h2&gt;
-
-&lt;p&gt;A good DPI should be clear enough to act on, and it should close automatically when the underlying condition recovers. From the beginning, we designed the DPI lifecycle to be automated, with minimal human-in-the-loop.&lt;/p&gt;
-
-&lt;p&gt;The lifecycle starts when &lt;em&gt;Kinabalu,&lt;/em&gt; Grab’s incident orchestrator, observes that a data asset may no longer satisfy its contract. The contract captures the reliability expectations that matter for the asset, along with the health checks, exposed through Test Health application programming interfaces (APIs), that evaluate those expectations.&lt;/p&gt;
-
-&lt;p&gt;The orchestrator stays decoupled from platform internals. It does not need to know how each platform computes freshness, completeness, or other quality dimensions. It only needs to ask whether the relevant contract tests are healthy. If one or more contract tests are unhealthy, the contract is considered breached, and the DPI lifecycle begins.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-three/figure-1.png&quot; alt=&quot;Diagram of the automated Data Production Issue workflow from contract-test evaluation through triage, diagnosis, resolution, and close.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 1. Automated DPI workflow.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;h2 id=&quot;triaging-dpis-from-alerts-to-confirmed-contract-breaches&quot;&gt;Triaging DPIs: From alerts to confirmed contract breaches&lt;/h2&gt;
-
-&lt;p&gt;Data platforms emit many alerts. An Airflow schedule may be delayed, a data quality test may fail, or a pipeline job may exit unexpectedly. These alerts are useful, but they are not automatically DPIs. Triage decides whether an alert represents a real contract breach for a data asset.&lt;/p&gt;
-
-&lt;p&gt;As introduced in &lt;a href=&quot;https://engineering.grab.com/data-mesh-part-2-the-foundational-tools-behind-certification&quot;&gt;Part II&lt;/a&gt;, a data contract is an explicit, versioned agreement between a data producer and its consumers. It outlines the data’s schema, freshness, completeness, and other semantic guarantees. These guarantees are codified and enforced through data quality tests in Genchi.&lt;/p&gt;
-
-&lt;p&gt;When the incident orchestrator evaluates contract tests, it distinguishes an individual test run result from the overall health of a test. A test run can pass or fail at a point in time, but the test itself may only be considered healthy after the underlying issue has been fully resolved. For example, consider a completeness test that checks whether the T-1 daily partition is complete. If the test failed two days ago but passed yesterday and today, the test may still be considered unhealthy until the partition from two days ago has been backfilled and verified as complete.&lt;/p&gt;
-
-&lt;p&gt;The orchestrator also deduplicates around the active unhealthy condition. If an asset already has an open DPI for the same breach, new signals update the existing DPI with additional context rather than creating parallel issues. DPIs that share the same underlying root cause can also be grouped. This keeps responders focused on solving the underlying issue rather than chasing a stream of repetitive alerts.&lt;/p&gt;
-
-&lt;p&gt;During triage, the workflow also gathers context for the DPI: affected asset, breached contract, unhealthy tests, data interval, and upstream and downstream dependencies. Not every alert becomes a DPI. Triage protects the operational workflow from noise by promoting only meaningful contract breaches into production issues.&lt;/p&gt;
-
-&lt;h2 id=&quot;diagnosing-dpis-assigning-owners-with-root-cause-analysis-rca&quot;&gt;Diagnosing DPIs: Assigning owners with root cause analysis (RCA)&lt;/h2&gt;
-
-&lt;p&gt;Once a DPI is created, the system must answer &lt;em&gt;why the data is unhealthy, who should fix it, and how.&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;Not every data issue should be assigned to the data asset owner. A data product may be unhealthy because of a platform incident, a failed producing job, or a delayed upstream dependency. Assigning every issue to the asset owner creates unnecessary handoffs and slows down resolution.&lt;/p&gt;
-
-&lt;p&gt;This is where the Data Health API matters. It answers the question: “What kind of failure made this asset unhealthy?” The Data Health API keeps the error taxonomy small:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;UPSTREAM_ERROR&lt;/code&gt;: the asset is unhealthy because an upstream dependency is late, failed, or unavailable.&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PLATFORM_ERROR&lt;/code&gt;: the asset is unhealthy because the underlying platform or infrastructure is impaired.&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;JOB_ERROR&lt;/code&gt;: the asset is unhealthy because the producing job or pipeline failed.&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;DATA_ERROR&lt;/code&gt;: the asset is unhealthy because the produced data violates quality expectations.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The taxonomy is not meant to replace platform-specific diagnostics. The high-level Data Health API gives the orchestrator just enough structure to assign DPIs and manage their lifecycle consistently. An ingestion platform, streaming platform, metrics platform, or machine learning (ML) platform can still maintain detailed internal error catalogs, logs, retry states, and debugging tools. Platforms remain free to evolve their internals, while the incident orchestrator consumes a stable API contract, so the DPI workflow can interoperate across heterogeneous systems.&lt;/p&gt;
-
-&lt;p&gt;A simplified Data Health API response might look like this:&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;Disclaimer: The fields in this API response are mock data generated for demonstration purposes and do not represent real operational metrics.&lt;/em&gt;&lt;/p&gt;
-
-&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;assetId&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;urn:li:dataset:(urn:li:dataPlatform:hive,schema.table_A,PROD)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;healthStatus&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;UNHEALTHY&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;errorCategory&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;UPSTREAM_ERROR&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;context&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;upstreamAsset&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;urn:li:dataset:(urn:li:dataPlatform:hive,schema.table_B,PROD)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;reason&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;upstream data has not arrived for the expected data interval.&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;lastCheckedAt&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;2026-06-15T08:30:00Z&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;From this response, the orchestrator can see that table_A is unhealthy because of an upstream dependency rather than a problem in the asset itself. It then traces the active DPI for the upstream asset and links the table_A DPI to that upstream issue. The downstream DPI can inherit the same owner as the upstream DPI, keeping related failures grouped under the team best positioned to resolve the root cause.&lt;/p&gt;
-
-&lt;p&gt;The DPI process works only when the issues it raises can be assigned and fixed. If DPIs are frequently noisy, duplicated, or difficult to act on, users will eventually learn to ignore them. Diagnostic accuracy matters because it keeps DPIs useful for the people who receive them. It also creates a forcing function for each data-producing platform to improve its diagnostics. To produce accurate RCA, platforms need to incorporate signals from their dependencies and surrounding systems, not just their own local failure state.&lt;/p&gt;
-
-&lt;p&gt;Grab operationalizes DPI diagnosis across its internal data platforms. Our ingestion platform, &lt;em&gt;Hugo&lt;/em&gt;, is a primary example of this approach, as outlined in a previous &lt;a href=&quot;https://engineering.grab.com/improving-hugo-stability&quot;&gt;tech blog&lt;/a&gt;. Hugo’s intelligent diagnosis architecture uses a three-layered system to automatically detect, analyze, and troubleshoot data pipeline failures within its domain, as shown in Figure 2.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-three/figure-2.png&quot; alt=&quot;Diagram of Hugo&apos;s three-stage diagnosis architecture: signal collection, alert diagnosis, and diagnosis result.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 2. Hugo diagnosis architecture.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;p&gt;Modern data platforms generate alerts from many independent systems. Individually, these signals show only a partial view of a dataset. Hugo consolidates platform-specific signals into a unified diagnostic workflow to pinpoint root causes and recommend pipeline remediations. The diagnosis architecture consists of three stages:&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;&lt;strong&gt;Signal collection&lt;/strong&gt; collects events from multiple signal sources to build a full view of the dataset and pipeline health.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Alert diagnosis&lt;/strong&gt; creates a structured alert context, classifies the alert, routes it to the appropriate diagnoser, and identifies the root cause using specialized diagnosis logic.&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;Diagnosis result&lt;/strong&gt; persists the structured diagnosis output, including the identified root cause, affected dataset, and recommended fix or action.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;For example, when a dataset fails, the workflow orchestrator notifies Hugo with a job failure event. Hugo then routes the alert to its internal diagnostic layer to check for conditions such as upstream database replica lag, storing both the diagnosis and recommended fix alongside the affected dataset.&lt;/p&gt;
-
-&lt;p&gt;Decoupling signal ingestion, diagnosis, and result management makes it straightforward to add new signal sources and specialized diagnosers. Immediate RCA removes the need for manual log inspection, which shortens remediation and feeds directly into automated resolution workflows.&lt;/p&gt;
-
-&lt;h2 id=&quot;resolving-dpis-auto-healing-first-human-judgment-when-needed&quot;&gt;Resolving DPIs: Auto-healing first, human judgment when needed&lt;/h2&gt;
-
-&lt;p&gt;After triage and RCA, the final stage of the DPI lifecycle is resolution. The lifetime of a DPI is a proxy for data downtime: it begins when a contract breach is detected and ends when the affected dataset becomes healthy again. Reducing that window requires more than identifying the correct issue. It also depends on recovering safely and consistently from recurring failure modes.&lt;/p&gt;
-
-&lt;p&gt;Many incidents are routine and recoverable, such as transient compute interruptions, database connection timeouts, S3 throttling, or upstream pipelines that are delayed rather than permanently broken. Instead of relying on manual intervention for every incident, Hugo automates recovery for these well-understood failure patterns. Once the diagnosis workflow identifies the root cause, it produces a structured diagnosis result containing the affected dataset, the root cause, and the recommended resolution strategy. The auto-resolution workflow then consumes this result to execute the appropriate remediation automatically. Figure 3 shows Hugo’s auto-resolution architecture in two stages.&lt;/p&gt;
-
-&lt;div class=&quot;post-image-section&quot;&gt;&lt;figure&gt;
-  &lt;img src=&quot;/img/datamesh-three/figure-3.png&quot; alt=&quot;Diagram of Hugo&apos;s auto-resolution architecture, covering resolution execution plus notification and audit.&quot; style=&quot;width:70%&quot; /&gt;&lt;figcaption align=&quot;middle&quot;&gt;Figure 3. Hugo auto-resolution architecture.&lt;/figcaption&gt;
-  &lt;/figure&gt;
-&lt;/div&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Resolution execution&lt;/strong&gt; applies the recommended resolution strategy, such as retrying a failed job, waiting for an upstream dependency, or executing a custom resolver. After the action completes, the system verifies both pipeline health and data correctness to confirm the issue has been fully resolved. If a failure cannot be resolved safely through automation, such as in cases of data corruption, invalid records, or application code defects, the workflow escalates the incident for human intervention.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Notification and audit&lt;/strong&gt; records every resolution attempt and its outcome, while notifying the appropriate engineering teams. That record supports operational analysis, auditing, and later improvements to resolution policies.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;For example, a dataset may miss its freshness Service Level Agreement (SLA) because the workflow orchestrator becomes temporarily unresponsive and fails to submit the scheduled ingestion job. The diagnosis workflow identifies the incident as a pipeline execution failure and recommends a retry strategy. Hugo automatically retries the job, verifies that the pipeline completes and data health is restored, then logs the recovery and notifies the responsible team. This end-to-end process, from incident detection to resolution, runs automatically without manual intervention.&lt;/p&gt;
-
-&lt;p&gt;Hugo closes the loop between detection, diagnosis, and recovery. Rather than stopping at identification, the platform turns diagnosis results into targeted remediation, so routine operational issues can be resolved automatically while preserving human oversight for complex or high-risk incidents. Separating diagnosis from execution also lets new diagnosis capabilities and resolution strategies evolve independently without changing the overall architecture.&lt;/p&gt;
-
-&lt;p&gt;The impact is already evident in production. 86.9% of DPI incidents were automatically resolved, significantly reducing manual operational effort. By automating routine recoveries, engineers spend less time performing repetitive operational tasks and more time building new platform capabilities, while overall data downtime is significantly reduced.&lt;/p&gt;
-
-&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
-
-&lt;p&gt;Certified data products still need to prove their reliability in production. Freshness delays, upstream failures, platform incidents, and data quality violations can all break consumer trust, even when an asset has already met certification standards.&lt;/p&gt;
-
-&lt;p&gt;Automated DPIs are the operating model for managing these failures. By turning contract breaches into structured production issues, the DPI lifecycle makes data reliability operational: triage separates real breaches from alert noise, diagnosis identifies the likely failure domain, ownership routing reduces handoffs, and resolution closes the loop through auto-healing or human intervention when needed.&lt;/p&gt;
-
-&lt;p&gt;The most important outcome is not simply that issues are detected faster. It is that data downtime becomes visible, measurable, and reducible. With every DPI tracked from detection to recovery, teams can understand where time is spent, which failure modes repeat, and where automation can safely reduce operational toil. To date, more than 95% of DPIs are raised automatically rather than by humans, with a mean time to resolve (MTTR) that is 6 times faster for automated DPIs than for manually raised ones.&lt;/p&gt;
-
-&lt;p&gt;For Grab, this shifts data reliability from reactive firefighting to a managed production workflow. Automated DPIs help keep trusted data products trustworthy after certification, so downstream teams can depend on them with greater confidence.&lt;/p&gt;
-
-&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
-
-&lt;p&gt;Across the three-blog series, the story is how Grab turns data mesh from an operating principle into an artificial intelligence (AI)-ready foundation for the company.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Part I: Building trust through certification.&lt;/strong&gt; Grab needed the Signals Marketplace because the business had scaled across mobility, deliveries, financial services, and many data-producing domains. The old model of relying on a central Data Engineering team could no longer keep up. Certification became the mechanism for making high-quality data products visible, reusable, and accountable. With clear ownership, data contracts, and measurable adoption, Grab moved more consumption toward trusted assets, reduced duplication, and created stronger incentives for teams to curate the data they publish.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Part II: The foundational tools behind certification.&lt;/strong&gt; Trust becomes operational through platforms. Hubble covers discovery, lineage, ownership, and the certification engine. Genchi runs continuous data quality observability across freshness, completeness, schema, and business-rule checks. The Data Contract Registry formalizes producer-consumer expectations as versioned, enforceable contracts. Combined, these systems keep data certification an actively maintained standard rather than a static label.&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;Part III: Operationalizing data reliability with automated DPIs.&lt;/strong&gt; Certification tells consumers which data products should be trusted; DPIs keep that trust true in production. Kinabalu evaluates contract breaches, deduplicates noisy alerts, assigns ownership, and tracks recovery. Data Health APIs make RCA portable across platforms, while Hugo’s diagnosis and auto-resolution patterns show how common failures can be remediated faster and with less operational toil. The result is a measurable reduction in time to resolve and a stronger feedback loop back into certification.&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;The bigger takeaway is that Grab’s data moat is not just the volume of data we have. It is the system that makes our data trustworthy, discoverable, reusable, and continuously reliable. This foundation is what lets us embrace the agentic world: AI agents can search certified assets, reason over contracts and lineage, trust quality signals, detect production issues, draft RCA, and eventually suggest or execute safe remediation. In that world, data reliability becomes a compounding advantage. The better our foundations are, the more confidently Grab can build agentic experiences on top of them.&lt;/p&gt;
-
-&lt;p&gt;&lt;small class=&quot;credits&quot;&gt;We would like to thank all the data practitioners across Grab, including engineers and analysts to data scientists and product teams,  who have invested in certification, contracts, and data quality to build a solid foundation for AI agents and AI-powered experiences. We are equally grateful for the unwavering sponsorship, strategic guidance, and hands-on support from our leadership (Mohan Krishnan and Nikhil Dwarakanath), without which this long-term data foundation initiative would not have been possible.&lt;/small&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;join-us&quot;&gt;Join us&lt;/h2&gt;
-
-&lt;p&gt;Grab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.&lt;/p&gt;
-
-&lt;p&gt;Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, &lt;a href=&quot;https://grb.to/data_mesh_3/&quot;&gt;join our team&lt;/a&gt; today!&lt;/p&gt;
-</description>
-        <pubDate>Fri, 28 Aug 2026 08:00:00 +0800</pubDate>
-        <link>https://engineering.grab.com/data-mesh-at-grab-part-three</link>
-        <guid isPermaLink="true">https://engineering.grab.com/data-mesh-at-grab-part-three</guid>
-        
-        <category>Data</category>
-        
-        <category>Database</category>
-        
-        <category>Engineering</category>
-        
-        <category>Data Quality</category>
-        
-        <category>Observability</category>
         
         
         <category>Engineering</category>

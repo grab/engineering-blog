@@ -1326,10 +1326,21 @@
 <script>
   window.searchStore = {
     
+      "part-2-ads-simulation-blogpost": {
+        "title": "Part 2: Generative bidders for ads at Grab",
+        "author": ["abhinav.rai","yvonne.wong","nguyenminhchau.le","chongyu.zhou"],
+        "tags": ["AI","Advertising","Simulation","Machine Learning","Engineering"],
+        "category": null,
+        "excerpt": "Grab Ads trains a generative bidder to plan merchant budget pacing over a future window. A simulator and a Ray training loop generate, align, validate, and stress-test those plans before a live experiment.",
+        "date": "25 Nov 2026",
+        "content": "IntroductionGrab runs marketplaces where many important decisions unfold over time, rather than as one-step predictions. Mobility systems need to anticipate how taxi demand and driver supply may evolve across locations and time windows. Food systems need to plan around changing order traffic, merchant capacity, and delivery demand. Ads has the same problem with merchant campaign budgets: traffic quality, user intent, and campaign spend opportunities change throughout the day.Prediction models estimate what may happen next, such as demand, conversion likelihood, or expected engagement. Many Grab use cases need the system to go further: generate possible future trajectories or action plans, evaluate them against business constraints, and choose a safe path forward.That is the problem generative models address. They can propose structured futures, such as demand-supply trajectories, order traffic scenarios, or budget pacing plans, conditioned on the current marketplace state and on business goals. Generated futures and generated actions cannot be trusted just because they look plausible. They need to be trained, evaluated, and stress-tested before they influence real users, merchants, drivers, or budgets. This is part 2 of 2. Read Part 1 where we discussed the ads simulator.Generative bidders for adsIn Grab Ads, the business problem is merchant budget delivery. An ideal campaign spends efficiently across auctions under uneven traffic, winning high-value opportunities while using its target budget. Controllers such as proportional-integral-derivative (PID) controllers are widely used in digital advertising, but they are reactive. They adjust bidding pressure only when a campaign is ahead of or behind its target, and they do not plan how spend should unfold over the next window. To improve ad auction bidding for Grab and its merchants, we propose a generative bidder that plans pacing actions, so campaigns can bid in ways that better serve user experience and business goals. The design follows the diffusion completer-aligner approach described by Li et al. (2025).A generative bidder produces a short sequence of future pacing actions for a campaign. Ads can then plan budget delivery under marketplace constraints, and use simulation to train, validate, and stress-test those plans before they affect live merchant budgets.  Figure 1. Train in simulation, check the guardrails, and only then consider a live experiment.  Part 1 introduced the ads simulator. The simulator does two jobs here. It creates safe opportunities to explore pacing strategies while the bidder trains, and it checks whether those strategies are safe enough for a live test. Training teaches the model to produce plausible, useful pacing plans. Validation checks that those plans survive auction mechanics, budget constraints, delayed signals, and marketplace guardrails.Why generative bidders need simulationA traditional budget pacing controller reacts to the gap between how much a campaign should have spent by now and how much it has actually spent. If a campaign underspends, the controller increases bidding pressure. If it overspends, the controller backs off. The pattern is reliable, and it is reactive.A generative bidder plans ahead. Instead of one adjustment for the current auction, it generates a sequence of pacing actions for a short future window, on the order of tens of minutes. The plan is conditioned on campaign state, time, budget, billing type, current fulfillment progress, the allocation target, and return on ad spend (ROAS) goals.The simulator does more than score the bidder after training. It also generates training data. Candidate pacing plans run through simulated auctions, and the resulting trajectories, budget movement, fulfillment progress, ROAS, and guardrail metrics are recorded as training examples. The Generator learns which pacing sequences are realistic. The Aligner learns how those sequences affect delivery and efficiency.The system can then propose different spend shapes over the next window. One plan may spend steadily. Another may hold back early and bid more aggressively later. A third may increase pressure when the model expects higher-value traffic. Simulation lets us explore these alternatives safely, learn from their outcomes, and test the resulting bidder before it affects real merchants.Core components: Generator and Aligner  Figure 2. Generator and Aligner architecture.  The bidder uses a generate-then-align architecture. The Generator proposes a 30-minute pacing plan, represented as a sequence x = [p₁, …, p₃₀], where each pᵢ ∈ [0, 1] and is the pacing action for one minute. The Aligner evaluates each plan by predicting its final fulfillment progress and ROAS.GeneratorLet x₀ be a real pacing sequence from historical logs or from simulator-generated training data, and let c represent the campaign context and target outcomes. During training, the diffusion process adds Gaussian noise to x₀:xₜ = √(ᾱₜ) x₀ + √(1 − ᾱₜ) ε, ε ~ 𝒩(0, I)The Generator learns to predict the noise that was added:L_gen = 𝔼[‖ε − εθ(xₜ, t, c)‖²]At serving time, the Generator starts from random noise and reverses this process to produce candidate pacing plans. Classifier-free guidance steers generation toward the requested targets:ε_guided = ε_uncond + s(ε_cond − ε_uncond)AlignerThe Aligner receives the campaign context and a candidate pacing trajectory, then predicts the expected outcome:ŷ = Aϕ(c, x)The planner compares these predictions with the desired campaign targets:J(x; c) = Σₘ wₘ ρ(ŷₘ − yₘ*)Here, yₘ* is the target for metric m, w_m controls its importance, and rho is an error function. The target metrics may represent revenue, budget utilization, or other business objectives.Inference-time refinementBecause the Aligner is differentiable, the planner can refine the pacing actions at inference time without changing the Generator or Aligner weights. For candidate j at refinement step k, it computes the gradient of the objective with respect to the pacing trajectory:gⱼ⁽ᵏ⁾ = ∇ₓ J(xⱼ⁽ᵏ⁾; c)It then updates the trajectory in the direction that reduces the predicted error, and clamps each action to [0, 1]:xⱼ⁽ᵏ⁺¹⁾ = clip(xⱼ⁽ᵏ⁾ − αₖgⱼ⁽ᵏ⁾, 0, 1)The planner generates and refines multiple candidate trajectories, then selects the one with the lowest target error:x* = argminⱼ J(xⱼ; c)The Generator produces realistic and diverse pacing plans. The Aligner makes them goal-aware by refining them toward defined targets. The simulator supplies the historical and simulated trajectories used to train both components, and it is the environment used to validate the refined plans.Training: from historical behavior to simulator-driven learningTraining starts with historical behavior. Production data shows how campaigns paced spend under existing controllers. This phase gives the bidder a safe baseline: daily traffic rhythms, campaign-level differences, budget pressure, and the relationship between pacing actions and observed outcomes.This is behavioral cloning. It is a useful initialization, and it can also reproduce limits in the historical data or in the existing control strategies. The model should learn from production behavior without being restricted to copying it.The simulator is what lets training move past that baseline. In simulator-driven training, candidate bidders run against replayed historical traffic. The loop collects trajectories and outcomes, and uses those outputs to improve the next model version. Weak strategies can fail offline. Promising strategies can be reinforced across many simulated campaign states. The model can explore pacing plans that would be too risky to test directly in production.Training at scale with the simulator and RaySimulator-driven training is a modeling problem and a distributed systems problem. A useful training round has to replay many historical traffic slices, run candidate policies through the simulator, collect trajectory-level outcomes, train the Generator and Aligner, and register a new model version. Doing that serially would make iteration too slow.Ray, a distributed computing framework, gives this loop its throughput. A single simulator run can replay one day of traffic and process multiple auction requests. A training round can launch independent simulator workers across different historical dates, campaign slices, or candidate policy versions. Each worker loads its assigned auction data, runs the bidder through replayed traffic, and writes pacing trajectories, spend movement, fulfillment progress, ROAS, and guardrail metrics back to storage.Ray runs this orchestration as a cluster workload, rather than as a notebook or a one-off batch script. It allocates resources across simulation and training workers, keeps independent replay jobs running concurrently, and gives the loop a way to retry or replace failed work. Inside each simulator, auction processing can still use local parallelism for groups of auction requests. Ray handles parallelism across days, markets, model candidates, and training phases.The output of this fan-out becomes the next training dataset. The Generator learns from pacing trajectories. The Aligner learns from observed end-of-window outcomes. After training, the updated models are registered as versioned artifacts that can move into validation.The combined simulator and Ray layer matters for three reasons:  Scale. The model can learn from many simulated days or campaign states in one training round, instead of waiting for sequential replay.  Diversity. Parallel simulation can cover different traffic patterns, markets, campaign types, and policy variants, which reduces the chance that the model overfits to one historical slice.  Repeatability. Each training round can be tied to a specific dataset window, simulator configuration, model version, and validation report, which makes failures easier to diagnose.The training loopThe training loop has seven steps:  Start with historical production data to learn a safe baseline.  Train the initial Generator and Aligner on observed pacing sequences and outcomes.  Launch parallel simulator runs across campaign states, traffic patterns, dates, markets, and candidate policies.  Let the candidate bidder act inside simulated auctions.  Collect trajectories, including bid plans, auction responses, budget movement, fulfillment progress, ROAS, and guardrail metrics.  Train an improved model from successful and failed strategies.  Register the updated Generator and Aligner as versioned artifacts for validation.Generation, execution, and learning stay connected. The model does not imitate old pacing behavior once and then stop. It proposes plans, the simulator shows the consequences, training absorbs those consequences, and the next model version gets another chance to plan better.Validation: from model metrics to marketplace safetyTraining asks whether the model can learn. Validation asks whether the learned policy should be trusted.For generative bidders, validation has to happen at several levels. A model can have a good validation loss and still be unsafe in the auction loop. A generated sequence can look realistic and still underspend. An Aligner can predict well on historical trajectories and still misjudge trajectories from a new Generator. Validation is a separate gate after training, not a side effect of it.Level 1: dataset and model validationThe first validation layer checks whether the training pipeline and the model are internally sound.For the Generator, the training code keeps a time-based validation split and logs validation loss, the mean difference of reconstructed sequences, and distribution divergence. The evaluation review adds visual trajectory inspection, distribution fidelity checks, Wasserstein distance between generated and real pacing sequences, and conditioning sensitivity tests. These checks answer basic questions: do generated pacing plans follow real pacing rhythms, do their values occupy a plausible range, and do they change when campaign context changes?For the Aligner, validation tracks whether the model predicts fulfillment progress and ROAS on held-out windows. It logs fulfillment and ROAS losses, mean absolute error (MAE), and mean squared error (MSE). These metrics matter because the Aligner guides candidate selection. If it overpredicts fulfillment progress, the planner may treat a campaign as on track when the campaign is underspending.This layer is necessary, and it is not sufficient. It validates the learned components in isolation. The next layer validates the bidder as a decision system.Level 2: simulator validation against auction dynamics  Figure 3. Simulator-based validation.  The simulator validation layer replays the bidder inside the auction environment.The question changes from whether the model predicts well to what happens when this bidder controls pacing over time. The simulator compares the generative bidder with the existing PID-style pacing baseline under the same historical traffic and campaign conditions. It measures budget adherence, ROAS, order value, spend smoothness, early budget exhaustion, and guardrail violations, to determine that the generative bidder improves on PID without compromising delivery or efficiency.Level 3: stress testing and guardrailsA generative bidder also needs scenario validation. The simulator can stress the policy under cases that may be rare or risky in live traffic:  Sudden traffic spikes during high-value periods.  Campaigns that are behind target late in the day.  Campaigns with sparse or delayed conversion signals.  Markets with different budget and currency behavior.  Generated plans that approach budget exhaustion too early.These stress tests make safety a training and release gate. The bidder should do more than look good on average. It should fail gracefully when the market surprises it.Deployment: staged live handoff and calibrationDeployment comes after the training and validation gates. A candidate first passes dataset and model validation. It then passes simulator validation against the baseline and the guardrails. It then enters a scoped live experiment.At serving time, the planner uses the trained Generator and Aligner to create short-lived pacing plans. It generates multiple candidate trajectories, refines them with the Aligner, selects the best plan, executes that plan for the next window, and refreshes the plan when the window expires. The deployed system keeps the same generate, align, select, and refresh pattern used in offline development, under live production constraints.Live experiments remain the source of truth. The simulator can reduce risk, narrow the candidate set, and expose bad policies early. It cannot replace production evidence. After a live result lands, the gap between simulated and live outcomes becomes calibration data for the next simulator version.That feedback matters because simulator fidelity moves. As the bidder enters regimes that historical controllers never explored, the simulator has to keep learning too.ConclusionThis work explores a shift from models that primarily predict outcomes toward generative algorithms that propose candidate actions, plans, and strategies. The framing is specific to this system. It does not describe a company-wide direction.Many Grab marketplace problems unfold over time. Mobility systems need to reason about future demand and supply. Food systems need to anticipate order traffic and capacity. Ads systems need to decide how merchant budgets should move across uneven traffic while protecting ROAS, revenue, and user experience. In each case, the opportunity is to generate possible futures or action plans and test which ones are safe and useful, not only to predict what may happen.For Ads, generative bidders are an early example. Instead of reacting auction by auction, a bidder can generate a short pacing plan for the next window, conditioned on campaign state, budget pressure, traffic context, and business goals. The simulator is the environment where these generated plans can be trained, compared, stress-tested, and filtered before they reach production.The longer-term direction is to make this simulation-to-live loop a standard path for generative algorithms. Offline simulation can identify promising candidates, reject unsafe ones, and expose where a strategy is sensitive to specific traffic slices. Live experiments can then validate a smaller, stronger candidate set and feed real outcomes back into simulator calibration.The goal is to build the infrastructure that lets Grab move safely toward generative decision-making: generate broadly, validate rigorously, launch narrowly, and learn continuously from production.We gratefully acknowledge Allen Lin and Jianning Zhang from Grab’s DNA Data Science team for sharing valuable insights into Grab’s advertising systems and data, and for helping validate the simulator’s fidelity. We also thank Ruike Zhang, Richard Ryu, Padarn George Wilson, and Weilun Wu for their support and guidance throughout this work.Join usGrab is Southeast Asia’s leading superapp, serving over 900 cities across eight countries (Cambodia, Indonesia, Malaysia, Myanmar, the Philippines, Singapore, Thailand, and Vietnam). Through a single platform, millions of users access mobility, delivery, and digital financial services, including ride-hailing, food delivery, payments, lending, and digital banking via GXS Bank and GXBank. Founded in 2012, Grab’s mission is to drive Southeast Asia forward by creating economic empowerment for everyone while delivering sustainable financial performance and positive social impact.Powered by technology and driven by heart, our mission is to drive Southeast Asia forward by creating economic empowerment for everyone. If this mission speaks to you, join our team today!ReferencesLi, Y., Gao, J., Jiang, N., Mao, S., An, R., Pan, F., Zhao, X., An, B., Cai, Q., and Jiang, P. (2025). Generative auto-bidding in large-scale competitive auctions via diffusion completer-aligner. arXiv. https://doi.org/10.48550/arXiv.2509.03348",
+        "url": "/part-2-ads-simulation-blogpost"
+      },
+    
       "part-1-ads-simulation-blogpost": {
         "title": "Part 1: Simulation-first AI experimentation for ads at Grab",
         "author": ["abhinav.rai","chongyu.zhou","nguyenminhchau.le","yvonne.wong"],
-        "tags": ["Artificial Intelligence","Advertising","Simulation","Experimentation","Engineering"],
+        "tags": ["AI","Advertising","Simulation","Experiment","Engineering"],
         "category": null,
         "excerpt": "Grab built an offline ads simulator to replay historical auctions, evaluate bidding, ranking, and pacing strategies against business and user guardrails, and send a smaller set of vetted candidates into live A/B tests.",
         "date": "23 Nov 2026",
@@ -1340,7 +1351,7 @@
       "replaying-merged-changes-knowledge-base-coding-agents-better": {
         "title": "Replaying merged changes: how we test whether a knowledge base makes coding agents better",
         "author": ["sayam.bohra","haotian.mi","victor.huang"],
-        "tags": ["Artificial Intelligence","Knowledge Base","Coding Agents","Evaluation","Engineering"],
+        "tags": ["AI","Knowledge Base","Coding Agents","Evaluation","Engineering"],
         "category": null,
         "excerpt": "Can a knowledge base make coding agents better? We replayed changes our engineers had already shipped and graded each plan against the real code. Every model we tried did better with it.",
         "date": "23 Nov 2026",
@@ -1351,7 +1362,7 @@
       "how-grab-built-scarlet-blog": {
         "title": "How Grab built Scarlet: the AI teammate that turns a Slack message into a production data pipeline",
         "author": ["ayan.chatterjee","nipun.soni","rishi.raj","sneh.agrawal"],
-        "tags": ["AI","Artificial Intelligence","Analytics","Database","Automation"],
+        "tags": ["AI","Analytics","Database","Automation"],
         "category": null,
         "excerpt": "Scarlet turns a Slack message, a Jira label, or a call from another agent into a reviewed merge request. This post shares how a skill library, data testing, and per-user access let it grow across Grab's data teams.",
         "date": "23 Nov 2026",
@@ -1362,7 +1373,7 @@
       "shared-merchant-data-service": {
         "title": "How a shared merchant data service can degrade gracefully",
         "author": ["kang.huang","zhouchun.wang"],
-        "tags": ["Resilience","Caching","Merchant Data","Backend","Engineering"],
+        "tags": ["Resiliency","Caching","Merchant Data","Backend","Engineering"],
         "category": null,
         "excerpt": "A cache disruption turned database fallbacks into an amplifier for a shared merchant data service. Here is how we bounded fallback work, isolated workloads by priority, gave responders scoped controls, and moved safe ...",
         "date": "18 Nov 2026",
@@ -1406,7 +1417,7 @@
       "powering-ai-led-research-through-simulation": {
         "title": "Powering AI-led research through simulation",
         "author": ["henokh.fibrianto","larry.lin"],
-        "tags": ["Artificial Intelligence","Dispatch","Engineering","Experiment","Machine Learning"],
+        "tags": ["AI","Dispatch","Engineering","Experiment","Machine Learning"],
         "category": null,
         "excerpt": "To improve production dispatch experiments, we built an offline marketplace simulator and an agent-driven research loop so strategy ideas can be tested in minutes, with safeguards against metric gaming and drift from ...",
         "date": "5 Oct 2026",
@@ -1417,7 +1428,7 @@
       "automated-merchant-review-summary-system-with-integrated-feedback": {
         "title": "Automated merchant review summary system with integrated feedback",
         "author": ["chengju.zhou","shlok.jain","yanye.li","waiteng.tang","thinh.leduc"],
-        "tags": ["Artificial Intelligence","LLM"],
+        "tags": ["AI","LLM"],
         "category": null,
         "excerpt": "The Automated Merchant Review Summary System provides concise, AI-generated summaries of merchant reviews on Grab, helping consumers make informed decisions without reading extensive feedback while giving merchants ac...",
         "date": "25 Sep 2026",
@@ -1428,7 +1439,7 @@
       "data-mesh-at-grab-part-three": {
         "title": "Data Mesh at Grab (Part III): Operationalizing data reliability with automated DPIs",
         "author": ["harvey.li","shuguang.xiang","ziqin.yeow","feng.cheng"],
-        "tags": ["Data","Database","Engineering","Data Quality","Observability"],
+        "tags": ["Database","Engineering","Data Quality","Observability"],
         "category": null,
         "excerpt": "Make data reliability as dependable as running water. Learn how Grab operationalises this vision using automated Data Production Issues (DPIs) to convert data contract breaches into structured, actionable workflows. B...",
         "date": "28 Aug 2026",
@@ -1439,7 +1450,7 @@
       "jarvis-pro-route-firsr-answer-later": {
         "title": "Building Jarvis Pro: Route first, answer later",
         "author": ["christian.coffrant"],
-        "tags": ["Artificial Intelligence","Engineering","Product","Account Management"],
+        "tags": ["AI","Engineering","Product","Account Management"],
         "category": null,
         "excerpt": "Jarvis Pro routes account-manager questions before answering. This post explains why fluent AI replies are not enough, how routing, memory, and metric reconciliation work, and how we evaluated launch readiness.",
         "date": "21 Aug 2026",
@@ -1450,7 +1461,7 @@
       "grab-bench-evaluating-ai": {
         "title": "Grab Bench: Evaluating AI on Grab-shaped production work",
         "author": ["christian.coffrant"],
-        "tags": ["Artificial Intelligence","Engineering","Product","Machine Learning"],
+        "tags": ["AI","Engineering","Product","Machine Learning"],
         "category": null,
         "excerpt": "Broad AI benchmarks are good at telling us which models look strong on public leaderboards. They are less good at catching the quiet failures that break production systems. Grab Bench is our internal evaluation framew...",
         "date": "12 Aug 2026",
@@ -1472,7 +1483,7 @@
       "crowdsourced-taxonomy-verification": {
         "title": "Crowdsourced taxonomy verification: A feedback-driven framework for refining knowledge graph relationships via online search interactions",
         "author": ["junpeng.niu","jian.lai","xiaoxue.zhang","wenqing.chen"],
-        "tags": ["Engineering","Data","Search","Machine Learning","LLM","Graphs"],
+        "tags": ["Engineering","Database","Search","Machine Learning","LLM","Graphs"],
         "category": null,
         "excerpt": "Knowledge graphs power modern search and recommendation systems, but automated construction methods can introduce semantic inaccuracies. This framework verifies KG relationships in real time by injecting candidate edg...",
         "date": "30 Jul 2026",
@@ -1494,7 +1505,7 @@
       "our-journey-to-apache-iceberg-adoption": {
         "title": "Scaling Grab's Data Lake: Our journey to Apache Iceberg adoption",
         "author": ["rahul.penti"],
-        "tags": ["Data","Database","Engineering","Apache Iceberg","Spark"],
+        "tags": ["Database","Engineering","Apache Iceberg","Spark"],
         "category": null,
         "excerpt": "As Grab's Data Lake grew to petabytes, the limitations of Hive Parquet became clear, from catalog latency and small files to manual partition management. This blog shares our journey adopting Apache Iceberg as our def...",
         "date": "10 Jul 2026",
@@ -1505,7 +1516,7 @@
       "counter-service-storage-migration": {
         "title": "Migrating Counter Service storage: Design choices and learnings",
         "author": ["jialong.loh","riyadh.sharif","runze.cui","yuanzhe.liu"],
-        "tags": ["Security","Artificial Intelligence","Kubernetes","DevSecOps","Platform","Engineering"],
+        "tags": ["Security","AI","Kubernetes","DevSecOps","Platform","Engineering"],
         "category": null,
         "excerpt": "Counter Service powers real-time fraud detection at massive scale, handling billions of requests daily. Learn how we migrated its underlying storage with zero downtime, redesigning the writer data model, incorporating...",
         "date": "3 Jul 2026",
@@ -1516,7 +1527,7 @@
       "scaling-out-distroless-adoption-with-ai": {
         "title": "Scaling out Distroless adoption With AI",
         "author": ["jiayee.chong","kevin.leejunhong","shikai.ng"],
-        "tags": ["Security","Containers","Artificial Intelligence","DevSecOps","Engineering"],
+        "tags": ["Security","Containers","AI","DevSecOps","Engineering"],
         "category": null,
         "excerpt": "Grab is moving hundreds of services to Distroless images to cut CVEs but only if workloads still run cleanly. Learn how medium tests became the migration gate, where the scaffolding toil stalled the campaign, and how ...",
         "date": "22 Jun 2026",
@@ -1527,7 +1538,7 @@
       "part-2-palana-architecture": {
         "title": "Palana (Part 2): Architecting isolation, identity, and auditability for AI agents",
         "author": ["kevin.littlejohn"],
-        "tags": ["Security","Artificial Intelligence","Kubernetes","DevSecOps","Platform","Engineering"],
+        "tags": ["Security","AI","Kubernetes","DevSecOps","Platform","Engineering"],
         "category": null,
         "excerpt": "How do you actually build a secure execution environment for artificial intelligence (AI) agents? In Part 2, we dive deep into Palana's architecture. Learn how Grab handles proxy-mediated secrets, large language model...",
         "date": "21 Jun 2026",
@@ -1538,7 +1549,7 @@
       "palana-part-1-secure-platform-for-ai-agents": {
         "title": "Palana (Part 1): Why Grab built a secure platform for autonomous AI Agents",
         "author": ["kevin.littlejohn"],
-        "tags": ["Security","Artificial Intelligence","Kubernetes","DevSecOps","Platform","Engineering"],
+        "tags": ["Security","AI","Kubernetes","DevSecOps","Platform","Engineering"],
         "category": null,
         "excerpt": "Artificial intelligence (AI) agents are evolving from chat interfaces into autonomous workloads, bringing new security risks. In Part 1, discover why Grab built Palana, a Kubernetes-native platform designed to run AI ...",
         "date": "19 Jun 2026",
@@ -1593,7 +1604,7 @@
       "data-mesh-part-2-the-foundational-tools-behind-certification": {
         "title": "Data Mesh at Grab (Part II): The foundational tools behind certification",
         "author": ["aezo.teo","harvey.li","houren.chen","feng.cheng"],
-        "tags": ["Data","Database","Engineering"],
+        "tags": ["Database","Engineering"],
         "category": null,
         "excerpt": "How does Grab manage quality across hundreds of thousands of data assets? Discover the foundational tools powering our Signals Marketplace. We dive into Hubble for discovery, Genchi for observability, and our Data Con...",
         "date": "30 Apr 2026",
@@ -1604,7 +1615,7 @@
       "from-firefighting-to-building": {
         "title": "From firefighting to building: How AI agents restored our team’s core productivity",
         "author": ["sneh.agrawal","rishi.raj","ayan.chatterjee","wenzhong.tan","sai.kakumanu"],
-        "tags": ["AI","Artificial Intelligence","Analytics","Database","Automation"],
+        "tags": ["AI","Analytics","Database","Automation"],
         "category": null,
         "excerpt": "The Analytics Data Warehouse (ADW) team at Grab supports over 1,000 users. These users support an extensive repository of more than 15,000 tables. To alleviate the time-consuming demands of repetitive tasks, the team ...",
         "date": "19 Mar 2026",
@@ -1615,7 +1626,7 @@
       "r8-optimization-at-scale-with-ai-assisted-debugging": {
         "title": "Enabling R8 optimization at scale with AI-assisted debugging",
         "author": ["van.minh"],
-        "tags": ["AI","Artificial Intelligence"],
+        "tags": ["AI"],
         "category": null,
         "excerpt": "How Grab enabled R8 optimization for its Android app at scale, over 9 million lines of code and more than engineers. Read how we achieved 25% ANR reduction, 16% app size decrease, and 27% faster startup through AI-ass...",
         "date": "12 Mar 2026",
@@ -1637,7 +1648,7 @@
       "cursor-at-grab-adoption-and-impact": {
         "title": "Cursor at Grab: Adoption and impact",
         "author": ["akshay.misra","ngocphuc.nguyen"],
-        "tags": ["AI","Artificial Intelligence"],
+        "tags": ["AI"],
         "category": null,
         "excerpt": "A look inside how we scaled AI-assisted coding across Grab, moving Cursor from pilot to daily use to help us work faster and more reliably. Read what changed in our workflows with Cursor, how we integrated it responsi...",
         "date": "29 Jan 2026",
@@ -1659,7 +1670,7 @@
       "brix": {
         "title": "From deployment slop to production reality: How BriX bridges the gap with enterprise-grade AI infrastructure",
         "author": ["sneh.agrawal","rishi.raj","kartik.srinivasan","eddy.lim","aseem.kumar","heber.ng"],
-        "tags": ["AI","Artificial Intelligence","LLM","Deployment"],
+        "tags": ["AI","LLM","Deployment"],
         "category": null,
         "excerpt": "Built an AI tool that works locally but can't scale enterprise-wide? Learn how BriX tackles this deployment gap, turning prototypes into governed, production-grade solutions—no engineering team required.",
         "date": "16 Jan 2026",
@@ -1703,7 +1714,7 @@
       "real-time-data-quality-monitoring": {
         "title": "Real-time data quality monitoring: Kafka stream contracts with syntactic and semantic test",
         "author": ["yuanzhe.liu","fabrice.harbulot","shikai.ng","quang.lehong"],
-        "tags": ["Engineering","Kafka","Performance","Data Science","Data Processing","Real-Time Streaming"],
+        "tags": ["Engineering","Kafka","Performance","Database","Data Processing","Real-Time Streaming"],
         "category": null,
         "excerpt": "Discover how Grab's Coban Platform revolutionizes real-time data quality monitoring for Kafka streams. Learn how syntactic and semantic tests empower stream users to ensure reliable data, prevent cascading errors, and...",
         "date": "26 Nov 2025",
@@ -1747,7 +1758,7 @@
       "ml-predictive-autoscaling-for-flink": {
         "title": "Machine-learning predictive autoscaling for Flink",
         "author": ["nhat.nguyen","shikai.ng","calvin.tran"],
-        "tags": ["Engineering","Performance","Data Science"],
+        "tags": ["Engineering","Performance","Database"],
         "category": null,
         "excerpt": "Explore how Grab uses machine learning to perform predictive scaling on our data processing workloads.",
         "date": "30 Oct 2025",
@@ -1758,7 +1769,7 @@
       "modernising-grab-model-serving-platform": {
         "title": "Modernising Grab’s model serving platform with NVIDIA Triton Inference Server",
         "author": ["daniel.tai","siddharth.pandey","richard.ryu","hung.do","nhatminh.nguyen"],
-        "tags": ["Engineering","Performance","Data Science"],
+        "tags": ["Engineering","Performance","Database"],
         "category": null,
         "excerpt": "Dive into Grab’s engineering journey to optimise a core ML model. Learn how we built the Triton Server Manager and used Triton Inference Server (TIS) to achieve a 50% reduction in tail latency and seamlessly migrate o...",
         "date": "21 Oct 2025",
@@ -1780,7 +1791,7 @@
       "user-foundation-models-for-grab": {
         "title": "User foundation models for Grab",
         "author": ["abhinav.rai","boonping.chong","chongyu.zhou","jenny.kang","nick.buhrer","sneha.krishnaswamy","sonphat.tran","zulfikar.lazuardi"],
-        "tags": ["AI","Artificial Intelligence","Machine Learning","LLM"],
+        "tags": ["AI","Machine Learning","LLM"],
         "category": null,
         "excerpt": "Grab has developed a groundbreaking foundation model specifically designed to understand user behavior. Grab's custom solution addresses the unique challenges of a multi-service platform spanning food delivery, ride-h...",
         "date": "26 Sep 2025",
@@ -1791,7 +1802,7 @@
       "pinot-partnergateway-tech-blog": {
         "title": "Powering Partner Gateway metrics with Apache Pinot",
         "author": ["alvis.chew","jasonl.wh"],
-        "tags": ["Database","Data","Apache"],
+        "tags": ["Database","Apache"],
         "category": null,
         "excerpt": "Partner Gateway serves as Grab's secure interface for exposing APIs to third-party entities, facilitating seamless interactions between Grab's hosted services and external consumers. This blog delves into the implemen...",
         "date": "23 Sep 2025",
@@ -1813,7 +1824,7 @@
       "signals-market-place": {
         "title": "Data mesh at Grab part I: Building trust through certification",
         "author": ["chunrong.phang","satarupa.seal","gladys.chia","jerome.tong"],
-        "tags": ["Data","Database","Engineering"],
+        "tags": ["Database","Engineering"],
         "category": null,
         "excerpt": "Grab has embarked on a transformative journey to overhaul its enterprise data ecosystem, addressing challenges posed by the rapid growth of its business spanning across ride-hailing, food delivery, and financial servi...",
         "date": "19 Aug 2025",
@@ -1824,7 +1835,7 @@
       "evolution-of-grab-machine-learning-feature-store": {
         "title": "The evolution of Grab's machine learning feature store",
         "author": ["daniel.tai","oscar.cassetti"],
-        "tags": ["Database","AWS"],
+        "tags": ["Database"],
         "category": null,
         "excerpt": "Learn how Grab is modernising its machine learning platform with a feature table-centric architecture powered by AWS Aurora for Postgres. This shift from a legacy feature fetching system to decentralised deployments e...",
         "date": "24 Jul 2025",
@@ -1835,7 +1846,7 @@
       "service-mesh-evolution": {
         "title": "Grab's service mesh evolution: From Consul to Istio",
         "author": ["hilman.kurniawan","jay.chin","shiyu.chen","sokann.yap"],
-        "tags": ["Microservice","Service Mesh","Kubernetes","AWS","GCP"],
+        "tags": ["Microservice","Service Mesh","Kubernetes","GCP"],
         "category": null,
         "excerpt": "When you're running 1000+ microservices across Southeast Asia's most complex transport and delivery platform, 'good enough' stops being good enough. Discover how Grab tackled the challenge of migrating from Consul to ...",
         "date": "16 Jul 2025",
@@ -1857,7 +1868,7 @@
       "counter-service-how-we-rewrote-it-in-rust": {
         "title": "Counter Service: How we rewrote it in Rust",
         "author": ["jialong.loh","pu.li","muqi.li","riyadh.sharif"],
-        "tags": ["Database","Rust","Data"],
+        "tags": ["Database","Rust"],
         "category": null,
         "excerpt": "The Integrity Data Platform team at Grab rewrote a QPS-heavy Golang microservice in Rust, achieving 70% infrastructure savings while maintaining similar performance. This initiative explored the ROI of adopting Rust f...",
         "date": "20 Jun 2025",
@@ -1890,7 +1901,7 @@
       "the-birth-of-grab-gpt": {
         "title": "From failure to success: The birth of GrabGPT, Grab’s internal ChatGPT",
         "author": ["wenbo.wei"],
-        "tags": ["Engineering","Optimization","AI","Artificial Intelligence"],
+        "tags": ["Engineering","Optimization","AI"],
         "category": null,
         "excerpt": "When Grab's Machine Learning team sought to automate support queries, a failed chatbot experiment sparked an unexpected pivot: GrabGPT. Born from the need to harness Large Language Models (LLMs) internally, this tool ...",
         "date": "19 May 2025",
@@ -1945,7 +1956,7 @@
       "improving-hugo-stability": {
         "title": "Improving Hugo stability and addressing oncall challenges through automation",
         "author": ["shuguang.xiang","hung.nguyenphi","hung.tran","hualin.liu","bowen.wang","chamal.sapumohotti"],
-        "tags": ["Data Pipeline","Data Reliability","Data Observability","Platform","System Architecture"],
+        "tags": ["Database","Data Reliability","Data Observability","Platform","System Architecture"],
         "category": null,
         "excerpt": "Managing 4,000+ data pipelines demanded a smarter approach to stability. We built a comprehensive automation solution that enhances Hugo's monitoring capabilities, streamlines issue diagnosis, and significantly reduce...",
         "date": "20 Mar 2025",
@@ -1978,7 +1989,7 @@
       "grab-ai-gateway": {
         "title": "Grab AI Gateway: Connecting Grabbers to multiple GenAI providers",
         "author": ["bjorn.jee","daniel.tai","siddharth.pandey","wenbo.wei"],
-        "tags": ["Engineering","Data Science","Optimization","Generative AI","LLM","Machine Learning"],
+        "tags": ["Engineering","Database","Optimization","Generative AI","LLM","Machine Learning"],
         "category": null,
         "excerpt": "GenAI has become integral to innovation, powering the next generation of AI enabled applications. With easy integration with multiple AI providers, it brings cutting edge technology to every user. This article explore...",
         "date": "19 Feb 2025",
@@ -2088,7 +2099,7 @@
       "catwalk-evolution": {
         "title": "Evolution of Catwalk: Model serving platform at Grab",
         "author": ["vishal.sharma","wenbo.wei","siddharth.pandey","daniel.tai","bjorn.jee"],
-        "tags": ["Machine Learning","Models","Data Science","TensorFlow","Kubernetes","Docker"],
+        "tags": ["Machine Learning","Models","Database","TensorFlow","Kubernetes","Docker"],
         "category": null,
         "excerpt": "Read about the evolution of Catwalk, Grab's model serving platform, from its inception to its current state. Discover how it has evolved to meet the needs of Grab's growing machine learning model serving requirements.",
         "date": "1 Oct 2024",
@@ -2099,7 +2110,7 @@
       "hubble-data-discovery": {
         "title": "Enabling conversational data discovery with LLMs at Grab",
         "author": ["shreyas.parbat","amanda.ng","yucheng.zeng","vinnson.lee","feng.cheng","varun.torka"],
-        "tags": ["Data Discovery","AI","Artificial Intelligence","LLM","Documentation","Elasticsearch"],
+        "tags": ["Data Discovery","AI","LLM","Documentation","Elasticsearch"],
         "category": null,
         "excerpt": "Discover how Grab is revolutionising data discovery with the power of AI and LLMs. Dive into our journey as we overcome challenges, build groundbreaking tools like HubbleIQ, and transform the way our employees find an...",
         "date": "26 Sep 2024",
@@ -2154,7 +2165,7 @@
       "llm-powered-data-classification": {
         "title": "LLM-powered data classification for data entities at scale",
         "author": ["hualin.liu","stefan.jaro","harvey.li","jerome.tong","andrew.lam","chamal.sapumohotti","feng.cheng","aaqib.kufran"],
-        "tags": ["Data","Machine Learning","Generative AI"],
+        "tags": ["Database","Machine Learning","Generative AI"],
         "category": null,
         "excerpt": "With the advent of the Large Language Model (LLM), new possibilities dawned for metadata generation and sensitive data identification at Grab. This prompted the inception of our project aimed to integrate LLM classifi...",
         "date": "15 Jul 2024",
@@ -2198,7 +2209,7 @@
       "data-observability": {
         "title": "Ensuring data reliability and observability in risk systems",
         "author": ["yini.ong","kamesh.chandran","jialong.loh"],
-        "tags": ["Data Science","Security","Risk","Data Observability","Data Reliability"],
+        "tags": ["Database","Security","Risk","Data Observability","Data Reliability"],
         "category": null,
         "excerpt": "As the amount of data Grab handles grows, there is an increased need for quick detections for data anomalies (incompleteness or inaccuracy), while keeping it secure. Read this to learn how the Risk Data team utilised ...",
         "date": "23 Apr 2024",
@@ -2209,7 +2220,7 @@
       "grabx-decision-engine": {
         "title": "Grab Experiment Decision Engine - a Unified Toolkit for Experimentation",
         "author": ["ruike.zhang","panos.m"],
-        "tags": ["Data Science","Experiment","Statistics","Econometrics","Python Package"],
+        "tags": ["Database","Experiment","Statistics","Econometrics","Python Package"],
         "category": null,
         "excerpt": "Explore how the GrabX Decision Engine, an integral part of Grab's Experimentation platform, streamlines the testing of thousands of experimental variants weekly. This blog delves into how this internally open-sourced ...",
         "date": "9 Apr 2024",
@@ -2242,7 +2253,7 @@
       "enabling-near-realtime-data-analytics": {
         "title": "Enabling near real-time data analytics on the data lake",
         "author": ["shikai.ng","shuguang.xiang"],
-        "tags": ["Data Analytics","Stream Processing","Kafka","Real-Time"],
+        "tags": ["Analytics","Stream Processing","Kafka","Real-Time"],
         "category": null,
         "excerpt": "As the data lake landscape matures over the years, it presents opportunities to unlock more business value from the data. This correlates with the increased demand for flexible ad-hoc usage of fresh data. This article...",
         "date": "23 Feb 2024",
@@ -2286,7 +2297,7 @@
       "kafka-on-kubernetes": {
         "title": "Kafka on Kubernetes: Reloaded for fault tolerance",
         "author": ["fabrice.harbulot","thang.le"],
-        "tags": ["Kafka","Kubernetes","AWS","Data Streaming"],
+        "tags": ["Kafka","Kubernetes","Data Streaming"],
         "category": null,
         "excerpt": "Dive into this insightful post to explore how Coban, Grab's real-time data streaming platform, has drastically enhanced the fault tolerance on its Kafka on Kubernetes design, to ensure seamless operation even amid une...",
         "date": "26 Dec 2023",
@@ -2308,7 +2319,7 @@
       "frequency-capping": {
         "title": "Sliding window rate limits in distributed systems",
         "author": ["naveen.kumar","abdullah.mamun"],
-        "tags": ["Data","Big Data","Rate-Limiting","Frequency Capping","Distributed Systems"],
+        "tags": ["Database","Rate-Limiting","Frequency Capping","Distributed Systems"],
         "category": null,
         "excerpt": "In the field of distributed systems, there are several common challenges, such as rate limiters and fast queries in big data. In this blog post, we delve into how we address these challenges with sliding window rate l...",
         "date": "14 Dec 2023",
@@ -2319,7 +2330,7 @@
       "an-elegant-platform": {
         "title": "An elegant platform",
         "author": ["fabrice.harbulot","minhkhoi.nguyen"],
-        "tags": ["Data","Data Streaming","Real-Time Streaming","Platformization"],
+        "tags": ["Database","Data Streaming","Real-Time Streaming","Platformization"],
         "category": null,
         "excerpt": "Supporting real-time data streaming enables our internal users to build intelligent applications and services, a crucial aspect of continuously out-serving our community. Read this article to understand our journey of...",
         "date": "30 Nov 2023",
@@ -2330,7 +2341,7 @@
       "road-localisation-grabmaps": {
         "title": "Road localisation in GrabMaps",
         "author": ["roxana.crisan"],
-        "tags": ["Maps","Data","Big Data","Data Processing","Hyperlocalization","GrabMaps"],
+        "tags": ["Maps","Database","Data Processing","Hyperlocalization","GrabMaps"],
         "category": null,
         "excerpt": "With GrabMaps powering the Grab superapp we have the opportunity to improve our services and enhance our map with hyperlocal data. No matter the use case, road localisation plays an important role in Grab’s map-making...",
         "date": "17 Nov 2023",
@@ -2341,7 +2352,7 @@
       "graph-modelling-guidelines": {
         "title": "Graph modelling guidelines",
         "author": ["wenxiang.lu","muqi.li","weiyang.wang","wenhui.wu"],
-        "tags": ["Graph Technology","Graphs","Graph Networks","Security","Data"],
+        "tags": ["Graph Technology","Graphs","Graph Networks","Security","Database"],
         "category": null,
         "excerpt": "Graphs are powerful data representations that detect relationships and data linkages between devices. This is very helpful in revealing fraudulent or malicious users. Graph modelling is the key to leveraging graph cap...",
         "date": "8 Nov 2023",
@@ -2352,7 +2363,7 @@
       "scaling-marketing-for-merchants": {
         "title": "Scaling marketing for merchants with targeted and intelligent promos",
         "author": ["sharon.teng"],
-        "tags": ["Data","Advertising","Scalability","Data Science","Marketing"],
+        "tags": ["Database","Advertising","Scalability","Marketing"],
         "category": null,
         "excerpt": "Apart from ensuring advertisements reach the right audience, it is also important to make promos by merchants more targeted and intelligent to help scale their marketing. With Grab’s innovative AI tool, merchants can ...",
         "date": "11 Oct 2023",
@@ -2363,7 +2374,7 @@
       "scalable-lookalike-audiences": {
         "title": "Stepping up marketing for advertisers: Scalable lookalike audience",
         "author": ["william.wu"],
-        "tags": ["Data","Advertising","Scalability","Data Science","Marketing","Lookalike Audience"],
+        "tags": ["Database","Advertising","Scalability","Marketing","Lookalike Audience"],
         "category": null,
         "excerpt": "A key challenge in advertising is reaching the right audience who are most likely to use your product. Read this article to find out how the Data Science team improved advertising effectiveness by using lookalike audi...",
         "date": "22 Sep 2023",
@@ -2374,7 +2385,7 @@
       "building-hyperlocal-grabmaps": {
         "title": "Building hyperlocal GrabMaps",
         "author": ["adriana.lazar"],
-        "tags": ["Maps","Data","Big Data","Data Processing","Hyperlocalization","GrabMaps","Navigation"],
+        "tags": ["Maps","Database","Data Processing","Hyperlocalization","GrabMaps","Navigation"],
         "category": null,
         "excerpt": "Being hyperlocal is a key advantage for GrabMaps. In this article we will explain what being hyperlocal means and how it helps GrabMaps bring value to our driver-partners and passengers through the Grab platform.",
         "date": "30 Aug 2023",
@@ -2396,7 +2407,7 @@
       "graph-anomaly-model": {
         "title": "Unsupervised graph anomaly detection - Catching new fraudulent behaviours",
         "author": ["rizal.fathony","jenn.ng","jia.chen"],
-        "tags": ["Data Science","Graph Networks","Graphs","Graph Visualization","Security","Fraud Detection","Anomaly Detection","Machine Learning"],
+        "tags": ["Database","Graph Networks","Graphs","Graph Visualization","Security","Fraud Detection","Anomaly Detection","Machine Learning"],
         "category": null,
         "excerpt": "As fraudsters continue to evolve, it becomes more challenging to automatically detect new fraudulent behaviours. At Grab, we are committed to continuously improving our security measures and ensuring our users are pro...",
         "date": "2 Aug 2023",
@@ -2583,7 +2594,7 @@
       "graph-for-fraud-detection": {
         "title": "Graph for fraud detection",
         "author": ["min.chen","advitiya.vashist","jenn.ng","jia.chen"],
-        "tags": ["Analytics","Data Science","Security","Graphs","Graph Visualization","Graph Networks","Fraud Detection"],
+        "tags": ["Analytics","Database","Security","Graphs","Graph Visualization","Graph Networks","Fraud Detection"],
         "category": null,
         "excerpt": "Fraud detection has become increasingly important in a fast growing business as new fraud patterns arise when a business product is introduced. We need a sustainable framework to combat different types of fraud and pr...",
         "date": "24 Nov 2022",
@@ -2594,7 +2605,7 @@
       "query-expansion-based-on-user-behaviour": {
         "title": "Query expansion based on user behaviour",
         "author": ["shuailong.liang","weilun.wu","yuan.meng","simone.wong"],
-        "tags": ["Analytics","Data Science"],
+        "tags": ["Analytics","Database"],
         "category": null,
         "excerpt": "User behaviour data is a gold mine to gain insights about users and help us improve user experience. In this blog, we explore a query expansion framework based on user rewrite behaviour and how it improves user search...",
         "date": "16 Nov 2022",
@@ -2605,7 +2616,7 @@
       "using-mobile-sensor-data-to-encourage-safer-driving": {
         "title": "Using mobile sensor data to encourage safer driving",
         "author": ["laiyi.lin"],
-        "tags": ["Analytics","Driving Patterns","Data Science","GPS","Security"],
+        "tags": ["Analytics","Driving Patterns","Database","GPS","Security"],
         "category": null,
         "excerpt": "Telematics is most commonly used to monitor vehicle movements and track driving safety, profiling, fleet optimisation and possible productivity improvements. Read this to find out more about how Grab uses telematics t...",
         "date": "25 Oct 2022",
@@ -2616,7 +2627,7 @@
       "automatic-rule-backtesting": {
         "title": "Automatic rule backtesting with large quantities of data",
         "author": ["chao.w","clemens.valiente","jun.liu","daniel.wang"],
-        "tags": ["Testing","Automation","Backtesting","Data Science"],
+        "tags": ["Testing","Automation","Backtesting","Database"],
         "category": null,
         "excerpt": "At Grab, real-time fraud detection is built on a rule engine. As data scientists and analysts, we need to analyse and simulate a rule on historical data to check the performance and accuracy of the rule. Backtesting, ...",
         "date": "8 Sep 2022",
@@ -2726,7 +2737,7 @@
       "how-we-reduced-our-ci-yaml": {
         "title": "How we reduced our CI YAML files from 1800 lines to 50 lines",
         "author": ["jialong.loh","oscar.cassetti","wenbo.wei"],
-        "tags": ["CI","Machine Learning","Pipelines","Continuous Integration","Continuous Delivery","Optimization","Rust"],
+        "tags": ["Continuous Integration","Machine Learning","Pipelines","Continuous Delivery","Optimization","Rust"],
         "category": null,
         "excerpt": "GitLab and its tooling are are an integral part of the machine learning platform team stack, for continuous delivery of machine learning. One of our core products is MerLin Pipelines. We were reaching certain limitati...",
         "date": "19 Apr 2022",
@@ -2759,7 +2770,7 @@
       "telematics-at-grab": {
         "title": "How telematics helps Grab to improve safety",
         "author": ["wilson.burhan"],
-        "tags": ["Engineering","Data Science","Driving Patterns","Safety","Analytics"],
+        "tags": ["Engineering","Database","Driving Patterns","Safety","Analytics"],
         "category": null,
         "excerpt": "Coupled with data science, telematics can help to detect traffic events such as harsh braking and unsafe lane changes so we can provide a safer experience for our users. Read on to find out more about the challenges f...",
         "date": "24 Mar 2022",
@@ -2825,7 +2836,7 @@
       "using-real-world-patterns-to-improve-matching": {
         "title": "Using real-world patterns to improve matching in theory and practice",
         "author": ["tenindra.a","victor.liang"],
-        "tags": ["Data Science","Research"],
+        "tags": ["Database","Research"],
         "category": null,
         "excerpt": "Find out how real-world patterns can be used to improve algorithm performance when performing bipartite matching for passengers and driver-partners.",
         "date": "22 Nov 2021",
@@ -2847,7 +2858,7 @@
       "search-indexing-optimisation": {
         "title": "Search indexing optimisation",
         "author": ["weilun.wu","yanguang.hu"],
-        "tags": ["Engineering","Data","Database","Optimization"],
+        "tags": ["Engineering","Database","Optimization"],
         "category": null,
         "excerpt": "Learn about the different optimisation techniques when building a search index.",
         "date": "27 Sep 2021",
@@ -2880,7 +2891,7 @@
       "protecting-personal-data-in-grabs-imagery": {
         "title": "Protecting Personal Data in Grab's Imagery",
         "author": ["sever.popovici","zsolt.vadaszi","adrian.margin","hannes.kruppa"],
-        "tags": ["Engineering","Machine Learning","Data","Datasets","Data Science"],
+        "tags": ["Engineering","Machine Learning","Database","Datasets"],
         "category": null,
         "excerpt": "Learn how Grab improves privacy protection to cater to various geographical locations.",
         "date": "26 Jul 2021",
@@ -2891,7 +2902,7 @@
       "processing-etl-tasks-with-ratchet": {
         "title": "Processing ETL tasks with Ratchet",
         "author": ["amar.prakash"],
-        "tags": ["Pipelines","Data","ETL","Engineering"],
+        "tags": ["Pipelines","Database","ETL","Engineering"],
         "category": null,
         "excerpt": "Read about what Data and ETL pipelines are and how they are used for processing multiple tasks in the Lending Team at Grab.",
         "date": "19 Jul 2021",
@@ -2946,7 +2957,7 @@
       "our-journey-to-continuous-delivery-at-grab-part2": {
         "title": "Our Journey to Continuous Delivery at Grab (Part 2)",
         "author": ["sylvain.bougerel"],
-        "tags": ["Deployment","CI","Continuous Integration","Continuous Deployment","Deployment Process","Continuous Delivery","Multi Cloud","Hermetic Deployments","Automation"],
+        "tags": ["Deployment","Continuous Integration","Continuous Deployment","Deployment Process","Continuous Delivery","Multi Cloud","Hermetic Deployments","Automation"],
         "category": null,
         "excerpt": "Read more about our long awaited piece on the automation work we have made through integration and hermeticity.",
         "date": "10 May 2021",
@@ -2979,7 +2990,7 @@
       "reducing-your-go-binary-size": {
         "title": "One Small Step Closer to Containerising Service Binaries",
         "author": ["stan.halka","samuel.thomas"],
-        "tags": ["Backend","Engineering","Golang","Cloud-Native Transformations","Containerization","Kubernetes"],
+        "tags": ["Backend","Engineering","Go","Cloud-Native Transformations","Containerization","Kubernetes"],
         "category": null,
         "excerpt": "Learn how Grab is investigating and reducing service binary size for Golang projects.",
         "date": "23 Feb 2021",
@@ -3100,7 +3111,7 @@
       "our-journey-to-continuous-delivery-at-grab": {
         "title": "Our Journey to Continuous Delivery at Grab (Part 1)",
         "author": ["sylvain.bougerel"],
-        "tags": ["Deployment","CI","Continuous Integration","Continuous Deployment","Deployment Process","Cloud Agnostic","Spinnaker","Continuous Delivery","Multi Cloud"],
+        "tags": ["Deployment","Continuous Integration","Continuous Deployment","Deployment Process","Cloud Agnostic","Spinnaker","Continuous Delivery","Multi Cloud"],
         "category": null,
         "excerpt": "Continuous Delivery is the principle of delivering software often, everyday. Read more to find out how we implemented continuous delivery at Grab.",
         "date": "23 Sep 2020",
@@ -3122,7 +3133,7 @@
       "data-gateway": {
         "title": "Securing and Managing Multi-cloud Presto Clusters with Grab’s DataGateway",
         "author": ["vinnson.lee"],
-        "tags": ["Engineering","Presto","Data","Data Pipeline","Access Control","Workload Distribution","Cluster"],
+        "tags": ["Engineering","Presto","Database","Access Control","Workload Distribution","Cluster"],
         "category": null,
         "excerpt": "This blog post discusses how Grab's DataGateway plays a key role in supporting hundreds of users in our entire Presto ecosystem - from managing user access, cluster selection, workload distribution, and many more.",
         "date": "24 Aug 2020",
@@ -3144,7 +3155,7 @@
       "the-journey-of-deploying-apache-airflow-at-grab": {
         "title": "The Journey of Deploying Apache Airflow at Grab",
         "author": ["chandulal.kavar"],
-        "tags": ["Engineering","Data Pipeline","Scheduling","Airflow","Kubernetes","Platform"],
+        "tags": ["Engineering","Database","Scheduling","Airflow","Kubernetes","Platform"],
         "category": null,
         "excerpt": "This blog post shares how we designed and implemented an Apache Airflow-based scheduling and orchestration platform for teams across Grab.",
         "date": "14 Jul 2020",
@@ -3177,7 +3188,7 @@
       "does-southeast-asia-run-on-coffee": {
         "title": "Does Southeast Asia Run on Coffee?",
         "author": ["siusing.lai","pureum.yim"],
-        "tags": ["Data","Data Analytics","Data Visualization"],
+        "tags": ["Database","Analytics","Data Visualization"],
         "category": null,
         "excerpt": "This blog post shares insights on GrabFood data around how much our fellow Southeast Asians love coffee.",
         "date": "26 Mar 2020",
@@ -3188,7 +3199,7 @@
       "grabchat-much-talk-data-to-me": {
         "title": "GrabChat Much? Talk Data to Me!",
         "author": ["jason.lee","pureum.yim"],
-        "tags": ["Data","Data Analytics","Data Visualization"],
+        "tags": ["Database","Analytics","Data Visualization"],
         "category": null,
         "excerpt": "This blog post uncovers some interesting insights from our GrabChat data in Singapore, Malaysia, and Indonesia.",
         "date": "24 Mar 2020",
@@ -3199,7 +3210,7 @@
       "seven-facts-about-grab-driver-partners-in-sg": {
         "title": "7 Fun Facts about Grab’s Driver-Partners in Singapore",
         "author": ["pureum.yim","youzhen.chong","szehan.ong","michael.chirico","kelly.kuo","kenny.chan"],
-        "tags": ["Data","Data Analytics"],
+        "tags": ["Database","Analytics"],
         "category": null,
         "excerpt": "This blog post shares the most interesting data points from 2019 about our Singapore driver-partners.",
         "date": "20 Mar 2020",
@@ -3210,7 +3221,7 @@
       "tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing": {
         "title": "Tackling UI Test Execution Time Imbalance for Xcode Parallel Testing",
         "author": ["chris.thuyen"],
-        "tags": ["Xcode","Testing","Mobile","Parallelism","UI Tests","CI","iOS"],
+        "tags": ["Xcode","Testing","Mobile","Parallelism","UI Tests","Continuous Integration","iOS"],
         "category": null,
         "excerpt": "This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we overcame a challenge that prevented us from running the tests...",
         "date": "16 Mar 2020",
@@ -3309,7 +3320,7 @@
       "griffin": {
         "title": "Griffin, an Anti-fraud Risk Rule Engine Making Billions of Predictions Daily",
         "author": ["muqi.li","gregory.allan","varun.kansal"],
-        "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Data"],
+        "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Database"],
         "category": null,
         "excerpt": "This blog highlights Grab’s high-performance risk rule engine that automates the creation of rules to detect fraudulent activities with minimal efforts by engineers.",
         "date": "29 Oct 2019",
@@ -3320,7 +3331,7 @@
       "using-grabs-trust-counter-service-to-detect-fraud-successfully": {
         "title": "Using Grab’s Trust Counter Service to Detect Fraud Successfully",
         "author": ["chao.w","muqi.li","gregory.allan","varun.kansal"],
-        "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Data"],
+        "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Database"],
         "category": null,
         "excerpt": "This blog introduces Grab’s Trust Counter service for detecting fraud. It explains how the solution was designed so that different stakeholders like data analysts and data scientists can use the Counter service withou...",
         "date": "21 Oct 2019",
@@ -3342,7 +3353,7 @@
       "data-first-sla-always": {
         "title": "Data First, SLA Always",
         "author": ["johan.kok","pramiti.goel","feng.cheng","irfan.hanif","deepak.barr"],
-        "tags": ["Data Pipeline"],
+        "tags": ["Database"],
         "category": null,
         "excerpt": "Introducing Trailblazer, the Data Engineering team’s solution to implementing change data capture of all upstream databases. In this article, we introduce the reason why we needed to move away from periodic batch inge...",
         "date": "2 Aug 2019",
@@ -3353,7 +3364,7 @@
       "save-your-place-with-grab": {
         "title": "Save Your Place with Grab!",
         "author": ["summit.saurav","neeraj.mishra","shirley.yang"],
-        "tags": ["Maps","Data"],
+        "tags": ["Maps","Database"],
         "category": null,
         "excerpt": "Do you find it tedious to type and search for your destination or have a hard time remembering that address of the friend you are going to meet? Well...Grab has a solution!",
         "date": "2 Aug 2019",
@@ -3364,7 +3375,7 @@
       "automated-erp-charges": {
         "title": "No More Forgetting to Input ERP Charges - Hello Automated ERP!",
         "author": ["garvee.garg","robinson.kudali","pureum.yim"],
-        "tags": ["Data","Maps","Tech"],
+        "tags": ["Database","Maps","Tech"],
         "category": null,
         "excerpt": "Forgetting to input ERP charges was one of the biggest problems faced by our driver-partners. Read our blog to know how went about solving it.",
         "date": "31 Jul 2019",
@@ -3386,7 +3397,7 @@
       "grab-everyday-super-app": {
         "title": "Making Grab’s Everyday App Super",
         "author": ["justin.bolilia","romain.basseville","karen.kue"],
-        "tags": ["Superapp","Feed","Recommendations","Data Science","Machine Learning"],
+        "tags": ["Superapp","Feed","Recommendations","Database","Machine Learning"],
         "category": null,
         "excerpt": "To excel in a heavily diversified market like Southeast Asia, we leverage on the depth of our data to understand what sorts of information users want to see on our Feed and when they should see them. In this article w...",
         "date": "4 Jul 2019",
@@ -3397,7 +3408,7 @@
       "catwalk-serving-machine-learning-models-at-scale": {
         "title": "Catwalk: Serving Machine Learning Models at Scale",
         "author": ["nutdanai.phansooksai","juho.lee","pratyush.more","romain.basseville"],
-        "tags": ["Machine Learning","Models","Data Science","TensorFlow"],
+        "tags": ["Machine Learning","Models","Database","TensorFlow"],
         "category": null,
         "excerpt": "This blog post explains why and how we came up with a machine learning model serving platform to accelerate the use of machine learning in Grab.",
         "date": "3 Jul 2019",
@@ -3430,7 +3441,7 @@
       "tourist-chat-data-story": {
         "title": "Tourists on GrabChat!",
         "author": ["pureum.yim","dustin.chung"],
-        "tags": ["Data","Analytics","Data Analytics"],
+        "tags": ["Database","Analytics"],
         "category": null,
         "excerpt": "Just over two years ago we introduced GrabChat, Southeast Asia’s first of its kind in-app messaging platform. Since then we’ve added all sorts of useful features to it such as auto-translated messages, the ability to ...",
         "date": "23 May 2019",
@@ -3441,7 +3452,7 @@
       "bubble-tea-craze-on-grabfood": {
         "title": "Bubble Tea Craze on GrabFood!",
         "author": ["pureum.yim","mingxuan.lee"],
-        "tags": ["Data","Analytics","Data Analytics"],
+        "tags": ["Database","Analytics"],
         "category": null,
         "excerpt": "Bubble Tea’s popularity on GrabFood has captured our attention and we want to celebrate its fascinating growth with you! We have deep-dived into Grab’s Big Data to find the most interesting bubbles of treasures that c...",
         "date": "10 May 2019",
@@ -3452,7 +3463,7 @@
       "why-you-should-organise-an-immersion-trip-for-your-next-project": {
         "title": "Why You Should Organise an Immersion Trip for Your Next Project",
         "author": ["sherizan.sheikh"],
-        "tags": ["Hyperlocal","Immersion"],
+        "tags": ["Hyperlocalization","Immersion"],
         "category": null,
         "excerpt": "Sherizan Sheikh is a Design Lead at Grab Ventures, an incubation arm that looks at experiences beyond ride-hailing, for example, groceries, healthcare and autonomous deliveries.Grab Ventures is where exciting initiati...",
         "date": "7 May 2019",
@@ -3474,7 +3485,7 @@
       "poi-entrances-venues-door-to-door": {
         "title": "Guiding You Door-to-Door via Our Superapp!",
         "author": ["neeraj.mishra","pureum.yim","sufyan.selamet","nagur.mohammad","summit.saurav"],
-        "tags": ["Grab","Data","Tech","Maps","App"],
+        "tags": ["Grab","Database","Tech","Maps","App"],
         "category": null,
         "excerpt": "Insights into how Grab is trying to solve pickup issues when you book from large venues such as airports or malls.",
         "date": "12 Apr 2019",
@@ -3496,7 +3507,7 @@
       "correcting-restaurant-locations-harnessing-wisdom-of-the-crowd": {
         "title": "How We Harnessed the Wisdom of Crowds to Improve Restaurant Location Accuracy",
         "author": ["pravin.kakar"],
-        "tags": ["Data Science"],
+        "tags": ["Database"],
         "category": null,
         "excerpt": "We questioned some of the estimates that our algorithm for calculating restaurant wait times was making, and found that the \"errors\" were actually useful to discover restaurants whose locations had been incorrectly re...",
         "date": "2 Apr 2019",
@@ -3551,7 +3562,7 @@
       "peak-shift-demand-travel-trends": {
         "title": "Recipe for Building a Widget: How We Helped to “Peak-Shift” Demand by Helping Passengers Understand Travel Trends",
         "author": ["pureum.yim","prashant.kumar","raghav.garg","preeti.swati","ajmal.jamal","calvin.c","renrong.weng"],
-        "tags": ["Analytics","Data","Data Analytics"],
+        "tags": ["Analytics","Database"],
         "category": null,
         "excerpt": "We help to “peak-shift” demand by helping passengers understand travel trends with Grab’s data. Curious to know how we empower our passengers to make better travel decisions? Read on!",
         "date": "7 Mar 2019",
@@ -3573,7 +3584,7 @@
       "data-ingestion-transformation-product-insights": {
         "title": "How We Simplified Our Data Ingestion & Transformation Process",
         "author": ["yichao.wang","roman.atachiants","oscar.cassetti","corey.scott"],
-        "tags": ["Big Data","Data Pipeline"],
+        "tags": ["Database"],
         "category": null,
         "excerpt": "This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade data processing cluster written in Golang.",
         "date": "4 Mar 2019",
@@ -3584,7 +3595,7 @@
       "understanding-supply-demand-ride-hailing-data": {
         "title": "Understanding Supply & Demand in Ride-hailing Through the Lens of Data",
         "author": ["aayush.garg","pureum.yim","chunkai.phang"],
-        "tags": ["Analytics","Data","Data Analytics","Data Visualization","Data Storytelling"],
+        "tags": ["Analytics","Database","Data Visualization","Data Storytelling"],
         "category": null,
         "excerpt": "Grab aims to ensure that our passengers can get a ride conveniently while providing our drivers better livelihood. To achieve this, balancing demand and supply is crucial. This article gives you a glimpse of one of ou...",
         "date": "21 Feb 2019",
@@ -3595,7 +3606,7 @@
       "experimentation-platform-data-pipeline": {
         "title": "A Lean and Scalable Data Pipeline to Capture Large Scale Events and Support Experimentation Platform",
         "author": ["oscar.cassetti","roman.atachiants"],
-        "tags": ["Big Data","Data Pipeline","Experiment"],
+        "tags": ["Database","Experiment"],
         "category": null,
         "excerpt": "This blog post focuses on the lessons we learned while building our batch data pipeline.",
         "date": "17 Jan 2019",
@@ -3617,7 +3628,7 @@
       "big-data-real-time-presto-talariadb": {
         "title": "Querying Big Data in Real-time with Presto & Grab's TalariaDB",
         "author": ["roman.atachiants","oscar.cassetti"],
-        "tags": ["Big Data","Real-Time","Database","Presto","TalariaDB"],
+        "tags": ["Database","Real-Time","Presto","TalariaDB"],
         "category": null,
         "excerpt": "In this article, we focus on TalariaDB, a distributed, highly available, and low latency time-series database that stores real-time data. For example, logs, metrics, and click streams generated by mobile apps and back...",
         "date": "2 Jan 2019",
@@ -3672,7 +3683,7 @@
       "journey-tourist-grab": {
         "title": "Journey of a Tourist via Grab",
         "author": ["pureum.yim"],
-        "tags": ["Analytics","Data","Data Analytics","Tourism","Tourists"],
+        "tags": ["Analytics","Database","Tourism"],
         "category": null,
         "excerpt": "Grab's services to tourists are an integral part of connecting tourists to various destinations and attractions. Do tourists travel on Grab to outlandishly fancy places like those you see in the movie \"Crazy Rich Asia...",
         "date": "11 Sep 2018",
@@ -3694,7 +3705,7 @@
       "boh-prize": {
         "title": "Grab Senior Data Scientist Liuqin Yang Wins Beale-Orchard-Hays Prize",
         "author": ["liuqin.yang"],
-        "tags": ["Data Science","BOH"],
+        "tags": ["Database","BOH"],
         "category": null,
         "excerpt": "Grab Senior Data Scientist Dr. Liuqin Yang wins the 2018 Beale-Orchard-Hays Prize, the highest honor in Computational Mathematical Optimization. He has been recognised for his paper and the corresponding software SDPN...",
         "date": "20 Jul 2018",
@@ -3716,7 +3727,7 @@
       "introducing-grab-kit": {
         "title": "Introducing Grab-Kit: Distributed Service Design at Grab",
         "author": ["karen.kue","michael.cartmell"],
-        "tags": ["Backend","Engineering","Golang"],
+        "tags": ["Backend","Engineering","Go"],
         "category": null,
         "excerpt": "As we evolved from a single monolithic application to a microservices-based architecture, we were faced with a new challenge. How do we support exponential growth while maintaining consistency, coordination, and quality?",
         "date": "8 Jun 2018",
@@ -3749,7 +3760,7 @@
       "dealing-with-the-meltdown-patch-at-grab": {
         "title": "Dealing with the Meltdown Patch at Grab",
         "author": ["althaf.hameez"],
-        "tags": ["AWS","Meltdown"],
+        "tags": ["Meltdown"],
         "category": null,
         "excerpt": "The meltdown attack reported recently had far reaching implications in terms of security as well as performance. This post is a quick rundown of what performance impacts we noted as well as how we went on to mitigate ...",
         "date": "7 Jan 2018",
@@ -3760,7 +3771,7 @@
       "grabshare-at-the-intelligent-transportation-engineering-conference": {
         "title": "GrabShare at the Intelligent Transportation Engineering Conference",
         "author": ["dominic.widdows"],
-        "tags": ["Data Science","GrabShare"],
+        "tags": ["Database","GrabShare"],
         "category": null,
         "excerpt": "We're excited to share the publication of our paper GrabShare: The Construction of a Realtime Ridesharing Service, which was Grab's contribution to the Intelligent Transportation Engineering Conference in Singapore la...",
         "date": "13 Dec 2017",
@@ -3782,7 +3793,7 @@
       "the-data-and-science-behind-grabshare-part-i": {
         "title": "The Data and Science Behind GrabShare Part I: Verifying Potential and Developing the Algorithm",
         "author": ["muchen.tang"],
-        "tags": ["Data Science","GrabShare"],
+        "tags": ["Database","GrabShare"],
         "category": null,
         "excerpt": "Launching GrabShare was no easy feat. After reviewing the academic literature, we decided to take a different approach and build a new matching algorithm from the ground up.",
         "date": "20 Oct 2017",
@@ -3859,7 +3870,7 @@
       "dns-resolution-in-go-and-cgo": {
         "title": "DNS Resolution in Go and Cgo",
         "author": ["ryan.law"],
-        "tags": ["Golang","Networking"],
+        "tags": ["Go","Networking"],
         "category": null,
         "excerpt": "This article is part two of a two-part series. In this article, we will talk about RFC 6724 (3484), how DNS resolution works in Go and Cgo, and finally explaining why disabling IPv6 also disables the sorting of IP Add...",
         "date": "25 May 2017",
@@ -3870,7 +3881,7 @@
       "driving-southeast-asia-forward-with-aws": {
         "title": "Driving Southeast Asia Forward with AWS",
         "author": ["arulk"],
-        "tags": ["AWS"],
+        "tags": [],
         "category": null,
         "excerpt": "My name is Arul Kumaravel, VP of Engineering at Grab. Grab's mission is to drive Southeast Asia (SEA) forwards. Today I would like to share with you how AWS is helping us with this mission.",
         "date": "22 May 2017",
@@ -3881,7 +3892,7 @@
       "how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps": {
         "title": "How to Go from a Quick Idea to an Essential Feature in Four Steps",
         "author": ["da.huang","sienyi.tan"],
-        "tags": ["Data Science","Product Management"],
+        "tags": ["Database","Product Management"],
         "category": ["Data Science","Product"],
         "excerpt": "How do you work within a startup team and build a quick idea into a key feature for an app that impacts millions of people? It's one of those things that is hard to understand when you just graduate as an engineer.",
         "date": "16 May 2017",
@@ -3892,7 +3903,7 @@
       "troubleshooting-unusual-aws-elb-5xx-error": {
         "title": "Troubleshooting Unusual AWS ELB 5XX Error",
         "author": ["dharmarth.shah","ryan.law"],
-        "tags": ["AWS","Networking"],
+        "tags": ["Networking"],
         "category": null,
         "excerpt": "This article is part one of a two-part series. In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you through our investigative process and show you our immediate sol...",
         "date": "11 May 2017",
@@ -3903,7 +3914,7 @@
       "scaling-like-a-boss-with-presto": {
         "title": "Scaling Like a Boss with Presto",
         "author": ["aneesh.chandra"],
-        "tags": ["Analytics","AWS","Data","Storage"],
+        "tags": ["Analytics","Database","Storage"],
         "category": null,
         "excerpt": "A year ago, the data volumes at Grab were much lower than the volume we currently use for data-driven analytics. We had a simple and robust infrastructure in place to gather, process and store data to be consumed by n...",
         "date": "2 May 2017",
@@ -3969,7 +3980,7 @@
       "zero-downtime-migration": {
         "title": "This Rocket Ain't Stopping - Achieving Zero Downtime for Rails to Golang API Migration",
         "author": ["lian.yuanlin"],
-        "tags": ["AWS","Golang","Ruby"],
+        "tags": ["Go","Ruby"],
         "category": null,
         "excerpt": "Grab has been transitioning from a Rails + NodeJS stack to a full Golang Service Oriented Architecture. To contribute to a single common code base, we wanted to transfer engineers working on the Rails server powering ...",
         "date": "19 Oct 2016",
@@ -4002,7 +4013,7 @@
       "round-robin-in-distributed-systems": {
         "title": "Round-robin in Distributed Systems",
         "author": ["gao.chao"],
-        "tags": ["Backend","Data","Distributed Systems","ELB","Golang"],
+        "tags": ["Backend","Database","Distributed Systems","ELB","Go"],
         "category": null,
         "excerpt": "While working on Grab's Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kept encountering persistent connection issues with Elastic Loa...",
         "date": "27 Sep 2016",
@@ -4046,7 +4057,7 @@
       "curious-case-of-the-phantom-instance": {
         "title": "The Curious Case of the Phantom Instance",
         "author": ["lian.yuanlin"],
-        "tags": ["AWS"],
+        "tags": [],
         "category": null,
         "excerpt": "Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring ...",
         "date": "28 Dec 2015",
@@ -4112,9 +4123,18 @@
   window.blogSearchIndex = [
     
     {
+      "title": "Part 2: Generative bidders for ads at Grab",
+      "url": "/part-2-ads-simulation-blogpost",
+      "tags": ["AI","Advertising","Simulation","Machine Learning","Engineering"],
+      "category": null,
+      "date": "25 Nov 2026",
+      "excerpt": "Grab Ads trains a generative bidder to plan merchant budget pacing over a future window. A simulator and a Ray training loop generate, align, validate, and s..."
+    },
+    
+    {
       "title": "Part 1: Simulation-first AI experimentation for ads at Grab",
       "url": "/part-1-ads-simulation-blogpost",
-      "tags": ["Artificial Intelligence","Advertising","Simulation","Experimentation","Engineering"],
+      "tags": ["AI","Advertising","Simulation","Experiment","Engineering"],
       "category": null,
       "date": "23 Nov 2026",
       "excerpt": "Grab built an offline ads simulator to replay historical auctions, evaluate bidding, ranking, and pacing strategies against business and user guardrails, and..."
@@ -4123,7 +4143,7 @@
     {
       "title": "Replaying merged changes: how we test whether a knowledge base makes coding agents better",
       "url": "/replaying-merged-changes-knowledge-base-coding-agents-better",
-      "tags": ["Artificial Intelligence","Knowledge Base","Coding Agents","Evaluation","Engineering"],
+      "tags": ["AI","Knowledge Base","Coding Agents","Evaluation","Engineering"],
       "category": null,
       "date": "23 Nov 2026",
       "excerpt": "Can a knowledge base make coding agents better? We replayed changes our engineers had already shipped and graded each plan against the real code. Every model..."
@@ -4132,7 +4152,7 @@
     {
       "title": "How Grab built Scarlet: the AI teammate that turns a Slack message into a production data pipeline",
       "url": "/how-grab-built-scarlet-blog",
-      "tags": ["AI","Artificial Intelligence","Analytics","Database","Automation"],
+      "tags": ["AI","Analytics","Database","Automation"],
       "category": null,
       "date": "23 Nov 2026",
       "excerpt": "Scarlet turns a Slack message, a Jira label, or a call from another agent into a reviewed merge request. This post shares how a skill library, data testing, ..."
@@ -4141,7 +4161,7 @@
     {
       "title": "How a shared merchant data service can degrade gracefully",
       "url": "/shared-merchant-data-service",
-      "tags": ["Resilience","Caching","Merchant Data","Backend","Engineering"],
+      "tags": ["Resiliency","Caching","Merchant Data","Backend","Engineering"],
       "category": null,
       "date": "18 Nov 2026",
       "excerpt": "A cache disruption turned database fallbacks into an amplifier for a shared merchant data service. Here is how we bounded fallback work, isolated workloads b..."
@@ -4177,7 +4197,7 @@
     {
       "title": "Powering AI-led research through simulation",
       "url": "/powering-ai-led-research-through-simulation",
-      "tags": ["Artificial Intelligence","Dispatch","Engineering","Experiment","Machine Learning"],
+      "tags": ["AI","Dispatch","Engineering","Experiment","Machine Learning"],
       "category": null,
       "date": "5 Oct 2026",
       "excerpt": "To improve production dispatch experiments, we built an offline marketplace simulator and an agent-driven research loop so strategy ideas can be tested in mi..."
@@ -4186,7 +4206,7 @@
     {
       "title": "Automated merchant review summary system with integrated feedback",
       "url": "/automated-merchant-review-summary-system-with-integrated-feedback",
-      "tags": ["Artificial Intelligence","LLM"],
+      "tags": ["AI","LLM"],
       "category": null,
       "date": "25 Sep 2026",
       "excerpt": "The Automated Merchant Review Summary System provides concise, AI-generated summaries of merchant reviews on Grab, helping consumers make informed decisions ..."
@@ -4195,7 +4215,7 @@
     {
       "title": "Data Mesh at Grab (Part III): Operationalizing data reliability with automated DPIs",
       "url": "/data-mesh-at-grab-part-three",
-      "tags": ["Data","Database","Engineering","Data Quality","Observability"],
+      "tags": ["Database","Engineering","Data Quality","Observability"],
       "category": null,
       "date": "28 Aug 2026",
       "excerpt": "Make data reliability as dependable as running water. Learn how Grab operationalises this vision using automated Data Production Issues (DPIs) to convert dat..."
@@ -4204,7 +4224,7 @@
     {
       "title": "Building Jarvis Pro: Route first, answer later",
       "url": "/jarvis-pro-route-firsr-answer-later",
-      "tags": ["Artificial Intelligence","Engineering","Product","Account Management"],
+      "tags": ["AI","Engineering","Product","Account Management"],
       "category": null,
       "date": "21 Aug 2026",
       "excerpt": "Jarvis Pro routes account-manager questions before answering. This post explains why fluent AI replies are not enough, how routing, memory, and metric reconc..."
@@ -4213,7 +4233,7 @@
     {
       "title": "Grab Bench: Evaluating AI on Grab-shaped production work",
       "url": "/grab-bench-evaluating-ai",
-      "tags": ["Artificial Intelligence","Engineering","Product","Machine Learning"],
+      "tags": ["AI","Engineering","Product","Machine Learning"],
       "category": null,
       "date": "12 Aug 2026",
       "excerpt": "Broad AI benchmarks are good at telling us which models look strong on public leaderboards. They are less good at catching the quiet failures that break prod..."
@@ -4231,7 +4251,7 @@
     {
       "title": "Crowdsourced taxonomy verification: A feedback-driven framework for refining knowledge graph relationships via online search interactions",
       "url": "/crowdsourced-taxonomy-verification",
-      "tags": ["Engineering","Data","Search","Machine Learning","LLM","Graphs"],
+      "tags": ["Engineering","Database","Search","Machine Learning","LLM","Graphs"],
       "category": null,
       "date": "30 Jul 2026",
       "excerpt": "Knowledge graphs power modern search and recommendation systems, but automated construction methods can introduce semantic inaccuracies. This framework verif..."
@@ -4249,7 +4269,7 @@
     {
       "title": "Scaling Grab's Data Lake: Our journey to Apache Iceberg adoption",
       "url": "/our-journey-to-apache-iceberg-adoption",
-      "tags": ["Data","Database","Engineering","Apache Iceberg","Spark"],
+      "tags": ["Database","Engineering","Apache Iceberg","Spark"],
       "category": null,
       "date": "10 Jul 2026",
       "excerpt": "As Grab's Data Lake grew to petabytes, the limitations of Hive Parquet became clear, from catalog latency and small files to manual partition management. Thi..."
@@ -4258,7 +4278,7 @@
     {
       "title": "Migrating Counter Service storage: Design choices and learnings",
       "url": "/counter-service-storage-migration",
-      "tags": ["Security","Artificial Intelligence","Kubernetes","DevSecOps","Platform","Engineering"],
+      "tags": ["Security","AI","Kubernetes","DevSecOps","Platform","Engineering"],
       "category": null,
       "date": "3 Jul 2026",
       "excerpt": "Counter Service powers real-time fraud detection at massive scale, handling billions of requests daily. Learn how we migrated its underlying storage with zer..."
@@ -4267,7 +4287,7 @@
     {
       "title": "Scaling out Distroless adoption With AI",
       "url": "/scaling-out-distroless-adoption-with-ai",
-      "tags": ["Security","Containers","Artificial Intelligence","DevSecOps","Engineering"],
+      "tags": ["Security","Containers","AI","DevSecOps","Engineering"],
       "category": null,
       "date": "22 Jun 2026",
       "excerpt": "Grab is moving hundreds of services to Distroless images to cut CVEs but only if workloads still run cleanly. Learn how medium tests became the migration gat..."
@@ -4276,7 +4296,7 @@
     {
       "title": "Palana (Part 2): Architecting isolation, identity, and auditability for AI agents",
       "url": "/part-2-palana-architecture",
-      "tags": ["Security","Artificial Intelligence","Kubernetes","DevSecOps","Platform","Engineering"],
+      "tags": ["Security","AI","Kubernetes","DevSecOps","Platform","Engineering"],
       "category": null,
       "date": "21 Jun 2026",
       "excerpt": "How do you actually build a secure execution environment for artificial intelligence (AI) agents? In Part 2, we dive deep into Palana's architecture. Learn h..."
@@ -4285,7 +4305,7 @@
     {
       "title": "Palana (Part 1): Why Grab built a secure platform for autonomous AI Agents",
       "url": "/palana-part-1-secure-platform-for-ai-agents",
-      "tags": ["Security","Artificial Intelligence","Kubernetes","DevSecOps","Platform","Engineering"],
+      "tags": ["Security","AI","Kubernetes","DevSecOps","Platform","Engineering"],
       "category": null,
       "date": "19 Jun 2026",
       "excerpt": "Artificial intelligence (AI) agents are evolving from chat interfaces into autonomous workloads, bringing new security risks. In Part 1, discover why Grab bu..."
@@ -4330,7 +4350,7 @@
     {
       "title": "Data Mesh at Grab (Part II): The foundational tools behind certification",
       "url": "/data-mesh-part-2-the-foundational-tools-behind-certification",
-      "tags": ["Data","Database","Engineering"],
+      "tags": ["Database","Engineering"],
       "category": null,
       "date": "30 Apr 2026",
       "excerpt": "How does Grab manage quality across hundreds of thousands of data assets? Discover the foundational tools powering our Signals Marketplace. We dive into Hubb..."
@@ -4339,7 +4359,7 @@
     {
       "title": "From firefighting to building: How AI agents restored our team’s core productivity",
       "url": "/from-firefighting-to-building",
-      "tags": ["AI","Artificial Intelligence","Analytics","Database","Automation"],
+      "tags": ["AI","Analytics","Database","Automation"],
       "category": null,
       "date": "19 Mar 2026",
       "excerpt": "The Analytics Data Warehouse (ADW) team at Grab supports over 1,000 users. These users support an extensive repository of more than 15,000 tables. To allevia..."
@@ -4348,7 +4368,7 @@
     {
       "title": "Enabling R8 optimization at scale with AI-assisted debugging",
       "url": "/r8-optimization-at-scale-with-ai-assisted-debugging",
-      "tags": ["AI","Artificial Intelligence"],
+      "tags": ["AI"],
       "category": null,
       "date": "12 Mar 2026",
       "excerpt": "How Grab enabled R8 optimization for its Android app at scale, over 9 million lines of code and more than engineers. Read how we achieved 25% ANR reduction, ..."
@@ -4366,7 +4386,7 @@
     {
       "title": "Cursor at Grab: Adoption and impact",
       "url": "/cursor-at-grab-adoption-and-impact",
-      "tags": ["AI","Artificial Intelligence"],
+      "tags": ["AI"],
       "category": null,
       "date": "29 Jan 2026",
       "excerpt": "A look inside how we scaled AI-assisted coding across Grab, moving Cursor from pilot to daily use to help us work faster and more reliably. Read what changed..."
@@ -4384,7 +4404,7 @@
     {
       "title": "From deployment slop to production reality: How BriX bridges the gap with enterprise-grade AI infrastructure",
       "url": "/brix",
-      "tags": ["AI","Artificial Intelligence","LLM","Deployment"],
+      "tags": ["AI","LLM","Deployment"],
       "category": null,
       "date": "16 Jan 2026",
       "excerpt": "Built an AI tool that works locally but can't scale enterprise-wide? Learn how BriX tackles this deployment gap, turning prototypes into governed, production..."
@@ -4420,7 +4440,7 @@
     {
       "title": "Real-time data quality monitoring: Kafka stream contracts with syntactic and semantic test",
       "url": "/real-time-data-quality-monitoring",
-      "tags": ["Engineering","Kafka","Performance","Data Science","Data Processing","Real-Time Streaming"],
+      "tags": ["Engineering","Kafka","Performance","Database","Data Processing","Real-Time Streaming"],
       "category": null,
       "date": "26 Nov 2025",
       "excerpt": "Discover how Grab's Coban Platform revolutionizes real-time data quality monitoring for Kafka streams. Learn how syntactic and semantic tests empower stream ..."
@@ -4456,7 +4476,7 @@
     {
       "title": "Machine-learning predictive autoscaling for Flink",
       "url": "/ml-predictive-autoscaling-for-flink",
-      "tags": ["Engineering","Performance","Data Science"],
+      "tags": ["Engineering","Performance","Database"],
       "category": null,
       "date": "30 Oct 2025",
       "excerpt": "Explore how Grab uses machine learning to perform predictive scaling on our data processing workloads."
@@ -4465,7 +4485,7 @@
     {
       "title": "Modernising Grab’s model serving platform with NVIDIA Triton Inference Server",
       "url": "/modernising-grab-model-serving-platform",
-      "tags": ["Engineering","Performance","Data Science"],
+      "tags": ["Engineering","Performance","Database"],
       "category": null,
       "date": "21 Oct 2025",
       "excerpt": "Dive into Grab’s engineering journey to optimise a core ML model. Learn how we built the Triton Server Manager and used Triton Inference Server (TIS) to achi..."
@@ -4483,7 +4503,7 @@
     {
       "title": "User foundation models for Grab",
       "url": "/user-foundation-models-for-grab",
-      "tags": ["AI","Artificial Intelligence","Machine Learning","LLM"],
+      "tags": ["AI","Machine Learning","LLM"],
       "category": null,
       "date": "26 Sep 2025",
       "excerpt": "Grab has developed a groundbreaking foundation model specifically designed to understand user behavior. Grab's custom solution addresses the unique challenge..."
@@ -4492,7 +4512,7 @@
     {
       "title": "Powering Partner Gateway metrics with Apache Pinot",
       "url": "/pinot-partnergateway-tech-blog",
-      "tags": ["Database","Data","Apache"],
+      "tags": ["Database","Apache"],
       "category": null,
       "date": "23 Sep 2025",
       "excerpt": "Partner Gateway serves as Grab's secure interface for exposing APIs to third-party entities, facilitating seamless interactions between Grab's hosted service..."
@@ -4510,7 +4530,7 @@
     {
       "title": "Data mesh at Grab part I: Building trust through certification",
       "url": "/signals-market-place",
-      "tags": ["Data","Database","Engineering"],
+      "tags": ["Database","Engineering"],
       "category": null,
       "date": "19 Aug 2025",
       "excerpt": "Grab has embarked on a transformative journey to overhaul its enterprise data ecosystem, addressing challenges posed by the rapid growth of its business span..."
@@ -4519,7 +4539,7 @@
     {
       "title": "The evolution of Grab's machine learning feature store",
       "url": "/evolution-of-grab-machine-learning-feature-store",
-      "tags": ["Database","AWS"],
+      "tags": ["Database"],
       "category": null,
       "date": "24 Jul 2025",
       "excerpt": "Learn how Grab is modernising its machine learning platform with a feature table-centric architecture powered by AWS Aurora for Postgres. This shift from a l..."
@@ -4528,7 +4548,7 @@
     {
       "title": "Grab's service mesh evolution: From Consul to Istio",
       "url": "/service-mesh-evolution",
-      "tags": ["Microservice","Service Mesh","Kubernetes","AWS","GCP"],
+      "tags": ["Microservice","Service Mesh","Kubernetes","GCP"],
       "category": null,
       "date": "16 Jul 2025",
       "excerpt": "When you're running 1000+ microservices across Southeast Asia's most complex transport and delivery platform, 'good enough' stops being good enough. Discover..."
@@ -4546,7 +4566,7 @@
     {
       "title": "Counter Service: How we rewrote it in Rust",
       "url": "/counter-service-how-we-rewrote-it-in-rust",
-      "tags": ["Database","Rust","Data"],
+      "tags": ["Database","Rust"],
       "category": null,
       "date": "20 Jun 2025",
       "excerpt": "The Integrity Data Platform team at Grab rewrote a QPS-heavy Golang microservice in Rust, achieving 70% infrastructure savings while maintaining similar perf..."
@@ -4573,7 +4593,7 @@
     {
       "title": "From failure to success: The birth of GrabGPT, Grab’s internal ChatGPT",
       "url": "/the-birth-of-grab-gpt",
-      "tags": ["Engineering","Optimization","AI","Artificial Intelligence"],
+      "tags": ["Engineering","Optimization","AI"],
       "category": null,
       "date": "19 May 2025",
       "excerpt": "When Grab's Machine Learning team sought to automate support queries, a failed chatbot experiment sparked an unexpected pivot: GrabGPT. Born from the need to..."
@@ -4618,7 +4638,7 @@
     {
       "title": "Improving Hugo stability and addressing oncall challenges through automation",
       "url": "/improving-hugo-stability",
-      "tags": ["Data Pipeline","Data Reliability","Data Observability","Platform","System Architecture"],
+      "tags": ["Database","Data Reliability","Data Observability","Platform","System Architecture"],
       "category": null,
       "date": "20 Mar 2025",
       "excerpt": "Managing 4,000+ data pipelines demanded a smarter approach to stability. We built a comprehensive automation solution that enhances Hugo's monitoring capabil..."
@@ -4645,7 +4665,7 @@
     {
       "title": "Grab AI Gateway: Connecting Grabbers to multiple GenAI providers",
       "url": "/grab-ai-gateway",
-      "tags": ["Engineering","Data Science","Optimization","Generative AI","LLM","Machine Learning"],
+      "tags": ["Engineering","Database","Optimization","Generative AI","LLM","Machine Learning"],
       "category": null,
       "date": "19 Feb 2025",
       "excerpt": "GenAI has become integral to innovation, powering the next generation of AI enabled applications. With easy integration with multiple AI providers, it brings..."
@@ -4735,7 +4755,7 @@
     {
       "title": "Evolution of Catwalk: Model serving platform at Grab",
       "url": "/catwalk-evolution",
-      "tags": ["Machine Learning","Models","Data Science","TensorFlow","Kubernetes","Docker"],
+      "tags": ["Machine Learning","Models","Database","TensorFlow","Kubernetes","Docker"],
       "category": null,
       "date": "1 Oct 2024",
       "excerpt": "Read about the evolution of Catwalk, Grab's model serving platform, from its inception to its current state. Discover how it has evolved to meet the needs of..."
@@ -4744,7 +4764,7 @@
     {
       "title": "Enabling conversational data discovery with LLMs at Grab",
       "url": "/hubble-data-discovery",
-      "tags": ["Data Discovery","AI","Artificial Intelligence","LLM","Documentation","Elasticsearch"],
+      "tags": ["Data Discovery","AI","LLM","Documentation","Elasticsearch"],
       "category": null,
       "date": "26 Sep 2024",
       "excerpt": "Discover how Grab is revolutionising data discovery with the power of AI and LLMs. Dive into our journey as we overcome challenges, build groundbreaking tool..."
@@ -4789,7 +4809,7 @@
     {
       "title": "LLM-powered data classification for data entities at scale",
       "url": "/llm-powered-data-classification",
-      "tags": ["Data","Machine Learning","Generative AI"],
+      "tags": ["Database","Machine Learning","Generative AI"],
       "category": null,
       "date": "15 Jul 2024",
       "excerpt": "With the advent of the Large Language Model (LLM), new possibilities dawned for metadata generation and sensitive data identification at Grab. This prompted ..."
@@ -4825,7 +4845,7 @@
     {
       "title": "Ensuring data reliability and observability in risk systems",
       "url": "/data-observability",
-      "tags": ["Data Science","Security","Risk","Data Observability","Data Reliability"],
+      "tags": ["Database","Security","Risk","Data Observability","Data Reliability"],
       "category": null,
       "date": "23 Apr 2024",
       "excerpt": "As the amount of data Grab handles grows, there is an increased need for quick detections for data anomalies (incompleteness or inaccuracy), while keeping it..."
@@ -4834,7 +4854,7 @@
     {
       "title": "Grab Experiment Decision Engine - a Unified Toolkit for Experimentation",
       "url": "/grabx-decision-engine",
-      "tags": ["Data Science","Experiment","Statistics","Econometrics","Python Package"],
+      "tags": ["Database","Experiment","Statistics","Econometrics","Python Package"],
       "category": null,
       "date": "9 Apr 2024",
       "excerpt": "Explore how the GrabX Decision Engine, an integral part of Grab's Experimentation platform, streamlines the testing of thousands of experimental variants wee..."
@@ -4861,7 +4881,7 @@
     {
       "title": "Enabling near real-time data analytics on the data lake",
       "url": "/enabling-near-realtime-data-analytics",
-      "tags": ["Data Analytics","Stream Processing","Kafka","Real-Time"],
+      "tags": ["Analytics","Stream Processing","Kafka","Real-Time"],
       "category": null,
       "date": "23 Feb 2024",
       "excerpt": "As the data lake landscape matures over the years, it presents opportunities to unlock more business value from the data. This correlates with the increased ..."
@@ -4897,7 +4917,7 @@
     {
       "title": "Kafka on Kubernetes: Reloaded for fault tolerance",
       "url": "/kafka-on-kubernetes",
-      "tags": ["Kafka","Kubernetes","AWS","Data Streaming"],
+      "tags": ["Kafka","Kubernetes","Data Streaming"],
       "category": null,
       "date": "26 Dec 2023",
       "excerpt": "Dive into this insightful post to explore how Coban, Grab's real-time data streaming platform, has drastically enhanced the fault tolerance on its Kafka on K..."
@@ -4915,7 +4935,7 @@
     {
       "title": "Sliding window rate limits in distributed systems",
       "url": "/frequency-capping",
-      "tags": ["Data","Big Data","Rate-Limiting","Frequency Capping","Distributed Systems"],
+      "tags": ["Database","Rate-Limiting","Frequency Capping","Distributed Systems"],
       "category": null,
       "date": "14 Dec 2023",
       "excerpt": "In the field of distributed systems, there are several common challenges, such as rate limiters and fast queries in big data. In this blog post, we delve int..."
@@ -4924,7 +4944,7 @@
     {
       "title": "An elegant platform",
       "url": "/an-elegant-platform",
-      "tags": ["Data","Data Streaming","Real-Time Streaming","Platformization"],
+      "tags": ["Database","Data Streaming","Real-Time Streaming","Platformization"],
       "category": null,
       "date": "30 Nov 2023",
       "excerpt": "Supporting real-time data streaming enables our internal users to build intelligent applications and services, a crucial aspect of continuously out-serving o..."
@@ -4933,7 +4953,7 @@
     {
       "title": "Road localisation in GrabMaps",
       "url": "/road-localisation-grabmaps",
-      "tags": ["Maps","Data","Big Data","Data Processing","Hyperlocalization","GrabMaps"],
+      "tags": ["Maps","Database","Data Processing","Hyperlocalization","GrabMaps"],
       "category": null,
       "date": "17 Nov 2023",
       "excerpt": "With GrabMaps powering the Grab superapp we have the opportunity to improve our services and enhance our map with hyperlocal data. No matter the use case, ro..."
@@ -4942,7 +4962,7 @@
     {
       "title": "Graph modelling guidelines",
       "url": "/graph-modelling-guidelines",
-      "tags": ["Graph Technology","Graphs","Graph Networks","Security","Data"],
+      "tags": ["Graph Technology","Graphs","Graph Networks","Security","Database"],
       "category": null,
       "date": "8 Nov 2023",
       "excerpt": "Graphs are powerful data representations that detect relationships and data linkages between devices. This is very helpful in revealing fraudulent or malicio..."
@@ -4951,7 +4971,7 @@
     {
       "title": "Scaling marketing for merchants with targeted and intelligent promos",
       "url": "/scaling-marketing-for-merchants",
-      "tags": ["Data","Advertising","Scalability","Data Science","Marketing"],
+      "tags": ["Database","Advertising","Scalability","Marketing"],
       "category": null,
       "date": "11 Oct 2023",
       "excerpt": "Apart from ensuring advertisements reach the right audience, it is also important to make promos by merchants more targeted and intelligent to help scale the..."
@@ -4960,7 +4980,7 @@
     {
       "title": "Stepping up marketing for advertisers: Scalable lookalike audience",
       "url": "/scalable-lookalike-audiences",
-      "tags": ["Data","Advertising","Scalability","Data Science","Marketing","Lookalike Audience"],
+      "tags": ["Database","Advertising","Scalability","Marketing","Lookalike Audience"],
       "category": null,
       "date": "22 Sep 2023",
       "excerpt": "A key challenge in advertising is reaching the right audience who are most likely to use your product. Read this article to find out how the Data Science tea..."
@@ -4969,7 +4989,7 @@
     {
       "title": "Building hyperlocal GrabMaps",
       "url": "/building-hyperlocal-grabmaps",
-      "tags": ["Maps","Data","Big Data","Data Processing","Hyperlocalization","GrabMaps","Navigation"],
+      "tags": ["Maps","Database","Data Processing","Hyperlocalization","GrabMaps","Navigation"],
       "category": null,
       "date": "30 Aug 2023",
       "excerpt": "Being hyperlocal is a key advantage for GrabMaps. In this article we will explain what being hyperlocal means and how it helps GrabMaps bring value to our dr..."
@@ -4987,7 +5007,7 @@
     {
       "title": "Unsupervised graph anomaly detection - Catching new fraudulent behaviours",
       "url": "/graph-anomaly-model",
-      "tags": ["Data Science","Graph Networks","Graphs","Graph Visualization","Security","Fraud Detection","Anomaly Detection","Machine Learning"],
+      "tags": ["Database","Graph Networks","Graphs","Graph Visualization","Security","Fraud Detection","Anomaly Detection","Machine Learning"],
       "category": null,
       "date": "2 Aug 2023",
       "excerpt": "As fraudsters continue to evolve, it becomes more challenging to automatically detect new fraudulent behaviours. At Grab, we are committed to continuously im..."
@@ -5140,7 +5160,7 @@
     {
       "title": "Graph for fraud detection",
       "url": "/graph-for-fraud-detection",
-      "tags": ["Analytics","Data Science","Security","Graphs","Graph Visualization","Graph Networks","Fraud Detection"],
+      "tags": ["Analytics","Database","Security","Graphs","Graph Visualization","Graph Networks","Fraud Detection"],
       "category": null,
       "date": "24 Nov 2022",
       "excerpt": "Fraud detection has become increasingly important in a fast growing business as new fraud patterns arise when a business product is introduced. We need a sus..."
@@ -5149,7 +5169,7 @@
     {
       "title": "Query expansion based on user behaviour",
       "url": "/query-expansion-based-on-user-behaviour",
-      "tags": ["Analytics","Data Science"],
+      "tags": ["Analytics","Database"],
       "category": null,
       "date": "16 Nov 2022",
       "excerpt": "User behaviour data is a gold mine to gain insights about users and help us improve user experience. In this blog, we explore a query expansion framework bas..."
@@ -5158,7 +5178,7 @@
     {
       "title": "Using mobile sensor data to encourage safer driving",
       "url": "/using-mobile-sensor-data-to-encourage-safer-driving",
-      "tags": ["Analytics","Driving Patterns","Data Science","GPS","Security"],
+      "tags": ["Analytics","Driving Patterns","Database","GPS","Security"],
       "category": null,
       "date": "25 Oct 2022",
       "excerpt": "Telematics is most commonly used to monitor vehicle movements and track driving safety, profiling, fleet optimisation and possible productivity improvements...."
@@ -5167,7 +5187,7 @@
     {
       "title": "Automatic rule backtesting with large quantities of data",
       "url": "/automatic-rule-backtesting",
-      "tags": ["Testing","Automation","Backtesting","Data Science"],
+      "tags": ["Testing","Automation","Backtesting","Database"],
       "category": null,
       "date": "8 Sep 2022",
       "excerpt": "At Grab, real-time fraud detection is built on a rule engine. As data scientists and analysts, we need to analyse and simulate a rule on historical data to c..."
@@ -5257,7 +5277,7 @@
     {
       "title": "How we reduced our CI YAML files from 1800 lines to 50 lines",
       "url": "/how-we-reduced-our-ci-yaml",
-      "tags": ["CI","Machine Learning","Pipelines","Continuous Integration","Continuous Delivery","Optimization","Rust"],
+      "tags": ["Continuous Integration","Machine Learning","Pipelines","Continuous Delivery","Optimization","Rust"],
       "category": null,
       "date": "19 Apr 2022",
       "excerpt": "GitLab and its tooling are are an integral part of the machine learning platform team stack, for continuous delivery of machine learning. One of our core pro..."
@@ -5284,7 +5304,7 @@
     {
       "title": "How telematics helps Grab to improve safety",
       "url": "/telematics-at-grab",
-      "tags": ["Engineering","Data Science","Driving Patterns","Safety","Analytics"],
+      "tags": ["Engineering","Database","Driving Patterns","Safety","Analytics"],
       "category": null,
       "date": "24 Mar 2022",
       "excerpt": "Coupled with data science, telematics can help to detect traffic events such as harsh braking and unsafe lane changes so we can provide a safer experience fo..."
@@ -5338,7 +5358,7 @@
     {
       "title": "Using real-world patterns to improve matching in theory and practice",
       "url": "/using-real-world-patterns-to-improve-matching",
-      "tags": ["Data Science","Research"],
+      "tags": ["Database","Research"],
       "category": null,
       "date": "22 Nov 2021",
       "excerpt": "Find out how real-world patterns can be used to improve algorithm performance when performing bipartite matching for passengers and driver-partners."
@@ -5356,7 +5376,7 @@
     {
       "title": "Search indexing optimisation",
       "url": "/search-indexing-optimisation",
-      "tags": ["Engineering","Data","Database","Optimization"],
+      "tags": ["Engineering","Database","Optimization"],
       "category": null,
       "date": "27 Sep 2021",
       "excerpt": "Learn about the different optimisation techniques when building a search index."
@@ -5383,7 +5403,7 @@
     {
       "title": "Protecting Personal Data in Grab's Imagery",
       "url": "/protecting-personal-data-in-grabs-imagery",
-      "tags": ["Engineering","Machine Learning","Data","Datasets","Data Science"],
+      "tags": ["Engineering","Machine Learning","Database","Datasets"],
       "category": null,
       "date": "26 Jul 2021",
       "excerpt": "Learn how Grab improves privacy protection to cater to various geographical locations."
@@ -5392,7 +5412,7 @@
     {
       "title": "Processing ETL tasks with Ratchet",
       "url": "/processing-etl-tasks-with-ratchet",
-      "tags": ["Pipelines","Data","ETL","Engineering"],
+      "tags": ["Pipelines","Database","ETL","Engineering"],
       "category": null,
       "date": "19 Jul 2021",
       "excerpt": "Read about what Data and ETL pipelines are and how they are used for processing multiple tasks in the Lending Team at Grab."
@@ -5437,7 +5457,7 @@
     {
       "title": "Our Journey to Continuous Delivery at Grab (Part 2)",
       "url": "/our-journey-to-continuous-delivery-at-grab-part2",
-      "tags": ["Deployment","CI","Continuous Integration","Continuous Deployment","Deployment Process","Continuous Delivery","Multi Cloud","Hermetic Deployments","Automation"],
+      "tags": ["Deployment","Continuous Integration","Continuous Deployment","Deployment Process","Continuous Delivery","Multi Cloud","Hermetic Deployments","Automation"],
       "category": null,
       "date": "10 May 2021",
       "excerpt": "Read more about our long awaited piece on the automation work we have made through integration and hermeticity."
@@ -5464,7 +5484,7 @@
     {
       "title": "One Small Step Closer to Containerising Service Binaries",
       "url": "/reducing-your-go-binary-size",
-      "tags": ["Backend","Engineering","Golang","Cloud-Native Transformations","Containerization","Kubernetes"],
+      "tags": ["Backend","Engineering","Go","Cloud-Native Transformations","Containerization","Kubernetes"],
       "category": null,
       "date": "23 Feb 2021",
       "excerpt": "Learn how Grab is investigating and reducing service binary size for Golang projects."
@@ -5563,7 +5583,7 @@
     {
       "title": "Our Journey to Continuous Delivery at Grab (Part 1)",
       "url": "/our-journey-to-continuous-delivery-at-grab",
-      "tags": ["Deployment","CI","Continuous Integration","Continuous Deployment","Deployment Process","Cloud Agnostic","Spinnaker","Continuous Delivery","Multi Cloud"],
+      "tags": ["Deployment","Continuous Integration","Continuous Deployment","Deployment Process","Cloud Agnostic","Spinnaker","Continuous Delivery","Multi Cloud"],
       "category": null,
       "date": "23 Sep 2020",
       "excerpt": "Continuous Delivery is the principle of delivering software often, everyday. Read more to find out how we implemented continuous delivery at Grab."
@@ -5581,7 +5601,7 @@
     {
       "title": "Securing and Managing Multi-cloud Presto Clusters with Grab’s DataGateway",
       "url": "/data-gateway",
-      "tags": ["Engineering","Presto","Data","Data Pipeline","Access Control","Workload Distribution","Cluster"],
+      "tags": ["Engineering","Presto","Database","Access Control","Workload Distribution","Cluster"],
       "category": null,
       "date": "24 Aug 2020",
       "excerpt": "This blog post discusses how Grab's DataGateway plays a key role in supporting hundreds of users in our entire Presto ecosystem - from managing user access, ..."
@@ -5599,7 +5619,7 @@
     {
       "title": "The Journey of Deploying Apache Airflow at Grab",
       "url": "/the-journey-of-deploying-apache-airflow-at-Grab",
-      "tags": ["Engineering","Data Pipeline","Scheduling","Airflow","Kubernetes","Platform"],
+      "tags": ["Engineering","Database","Scheduling","Airflow","Kubernetes","Platform"],
       "category": null,
       "date": "14 Jul 2020",
       "excerpt": "This blog post shares how we designed and implemented an Apache Airflow-based scheduling and orchestration platform for teams across Grab."
@@ -5626,7 +5646,7 @@
     {
       "title": "Does Southeast Asia Run on Coffee?",
       "url": "/does-southeast-asia-run-on-coffee",
-      "tags": ["Data","Data Analytics","Data Visualization"],
+      "tags": ["Database","Analytics","Data Visualization"],
       "category": null,
       "date": "26 Mar 2020",
       "excerpt": "This blog post shares insights on GrabFood data around how much our fellow Southeast Asians love coffee."
@@ -5635,7 +5655,7 @@
     {
       "title": "GrabChat Much? Talk Data to Me!",
       "url": "/grabchat-much-talk-data-to-me",
-      "tags": ["Data","Data Analytics","Data Visualization"],
+      "tags": ["Database","Analytics","Data Visualization"],
       "category": null,
       "date": "24 Mar 2020",
       "excerpt": "This blog post uncovers some interesting insights from our GrabChat data in Singapore, Malaysia, and Indonesia."
@@ -5644,7 +5664,7 @@
     {
       "title": "7 Fun Facts about Grab’s Driver-Partners in Singapore",
       "url": "/seven-facts-about-grab-driver-partners-in-sg",
-      "tags": ["Data","Data Analytics"],
+      "tags": ["Database","Analytics"],
       "category": null,
       "date": "20 Mar 2020",
       "excerpt": "This blog post shares the most interesting data points from 2019 about our Singapore driver-partners."
@@ -5653,7 +5673,7 @@
     {
       "title": "Tackling UI Test Execution Time Imbalance for Xcode Parallel Testing",
       "url": "/tackling-ui-test-execution-time-imbalance-for-xcode-parallel-testing",
-      "tags": ["Xcode","Testing","Mobile","Parallelism","UI Tests","CI","iOS"],
+      "tags": ["Xcode","Testing","Mobile","Parallelism","UI Tests","Continuous Integration","iOS"],
       "category": null,
       "date": "16 Mar 2020",
       "excerpt": "This blog post introduces how we use Xcode parallel testing to balance test execution time and improve the parallelism of our systems. We also share how we o..."
@@ -5734,7 +5754,7 @@
     {
       "title": "Griffin, an Anti-fraud Risk Rule Engine Making Billions of Predictions Daily",
       "url": "/griffin",
-      "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Data"],
+      "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Database"],
       "category": null,
       "date": "29 Oct 2019",
       "excerpt": "This blog highlights Grab’s high-performance risk rule engine that automates the creation of rules to detect fraudulent activities with minimal efforts by en..."
@@ -5743,7 +5763,7 @@
     {
       "title": "Using Grab’s Trust Counter Service to Detect Fraud Successfully",
       "url": "/using-grabs-trust-counter-service-to-detect-fraud-successfully",
-      "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Data"],
+      "tags": ["Engineering","Anti-Fraud","Security","Fraud Detection","Database"],
       "category": null,
       "date": "21 Oct 2019",
       "excerpt": "This blog introduces Grab’s Trust Counter service for detecting fraud. It explains how the solution was designed so that different stakeholders like data ana..."
@@ -5761,7 +5781,7 @@
     {
       "title": "Data First, SLA Always",
       "url": "/data-first-sla-always",
-      "tags": ["Data Pipeline"],
+      "tags": ["Database"],
       "category": null,
       "date": "2 Aug 2019",
       "excerpt": "Introducing Trailblazer, the Data Engineering team’s solution to implementing change data capture of all upstream databases. In this article, we introduce th..."
@@ -5770,7 +5790,7 @@
     {
       "title": "Save Your Place with Grab!",
       "url": "/save-your-place-with-grab",
-      "tags": ["Maps","Data"],
+      "tags": ["Maps","Database"],
       "category": null,
       "date": "2 Aug 2019",
       "excerpt": "Do you find it tedious to type and search for your destination or have a hard time remembering that address of the friend you are going to meet? Well...Grab ..."
@@ -5779,7 +5799,7 @@
     {
       "title": "No More Forgetting to Input ERP Charges - Hello Automated ERP!",
       "url": "/automated-erp-charges",
-      "tags": ["Data","Maps","Tech"],
+      "tags": ["Database","Maps","Tech"],
       "category": null,
       "date": "31 Jul 2019",
       "excerpt": "Forgetting to input ERP charges was one of the biggest problems faced by our driver-partners. Read our blog to know how went about solving it."
@@ -5797,7 +5817,7 @@
     {
       "title": "Making Grab’s Everyday App Super",
       "url": "/grab-everyday-super-app",
-      "tags": ["Superapp","Feed","Recommendations","Data Science","Machine Learning"],
+      "tags": ["Superapp","Feed","Recommendations","Database","Machine Learning"],
       "category": null,
       "date": "4 Jul 2019",
       "excerpt": "To excel in a heavily diversified market like Southeast Asia, we leverage on the depth of our data to understand what sorts of information users want to see ..."
@@ -5806,7 +5826,7 @@
     {
       "title": "Catwalk: Serving Machine Learning Models at Scale",
       "url": "/catwalk-serving-machine-learning-models-at-scale",
-      "tags": ["Machine Learning","Models","Data Science","TensorFlow"],
+      "tags": ["Machine Learning","Models","Database","TensorFlow"],
       "category": null,
       "date": "3 Jul 2019",
       "excerpt": "This blog post explains why and how we came up with a machine learning model serving platform to accelerate the use of machine learning in Grab."
@@ -5833,7 +5853,7 @@
     {
       "title": "Tourists on GrabChat!",
       "url": "/tourist-chat-data-story",
-      "tags": ["Data","Analytics","Data Analytics"],
+      "tags": ["Database","Analytics"],
       "category": null,
       "date": "23 May 2019",
       "excerpt": "Just over two years ago we introduced GrabChat, Southeast Asia’s first of its kind in-app messaging platform. Since then we’ve added all sorts of useful feat..."
@@ -5842,7 +5862,7 @@
     {
       "title": "Bubble Tea Craze on GrabFood!",
       "url": "/bubble-tea-craze-on-grabfood",
-      "tags": ["Data","Analytics","Data Analytics"],
+      "tags": ["Database","Analytics"],
       "category": null,
       "date": "10 May 2019",
       "excerpt": "Bubble Tea’s popularity on GrabFood has captured our attention and we want to celebrate its fascinating growth with you! We have deep-dived into Grab’s Big D..."
@@ -5851,7 +5871,7 @@
     {
       "title": "Why You Should Organise an Immersion Trip for Your Next Project",
       "url": "/why-you-should-organise-an-immersion-trip-for-your-next-project",
-      "tags": ["Hyperlocal","Immersion"],
+      "tags": ["Hyperlocalization","Immersion"],
       "category": null,
       "date": "7 May 2019",
       "excerpt": "Sherizan Sheikh is a Design Lead at Grab Ventures, an incubation arm that looks at experiences beyond ride-hailing, for example, groceries, healthcare and au..."
@@ -5869,7 +5889,7 @@
     {
       "title": "Guiding You Door-to-Door via Our Superapp!",
       "url": "/poi-entrances-venues-door-to-door",
-      "tags": ["Grab","Data","Tech","Maps","App"],
+      "tags": ["Grab","Database","Tech","Maps","App"],
       "category": null,
       "date": "12 Apr 2019",
       "excerpt": "Insights into how Grab is trying to solve pickup issues when you book from large venues such as airports or malls."
@@ -5887,7 +5907,7 @@
     {
       "title": "How We Harnessed the Wisdom of Crowds to Improve Restaurant Location Accuracy",
       "url": "/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd",
-      "tags": ["Data Science"],
+      "tags": ["Database"],
       "category": null,
       "date": "2 Apr 2019",
       "excerpt": "We questioned some of the estimates that our algorithm for calculating restaurant wait times was making, and found that the \"errors\" were actually useful to ..."
@@ -5932,7 +5952,7 @@
     {
       "title": "Recipe for Building a Widget: How We Helped to “Peak-Shift” Demand by Helping Passengers Understand Travel Trends",
       "url": "/peak-shift-demand-travel-trends",
-      "tags": ["Analytics","Data","Data Analytics"],
+      "tags": ["Analytics","Database"],
       "category": null,
       "date": "7 Mar 2019",
       "excerpt": "We help to “peak-shift” demand by helping passengers understand travel trends with Grab’s data. Curious to know how we empower our passengers to make better ..."
@@ -5950,7 +5970,7 @@
     {
       "title": "How We Simplified Our Data Ingestion & Transformation Process",
       "url": "/data-ingestion-transformation-product-insights",
-      "tags": ["Big Data","Data Pipeline"],
+      "tags": ["Database"],
       "category": null,
       "date": "4 Mar 2019",
       "excerpt": "This blog post describes how Grab built a scalable data ingestion system and how we went from prototyping with Spark Streaming to running a production-grade ..."
@@ -5959,7 +5979,7 @@
     {
       "title": "Understanding Supply & Demand in Ride-hailing Through the Lens of Data",
       "url": "/understanding-supply-demand-ride-hailing-data",
-      "tags": ["Analytics","Data","Data Analytics","Data Visualization","Data Storytelling"],
+      "tags": ["Analytics","Database","Data Visualization","Data Storytelling"],
       "category": null,
       "date": "21 Feb 2019",
       "excerpt": "Grab aims to ensure that our passengers can get a ride conveniently while providing our drivers better livelihood. To achieve this, balancing demand and supp..."
@@ -5968,7 +5988,7 @@
     {
       "title": "A Lean and Scalable Data Pipeline to Capture Large Scale Events and Support Experimentation Platform",
       "url": "/experimentation-platform-data-pipeline",
-      "tags": ["Big Data","Data Pipeline","Experiment"],
+      "tags": ["Database","Experiment"],
       "category": null,
       "date": "17 Jan 2019",
       "excerpt": "This blog post focuses on the lessons we learned while building our batch data pipeline."
@@ -5986,7 +6006,7 @@
     {
       "title": "Querying Big Data in Real-time with Presto & Grab's TalariaDB",
       "url": "/big-data-real-time-presto-talariadb",
-      "tags": ["Big Data","Real-Time","Database","Presto","TalariaDB"],
+      "tags": ["Database","Real-Time","Presto","TalariaDB"],
       "category": null,
       "date": "2 Jan 2019",
       "excerpt": "In this article, we focus on TalariaDB, a distributed, highly available, and low latency time-series database that stores real-time data. For example, logs, ..."
@@ -6031,7 +6051,7 @@
     {
       "title": "Journey of a Tourist via Grab",
       "url": "/journey-tourist-grab",
-      "tags": ["Analytics","Data","Data Analytics","Tourism","Tourists"],
+      "tags": ["Analytics","Database","Tourism"],
       "category": null,
       "date": "11 Sep 2018",
       "excerpt": "Grab's services to tourists are an integral part of connecting tourists to various destinations and attractions. Do tourists travel on Grab to outlandishly f..."
@@ -6049,7 +6069,7 @@
     {
       "title": "Grab Senior Data Scientist Liuqin Yang Wins Beale-Orchard-Hays Prize",
       "url": "/boh-prize",
-      "tags": ["Data Science","BOH"],
+      "tags": ["Database","BOH"],
       "category": null,
       "date": "20 Jul 2018",
       "excerpt": "Grab Senior Data Scientist Dr. Liuqin Yang wins the 2018 Beale-Orchard-Hays Prize, the highest honor in Computational Mathematical Optimization. He has been ..."
@@ -6067,7 +6087,7 @@
     {
       "title": "Introducing Grab-Kit: Distributed Service Design at Grab",
       "url": "/introducing-grab-kit",
-      "tags": ["Backend","Engineering","Golang"],
+      "tags": ["Backend","Engineering","Go"],
       "category": null,
       "date": "8 Jun 2018",
       "excerpt": "As we evolved from a single monolithic application to a microservices-based architecture, we were faced with a new challenge. How do we support exponential g..."
@@ -6094,7 +6114,7 @@
     {
       "title": "Dealing with the Meltdown Patch at Grab",
       "url": "/dealing-with-the-meltdown-patch-at-grab",
-      "tags": ["AWS","Meltdown"],
+      "tags": ["Meltdown"],
       "category": null,
       "date": "7 Jan 2018",
       "excerpt": "The meltdown attack reported recently had far reaching implications in terms of security as well as performance. This post is a quick rundown of what perform..."
@@ -6103,7 +6123,7 @@
     {
       "title": "GrabShare at the Intelligent Transportation Engineering Conference",
       "url": "/grabshare-at-the-intelligent-transportation-engineering-conference",
-      "tags": ["Data Science","GrabShare"],
+      "tags": ["Database","GrabShare"],
       "category": null,
       "date": "13 Dec 2017",
       "excerpt": "We're excited to share the publication of our paper GrabShare: The Construction of a Realtime Ridesharing Service, which was Grab's contribution to the Intel..."
@@ -6121,7 +6141,7 @@
     {
       "title": "The Data and Science Behind GrabShare Part I: Verifying Potential and Developing the Algorithm",
       "url": "/the-data-and-science-behind-grabshare-part-i",
-      "tags": ["Data Science","GrabShare"],
+      "tags": ["Database","GrabShare"],
       "category": null,
       "date": "20 Oct 2017",
       "excerpt": "Launching GrabShare was no easy feat. After reviewing the academic literature, we decided to take a different approach and build a new matching algorithm fro..."
@@ -6184,7 +6204,7 @@
     {
       "title": "DNS Resolution in Go and Cgo",
       "url": "/dns-resolution-in-go-and-cgo",
-      "tags": ["Golang","Networking"],
+      "tags": ["Go","Networking"],
       "category": null,
       "date": "25 May 2017",
       "excerpt": "This article is part two of a two-part series. In this article, we will talk about RFC 6724 (3484), how DNS resolution works in Go and Cgo, and finally expla..."
@@ -6193,7 +6213,7 @@
     {
       "title": "Driving Southeast Asia Forward with AWS",
       "url": "/driving-southeast-asia-forward-with-aws",
-      "tags": ["AWS"],
+      "tags": [],
       "category": null,
       "date": "22 May 2017",
       "excerpt": "My name is Arul Kumaravel, VP of Engineering at Grab. Grab's mission is to drive Southeast Asia (SEA) forwards. Today I would like to share with you how AWS ..."
@@ -6202,7 +6222,7 @@
     {
       "title": "How to Go from a Quick Idea to an Essential Feature in Four Steps",
       "url": "/how-to-go-from-a-quick-idea-to-an-essential-feature-in-four-steps",
-      "tags": ["Data Science","Product Management"],
+      "tags": ["Database","Product Management"],
       "category": ["Data Science","Product"],
       "date": "16 May 2017",
       "excerpt": "How do you work within a startup team and build a quick idea into a key feature for an app that impacts millions of people? It's one of those things that is ..."
@@ -6211,7 +6231,7 @@
     {
       "title": "Troubleshooting Unusual AWS ELB 5XX Error",
       "url": "/troubleshooting-unusual-aws-elb-5xx-error",
-      "tags": ["AWS","Networking"],
+      "tags": ["Networking"],
       "category": null,
       "date": "11 May 2017",
       "excerpt": "This article is part one of a two-part series. In this article we explain the ELB 5XX errors which we experience without an apparent reason. We walk you thro..."
@@ -6220,7 +6240,7 @@
     {
       "title": "Scaling Like a Boss with Presto",
       "url": "/scaling-like-a-boss-with-presto",
-      "tags": ["Analytics","AWS","Data","Storage"],
+      "tags": ["Analytics","Database","Storage"],
       "category": null,
       "date": "2 May 2017",
       "excerpt": "A year ago, the data volumes at Grab were much lower than the volume we currently use for data-driven analytics. We had a simple and robust infrastructure in..."
@@ -6274,7 +6294,7 @@
     {
       "title": "This Rocket Ain't Stopping - Achieving Zero Downtime for Rails to Golang API Migration",
       "url": "/zero-downtime-migration",
-      "tags": ["AWS","Golang","Ruby"],
+      "tags": ["Go","Ruby"],
       "category": null,
       "date": "19 Oct 2016",
       "excerpt": "Grab has been transitioning from a Rails + NodeJS stack to a full Golang Service Oriented Architecture. To contribute to a single common code base, we wanted..."
@@ -6301,7 +6321,7 @@
     {
       "title": "Round-robin in Distributed Systems",
       "url": "/round-robin-in-distributed-systems",
-      "tags": ["Backend","Data","Distributed Systems","ELB","Golang"],
+      "tags": ["Backend","Database","Distributed Systems","ELB","Go"],
       "category": null,
       "date": "27 Sep 2016",
       "excerpt": "While working on Grab's Common Data Service (CDS), there was the need to implement client side load balancing between CDS clients and servers. However, I kep..."
@@ -6337,7 +6357,7 @@
     {
       "title": "The Curious Case of the Phantom Instance",
       "url": "/curious-case-of-the-phantom-instance",
-      "tags": ["AWS"],
+      "tags": [],
       "category": null,
       "date": "28 Dec 2015",
       "excerpt": "Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits ..."
