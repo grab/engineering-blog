@@ -5,7 +5,7 @@ title: Guiding You Door-to-Door via Our Superapp!
 date: 2019-04-12 02:08:12
 authors: [neeraj.mishra, pureum.yim, sufyan.selamet, nagur.mohammad, summit.saurav]
 categories: [Product]
-tags: [Grab, Data, Tech, Maps, App]
+tags: [Grab, Database, Tech, Maps, App]
 comments: true
 cover_photo: /img/poi-entrances-venues-door-to-door/cover.png
 excerpt: "Insights into how Grab is trying to solve pickup issues when you book from large venues such as airports or malls."

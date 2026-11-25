@@ -5,7 +5,7 @@ title: "Powering Partner Gateway metrics with Apache Pinot"
 date: 2025-09-23 00:00:10
 authors: [alvis.chew, jasonl.wh]
 categories: [Engineering]
-tags: [Database, Data, Apache]
+tags: [Database, Apache]
 comments: true
 cover_photo: /img/partner-gateway/banner-1.png
 excerpt: "Partner Gateway serves as Grab's secure interface for exposing APIs to third-party entities, facilitating seamless interactions between Grab's hosted services and external consumers. This blog delves into the implementation of Apache Pinot within Partner Gateway for advanced metrics tracking. Discover the challenges, trade-offs, and solutions the team navigated to optimize performance and ensure reliability in this innovative integration."

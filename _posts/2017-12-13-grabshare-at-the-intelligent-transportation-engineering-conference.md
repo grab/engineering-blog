@@ -5,7 +5,7 @@ title: GrabShare at the Intelligent Transportation Engineering Conference
 date: 2017-12-13 06:00:00
 authors: [dominic.widdows]
 categories: [Data Science]
-tags: [Data Science, GrabShare]
+tags: [Database, GrabShare]
 comments: true
 cover_photo: /img/grabshare-at-the-intelligent-transportation-engineering-conference/cover.jpg
 excerpt: "We're excited to share the publication of our paper GrabShare: The Construction of a Realtime Ridesharing Service, which was Grab's contribution to the Intelligent Transportation Engineering Conference in Singapore last month."

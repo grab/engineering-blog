@@ -5,7 +5,7 @@ title: 'Part 1: Simulation-first AI experimentation for ads at Grab'
 date: 2026-11-23 00:00:00
 authors: [abhinav.rai, chongyu.zhou, nguyenminhchau.le, yvonne.wong]
 categories: [Engineering]
-tags: [Artificial Intelligence, Advertising, Simulation, Experimentation, Engineering]
+tags: [AI, Advertising, Simulation, Experiment, Engineering]
 comments: true
 cover_photo: /img/part-1-ads-simulation/banner-img.png
 excerpt: "Grab built an offline ads simulator to replay historical auctions, evaluate bidding, ranking, and pacing strategies against business and user guardrails, and send a smaller set of vetted candidates into live A/B tests."

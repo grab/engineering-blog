@@ -5,7 +5,7 @@ title: Query expansion based on user behaviour
 date: 2022-11-16 00:29:00
 authors: [shuailong.liang, weilun.wu, yuan.meng, simone.wong]
 categories: [Engineering, Data Science]
-tags: [Analytics, Data Science]
+tags: [Analytics, Database]
 comments: true
 cover_photo: /img/query-expansion-based-on-user-behaviour/cover.jpg
 excerpt: "User behaviour data is a gold mine to gain insights about users and help us improve user experience. In this blog, we explore a query expansion framework based on user rewrite behaviour and how it improves user search experience and conversion. "

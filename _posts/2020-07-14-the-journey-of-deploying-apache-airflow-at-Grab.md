@@ -5,7 +5,7 @@ title: The Journey of Deploying Apache Airflow at Grab
 date: 2020-07-14 10:34:40
 authors: [chandulal.kavar]
 categories: [Engineering, Data Science]
-tags: [Engineering, Data Pipeline, Scheduling, Airflow, Kubernetes, Platform]
+tags: [Engineering, Database, Scheduling, Airflow, Kubernetes, Platform]
 comments: true
 cover_photo: /img/the-journey-of-deploying-apache-airflow-at-Grab/cover.png
 excerpt: "This blog post shares how we designed and implemented an Apache Airflow-based scheduling and orchestration platform for teams across Grab."

@@ -5,7 +5,7 @@ title: "The evolution of Grab's machine learning feature store"
 date: 2025-07-24 00:23:00
 authors: [daniel.tai, oscar.cassetti]
 categories: [Engineering]
-tags: [Database, AWS]
+tags: [Database]
 comments: true
 cover_photo: /img/grab-ml-store/banner-figure-1.png
 excerpt: "Learn how Grab is modernising its machine learning platform with a feature table-centric architecture powered by AWS Aurora for Postgres. This shift from a legacy feature fetching system to decentralised deployments enhances performance and user experience, while solving challenges like atomic updates and noisy neighbor issues."

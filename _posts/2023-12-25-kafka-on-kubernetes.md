@@ -5,7 +5,7 @@ title: 'Kafka on Kubernetes: Reloaded for fault tolerance'
 date: 2023-12-26 00:10:10
 authors: [fabrice.harbulot, thang.le]
 categories: [Engineering, Data Science]
-tags: [Kafka, Kubernetes, AWS, Data Streaming]
+tags: [Kafka, Kubernetes, Data Streaming]
 comments: true
 cover_photo: /img/kafka-on-kubernetes/cover.jpeg
 excerpt: "Dive into this insightful post to explore how Coban, Grab's real-time data streaming platform, has drastically enhanced the fault tolerance on its Kafka on Kubernetes design, to ensure seamless operation even amid unexpected disruptions."

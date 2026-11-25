@@ -5,7 +5,7 @@ title: 'Building Jarvis Pro: Route first, answer later'
 date: 2026-08-21 00:00:00
 authors: [christian.coffrant]
 categories: [Engineering]
-tags: [Artificial Intelligence, Engineering, Product, Account Management]
+tags: [AI, Engineering, Product, Account Management]
 comments: true
 cover_photo: /img/jarvis-pro/banner-img.png
 excerpt: "Jarvis Pro routes account-manager questions before answering. This post explains why fluent AI replies are not enough, how routing, memory, and metric reconciliation work, and how we evaluated launch readiness."

@@ -5,7 +5,7 @@ title: "The Data and Science Behind GrabShare Part I: Verifying Potential and De
 date: 2017-10-20 02:30:40
 authors: [muchen.tang]
 categories: [Data Science]
-tags: [Data Science, GrabShare]
+tags: [Database, GrabShare]
 comments: true
 cover_photo: /img/the-data-and-science-behind-grabshare-part-i/cover.png
 excerpt: "Launching GrabShare was no easy feat. After reviewing the academic literature, we decided to take a different approach and build a new matching algorithm from the ground up."

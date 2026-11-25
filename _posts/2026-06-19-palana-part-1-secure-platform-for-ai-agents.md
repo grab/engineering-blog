@@ -5,7 +5,7 @@ title: 'Palana (Part 1): Why Grab built a secure platform for autonomous AI Agen
 date: 2026-06-19 00:00:00
 authors: [kevin.littlejohn]
 categories: [Engineering]
-tags: [Security, Artificial Intelligence, Kubernetes, DevSecOps, Platform, Engineering]
+tags: [Security, AI, Kubernetes, DevSecOps, Platform, Engineering]
 comments: true
 cover_photo: /img/palana-part-1/banner-image.png
 excerpt: "Artificial intelligence (AI) agents are evolving from chat interfaces into autonomous workloads, bringing new security risks. In Part 1, discover why Grab built Palana, a Kubernetes-native platform designed to run AI agents safely. We explore the core design principles behind treating isolation as the unit of trust and how Palana enables secure, self-service developer environments without compromising control."

@@ -5,7 +5,7 @@ title: "Grab Experiment Decision Engine - a Unified Toolkit for Experimentation"
 date: 2024-04-09 02:22:10
 authors: [ruike.zhang, panos.m]
 categories: [Engineering, Data Science]
-tags: [Data Science, Experiment, Statistics, Econometrics, Python Package]
+tags: [Database, Experiment, Statistics, Econometrics, Python Package]
 comments: true
 cover_photo: /img/grabx-decision-engine/cover.jpg
 excerpt: "Explore how the GrabX Decision Engine, an integral part of Grab's Experimentation platform, streamlines the testing of thousands of experimental variants weekly. This blog delves into how this internally open-sourced package institutionalises best practices in experimental efficiency and analytics, thereby ensuring accurate and reliable conclusions from each experiment."

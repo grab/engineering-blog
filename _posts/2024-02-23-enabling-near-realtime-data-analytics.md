@@ -5,7 +5,7 @@ title: "Enabling near real-time data analytics on the data lake"
 date: 2024-02-23 00:22:10
 authors: [shikai.ng, shuguang.xiang]
 categories: [Engineering, Data Science]
-tags: [Data Analytics, Stream Processing, Kafka, Real-Time]
+tags: [Analytics, Stream Processing, Kafka, Real-Time]
 comments: true
 cover_photo: /img/near-realtime-data-analytics/cover.jpg
 excerpt: "As the data lake landscape matures over the years, it presents opportunities to unlock more business value from the data. This correlates with the increased demand for flexible ad-hoc usage of fresh data. This article explores how we implemented data ingestion in Hudi table formats using Flink to meet this business demand."

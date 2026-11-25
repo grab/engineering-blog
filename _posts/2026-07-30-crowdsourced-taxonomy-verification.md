@@ -5,7 +5,7 @@ title: "Crowdsourced taxonomy verification: A feedback-driven framework for refi
 date: 2026-07-30 00:00:00
 authors: [junpeng.niu, jian.lai, xiaoxue.zhang, wenqing.chen]
 categories: [Engineering]
-tags: [Engineering, Data, Search, Machine Learning, LLM, Graphs]
+tags: [Engineering, Database, Search, Machine Learning, LLM, Graphs]
 comments: true
 cover_photo: /img/crowdsource-taxonomy/banner-img.png
 excerpt: "Knowledge graphs power modern search and recommendation systems, but automated construction methods can introduce semantic inaccuracies. This framework verifies KG relationships in real time by injecting candidate edges into live search results and using user feedback to validate semantic truth."

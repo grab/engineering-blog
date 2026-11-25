@@ -5,7 +5,7 @@ title: The Curious Case of the Phantom Instance
 date: 2015-12-28 04:39:00
 authors: [lian.yuanlin]
 categories: [Engineering]
-tags: [AWS]
+tags: []
 cover_photo: /img/phantom-instance/banner-img.png
 comments: true
 excerpt: "Here at the Grab Engineering team, we have built our entire backend stack on top of Amazon Web Services (AWS). Over time, it was inevitable that some habits have started to form when perceiving our backend monitoring statistics."

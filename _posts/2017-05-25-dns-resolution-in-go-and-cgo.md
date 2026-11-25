@@ -5,7 +5,7 @@ title: DNS Resolution in Go and Cgo
 date: 2017-05-24 18:43:40
 authors: [ryan.law]
 categories: [Engineering]
-tags: [Golang, Networking]
+tags: [Go, Networking]
 comments: true
 cover_photo: /img/dns-resolution-in-go-and-cgo/banner-img.png
 excerpt: "This article is part two of a two-part series. In this article, we will talk about RFC 6724 (3484), how DNS resolution works in Go and Cgo, and finally explaining why disabling IPv6 also disables the sorting of IP Addresses."

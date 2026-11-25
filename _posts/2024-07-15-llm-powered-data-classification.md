@@ -5,7 +5,7 @@ title: 'LLM-powered data classification for data entities at scale'
 date: 2024-07-15 00:00:10
 authors: [hualin.liu, stefan.jaro, harvey.li, jerome.tong, andrew.lam, chamal.sapumohotti, feng.cheng, aaqib.kufran]
 categories: [Engineering, Data Science]
-tags: [Data, Machine Learning, Generative AI]
+tags: [Database, Machine Learning, Generative AI]
 comments: true
 cover_photo: /img/llm-powered-data-classification/cover.png
 excerpt: "With the advent of the Large Language Model (LLM), new possibilities dawned for metadata generation and sensitive data identification at Grab. This prompted the inception of our project aimed to integrate LLM classification into our existing data management service. Read to find out how we transformed what used to be a tedious and painstaking process to a highly efficient system and how it has empowered the teams across the organisation."

@@ -5,7 +5,7 @@ title: "Recipe for Building a Widget: How We Helped to “Peak-Shift” Demand b
 date: 2019-03-07 11:55:33
 authors: [pureum.yim, prashant.kumar, raghav.garg, preeti.swati, ajmal.jamal, calvin.c, renrong.weng]
 categories: [Data Science, Engineering, Product, Design]
-tags: [Analytics, Data, Data Analytics]
+tags: [Analytics, Database]
 comments: true
 cover_photo: /img/peak-shift-demand-travel-trends/cover.jpg
 excerpt: "We help to “peak-shift” demand by helping passengers understand travel trends with Grab’s data. Curious to know how we empower our passengers to make better travel decisions? Read on!"

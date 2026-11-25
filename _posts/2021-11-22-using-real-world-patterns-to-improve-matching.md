@@ -5,7 +5,7 @@ title: Using real-world patterns to improve matching in theory and practice
 date: 2021-11-22 00:20:00
 authors: [tenindra.a, victor.liang]
 categories: [Data Science]
-tags: [Data Science, Research]
+tags: [Database, Research]
 comments: true
 cover_photo: /img/using-real-world-patterns-to-improve-matching/cover.png
 excerpt: "Find out how real-world patterns can be used to improve algorithm performance when performing bipartite matching for passengers and driver-partners."

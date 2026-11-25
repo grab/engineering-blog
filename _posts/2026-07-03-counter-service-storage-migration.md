@@ -5,7 +5,7 @@ title: 'Migrating Counter Service storage: Design choices and learnings'
 date: 2026-07-03 00:00:00
 authors: [jialong.loh, riyadh.sharif, runze.cui, yuanzhe.liu]
 categories: [Engineering]
-tags: [Security, Artificial Intelligence, Kubernetes, DevSecOps, Platform, Engineering]
+tags: [Security, AI, Kubernetes, DevSecOps, Platform, Engineering]
 comments: true
 cover_photo: /img/migrating-counter-service/banner.png
 excerpt: "Counter Service powers real-time fraud detection at massive scale, handling billions of requests daily. Learn how we migrated its underlying storage with zero downtime, redesigning the writer data model, incorporating clean data access layer separation on the reader side, building dual read-write path for traffic shadowing and data parity validation, and rolling out traffic gradually while verifying data integrity at every step"

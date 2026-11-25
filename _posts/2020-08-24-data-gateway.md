@@ -5,7 +5,7 @@ title: Securing and Managing Multi-cloud Presto Clusters with Grab’s DataGatew
 date: 2020-08-24 08:12:56
 authors: [vinnson.lee]
 categories: [Engineering, Data Science]
-tags: [Engineering, Presto, Data, Data Pipeline, Access Control, Workload Distribution, Cluster]
+tags: [Engineering, Presto, Database, Access Control, Workload Distribution, Cluster]
 comments: true
 cover_photo: /img/data-gateway/cover.png
 excerpt: "This blog post discusses how Grab's DataGateway plays a key role in supporting hundreds of users in our entire Presto ecosystem - from managing user access, cluster selection, workload distribution, and many more."

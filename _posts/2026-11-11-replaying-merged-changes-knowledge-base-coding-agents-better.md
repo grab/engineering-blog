@@ -5,7 +5,7 @@ title: 'Replaying merged changes: how we test whether a knowledge base makes cod
 date: 2026-11-23 00:00:00
 authors: [sayam.bohra, haotian.mi, victor.huang]
 categories: [Engineering]
-tags: [Artificial Intelligence, Knowledge Base, Coding Agents, Evaluation, Engineering]
+tags: [AI, Knowledge Base, Coding Agents, Evaluation, Engineering]
 comments: true
 cover_photo: /img/coding-agents-better/banner-img.png
 excerpt: "Can a knowledge base make coding agents better? We replayed changes our engineers had already shipped and graded each plan against the real code. Every model we tried did better with it."

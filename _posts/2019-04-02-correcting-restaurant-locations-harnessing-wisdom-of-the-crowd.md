@@ -5,7 +5,7 @@ title: How We Harnessed the Wisdom of Crowds to Improve Restaurant Location Accu
 date: 2019-04-02 07:43:40
 authors: [pravin.kakar]
 categories: [Data Science]
-tags: [Data Science]
+tags: [Database]
 comments: true
 cover_photo: /img/correcting-restaurant-locations-harnessing-wisdom-of-the-crowd/cover.jpeg
 excerpt: "We questioned some of the estimates that our algorithm for calculating restaurant wait times was making, and found that the \"errors\" were actually useful to discover restaurants whose locations had been incorrectly registered in our system. By combining such error signals across multiple orders, we were able to identify correct restaurant locations and amend them to improve the experience for our consumers."

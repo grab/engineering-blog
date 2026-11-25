@@ -5,7 +5,7 @@ title: This Rocket Ain't Stopping - Achieving Zero Downtime for Rails to Golang 
 date: 2016-10-18 18:43:40
 authors: [lian.yuanlin]
 categories: [Engineering]
-tags: [AWS, Golang, Ruby]
+tags: [Go, Ruby]
 comments: true
 cover_photo: /img/zero-downtime-migration/data-comparison.png
 excerpt:

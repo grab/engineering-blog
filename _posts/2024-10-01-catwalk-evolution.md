@@ -5,7 +5,7 @@ title: 'Evolution of Catwalk: Model serving platform at Grab'
 date: 2024-10-01 00:00:50
 authors: [vishal.sharma, wenbo.wei, siddharth.pandey, daniel.tai, bjorn.jee]
 categories: [Engineering, Data Science]
-tags: [Machine Learning, Models, Data Science, TensorFlow, Kubernetes, Docker]
+tags: [Machine Learning, Models, Database, TensorFlow, Kubernetes, Docker]
 comments: true
 cover_photo: /img/catwalk-evolution/cover.png
 excerpt: "Read about the evolution of Catwalk, Grab's model serving platform, from its inception to its current state. Discover how it has evolved to meet the needs of Grab's growing machine learning model serving requirements."
