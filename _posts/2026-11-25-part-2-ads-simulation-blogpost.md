@@ -5,7 +5,7 @@ title: 'Part 2: Generative bidders for ads at Grab'
 date: 2026-11-25 00:00:00
 authors: [abhinav.rai, yvonne.wong, nguyenminhchau.le, chongyu.zhou]
 categories: [Engineering]
-tags: [Artificial Intelligence, Advertising, Simulation, Machine Learning, Engineering]
+tags: [AI, Advertising, Simulation, Machine Learning, Engineering]
 comments: true
 cover_photo: /img/part-2-ads-simulation/banner-img.png
 excerpt: "Grab Ads trains a generative bidder to plan merchant budget pacing over a future window. A simulator and a Ray training loop generate, align, validate, and stress-test those plans before a live experiment."
